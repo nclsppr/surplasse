@@ -15,7 +15,7 @@ Le projet n'a pas encore de code applicatif. La marque est définie ; son intég
 
 ## Direction : Bistro premium
 
-Un menu typographique monochrome : **ivoire premium**, **encre espresso**, un seul accent **orange international / terracotta**, et un **vert bouteille** dosé pour la structure fine. Aplats, pas de dégradés. Coins quasi droits, esprit imprimé. Le produit s'efface, la carte parle.
+Un menu typographique monochrome : **ivoire premium**, **encre espresso**, un seul accent **orange international / terracotta**, et un **petrol** (sarcelle profond) dosé pour la structure fine. Aplats, pas de dégradés. Coins quasi droits, esprit imprimé. Le produit s'efface, la carte parle.
 
 ## Logo
 
@@ -45,7 +45,7 @@ Signature : les titres `h1, h2, h3` sont en capitales Archivo 800 **couleur acce
 
 ## Palette
 
-Palette « Bistro premium », définie par les tokens de `brand/tokens/colors.css`. Un seul accent : l'orange garde la vedette, le vert bouteille ne sert que la structure fine (entêtes, liens, tags, statuts calmes), jamais un CTA ni un titre.
+Palette « Bistro premium », définie par les tokens de `brand/tokens/colors.css`. Un seul accent : l'orange garde la vedette, le petrol ne sert que la structure fine (entêtes, liens, tags, statuts calmes), jamais un CTA ni un titre. Le petrol (teinte 204deg) a été choisi pour se distinguer nettement du vert de succès sémantique, sur analyse OKLCH.
 
 | Rôle | Token | Valeur |
 |---|---|---|
@@ -58,7 +58,7 @@ Palette « Bistro premium », définie par les tokens de `brand/tokens/colors.cs
 | Accent survol / pressé | `--accent-hover` / `--accent-press` | `#cf3a12` / `#b02f0c` |
 | Sur accent (texte ivoire) | `--on-accent` | `#fff7ef` |
 | Soutien (sable) | `--peach` | `#f3d5bd` |
-| Structure (vert bouteille) | `--green` | `#1e5c46` |
+| Structure (petrol) | `--green` | `#14595f` |
 | Succès | `--ok` | `#256b52` |
 | Ligne fine | `--line-1` | espresso 12% |
 

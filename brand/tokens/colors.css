@@ -33,13 +33,14 @@
   --peach: #f3d5bd;
   --peach-tint: rgba(243, 213, 189, 0.4);
 
-  /* Structure : vert bouteille (dosé : entêtes, liens, statuts calmes) */
-  --green: #1e5c46;
-  --green-hover: #174838;
-  --green-tint: rgba(30, 92, 70, 0.08);
-  --green-tint-strong: rgba(30, 92, 70, 0.16);
-  --on-green: #eef6ef;
-  --line-green: rgba(30, 92, 70, 0.4);
+  /* Structure : petrol / sarcelle profond (dosé : entêtes, liens, statuts calmes) */
+  /* Teinte 204deg, distincte du vert de succès pour éviter la collision (analyse OKLCH). */
+  --green: #14595f;
+  --green-hover: #104a50;
+  --green-tint: rgba(20, 89, 95, 0.08);
+  --green-tint-strong: rgba(20, 89, 95, 0.16);
+  --on-green: #e9f4f4;
+  --line-green: rgba(20, 89, 95, 0.4);
 
   /* Sémantiques */
   --ok: #256b52;
@@ -104,12 +105,12 @@
   --on-accent: #2a0f05;
   --peach: #e0b28d;
   --peach-tint: rgba(224, 178, 141, 0.18);
-  --green: #63b193;
-  --green-hover: #7cc3a7;
-  --green-tint: rgba(99, 177, 147, 0.12);
-  --green-tint-strong: rgba(99, 177, 147, 0.22);
-  --on-green: #0c1f17;
-  --line-green: rgba(99, 177, 147, 0.45);
+  --green: #62b2ba;
+  --green-hover: #7cc4cb;
+  --green-tint: rgba(98, 178, 186, 0.12);
+  --green-tint-strong: rgba(98, 178, 186, 0.22);
+  --on-green: #08201f;
+  --line-green: rgba(98, 178, 186, 0.45);
   --ok: #63b193;
   --ok-tint: rgba(99, 177, 147, 0.14);
   --line-1: rgba(246, 236, 221, 0.1);
