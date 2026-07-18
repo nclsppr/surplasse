@@ -342,13 +342,6 @@ export function exists(json: any, key: string) {
     return value !== null && value !== undefined;
 }
 
-export function mapValues(data: any, fn: (item: any) => any) {
-    const result: { [key: string]: any } = {};
-    for (const key of Object.keys(data)) {
-        result[key] = fn(data[key]);
-    }
-    return result;
-}
 
 export function canConsumeForm(consumes: Consume[]): boolean {
     for (const consume of consumes) {

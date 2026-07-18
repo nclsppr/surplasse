@@ -1,0 +1,39 @@
+/*
+ * Design system tokens consumed by the frontends, sourced from
+ * brand/tokens/colors.css (Bistro premium). The establishment theme of the
+ * Commande frontend overrides these variables at runtime, without rebuild
+ * (ADR-0012). Keep in sync with brand/ when the palette evolves.
+ */
+:root {
+  /* Surfaces (ivoires) */
+  --surface-page: #f6efe0;
+  --surface-card: #fbf7ec;
+  --surface-raised: #fffef8;
+  --surface-sunken: #ebe1cc;
+
+  /* Encre (espresso chaud) */
+  --text-body: #2b2118;
+  --text-secondary: #55483a;
+  --text-muted: #857463;
+  --text-faint: #b3a48f;
+
+  /* Accent : orange international / terracotta */
+  --accent: #e8481c;
+  --accent-hover: #cf3a12;
+  --accent-press: #b02f0c;
+  --accent-tint: rgba(232, 72, 28, 0.08);
+  --on-accent: #fff7ef;
+
+  /* Structure : petrol */
+  --structure: #14595f;
+  --structure-tint: rgba(20, 89, 95, 0.08);
+  --on-structure: #e9f4f4;
+
+  /* Lignes et ombres */
+  --line-1: rgba(43, 33, 24, 0.12);
+  --line-2: rgba(43, 33, 24, 0.22);
+  --shadow-card: 0 1px 0 rgba(43, 33, 24, 0.04), 0 4px 16px rgba(43, 33, 24, 0.06);
+
+  /* Focus */
+  --focus-ring: 0 0 0 2px var(--surface-page), 0 0 0 4px var(--accent);
+}

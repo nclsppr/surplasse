@@ -89,7 +89,7 @@ generate("jaxrs-spec", "backend/contract", [
 
 rmSync(join(root, "frontends", "shared", "src", "api", "generated"), { recursive: true, force: true });
 generate("typescript-fetch", "frontends/shared/src/api/generated", [
-  "--additional-properties", "supportsES6=true",
+  "--additional-properties", "supportsES6=true,withoutRuntimeChecks=true",
 ]);
 
 console.log("Generation done: backend/contract/ and frontends/shared/src/api/generated/.");

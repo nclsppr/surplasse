@@ -1,0 +1,25 @@
+{
+  "name": "@surplasse/shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Surplasse shared package: generated API client, design system bricks, query keys, transverse utilities. Consumed as TypeScript source (ADR-0014).",
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles/tokens.css": "./src/styles/tokens.css"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "check": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "^5.0.0",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "^5.59.0",
+    "react": "^19.1.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.0.0"
+  }
+}

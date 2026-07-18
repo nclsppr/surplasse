@@ -1,0 +1,10 @@
+@import "tailwindcss";
+@import "@surplasse/shared/styles/tokens.css";
+
+body {
+  background: var(--surface-page);
+  color: var(--text-body);
+  font-family:
+    -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}

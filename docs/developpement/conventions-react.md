@@ -9,7 +9,7 @@ description: Conventions de code des frontends React de Surplasse, structure par
 
 Cette page fixe les conventions de code communes aux trois frontends React (Onboarding, Commande, Dashboard) et au package partagé `frontends/shared/`. Elle complète la [vue d'ensemble des frontends](../architecture/frontends.md) et s'appuie sur [le contrat OpenAPI](../architecture/api.md), source de vérité des types d'API.
 
-Le projet n'a pas encore de code applicatif : ces conventions décrivent la cible de référence. Elles s'appliqueront dès la première ligne de code front, et les points explicitement signalés comme « à trancher » feront l'objet d'un ADR sous `docs/decisions/` au moment de leur première mise en pratique.
+Ces conventions s'appliquent au code front depuis la phase 1 (`frontends/shared/` et le front Commande). Les points explicitement signalés comme « à trancher » feront l'objet d'un ADR sous `docs/decisions/` au moment de leur première mise en pratique. La liaison du package partagé est actée par l'[ADR-0014](../decisions/adr-0014-liaison-shared.md). La détection de code mort passe par ESLint (`@typescript-eslint/no-unused-vars`), pas par `tsc` : le client généré en est ainsi exempté sans affaiblir le code écrit main.
 
 ## Structure de dossiers par feature
 
@@ -130,6 +130,13 @@ Chaque requête gère explicitement ses trois états : chargement, erreur, succ�
 ### SSE et cache Query
 
 Côté Dashboard, le flux SSE du backend (nouvelles commandes, changements de statut) alimente directement le cache Query : à la réception d'un événement, le code met à jour les données en cache (`setQueryData`) ou invalide la clé concernée. Les composants du Dashboard ne consomment jamais le flux SSE directement : ils lisent le cache Query comme pour n'importe quelle donnée, et le temps réel reste un détail d'implémentation du hook qui gère la connexion SSE. Le détail du flux est décrit dans la [page frontends](../architecture/frontends.md).
+
+## Résolution de l'établissement (front Commande)
+
+Le front Commande sert un établissement à la fois. Le slug est résolu une fois au démarrage, dans `app/` (fonction `resolveEstablishmentSlug`) :
+
+- **En production**, le slug est le sous-domaine du mini-site (`{slug}.surplasse.com`). Les sous-domaines réservés (`www`, `dashboard`, `api`, `docs`) et les hôtes hors plateforme ne sont jamais traités comme des établissements.
+- **En développement** (localhost), le slug vient de la variable d'environnement `VITE_ESTABLISHMENT_SLUG`, avec l'établissement de démonstration (`le-cormoran`, seedé par Flyway) comme valeur par défaut : cloner, lancer, la carte s'affiche.
 
 ## Formulaires
 

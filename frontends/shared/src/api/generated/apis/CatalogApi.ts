@@ -19,14 +19,6 @@ import type {
   Problem,
   PublicMenu,
 } from '../models/index';
-import {
-    EstablishmentPublicFromJSON,
-    EstablishmentPublicToJSON,
-    ProblemFromJSON,
-    ProblemToJSON,
-    PublicMenuFromJSON,
-    PublicMenuToJSON,
-} from '../models/index';
 
 export interface GetEstablishmentPublicRequest {
     slug: string;
@@ -68,7 +60,7 @@ export class CatalogApi extends runtime.BaseAPI {
             query: queryParameters,
         }, initOverrides);
 
-        return new runtime.JSONApiResponse(response, (jsonValue) => EstablishmentPublicFromJSON(jsonValue));
+        return new runtime.JSONApiResponse(response);
     }
 
     /**
@@ -107,7 +99,7 @@ export class CatalogApi extends runtime.BaseAPI {
             query: queryParameters,
         }, initOverrides);
 
-        return new runtime.JSONApiResponse(response, (jsonValue) => PublicMenuFromJSON(jsonValue));
+        return new runtime.JSONApiResponse(response);
     }
 
     /**

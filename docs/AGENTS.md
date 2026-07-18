@@ -206,7 +206,7 @@ surplasse/
 └── .github/workflows/       # CI/CD
 ```
 
-Aujourd'hui existent `docs/`, `brand/`, la préfiguration statique de l'Onboarding, le contrat `api/openapi.yaml` (lint Spectral, chaîne de génération, ADR-0013) et le squelette Backend (`common`, `contract`, `catalog`, `application`). Le reste est créé au fil de la roadmap.
+Aujourd'hui existent `docs/`, `brand/`, la préfiguration statique de l'Onboarding, le contrat `api/openapi.yaml` (lint Spectral, chaîne de génération, ADR-0013), le squelette Backend (`common`, `contract`, `catalog`, `application`), le package `frontends/shared/` et le front Commande. Le reste est créé au fil de la roadmap.
 
 ## Exécution multi-plateformes
 
