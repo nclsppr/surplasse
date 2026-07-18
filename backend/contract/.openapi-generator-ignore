@@ -1,0 +1,7 @@
+# Files the jaxrs-spec generator would emit but that the contract module
+# does not want: the module only holds generated interfaces and DTOs, the
+# JAX-RS application class belongs to the application module.
+README.md
+src/main/openapi/**
+src/main/java/com/surplasse/contract/RestApplication.java
+src/main/java/com/surplasse/contract/RestResourceRoot.java

@@ -1,0 +1,13 @@
+.openapi-generator-ignore
+apis/CatalogApi.ts
+apis/index.ts
+index.ts
+models/EstablishmentPublic.ts
+models/MenuCategory.ts
+models/MenuOption.ts
+models/MenuOptionGroup.ts
+models/MenuProduct.ts
+models/Problem.ts
+models/PublicMenu.ts
+models/index.ts
+runtime.ts

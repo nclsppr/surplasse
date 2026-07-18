@@ -61,6 +61,18 @@ paths:
                 name: Le Cormoran
                 slug: le-cormoran
                 address: 12 quai des Belges, 13001 Marseille
+        "400":
+          description: The slug is syntactically invalid.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/validation-error
+                title: Validation error
+                status: 400
+                detail: "Path parameter 'slug' does not match the expected pattern."
+                instance: /v1/establishments/Le%20Cormoran/public
         "404":
           description: No establishment matches this slug.
           content:
@@ -136,6 +148,18 @@ paths:
                                 name: Bien cuit
                                 extraCostCents: 0
                                 available: true
+        "400":
+          description: The slug is syntactically invalid.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/validation-error
+                title: Validation error
+                status: 400
+                detail: "Path parameter 'slug' does not match the expected pattern."
+                instance: /v1/establishments/Le%20Cormoran/menu
         "404":
           description: No establishment matches this slug, or it has no published menu.
           content:
