@@ -61,7 +61,8 @@ nvm use
 npm install
 
 # 3. Dépendances par application (au fil des besoins)
-cd frontends/commande && npm install     # idem pour dashboard/ et onboarding/
+cd frontends/shared && npm install       # une fois : le paquet partagé, consommé en source
+cd frontends/commande && npm install     # idem pour dashboard/ et onboarding/ à leur création
 cd backend && ./mvnw dependency:resolve  # optionnel, quarkus:dev le fait aussi
 ```
 

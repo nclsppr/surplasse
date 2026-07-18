@@ -38,7 +38,12 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: frontends/commande/package-lock.json
+          cache-dependency-path: |
+            frontends/commande/package-lock.json
+            frontends/shared/package-lock.json
+      # shared est consommé en source (ADR-0014) : ses dépendances de
+      # développement doivent être installées pour le typecheck du front.
+      - run: npm ci --prefix ../shared
       - run: npm ci
       - run: npm run lint
       - run: npm test

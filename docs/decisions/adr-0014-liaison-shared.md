@@ -33,7 +33,7 @@ La question a deux volets : comment npm résout `@surplasse/shared` depuis chaqu
 
 Nous retenons la **dépendance `file:../shared` consommée en source TypeScript**, parce que c'est le seul montage qui respecte l'indépendance de chaque application sans introduire ni étape de build ni workspace :
 
-- Chaque front déclare `"@surplasse/shared": "file:../shared"` dans ses `dependencies`. `npm install` dans le front crée le lien symbolique et installe les dépendances propres de `shared/`.
+- Chaque front déclare `"@surplasse/shared": "file:../shared"` dans ses `dependencies`. `npm install` dans le front crée le lien symbolique ; `shared/` s'installe une fois (`npm install` dans `frontends/shared/`) pour ses dépendances de développement, nécessaires au typecheck des fronts qui le consomment en source.
 - `shared/` est un **paquet interne source** : son `exports` pointe vers `src/index.ts`. Vite (dev et build) et Vitest transforment ce TypeScript comme celui du front ; `tsc --noEmit` du front le vérifie dans la même passe.
 - `shared/` déclare `react` et `@tanstack/react-query` en **`peerDependencies`** : une seule instance de chaque, celle du front hôte.
 - `shared/` n'a pas de version significative (`0.0.0`) : dans un monorepo à branche unique, la version de `shared/` est le commit.
