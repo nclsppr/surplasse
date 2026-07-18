@@ -143,7 +143,7 @@ Deux règles non négociables :
 - **Versions figées.** Les versions des générateurs sont épinglées dans la configuration du script. Une montée de version de générateur est un commit dédié, avec régénération complète et vérification que le diff généré est compris.
 - **Le code généré ne s'édite jamais à la main.** Toute divergence souhaitée passe par le contrat ou par la configuration du générateur. Le code généré n'est pas testé non plus : voir [la stratégie de tests](./tests.md).
 
-Le choix des outils de génération (générateur de client TypeScript, générateur d'interfaces Quarkus) reste à figer dans un ADR ; le contrat, lui, est écrit pour être générateur-agnostique.
+Les outils de génération sont figés par l'[ADR-0013](../decisions/adr-0013-generateurs-openapi.md) : OpenAPI Generator seul (`jaxrs-spec` vers `backend/contract/`, `typescript-fetch` vers `frontends/shared/src/api/generated/`), version épinglée dans `openapitools.json`. Le contrat, lui, reste écrit pour être générateur-agnostique.
 
 ## Pages liées
 

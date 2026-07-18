@@ -28,7 +28,7 @@ Les fonctionnalités visées par chaque phase sont détaillées dans [le catalog
 
 ## Phase 0 : Fondations
 
-**Période indicative : juillet 2026. Statut : en cours.**
+**Période indicative : juillet 2026. Statut : terminée le 2026-07-18.**
 
 ### Objectif
 
@@ -59,6 +59,8 @@ Les fonctionnalités visées par chaque phase sont détaillées dans [le catalog
 La documentation est publiée, couvre l'ensemble de l'arborescence prévue, et sert effectivement de référence : toute question sur le produit ou l'architecture trouve sa réponse dans une page.
 
 ## Phase 1 : Le contrat et les squelettes
+
+**Statut : en cours depuis le 2026-07-18.**
 
 ### Objectif
 

@@ -204,14 +204,14 @@ Le découpage exact des endpoints reste à trancher au moment de la rédaction d
 
 | Outil | Rôle | Statut |
 |---|---|---|
-| openapi-generator | Génération des interfaces Java (générateur `jaxrs-spec` ou équivalent Quarkus) et du client TypeScript (`typescript-fetch` ou `typescript`) | Générateurs exacts à figer lors de la mise en place |
-| Spectral | Lint du contrat avec un jeu de règles committé dans `api/` | Jeu de règles à écrire avec le premier contrat |
-| oasdiff | Contrôle de compatibilité entre la version committée et la version proposée, en CI | À brancher dans GitHub Actions |
+| openapi-generator | Génération des interfaces Java (`jaxrs-spec`) et du client TypeScript (`typescript-fetch`) | Figé par l'[ADR-0013](../decisions/adr-0013-generateurs-openapi.md) |
+| Spectral | Lint du contrat avec un jeu de règles committé dans `api/` | Jeu de règles committé (`api/.spectral.yaml`) |
+| oasdiff | Contrôle de compatibilité entre la version committée et la version proposée, en CI | Branché dans GitHub Actions |
 
 Trois garde-fous automatiques encadrent donc le contrat : le lint garantit la cohérence de style (nommage, descriptions obligatoires, codes d'erreur déclarés), le contrôle de compatibilité bloque les cassures involontaires, et la génération garantit que le code ne peut pas s'écarter du contrat.
 
-!!! warning Générateurs non figés
-Le choix exact des générateurs (jaxrs-spec côté Java, typescript-fetch côté front) est une intention, pas une décision actée. Il sera figé lors de la mise en place de l'outillage, et consigné dans [les conventions d'API](../developpement/conventions-api.md).
+!!! info Générateurs figés
+Le choix des générateurs (`jaxrs-spec` côté Java, `typescript-fetch` côté front, via OpenAPI Generator seul, versions épinglées) est acté par l'[ADR-0013](../decisions/adr-0013-generateurs-openapi.md). Le détail opérationnel vit dans [les conventions d'API](../developpement/conventions-api.md).
 !!!
 
 ## Webhooks

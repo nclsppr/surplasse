@@ -65,7 +65,7 @@ cd frontends/commande && npm install     # idem pour dashboard/ et onboarding/
 cd backend && ./mvnw dependency:resolve  # optionnel, quarkus:dev le fait aussi
 ```
 
-Le `npm install` racine n'installe que l'outillage de documentation (Retype). Les frontends ont chacun leur propre `package.json` et leurs propres dépendances : il n'y a pas de workspace npm global qui installerait tout d'un coup, chaque application reste installable et lançable indépendamment. Le package partagé `frontends/shared/` est consommé par les trois frontends ; son mode de liaison exact (workspace npm ou lien local) reste à trancher et sera consigné dans un ADR sous [decisions](../decisions/).
+Le `npm install` racine n'installe que l'outillage de documentation (Retype). Les frontends ont chacun leur propre `package.json` et leurs propres dépendances : il n'y a pas de workspace npm global qui installerait tout d'un coup, chaque application reste installable et lançable indépendamment. Le package partagé `frontends/shared/` est consommé par les trois frontends via une dépendance `file:../shared` (lien symbolique npm, paquet consommé en source TypeScript), conformément à l'[ADR-0014](../decisions/adr-0014-liaison-shared.md).
 
 ## Commandes par répertoire
 
