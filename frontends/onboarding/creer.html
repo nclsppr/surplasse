@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="fr" class="theme-light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Créer mon restaurant, Surplasse</title>
+<link rel="stylesheet" href="../../brand/styles.css?v=1">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--surface-page);color:var(--text-body);min-height:100vh;display:flex;flex-direction:column}
+  a{color:inherit}
+  .topbar{border-bottom:1px solid var(--line-1);background:var(--bg-1)}
+  .topbar .in{max-width:640px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:12px}
+  .topbar .wm{font-family:var(--font-script);font-size:26px;color:var(--accent);line-height:1}
+  .topbar .back{margin-left:auto;font:700 12px var(--font-ui);text-transform:uppercase;letter-spacing:.06em;color:var(--fg-3);text-decoration:none}
+  .progress{max-width:640px;margin:0 auto;padding:14px 20px 0;display:flex;gap:6px}
+  .progress .seg{height:4px;flex:1;border-radius:2px;background:var(--bg-0)}
+  .progress .seg.on{background:var(--accent)}
+  main{flex:1;max-width:640px;width:100%;margin:0 auto;padding:24px 20px 48px}
+  .step{display:none}
+  .step.on{display:block;animation:fade .25s ease-out}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  h1{font:800 clamp(24px,7vw,34px)/1.06 var(--font-display);text-transform:uppercase;color:var(--accent);letter-spacing:.01em;margin:8px 0 0}
+  .sub{font:400 15px/1.6 var(--font-ui);color:var(--fg-2);margin:12px 0 24px;max-width:46ch}
+  .actions{display:flex;gap:10px;margin-top:24px}
+  .grow{flex:1}
+  /* dropzone */
+  .drop{border:1.5px dashed var(--line-2);border-radius:var(--radius-md);background:var(--bg-3);
+    padding:32px 20px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
+  .drop:hover{border-color:var(--accent);background:var(--accent-tint)}
+  .drop.filled{border-style:solid;border-color:var(--accent)}
+  .drop .ic{width:42px;height:42px;margin:0 auto 10px;color:var(--accent)}
+  .drop .t{font:700 14px var(--font-ui);text-transform:uppercase;letter-spacing:.05em}
+  .drop .h{font:400 12px var(--font-mono);color:var(--fg-3);margin-top:6px}
+  .thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .thumb{width:56px;height:56px;border-radius:var(--radius-sm);object-fit:cover;border:1px solid var(--line-1)}
+  /* processing */
+  .proc{text-align:center;padding:40px 0}
+  .spin{width:52px;height:52px;border:4px solid var(--accent-tint-strong);border-top-color:var(--accent);border-radius:50%;margin:0 auto 22px;animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .procmsg{font:700 14px var(--font-ui);text-transform:uppercase;letter-spacing:.05em;color:var(--fg-1);min-height:20px}
+  /* menu preview */
+  .estab{font-family:var(--font-script);font-size:32px;color:var(--fg-1);line-height:1;margin-bottom:2px}
+  .cat{display:flex;align-items:center;gap:12px;font:800 var(--display-sm) var(--font-display);text-transform:uppercase;color:var(--accent);letter-spacing:.015em;margin:22px 0 10px}
+  .cat::before,.cat::after{content:"";flex:1;height:1.5px;background:var(--accent)}
+  .cat span{flex:none}
+  .prod{display:flex;justify-content:space-between;gap:14px;padding:11px 0;border-bottom:1.5px solid var(--line-accent)}
+  .prod .pn{font:800 15px var(--font-display);text-transform:uppercase;color:var(--fg-1);letter-spacing:.01em}
+  .prod .pd{font:400 12px var(--font-mono);color:var(--fg-3);margin-top:3px}
+  .prod .pp{font:700 14px var(--font-mono);color:var(--fg-1);white-space:nowrap}
+  .flag{display:inline-flex;align-items:center;gap:6px;font:400 11px var(--font-mono);color:var(--warn);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+  /* success */
+  .done{text-align:center;padding:24px 0}
+  .check{width:64px;height:64px;margin:0 auto 18px;color:var(--accent)}
+  .miniqr{width:150px;height:150px;margin:18px auto 0;display:block;border-radius:var(--radius-md)}
+  input[type=file]{display:none}
+</style>
+</head>
+<body>
+<div class="topbar"><div class="in"><span class="wm">Surplasse</span><a href="index.html" class="back">Retour</a></div></div>
+<div class="progress">
+  <div class="seg on" data-seg="1"></div><div class="seg" data-seg="2"></div>
+  <div class="seg" data-seg="3"></div><div class="seg" data-seg="4"></div>
+</div>
+
+<main>
+  <!-- 1. Nom -->
+  <section class="step on" data-step="1">
+    <div class="eyebrow">Étape 1 sur 4</div>
+    <h1>Comment s'appelle votre restaurant ?</h1>
+    <p class="sub">C'est le nom qui apparaîtra sur votre mini-site et sur vos QR codes.</p>
+    <div class="sp-field">
+      <label for="name">Nom de l'établissement</label>
+      <input class="sp-input" id="name" placeholder="Fiorella" autocomplete="off">
+    </div>
+    <div class="actions">
+      <button class="sp-btn sp-btn--primary sp-btn--lg grow" onclick="next()">Continuer</button>
+    </div>
+  </section>
+
+  <!-- 2. Photo -->
+  <section class="step" data-step="2">
+    <div class="eyebrow">Étape 2 sur 4</div>
+    <h1>Une photo de votre carte suffit.</h1>
+    <p class="sub">Photographiez votre menu papier. Surplasse en extrait les catégories, les produits et les prix. Ajoutez quelques photos de la salle ou des plats si vous voulez.</p>
+    <label class="drop" id="drop">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/><circle cx="12" cy="13" r="3.5"/></svg>
+      <div class="t" id="drop-t">Prendre ou choisir une photo</div>
+      <div class="h">JPG ou PNG, la carte bien lisible</div>
+      <input type="file" id="file" accept="image/*" capture="environment" multiple onchange="onFiles(this)">
+    </label>
+    <div class="thumbs" id="thumbs"></div>
+    <div class="actions">
+      <button class="sp-btn sp-btn--secondary sp-btn--lg" onclick="prev()">Retour</button>
+      <button class="sp-btn sp-btn--primary sp-btn--lg grow" id="toProc" onclick="startExtract()">Analyser ma carte</button>
+    </div>
+  </section>
+
+  <!-- 3. Traitement -->
+  <section class="step" data-step="3">
+    <div class="proc">
+      <div class="spin"></div>
+      <div class="procmsg" id="procmsg">Lecture de votre carte...</div>
+      <p class="sub" style="margin:16px auto 0;text-align:center">L'IA reconnaît les plats, structure les catégories et identifie les prix. Vous relirez tout avant publication.</p>
+    </div>
+  </section>
+
+  <!-- 4. Aperçu + activation -->
+  <section class="step" data-step="4">
+    <div class="eyebrow">Étape 4 sur 4, relecture</div>
+    <h1>Votre carte, prête à relire.</h1>
+    <p class="sub">Surplasse a extrait votre carte. Vérifiez, corrigez si besoin, puis activez votre mini-site. Les éléments incertains sont signalés.</p>
+    <div class="sp-card sp-card--pad" style="margin-top:6px">
+      <div class="estab" id="preview-name">Fiorella</div>
+      <div class="cat"><span>Antipasti</span></div>
+      <div class="prod"><div><div class="pn">Burrata des Pouilles</div><div class="pd">tomates confites, basilic, huile d'olive</div></div><div class="pp">13,00 €</div></div>
+      <div class="prod"><div><div class="pn">Vitello tonnato</div><div class="pd">veau rosé, sauce au thon, câpres</div><div class="flag">à vérifier : prix peu lisible</div></div><div class="pp">14,50 €</div></div>
+      <div class="cat"><span>Pizze</span></div>
+      <div class="prod"><div><div class="pn">Margherita</div><div class="pd">tomate, mozzarella di bufala, basilic</div></div><div class="pp">12,00 €</div></div>
+      <div class="prod"><div><div class="pn">Diavola</div><div class="pd">tomate, mozzarella, salami piquant</div></div><div class="pp">14,00 €</div></div>
+      <div class="cat"><span>Vini in caraffa</span></div>
+      <div class="prod" style="border-bottom:none"><div><div class="pn">Chianti Classico</div><div class="pd">verre (12 cl)</div></div><div class="pp">7,00 €</div></div>
+    </div>
+    <div class="actions">
+      <button class="sp-btn sp-btn--secondary sp-btn--lg">Corriger la carte</button>
+      <button class="sp-btn sp-btn--primary sp-btn--lg grow" onclick="activate()">Activer mon mini-site</button>
+    </div>
+  </section>
+
+  <!-- 5. Succès -->
+  <section class="step" data-step="5">
+    <div class="done">
+      <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg>
+      <h1 style="color:var(--accent)">C'est en ligne.</h1>
+      <p class="sub" style="margin:12px auto 0;text-align:center">Votre mini-site est prêt à recevoir des commandes. Placez le QR code sur vos tables et c'est parti.</p>
+      <img class="miniqr" src="../../brand/qr/qr-demo.png" alt="QR code de votre table">
+      <p style="font:400 12px var(--font-mono);color:var(--fg-3);margin-top:8px" id="preview-url">fiorella.surplasse.com</p>
+      <div class="actions" style="justify-content:center">
+        <a href="index.html" class="sp-btn sp-btn--primary sp-btn--lg" style="text-decoration:none">Ouvrir mon dashboard</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  let step = 1;
+  const total = 5;
+  function render(){
+    document.querySelectorAll('.step').forEach(s => s.classList.toggle('on', +s.dataset.step === step));
+    document.querySelectorAll('.progress .seg').forEach(s => s.classList.toggle('on', +s.dataset.seg <= Math.min(step,4)));
+    window.scrollTo(0,0);
+  }
+  function next(){ if(step<total){ step++; render(); } }
+  function prev(){ if(step>1){ step--; render(); } }
+
+  function onFiles(input){
+    const t = document.getElementById('thumbs'); t.innerHTML='';
+    const drop = document.getElementById('drop');
+    [...input.files].slice(0,6).forEach(f=>{
+      const img=document.createElement('img'); img.className='thumb';
+      img.src=URL.createObjectURL(f); t.appendChild(img);
+    });
+    if(input.files.length){
+      drop.classList.add('filled');
+      document.getElementById('drop-t').textContent = input.files.length+' photo(s) ajoutée(s)';
+    }
+  }
+
+  const MSGS = ["Lecture de votre carte...","Reconnaissance des plats...","Structuration des catégories...","Identification des prix...","Mise en forme de votre menu..."];
+  function startExtract(){
+    // Applique le nom saisi à l'aperçu
+    const name = (document.getElementById('name').value || 'Fiorella').trim();
+    document.getElementById('preview-name').textContent = name;
+    const slug = name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'fiorella';
+    document.getElementById('preview-url').textContent = slug + '.surplasse.com';
+    step = 3; render();
+    let i = 0; const el = document.getElementById('procmsg');
+    const iv = setInterval(()=>{ i++; if(i<MSGS.length){ el.textContent = MSGS[i]; } }, 620);
+    setTimeout(()=>{ clearInterval(iv); step = 4; render(); }, 3200);
+  }
+  function activate(){ step = 5; render(); }
+  render();
+</script>
+</body>
+</html>
