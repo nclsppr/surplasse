@@ -85,7 +85,7 @@ Le dimensionnement initial est volontairement modeste : la charge d'un lancement
 
 L'entretien du système suit la même logique de sobriété :
 
-- Distribution stable, mises à jour de sécurité automatiques ; le reste des mises à jour système se fait manuellement, à intervalle régulier.
+- **Ubuntu LTS** comme distribution, mises à jour de sécurité automatiques ; le reste des mises à jour système se fait manuellement, à intervalle régulier. C'est aussi le système de référence du projet : en cas de comportement divergent entre macOS, Windows et Linux, Ubuntu fait foi.
 - Accès SSH par clé uniquement, deux comptes : un compte d'administration et le compte de déploiement restreint utilisé par la CI (voir [CI/CD](../developpement/ci-cd.md)).
 - Pare-feu : seuls les ports 22, 80 et 443 sont ouverts.
 - Aucun logiciel installé hors Docker, le moteur Docker et l'outillage de sauvegarde exceptés.

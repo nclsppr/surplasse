@@ -46,6 +46,7 @@ Le contrat OpenAPI vit dans `api/openapi.yaml`. Il est la source de vérité : l
 | ORM | Hibernate ORM avec Panache | livré par Quarkus | Repository pattern |
 | Base de données | PostgreSQL | 17 | Une seule base, schémas par domaine si besoin |
 | Migrations | Flyway | livré par Quarkus | Migrations versionnées, jamais de DDL manuel |
+| Stockage objet | MinIO | dernière stable | Compatible S3 ; photos de cartes et visuels de plats, derrière une interface du backend |
 | Temps réel | SSE (Server-Sent Events) | natif Quarkus | WebSockets envisagé plus tard si besoin bidirectionnel |
 | Frontends | React | 19 | TypeScript strict, Vite, un package partagé `frontends/shared/` |
 | État serveur | TanStack Query | 5 | Pas de Redux |
@@ -55,6 +56,8 @@ Le contrat OpenAPI vit dans `api/openapi.yaml`. Il est la source de vérité : l
 | IA | API OpenAI (derrière interface) | modèles courants | Extraction de carte et données publiques (vision) ; génération de visuels de plats à l'embarquement |
 | Impression | Imprimante thermique ESC/POS | à trancher (ADR) | Tickets cuisine optionnels |
 | Docs | Retype | 4.6+ | Ce site ; déployé sur GitHub Pages |
+| Reverse proxy | Caddy | 2.x | TLS wildcard par défi DNS-01, routage par nom d'hôte ; ADR à consigner avec `infra/` |
+| OS de production | Ubuntu | dernière LTS | Le VPS ; en cas de divergence de comportement entre systèmes, Ubuntu fait foi |
 | CI/CD | GitHub Actions | | Déploiement cible : VPS avec Docker Compose |
 | Node | 24 | via nvm | Pour l'outillage frontend et docs |
 
@@ -190,6 +193,7 @@ En prose, les entités métier s'écrivent en minuscule : la commande, un produi
 ```
 surplasse/
 ├── docs/                    # Documentation Retype (ce site)
+├── brand/                   # Charte graphique : tokens, polices, composants, QR
 ├── api/
 │   └── openapi.yaml         # Le contrat, source de vérité de l'API
 ├── backend/                 # Quarkus (Maven multi-modules)
@@ -202,7 +206,13 @@ surplasse/
 └── .github/workflows/       # CI/CD
 ```
 
-Seuls `docs/` et la configuration racine existent aujourd'hui. Le reste est créé au fil de la roadmap.
+Aujourd'hui existent `docs/`, `brand/`, une préfiguration statique de l'Onboarding (deux pages HTML dans `frontends/onboarding/`, publiées sur Pages) et la configuration racine. Le reste est créé au fil de la roadmap.
+
+## Exécution multi-plateformes
+
+Le développement est supporté sur macOS, Windows et Linux. Sous Windows, la référence est WSL2 avec Ubuntu : on y suit les instructions Linux, le développement natif hors WSL2 n'est pas supporté. La production tourne sous Ubuntu LTS sur le VPS : en cas de comportement divergent entre systèmes, Ubuntu fait foi.
+
+**Règle : tout ajout d'un module frontend, d'un module backend ou d'un logiciel tiers (PostgreSQL, MinIO, Caddy, ...) s'accompagne, dans le même commit, de la documentation de son installation et de son lancement sur les trois systèmes.** Côté développement, cela vit dans la page setup (`docs/developpement/index.md`) ; côté production (Ubuntu sur le VPS), dans les pages `docs/operations/`.
 
 ## Arborescence de la documentation
 
@@ -252,4 +262,4 @@ npm run docs:build   # build de vérification (sortie dans docs-site/)
 npm run docs:watch   # serveur local avec rechargement
 ```
 
-Le déploiement est automatique : chaque push sur `main` publie la doc sur GitHub Pages via `.github/workflows/docs.yml`.
+Le déploiement est automatique : chaque push sur `main` publie le site (documentation, landing statique et assets de marque) sur GitHub Pages via `.github/workflows/pages.yml`.

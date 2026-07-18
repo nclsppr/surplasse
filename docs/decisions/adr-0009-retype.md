@@ -60,7 +60,7 @@ Dans la cible :
 - Les sources vivent dans `docs/` au sein du monorepo, en markdown pur. La configuration Retype (`retype.yml`) vit à la racine du dépôt et exclut `docs/AGENTS.md` du build.
 - Chaque page porte un front matter YAML (`label`, `order`, `icon`, `description`) et chaque dossier un `index.yml`, selon les conventions fixées par `docs/AGENTS.md`, reprises de Papers Empire.
 - Le build passe par `npm run docs:build` et doit réussir avant tout push touchant `docs/`, conformément au [workflow git](../developpement/workflow-git.md).
-- La publication est automatique : chaque push sur `main` déclenche `.github/workflows/docs.yml`, qui construit le site et le publie sur GitHub Pages.
+- La publication est automatique : chaque push sur `main` déclenche `.github/workflows/pages.yml`, qui construit le site et le publie sur GitHub Pages.
 
 ```
 Rédaction            Vérification              Publication
@@ -68,7 +68,7 @@ Rédaction            Vérification              Publication
  docs/*.md  --->  npm run docs:build  --->  push sur main
                   (build local, échec         |
                    franc si problème)         v
-                                     GitHub Actions (docs.yml)
+                                     GitHub Actions (pages.yml)
                                               |
                                               v
                                         GitHub Pages
@@ -85,7 +85,7 @@ Rédaction            Vérification              Publication
 | `index.yml` par dossier (`label`, `order`, `expanded`) | Identique |
 | Liens internes relatifs vers les fichiers `.md` | Identique |
 | Build de vérification obligatoire avant push | Identique, via `npm run docs:build` |
-| Workflow GitHub Actions de publication sur Pages | Repris et adapté dans `.github/workflows/docs.yml` |
+| Workflow GitHub Actions de publication sur Pages | Repris et adapté dans `.github/workflows/pages.yml` |
 | Fichier de conventions exclu du build | `docs/AGENTS.md`, exclu via `retype.yml` |
 
 !!! info Périmètre de la décision

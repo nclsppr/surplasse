@@ -24,9 +24,9 @@ La CI est ce filet. Elle repose sur deux principes :
 La CI ne remplace pas la vérification locale, elle la confirme. Les commandes exécutées par les workflows (build, lint, [tests](tests.md)) sont les mêmes que celles lancées en local : un push ne devrait jamais découvrir un problème que le poste de travail pouvait détecter.
 !!!
 
-## Le workflow docs, seul workflow existant
+## Le workflow Pages, seul workflow existant
 
-Le fichier `.github/workflows/docs.yml` est aujourd'hui le seul workflow du dépôt. Il construit le site Retype et le déploie sur GitHub Pages.
+Le fichier `.github/workflows/pages.yml` est aujourd'hui le seul workflow du dépôt. Il construit le site Retype, l'assemble avec la landing statique (`frontends/onboarding/`) et les assets de marque (`brand/`), et déploie l'ensemble sur GitHub Pages.
 
 | Élément | Valeur |
 |---|---|
@@ -35,7 +35,7 @@ Le fichier `.github/workflows/docs.yml` est aujourd'hui le seul workflow du dép
 | Concurrence | Groupe `pages`, avec annulation des exécutions en cours (`cancel-in-progress`) |
 | Jobs | `build` puis `deploy` (ce dernier conditionné à `main`) |
 
-Le job `build` enchaîne quatre étapes : checkout (`actions/checkout@v4`), installation de Node 24 (`actions/setup-node@v4`), `npm ci`, puis `npm run docs:build`. Le script npm invoque `node node_modules/retypeapp/retype.js` directement plutôt que la commande `retype` : npm 10.9.x ne crée pas le lien `node_modules/.bin/retype` à l'installation, à cause d'une collision de noms de bin avec les paquets plateforme `retypeapp-*`. La sortie du build (`docs-site/`) est publiée comme artefact Pages via `actions/upload-pages-artifact@v3`.
+Le job `build` enchaîne cinq étapes : checkout (`actions/checkout@v4`), installation de Node 24 (`actions/setup-node@v4`), `npm ci`, `npm run docs:build`, puis l'assemblage du site publié (landing et tunnel statiques à la racine, assets de marque sous `brand/`, documentation Retype sous `docs/`). Le script npm invoque `node node_modules/retypeapp/retype.js` directement plutôt que la commande `retype` : npm 10.9.x ne crée pas le lien `node_modules/.bin/retype` à l'installation, à cause d'une collision de noms de bin avec les paquets plateforme `retypeapp-*`. Le site assemblé est publié comme artefact Pages via `actions/upload-pages-artifact@v3`.
 
 Le job `deploy` dépend de `build`, ne s'exécute que si la référence est `refs/heads/main`, cible l'environnement GitHub `github-pages` et publie l'artefact avec `actions/deploy-pages@v4`.
 
@@ -47,7 +47,7 @@ Le monorepo appelle un découpage par filtres de chemins (`paths`) : un push qui
 
 | Workflow | Déclencheur (filtre de chemins) | Étapes |
 |---|---|---|
-| `docs.yml` | `push` sur `main`, chemins `docs/**`, `retype.yml` | Build Retype, déploiement GitHub Pages (workflow existant, décrit ci-dessus) |
+| `pages.yml` | `push` sur `main`, chemins `docs/**`, `retype.yml`, `brand/**` et la landing statique | Build Retype, assemblage du site public (docs, landing, marque), déploiement GitHub Pages (workflow existant, décrit ci-dessus) |
 | `backend.yml` | `push`, chemins `backend/**`, `api/**` | Java 21, cache Maven, génération des interfaces depuis le contrat, compilation, lint (formatage imposé), tests unitaires et d'intégration avec PostgreSQL éphémère |
 | `frontends.yml` | `push`, chemins `frontends/**` (un job par front, filtré sur `frontends/<front>/**` et `frontends/shared/**`) | Node 24, `npm ci`, génération du client TypeScript depuis le contrat, ESLint, `tsc --noEmit`, tests Vitest, build Vite |
 | `api.yml` | `push`, chemins `api/**` | Lint du contrat avec Spectral, puis `oasdiff` entre la version poussée et la version précédente pour détecter les ruptures de compatibilité |
@@ -64,7 +64,7 @@ push sur main
      |         +--> backend.yml     (si backend/ ou api/ touchés)
      |         +--> frontends.yml   (si frontends/ touché)
      |         +--> api.yml         (si api/ touché)
-     |         +--> docs.yml        (si docs/ touché)
+     |         +--> pages.yml       (si docs/ ou brand/ touchés)
      |
      +--> images.yml  (si backend/, frontends/ ou infra/ touchés)
                 |

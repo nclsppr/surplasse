@@ -10,7 +10,7 @@ description: Prérequis, installation, commandes, ports et premier lancement de 
 Cette page est le point d'entrée de la section développement : ce qu'il faut installer sur sa machine, comment cloner et lancer le monorepo, quelles commandes exécuter dans chaque répertoire et comment diagnostiquer les problèmes les plus fréquents. Pour comprendre ce que l'on fait tourner avant de le lancer, lire d'abord la [vue d'ensemble de l'architecture](../architecture/index.md).
 
 !!! info État actuel
-En juillet 2026, seuls la documentation et le squelette du repo existent : `docs/`, le fichier `retype.yml`, le `package.json` racine et la CI de publication des docs. Il n'y a encore ni backend, ni frontends, ni contrat OpenAPI. Cette page décrit la cible de référence, au présent de spécification, et elle est tenue à jour au fil des phases de la [roadmap](../roadmap.md) : à chaque application créée, la section correspondante passe de la cible au réel.
+En juillet 2026, seuls la documentation et la préfiguration du produit existent : `docs/`, la charte graphique `brand/`, la landing statique de l'Onboarding (`frontends/onboarding/`), la configuration racine et la CI de publication (`.github/workflows/pages.yml`). Il n'y a encore ni backend, ni frontends applicatifs, ni contrat OpenAPI. Cette page décrit la cible de référence, au présent de spécification, et elle est tenue à jour au fil des phases de la [roadmap](../roadmap.md) : à chaque application créée, la section correspondante passe de la cible au réel.
 !!!
 
 ## Prérequis
@@ -34,6 +34,18 @@ Précisions :
 - **Maven** : ne jamais dépendre d'un Maven global. Toutes les commandes backend passent par `./mvnw`, qui télécharge la bonne version de Maven au premier appel.
 - **Docker** : indispensable même sans travailler sur l'infra, car les Dev Services de Quarkus s'en servent pour démarrer PostgreSQL automatiquement en développement (voir [le premier lancement](#le-premier-lancement-pas-à-pas)).
 - **Stripe en mode test** : les clés de test (`sk_test_...`, `pk_test_...`) suffisent pour tout le développement. Aucun paiement réel ne transite en local.
+
+### Windows : passer par WSL2
+
+Le tableau ci-dessus couvre macOS et Linux. Sous Windows, la référence est [WSL2](https://learn.microsoft.com/windows/wsl/) avec une distribution Ubuntu : cloner le repo dans le système de fichiers WSL2 et suivre la colonne Linux (nvm, SDKMAN, wrapper Maven), avec Docker Desktop configuré sur le backend WSL2. Le développement natif Windows, hors WSL2, n'est pas supporté : trop d'outils et de scripts supposent un shell POSIX.
+
+Ce choix a un avantage : WSL2 avec Ubuntu, c'est le système de la production. Le VPS tourne sous Ubuntu LTS (voir [Exploitation](../operations/index.md)) ; en cas de comportement divergent entre macOS, Windows et Linux, c'est Ubuntu qui fait foi.
+
+### Chaque nouveau module documente son lancement
+
+!!! warning La règle vaut pour tout ajout
+Tout ajout d'un module frontend, d'un module backend ou d'un logiciel tiers (PostgreSQL, MinIO, Caddy, ...) s'accompagne, dans le même commit, de la mise à jour de cette page : prérequis, installation et lancement sur macOS, Windows (WSL2) et Linux. Côté production (Ubuntu sur le VPS), l'équivalent vit dans les pages [Opérations](../operations/index.md).
+!!!
 
 ## Installation
 
