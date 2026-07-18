@@ -1,0 +1,13 @@
+{
+  "name": "surplasse",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Surplasse : le circuit court de la commande. Monorepo (docs, contrat OpenAPI, backend Quarkus, frontends React).",
+  "scripts": {
+    "docs:build": "node node_modules/retypeapp/retype.js build",
+    "docs:watch": "node node_modules/retypeapp/retype.js watch"
+  },
+  "devDependencies": {
+    "retypeapp": "^4.6.0"
+  }
+}

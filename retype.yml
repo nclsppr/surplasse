@@ -1,0 +1,14 @@
+input: docs
+output: docs-site
+# Requis par Retype 4.x (erreur bloquante sans lui) ; sert de base au sitemap.
+url: https://nclsppr.github.io/surplasse/
+exclude:
+  - "AGENTS.md"
+branding:
+  title: Surplasse Docs
+  label: v0.1
+links:
+  - text: Repo GitHub
+    link: https://github.com/nclsppr/surplasse
+footer:
+  copyright: "© Surplasse"

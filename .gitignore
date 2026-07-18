@@ -1,0 +1,22 @@
+# Dépendances
+node_modules/
+
+# Sorties de build
+docs-site/
+dist/
+target/
+build/
+
+# Environnement
+.env
+.env.*
+!.env.example
+
+# Système
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+*.iml
+.vscode/
