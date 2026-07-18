@@ -57,12 +57,16 @@ rules:
       function: truthy
 
   response-example:
-    description: Every response content of a non-draft operation declares an example.
+    description: Every response content of a non-draft operation declares an example (or named examples).
     severity: error
     given: "$.paths[*][?(@ && @.operationId && @['x-draft'] != true)].responses[*].content[*]"
     then:
-      field: example
-      function: truthy
+      function: schema
+      functionOptions:
+        schema:
+          anyOf:
+            - required: [example]
+            - required: [examples]
 
   no-inline-schema:
     description: Request and response bodies reference named components, never anonymous schemas.

@@ -170,6 +170,288 @@ export interface MenuProduct {
     optionGroups: Array<MenuOptionGroup>;
 }
 /**
+ * An order as seen by the customer: lines frozen at creation (names, prices and options copied from the catalog at that instant), status driven by the kitchen.
+ * 
+ * @export
+ * @interface Order
+ */
+export interface Order {
+    /**
+     * Identifier of the order.
+     * @type {string}
+     * @memberof Order
+     */
+    id: string;
+    /**
+     * Short number displayed to the customer and the staff, unique per establishment and day.
+     * @type {string}
+     * @memberof Order
+     */
+    displayNumber: string;
+    /**
+     * Current status of the order.
+     * @type {string}
+     * @memberof Order
+     */
+    status: OrderStatusEnum;
+    /**
+     * Type of the order.
+     * @type {string}
+     * @memberof Order
+     */
+    type: OrderTypeEnum;
+    /**
+     * Label of the table for on-site orders. Absent for takeaway.
+     * @type {string}
+     * @memberof Order
+     */
+    tableLabel?: string;
+    /**
+     * Lines of the order, frozen at creation.
+     * @type {Array<OrderLine>}
+     * @memberof Order
+     */
+    lines: Array<OrderLine>;
+    /**
+     * Total of the order in cents, sum of the line totals.
+     * @type {number}
+     * @memberof Order
+     */
+    totalCents: number;
+    /**
+     * ISO 4217 currency code.
+     * @type {string}
+     * @memberof Order
+     */
+    currency: string;
+    /**
+     * Non-guessable capability giving access to the tracking page and stream.
+     * @type {string}
+     * @memberof Order
+     */
+    trackingToken: string;
+    /**
+     * Creation timestamp, ISO 8601 UTC.
+     * @type {string}
+     * @memberof Order
+     */
+    createdAt: string;
+}
+
+
+/**
+ * @export
+ */
+export const OrderStatusEnum = {
+    PendingPayment: 'pending_payment',
+    Paid: 'paid',
+    Accepted: 'accepted',
+    Preparing: 'preparing',
+    Ready: 'ready',
+    Served: 'served',
+    PickedUp: 'picked_up',
+    Cancelled: 'cancelled',
+    Refunded: 'refunded'
+} as const;
+export type OrderStatusEnum = typeof OrderStatusEnum[keyof typeof OrderStatusEnum];
+
+/**
+ * @export
+ */
+export const OrderTypeEnum = {
+    OnSite: 'on_site',
+    Takeaway: 'takeaway'
+} as const;
+export type OrderTypeEnum = typeof OrderTypeEnum[keyof typeof OrderTypeEnum];
+
+/**
+ * The validated cart sent by the Commande frontend. The establishment and the table come from the table session; amounts are recomputed server side from the catalog and never trusted from the client.
+ * 
+ * @export
+ * @interface OrderCreationRequest
+ */
+export interface OrderCreationRequest {
+    /**
+     * Type of the order. Only `on_site` is accepted at this stage.
+     * @type {string}
+     * @memberof OrderCreationRequest
+     */
+    type: OrderCreationRequestTypeEnum;
+    /**
+     * Lines of the cart, one per product and option combination.
+     * @type {Array<OrderLineRequest>}
+     * @memberof OrderCreationRequest
+     */
+    lines: Array<OrderLineRequest>;
+}
+
+
+/**
+ * @export
+ */
+export const OrderCreationRequestTypeEnum = {
+    OnSite: 'on_site',
+    Takeaway: 'takeaway'
+} as const;
+export type OrderCreationRequestTypeEnum = typeof OrderCreationRequestTypeEnum[keyof typeof OrderCreationRequestTypeEnum];
+
+/**
+ * A line of an order, snapshot of the product and options at creation time.
+ * @export
+ * @interface OrderLine
+ */
+export interface OrderLine {
+    /**
+     * Product reference; may point to a product later removed from the menu.
+     * @type {string}
+     * @memberof OrderLine
+     */
+    productId: string;
+    /**
+     * Name of the product, frozen at creation.
+     * @type {string}
+     * @memberof OrderLine
+     */
+    productName: string;
+    /**
+     * Unit price in cents, frozen at creation.
+     * @type {number}
+     * @memberof OrderLine
+     */
+    unitPriceCents: number;
+    /**
+     * Quantity ordered.
+     * @type {number}
+     * @memberof OrderLine
+     */
+    quantity: number;
+    /**
+     * Options picked for this line, snapshot with their labels and extra costs.
+     * @type {Array<OrderLineOption>}
+     * @memberof OrderLine
+     */
+    options: Array<OrderLineOption>;
+    /**
+     * Free note for the kitchen. Absent when not provided.
+     * @type {string}
+     * @memberof OrderLine
+     */
+    note?: string;
+    /**
+     * (unit price + extra costs) x quantity, in cents.
+     * @type {number}
+     * @memberof OrderLine
+     */
+    lineTotalCents: number;
+}
+/**
+ * An option picked on a line, snapshot at creation time.
+ * @export
+ * @interface OrderLineOption
+ */
+export interface OrderLineOption {
+    /**
+     * Name of the option group, frozen at creation.
+     * @type {string}
+     * @memberof OrderLineOption
+     */
+    group: string;
+    /**
+     * Name of the option, frozen at creation.
+     * @type {string}
+     * @memberof OrderLineOption
+     */
+    option: string;
+    /**
+     * Extra cost of the option in cents, frozen at creation.
+     * @type {number}
+     * @memberof OrderLineOption
+     */
+    extraCostCents: number;
+}
+/**
+ * One line of the validated cart.
+ * @export
+ * @interface OrderLineRequest
+ */
+export interface OrderLineRequest {
+    /**
+     * Product being ordered.
+     * @type {string}
+     * @memberof OrderLineRequest
+     */
+    productId: string;
+    /**
+     * Quantity ordered.
+     * @type {number}
+     * @memberof OrderLineRequest
+     */
+    quantity: number;
+    /**
+     * Options picked for this line, one entry per picked option, all groups rules enforced server side.
+     * @type {Array<string>}
+     * @memberof OrderLineRequest
+     */
+    optionIds?: Array<string>;
+    /**
+     * Free note for the kitchen, passed along verbatim.
+     * @type {string}
+     * @memberof OrderLineRequest
+     */
+    note?: string;
+}
+/**
+ * The order to open a Stripe payment session for.
+ * @export
+ * @interface PaymentCreationRequest
+ */
+export interface PaymentCreationRequest {
+    /**
+     * Order to pay, at status pending_payment, inside the caller's table session.
+     * @type {string}
+     * @memberof PaymentCreationRequest
+     */
+    orderId: string;
+}
+/**
+ * A Stripe payment session for one order. The client secret feeds the Payment Element; the amount is recomputed server side.
+ * 
+ * @export
+ * @interface PaymentSession
+ */
+export interface PaymentSession {
+    /**
+     * Identifier of the payment attempt.
+     * @type {string}
+     * @memberof PaymentSession
+     */
+    id: string;
+    /**
+     * Order being paid.
+     * @type {string}
+     * @memberof PaymentSession
+     */
+    orderId: string;
+    /**
+     * Amount to pay in cents, recomputed server side.
+     * @type {number}
+     * @memberof PaymentSession
+     */
+    amountCents: number;
+    /**
+     * ISO 4217 currency code.
+     * @type {string}
+     * @memberof PaymentSession
+     */
+    currency: string;
+    /**
+     * Stripe PaymentIntent client secret, consumed by the Payment Element.
+     * @type {string}
+     * @memberof PaymentSession
+     */
+    clientSecret: string;
+}
+/**
  * RFC 9457 Problem Details document, the single error format of the API. The `type` URI is stable and identifies the applicative error.
  * 
  * @export
@@ -238,4 +520,55 @@ export interface PublicMenu {
      * @memberof PublicMenu
      */
     categories: Array<MenuCategory>;
+}
+/**
+ * An anonymous table session. The token is opaque (a server-side reference, not a JWT) and carries no personal data.
+ * 
+ * @export
+ * @interface TableSession
+ */
+export interface TableSession {
+    /**
+     * Opaque session token, sent back in the X-Table-Session header.
+     * @type {string}
+     * @memberof TableSession
+     */
+    token: string;
+    /**
+     * Establishment the session is bound to.
+     * @type {string}
+     * @memberof TableSession
+     */
+    establishmentId: string;
+    /**
+     * Human label of the table, resolved server side from the scanned code.
+     * @type {string}
+     * @memberof TableSession
+     */
+    tableLabel: string;
+    /**
+     * Expiry of the session, sliding while the session is active.
+     * @type {string}
+     * @memberof TableSession
+     */
+    expiresAt: string;
+}
+/**
+ * The context carried by a scanned table QR code.
+ * @export
+ * @interface TableSessionRequest
+ */
+export interface TableSessionRequest {
+    /**
+     * Slug of the establishment, from the mini-site subdomain.
+     * @type {string}
+     * @memberof TableSessionRequest
+     */
+    establishmentSlug: string;
+    /**
+     * Non-guessable table code carried by the QR URL, never a sequential number.
+     * @type {string}
+     * @memberof TableSessionRequest
+     */
+    tableCode: string;
 }

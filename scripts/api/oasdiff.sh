@@ -27,11 +27,17 @@ fi
 BASE_REF="${OASDIFF_BASE_REF:-origin/main}"
 git -C "$ROOT" rev-parse --verify --quiet "$BASE_REF" >/dev/null || BASE_REF="HEAD"
 BASE_FILE="$(mktemp)"
-trap 'rm -f "$BASE_FILE"' EXIT
+HEAD_FILE="$(mktemp)"
+trap 'rm -f "$BASE_FILE" "$HEAD_FILE"' EXIT
 git -C "$ROOT" show "$BASE_REF:api/openapi.yaml" > "$BASE_FILE" 2>/dev/null || {
   echo "No previous version of api/openapi.yaml on $BASE_REF; nothing to compare."
   exit 0
 }
 
-"$BIN" breaking --fail-on WARN "$BASE_FILE" "$ROOT/api/openapi.yaml"
-echo "No breaking change against $BASE_REF."
+# x-draft blocks are ignored by the compatibility check (conventions-api.md):
+# both sides are filtered before diffing.
+node "$ROOT/scripts/api/filter.mjs" "$BASE_FILE" "$BASE_FILE"
+node "$ROOT/scripts/api/filter.mjs" "$ROOT/api/openapi.yaml" "$HEAD_FILE"
+
+"$BIN" breaking --fail-on WARN "$BASE_FILE" "$HEAD_FILE"
+echo "No breaking change against $BASE_REF (drafts excluded)."

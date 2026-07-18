@@ -108,6 +108,12 @@ Les effets du marqueur :
 
 Un bloc `x-draft` n'existe pas pour les consommateurs : personne ne l'implémente, personne ne l'appelle. Retirer le marqueur est l'acte qui rend l'endpoint contractuel, et ce retrait constitue un commit à part entière.
 
+## La convention x-sse
+
+Les endpoints de temps réel (Server-Sent Events) portent l'extension `x-sse: true`. Contrairement à `x-draft`, un bloc `x-sse` est **pleinement contractuel** : lint complet, contrôle de compatibilité, documentation. Il est en revanche **exclu de la génération**, des deux côtés, pour une raison technique assumée : côté backend, un flux SSE Quarkus retourne un `Multi` Mutiny qu'aucune interface générée ne sait exprimer ; côté frontend, le flux est consommé par l'API navigateur `EventSource`, pas par le client généré (c'est d'ailleurs la seule exception à la règle « aucun appel réseau hors du client généré », et elle reste confinée aux hooks SSE). Les resources SSE sont donc écrites à la main, en conformité avec le contrat, et leurs tests d'intégration vérifient cette conformité.
+
+La même logique vaut pour l'extension **`x-raw-body`**, portée par le webhook Stripe : la vérification de signature exige le corps brut de la requête, qu'une interface générée désérialisante ne peut pas fournir. Le bloc reste pleinement contractuel, sa resource est écrite à la main et testée contre le contrat.
+
 ## La génération
 
 La génération des clients et des interfaces passe par un script unique à la racine du monorepo :

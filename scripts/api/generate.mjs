@@ -13,42 +13,11 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
 
+import { filterDrafts } from "./filter.mjs";
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const contractPath = join(root, "api", "openapi.yaml");
 const filteredPath = join(root, "node_modules", ".cache", "surplasse", "openapi.filtered.yaml");
-
-const HTTP_METHODS = ["get", "put", "post", "delete", "patch", "options", "head", "trace"];
-
-function filterDrafts(doc) {
-  for (const [path, item] of Object.entries(doc.paths ?? {})) {
-    for (const method of HTTP_METHODS) {
-      if (item[method]?.["x-draft"] === true) delete item[method];
-    }
-    if (!HTTP_METHODS.some((m) => item[m])) delete doc.paths[path];
-  }
-  for (const section of ["schemas", "parameters", "responses", "requestBodies", "headers"]) {
-    const components = doc.components?.[section] ?? {};
-    for (const [name, component] of Object.entries(components)) {
-      if (component?.["x-draft"] === true) delete components[name];
-    }
-  }
-  // Drop components no longer referenced once drafts are gone (repeat until stable).
-  let changed = true;
-  while (changed) {
-    changed = false;
-    const serialized = JSON.stringify(doc);
-    for (const section of ["schemas", "parameters", "responses", "requestBodies", "headers"]) {
-      const components = doc.components?.[section] ?? {};
-      for (const name of Object.keys(components)) {
-        if (!serialized.includes(`#/components/${section}/${name}`)) {
-          delete components[name];
-          changed = true;
-        }
-      }
-    }
-  }
-  return doc;
-}
 
 function generate(generator, output, extraArgs) {
   execFileSync(

@@ -60,7 +60,7 @@ La documentation est publiée, couvre l'ensemble de l'arborescence prévue, et s
 
 ## Phase 1 : Le contrat et les squelettes
 
-**Statut : en cours depuis le 2026-07-18.**
+**Statut : terminée le 2026-07-18.** Critère de sortie constaté : la carte de démonstration s'affiche de bout en bout, de PostgreSQL au front Commande via l'API conforme au contrat et le client généré.
 
 ### Objectif
 
@@ -94,6 +94,8 @@ Matérialiser l'approche contract-first. Le contrat `api/openapi.yaml` naît ave
 Une carte statique de démonstration s'affiche de bout en bout : les données sortent de PostgreSQL, transitent par l'API du Backend conformément au contrat, et sont rendues par le front Commande via le client généré.
 
 ## Phase 2 : Commander et payer
+
+**Statut : en cours depuis le 2026-07-18.**
 
 ### Objectif
 
