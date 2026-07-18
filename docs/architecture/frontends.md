@@ -37,8 +37,9 @@ Tout ce qui est commun aux trois applications vit dans `frontends/shared/`, cons
 ```
 frontends/shared/
 ├── src/
-│   ├── design-system/     # Composants UI de base, tokens, thème
+│   ├── design-system/     # Composants UI de base, tokens, thème (voir docs design system)
 │   │   ├── tokens/        # Couleurs, typographie, espacements (variables CSS)
+│   │   ├── fonts/         # Polices auto-hébergées (Archivo, Space Mono, Parisienne)
 │   │   └── components/    # Button, Input, Card, Modal, Toast...
 │   ├── api/               # Client TypeScript GÉNÉRÉ depuis le contrat
 │   │   ├── client/        # Fonctions d'appel typées (générées, jamais éditées)
@@ -100,7 +101,7 @@ Au chargement, l'application récupère cette configuration et l'injecte sous fo
 }
 ```
 
-Les composants du design system consomment exclusivement ces variables. Un seul bundle sert donc tous les établissements : le thème est de la donnée, pas du code. Le restaurateur peut ajuster ces valeurs depuis le Dashboard.
+Les composants du design system consomment exclusivement ces variables. Un seul bundle sert donc tous les établissements : le thème est de la donnée, pas du code. Le restaurateur peut ajuster ces valeurs depuis le Dashboard. L'identité de base (logo, polices, palette) est fixée dans [le design system](design-system.md).
 
 ### Résolution du slug par sous-domaine
 
