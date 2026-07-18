@@ -22,7 +22,9 @@ if ! [ -x "$BIN" ]; then
     | tar -xz -C "$CACHE_DIR" oasdiff
 fi
 
-BASE_REF="origin/main"
+# Local runs compare against origin/main; CI passes OASDIFF_BASE_REF=HEAD^
+# (on main, origin/main is already the pushed commit).
+BASE_REF="${OASDIFF_BASE_REF:-origin/main}"
 git -C "$ROOT" rev-parse --verify --quiet "$BASE_REF" >/dev/null || BASE_REF="HEAD"
 BASE_FILE="$(mktemp)"
 trap 'rm -f "$BASE_FILE"' EXIT

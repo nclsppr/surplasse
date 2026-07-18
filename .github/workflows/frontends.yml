@@ -1,0 +1,46 @@
+name: Frontends
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "frontends/**"
+      - "api/**"
+      - ".github/workflows/frontends.yml"
+  workflow_dispatch:
+
+jobs:
+  shared:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontends/shared
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontends/shared/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+
+  commande:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontends/commande
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontends/commande/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      # build inclut la vérification TypeScript (tsc --noEmit)
+      - run: npm run build

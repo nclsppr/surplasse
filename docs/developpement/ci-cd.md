@@ -24,9 +24,9 @@ La CI est ce filet. Elle repose sur deux principes :
 La CI ne remplace pas la vérification locale, elle la confirme. Les commandes exécutées par les workflows (build, lint, [tests](tests.md)) sont les mêmes que celles lancées en local : un push ne devrait jamais découvrir un problème que le poste de travail pouvait détecter.
 !!!
 
-## Le workflow Pages, seul workflow existant
+## Le workflow Pages
 
-Le fichier `.github/workflows/pages.yml` est aujourd'hui le seul workflow du dépôt. Il construit le site Retype, l'assemble avec la landing statique (`frontends/onboarding/`) et les assets de marque (`brand/`), et déploie l'ensemble sur GitHub Pages.
+Le fichier `.github/workflows/pages.yml` construit le site Retype, l'assemble avec la landing statique (`frontends/onboarding/`) et les assets de marque (`brand/`), et déploie l'ensemble sur GitHub Pages.
 
 | Élément | Valeur |
 |---|---|
@@ -39,20 +39,20 @@ Le job `build` enchaîne cinq étapes : checkout (`actions/checkout@v4`), instal
 
 Le job `deploy` dépend de `build`, ne s'exécute que si la référence est `refs/heads/main`, cible l'environnement GitHub `github-pages` et publie l'artefact avec `actions/deploy-pages@v4`.
 
-Ce workflow tourne aujourd'hui à chaque push, quel que soit le contenu du commit. Quand le monorepo accueillera du code applicatif, il recevra un filtre de chemins sur `docs/` comme les autres workflows ci-dessous.
+Ce workflow tourne aujourd'hui à chaque push, quel que soit le contenu du commit. Il recevra un filtre de chemins sur son périmètre comme les autres workflows ci-dessous.
 
-## Les workflows cibles
+## Les workflows
 
-Le monorepo appelle un découpage par filtres de chemins (`paths`) : un push qui ne touche que `frontends/dashboard/` ne doit pas déclencher les tests du backend. Chaque workflow cible correspond à un périmètre de l'[arborescence](../architecture/index.md).
+Le monorepo suit un découpage par filtres de chemins (`paths`) : un push qui ne touche que `frontends/commande/` ne doit pas déclencher les tests du backend. `api.yml`, `backend.yml` et `frontends.yml` existent depuis la phase 1 ; `images.yml` et `deploy.yml` seront créés avec `infra/`.
 
 | Workflow | Déclencheur (filtre de chemins) | Étapes |
 |---|---|---|
-| `pages.yml` | `push` sur `main`, chemins `docs/**`, `retype.yml`, `brand/**` et la landing statique | Build Retype, assemblage du site public (docs, landing, marque), déploiement GitHub Pages (workflow existant, décrit ci-dessus) |
-| `backend.yml` | `push`, chemins `backend/**`, `api/**` | Java 21, cache Maven, génération des interfaces depuis le contrat, compilation, lint (formatage imposé), tests unitaires et d'intégration avec PostgreSQL éphémère |
-| `frontends.yml` | `push`, chemins `frontends/**` (un job par front, filtré sur `frontends/<front>/**` et `frontends/shared/**`) | Node 24, `npm ci`, génération du client TypeScript depuis le contrat, ESLint, `tsc --noEmit`, tests Vitest, build Vite |
-| `api.yml` | `push`, chemins `api/**` | Lint du contrat avec Spectral, puis `oasdiff` entre la version poussée et la version précédente pour détecter les ruptures de compatibilité |
-| `images.yml` | `push` sur `main`, chemins `backend/**`, `frontends/**`, `infra/**` | Build des images Docker (backend et les trois fronts), tag par SHA de commit, push vers le registre (GHCR) |
-| `deploy.yml` | Fin réussie de `images.yml` sur `main`, ou déclenchement manuel avec un SHA en paramètre | Connexion SSH au VPS, `docker compose pull`, `docker compose up -d`, healthcheck post-déploiement |
+| `pages.yml` | `push` sur `main` (filtre de chemins à venir) | Build Retype, assemblage du site public (docs, landing, marque), déploiement GitHub Pages (décrit ci-dessus) |
+| `api.yml` | `push`, chemins `api/**`, `openapitools.json`, `scripts/api/**` | Lint Spectral, contrôle de compatibilité `oasdiff` contre le commit précédent (dérogation par préfixe de commit `api!:`), fraîcheur de la génération (`npm run api:generate` puis `git diff --exit-code`) |
+| `backend.yml` | `push`, chemins `backend/**`, `api/**` | Java 21 Temurin, cache Maven, `./mvnw -B verify` : compilation, tests unitaires et d'intégration (PostgreSQL 17 via Testcontainers, réponses validées contre le contrat), formatage Spotless |
+| `frontends.yml` | `push`, chemins `frontends/**`, `api/**` (un job par paquet : `shared`, `commande` aujourd'hui, les autres fronts à leur création) | Node 24, `npm ci`, ESLint, `tsc --noEmit`, tests Vitest, build Vite |
+| `images.yml` (cible) | `push` sur `main`, chemins `backend/**`, `frontends/**`, `infra/**` | Build des images Docker (backend et les trois fronts), tag par SHA de commit, push vers le registre (GHCR) |
+| `deploy.yml` (cible) | Fin réussie de `images.yml` sur `main`, ou déclenchement manuel avec un SHA en paramètre | Connexion SSH au VPS, `docker compose pull`, `docker compose up -d`, healthcheck post-déploiement |
 
 L'enchaînement sur un push touchant du code applicatif se lit ainsi :
 
@@ -62,7 +62,7 @@ push sur main
      +--> filtres de chemins
      |         |
      |         +--> backend.yml     (si backend/ ou api/ touchés)
-     |         +--> frontends.yml   (si frontends/ touché)
+     |         +--> frontends.yml   (si frontends/ ou api/ touchés)
      |         +--> api.yml         (si api/ touché)
      |         +--> pages.yml       (si docs/ ou brand/ touchés)
      |

@@ -1,0 +1,27 @@
+name: Backend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+      - "api/**"
+      - ".github/workflows/backend.yml"
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+      # verify enchaîne compilation, tests unitaires, tests d'intégration
+      # (@QuarkusTest sur PostgreSQL 17 via Testcontainers, réponses
+      # validées contre le contrat) et le contrôle de formatage Spotless.
+      - run: ./mvnw -B verify
+        working-directory: backend
