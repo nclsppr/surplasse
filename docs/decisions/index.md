@@ -85,7 +85,7 @@ Ne jamais « corriger » un ADR pour l'aligner sur une page plus récente. Soit 
 
 ## Registre des ADR
 
-Onze ADR sont acceptés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'à la politique de visuels générés.
+Douze ADR sont acceptés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'à la couche de composants.
 
 | Numéro | Titre | Statut | Lien |
 |---|---|---|---|
@@ -100,5 +100,6 @@ Onze ADR sont acceptés à ce jour. Ils couvrent les choix structurants du proje
 | 0009 | Retype pour la documentation | Accepté | [ADR-0009](adr-0009-retype.md) |
 | 0010 | Fournisseur IA (OpenAI derrière interface) | Accepté | [ADR-0010](adr-0010-fournisseur-ia.md) |
 | 0011 | Visuels de plats générés | Accepté | [ADR-0011](adr-0011-visuels-plats.md) |
+| 0012 | Tailwind et shadcn/ui | Accepté | [ADR-0012](adr-0012-tailwind-shadcn.md) |
 
 Les décisions encore ouvertes (par exemple le choix de la solution d'impression thermique ESC/POS mentionné dans la stack de référence) donneront lieu à de futurs ADR au fil de la [roadmap](../roadmap.md).

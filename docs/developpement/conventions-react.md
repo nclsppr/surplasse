@@ -143,9 +143,9 @@ Quelle que soit la solution retenue, la validation côté client est le miroir d
 
 ## Styles
 
-Le choix de référence proposé : **Tailwind CSS 4**, complété par les tokens du design system dans `shared/` sous forme de variables CSS. Les variables CSS portent notamment le thème par établissement du front Commande (couleurs et typographie propres à chaque mini-site), appliqué à l'exécution sans recompilation.
+Le choix acté ([ADR-0012](../decisions/adr-0012-tailwind-shadcn.md)) : **Tailwind CSS et shadcn/ui**, alimentés par les tokens du [design system](../architecture/design-system.md) dans `shared/` sous forme de variables CSS. Les composants sont reconstruits sur shadcn (Radix) au look Bistro premium, en prenant les composants et UI kits Claude Design comme référence. Les variables CSS portent notamment le thème par établissement du front Commande (couleurs et typographie propres à chaque mini-site), appliqué à l'exécution sans recompilation.
 
-Ce choix est une proposition de référence, pas une décision actée : un ADR l'entérinera à la première ligne de code front. Ce qui est déjà ferme, en revanche :
+Ce qui est ferme :
 
 - pas de styled-components ;
 - pas de CSS-in-JS à l'exécution (styles calculés en JavaScript au rendu), quel que soit l'outil.
