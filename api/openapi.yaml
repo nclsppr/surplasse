@@ -1,0 +1,558 @@
+openapi: 3.1.0
+
+info:
+  title: Surplasse API
+  version: 0.1.0
+  summary: The Surplasse REST API, defined contract-first.
+  description: |
+    Surplasse lets independent restaurants run their own direct ordering
+    channel. This contract is the single source of truth of the API: the
+    backend implements Java interfaces generated from it, the frontends
+    consume a generated TypeScript client.
+
+    Version 0.1 covers the public catalog read model (establishment and
+    published menu) and drafts the order domain (`x-draft` blocks, excluded
+    from generation and compatibility checks).
+
+    Conventions: paths are prefixed with `/v1`, money amounts are integers
+    in cents with a `Cents` suffix, timestamps are ISO 8601 UTC, and every
+    error is an RFC 9457 Problem Details document.
+  contact:
+    name: Surplasse
+    url: https://surplasse.com
+
+servers:
+  - url: https://api.surplasse.com
+    description: Production.
+
+tags:
+  - name: catalog
+    description: >
+      The menu of an establishment: categories, products, option groups and
+      options, as published on the mini-site.
+  - name: order
+    description: >
+      The customer order lifecycle, from cart validation to pickup. Draft
+      domain, not implemented yet.
+
+paths:
+  /v1/establishments/{slug}/public:
+    get:
+      tags: [catalog]
+      operationId: getEstablishmentPublic
+      summary: Get the public profile of an establishment
+      description: |
+        Returns the public information of an establishment resolved by its
+        slug (the subdomain of its mini-site). This endpoint is public: it
+        backs the header of the mini-site rendered by the Commande frontend.
+        Unknown slugs, as well as establishments that are not publicly
+        visible, yield a 404 without distinction.
+      parameters:
+        - $ref: "#/components/parameters/EstablishmentSlug"
+      responses:
+        "200":
+          description: The public profile of the establishment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EstablishmentPublic"
+              example:
+                id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                name: Le Cormoran
+                slug: le-cormoran
+                address: 12 quai des Belges, 13001 Marseille
+        "404":
+          description: No establishment matches this slug.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/resource-not-found
+                title: Resource not found
+                status: 404
+                detail: No establishment matches slug 'le-cormoran'.
+                instance: /v1/establishments/le-cormoran/public
+
+  /v1/establishments/{slug}/menu:
+    get:
+      tags: [catalog]
+      operationId: getPublishedMenu
+      summary: Get the published menu of an establishment
+      description: |
+        Returns the published menu of an establishment resolved by its slug,
+        as a complete read model: categories, products, option groups and
+        options, in display order (array order is the display order, no
+        position field is exposed). Products and options marked unavailable
+        are included with `available: false` so the frontend can render them
+        greyed out. If the establishment has no published menu, the response
+        is a 404.
+      parameters:
+        - $ref: "#/components/parameters/EstablishmentSlug"
+      responses:
+        "200":
+          description: The published menu, in display order.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicMenu"
+              example:
+                id: 9b2f5c1a-6d3e-4b7f-8a2c-1e9d8c7b6a5f
+                name: Carte principale
+                currency: EUR
+                categories:
+                  - id: c1a2b3c4-d5e6-47f8-89ab-cdef01234501
+                    name: Entrées
+                    products:
+                      - id: d0e1f2a3-b4c5-46d7-88e9-f0a1b2c3d401
+                        name: Panisses croustillantes
+                        description: Frites de pois chiches, aïoli maison.
+                        priceCents: 650
+                        available: true
+                        optionGroups: []
+                  - id: c1a2b3c4-d5e6-47f8-89ab-cdef01234502
+                    name: Plats
+                    products:
+                      - id: d0e1f2a3-b4c5-46d7-88e9-f0a1b2c3d405
+                        name: Burger du Vieux-Port
+                        description: Pain artisanal, bœuf de Provence, tomme de brebis.
+                        priceCents: 1600
+                        available: true
+                        optionGroups:
+                          - id: e1f2a3b4-c5d6-47e8-89f0-a1b2c3d4e502
+                            name: Cuisson
+                            minChoices: 1
+                            maxChoices: 1
+                            options:
+                              - id: f0a1b2c3-d4e5-46f7-88a9-b0c1d2e3f404
+                                name: Saignant
+                                extraCostCents: 0
+                                available: true
+                              - id: f0a1b2c3-d4e5-46f7-88a9-b0c1d2e3f405
+                                name: À point
+                                extraCostCents: 0
+                                available: true
+                              - id: f0a1b2c3-d4e5-46f7-88a9-b0c1d2e3f406
+                                name: Bien cuit
+                                extraCostCents: 0
+                                available: true
+        "404":
+          description: No establishment matches this slug, or it has no published menu.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/resource-not-found
+                title: Resource not found
+                status: 404
+                detail: No establishment matches slug 'le-cormoran'.
+                instance: /v1/establishments/le-cormoran/menu
+
+  /v1/orders:
+    post:
+      x-draft: true
+      tags: [order]
+      operationId: createOrder
+      summary: Create an order from a validated cart
+      description: |
+        Draft. Creates an order at status `pending_payment` from the cart
+        validated by the customer. The cart itself never exists server side.
+        Requires the anonymous table session token (delivered when the QR
+        code is scanned) and an `Idempotency-Key` header so that an unstable
+        connection can never create the same order twice. The server
+        recomputes every amount from the catalog; amounts sent by the client
+        are ignored.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderCreationRequest"
+      responses:
+        "201":
+          description: The order was created, waiting for payment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "422":
+          description: A business rule rejected the cart (unavailable product, invalid option choice).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /v1/orders/{orderId}:
+    get:
+      x-draft: true
+      tags: [order]
+      operationId: getOrder
+      summary: Get an order
+      description: |
+        Draft. Returns an order for the customer tracking page. Authenticated
+        by the anonymous session that created the order; any other caller
+        gets a 404.
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          description: Identifier of the order.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The order.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          description: Unknown order, or order outside the caller's session.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+components:
+  parameters:
+    EstablishmentSlug:
+      name: slug
+      in: path
+      required: true
+      description: >
+        Slug of the establishment, the label of its subdomain
+        (`{slug}.surplasse.com`). Lowercase letters, digits and hyphens.
+      schema:
+        type: string
+        pattern: "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$"
+      example: le-cormoran
+
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: >
+        Client-generated UUID identifying this intention. Replaying the same
+        request with the same key returns the original response without any
+        duplicate; the same key with a different payload yields a 409
+        `idempotency-key-conflict`.
+      schema:
+        type: string
+        format: uuid
+      example: 7f3a9c1e-4b2d-4e8a-9c5f-1d2e3f4a5b6c
+
+  schemas:
+    Problem:
+      type: object
+      description: >
+        RFC 9457 Problem Details document, the single error format of the
+        API. The `type` URI is stable and identifies the applicative error.
+      properties:
+        type:
+          type: string
+          description: Stable URI identifying the applicative error type.
+          default: about:blank
+        title:
+          type: string
+          description: Short, human-readable summary of the error type.
+        status:
+          type: integer
+          description: HTTP status code of this occurrence.
+          minimum: 100
+          maximum: 599
+        detail:
+          type: string
+          description: Human-readable explanation specific to this occurrence.
+        instance:
+          type: string
+          description: URI reference of the request that produced the error.
+      required: [title, status]
+      example:
+        type: https://surplasse.com/problems/resource-not-found
+        title: Resource not found
+        status: 404
+        detail: No establishment matches slug 'le-cormoran'.
+        instance: /v1/establishments/le-cormoran/menu
+
+    EstablishmentPublic:
+      type: object
+      description: Public profile of an establishment, rendered on its mini-site.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identifier of the establishment.
+        name:
+          type: string
+          description: Display name of the establishment.
+        slug:
+          type: string
+          description: Slug of the establishment, label of its subdomain.
+        address:
+          type: string
+          description: Postal address, displayed on the mini-site. Absent when not provided.
+      required: [id, name, slug]
+      example:
+        id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+        name: Le Cormoran
+        slug: le-cormoran
+        address: 12 quai des Belges, 13001 Marseille
+
+    PublicMenu:
+      type: object
+      description: >
+        The published menu of an establishment, as a complete read model in
+        display order. Array order is the display order.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identifier of the menu.
+        name:
+          type: string
+          description: Name of the menu, chosen by the restaurateur.
+        currency:
+          type: string
+          description: ISO 4217 currency code of every amount in the menu.
+        categories:
+          type: array
+          description: Categories of the menu, in display order.
+          items:
+            $ref: "#/components/schemas/MenuCategory"
+      required: [id, name, currency, categories]
+      example:
+        id: 9b2f5c1a-6d3e-4b7f-8a2c-1e9d8c7b6a5f
+        name: Carte principale
+        currency: EUR
+        categories:
+          - id: c1a2b3c4-d5e6-47f8-89ab-cdef01234501
+            name: Entrées
+            products:
+              - id: d0e1f2a3-b4c5-46d7-88e9-f0a1b2c3d401
+                name: Panisses croustillantes
+                description: Frites de pois chiches, aïoli maison.
+                priceCents: 650
+                available: true
+                optionGroups: []
+
+    MenuCategory:
+      type: object
+      description: A section of the menu (starters, mains, drinks).
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identifier of the category.
+        name:
+          type: string
+          description: Display name of the category.
+        products:
+          type: array
+          description: Products of the category, in display order.
+          items:
+            $ref: "#/components/schemas/MenuProduct"
+      required: [id, name, products]
+      example:
+        id: c1a2b3c4-d5e6-47f8-89ab-cdef01234501
+        name: Entrées
+        products:
+          - id: d0e1f2a3-b4c5-46d7-88e9-f0a1b2c3d401
+            name: Panisses croustillantes
+            description: Frites de pois chiches, aïoli maison.
+            priceCents: 650
+            available: true
+            optionGroups: []
+
+    MenuProduct:
+      type: object
+      description: >
+        A product as displayed on the menu. Unavailable products are included
+        with `available: false` so the frontend renders them greyed out.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identifier of the product.
+        name:
+          type: string
+          description: Display name of the product.
+        description:
+          type: string
+          description: Short description of the product. Absent when not provided.
+        priceCents:
+          type: integer
+          description: Base price of the product, in cents.
+          minimum: 0
+        available:
+          type: boolean
+          description: Whether the product can currently be ordered.
+        optionGroups:
+          type: array
+          description: Option groups of the product, in display order. Empty when the product has no options.
+          items:
+            $ref: "#/components/schemas/MenuOptionGroup"
+      required: [id, name, priceCents, available, optionGroups]
+      example:
+        id: d0e1f2a3-b4c5-46d7-88e9-f0a1b2c3d405
+        name: Burger du Vieux-Port
+        description: Pain artisanal, bœuf de Provence, tomme de brebis.
+        priceCents: 1600
+        available: true
+        optionGroups: []
+
+    MenuOptionGroup:
+      type: object
+      description: >
+        A set of options of a product (doneness, size, extras) with its
+        choice rules. `minChoices` of 1 or more makes the group mandatory.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identifier of the option group.
+        name:
+          type: string
+          description: Display name of the group.
+        minChoices:
+          type: integer
+          description: Minimum number of options to pick in the group.
+          minimum: 0
+        maxChoices:
+          type: integer
+          description: Maximum number of options to pick in the group. Always greater than or equal to `minChoices`.
+          minimum: 1
+        options:
+          type: array
+          description: Options of the group, in display order.
+          items:
+            $ref: "#/components/schemas/MenuOption"
+      required: [id, name, minChoices, maxChoices, options]
+      example:
+        id: e1f2a3b4-c5d6-47e8-89f0-a1b2c3d4e502
+        name: Cuisson
+        minChoices: 1
+        maxChoices: 1
+        options:
+          - id: f0a1b2c3-d4e5-46f7-88a9-b0c1d2e3f404
+            name: Saignant
+            extraCostCents: 0
+            available: true
+
+    MenuOption:
+      type: object
+      description: A variant or extra inside an option group.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identifier of the option.
+        name:
+          type: string
+          description: Display name of the option.
+        extraCostCents:
+          type: integer
+          description: Extra cost of the option, in cents. Zero for free variants.
+          minimum: 0
+        available:
+          type: boolean
+          description: Whether the option can currently be picked.
+      required: [id, name, extraCostCents, available]
+      example:
+        id: f0a1b2c3-d4e5-46f7-88a9-b0c1d2e3f404
+        name: Saignant
+        extraCostCents: 0
+        available: true
+
+    OrderCreationRequest:
+      x-draft: true
+      type: object
+      description: >
+        Draft. The validated cart sent by the Commande frontend. Amounts are
+        recomputed server side from the catalog and never trusted from the
+        client.
+      properties:
+        establishmentId:
+          type: string
+          format: uuid
+          description: Establishment receiving the order.
+        tableQrCode:
+          type: string
+          description: Code of the scanned table QR, absent for takeaway orders.
+        type:
+          type: string
+          description: Type of the order.
+          enum: [on_site, takeaway]
+        lines:
+          type: array
+          description: Lines of the cart, one per product and option combination.
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/OrderLineRequest"
+      required: [establishmentId, type, lines]
+
+    OrderLineRequest:
+      x-draft: true
+      type: object
+      description: Draft. One line of the validated cart.
+      properties:
+        productId:
+          type: string
+          format: uuid
+          description: Product being ordered.
+        quantity:
+          type: integer
+          description: Quantity ordered.
+          minimum: 1
+        optionIds:
+          type: array
+          description: Options picked for this line, one entry per picked option.
+          items:
+            type: string
+            format: uuid
+      required: [productId, quantity]
+
+    Order:
+      x-draft: true
+      type: object
+      description: Draft. An order as seen by the customer tracking page.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identifier of the order.
+        displayNumber:
+          type: string
+          description: Short number displayed to the customer and the staff, unique per establishment and day.
+        status:
+          type: string
+          description: Current status of the order.
+          enum:
+            - pending_payment
+            - paid
+            - accepted
+            - preparing
+            - ready
+            - served
+            - picked_up
+            - cancelled
+            - refunded
+        type:
+          type: string
+          description: Type of the order.
+          enum: [on_site, takeaway]
+        totalCents:
+          type: integer
+          description: Total of the order, in cents, frozen at payment.
+          minimum: 0
+        currency:
+          type: string
+          description: ISO 4217 currency code.
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp, ISO 8601 UTC.
+      required: [id, displayNumber, status, type, totalCents, currency, createdAt]

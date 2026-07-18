@@ -1,0 +1,84 @@
+# Spectral ruleset of the Surplasse contract (api/openapi.yaml).
+# Extends the standard OpenAPI ruleset and hardens it, as specified in
+# docs/developpement/conventions-api.md. Blocks marked x-draft: true get a
+# lighter regime: example and description rules do not apply to them.
+extends: ["spectral:oas"]
+
+rules:
+  # Hardened built-ins
+  operation-operationId: error
+  operation-operationId-unique: error
+  operation-tag-defined: error
+  operation-tags: error
+  oas3-unused-component: error
+  oas3-valid-media-example: error
+  info-contact: error
+
+  operation-id-camel-case:
+    description: operationId is camelCase, verb then resource.
+    severity: error
+    given: "$.paths[*][get,put,post,delete,patch,options,head].operationId"
+    then:
+      function: casing
+      functionOptions:
+        type: camel
+
+  path-kebab-case:
+    description: URL segments are kebab-case; path parameters are camelCase in braces.
+    severity: error
+    given: "$.paths[*]~"
+    then:
+      function: pattern
+      functionOptions:
+        match: "^(?:/(?:[a-z0-9]+(?:-[a-z0-9]+)*|\\{[a-zA-Z][a-zA-Z0-9]*\\}))+$"
+
+  operation-summary:
+    description: Every non-draft operation has a one-line summary.
+    severity: error
+    given: "$.paths[*][?(@ && @.operationId && @['x-draft'] != true)]"
+    then:
+      field: summary
+      function: truthy
+
+  operation-description-required:
+    description: Every non-draft operation has a description explaining the why and the edge cases.
+    severity: error
+    given: "$.paths[*][?(@ && @.operationId && @['x-draft'] != true)]"
+    then:
+      field: description
+      function: truthy
+
+  schema-example:
+    description: Every non-draft named schema declares an example.
+    severity: error
+    given: "$.components.schemas[?(@ && @['x-draft'] != true)]"
+    then:
+      field: example
+      function: truthy
+
+  response-example:
+    description: Every response content of a non-draft operation declares an example.
+    severity: error
+    given: "$.paths[*][?(@ && @.operationId && @['x-draft'] != true)].responses[*].content[*]"
+    then:
+      field: example
+      function: truthy
+
+  no-inline-schema:
+    description: Request and response bodies reference named components, never anonymous schemas.
+    severity: error
+    resolved: false
+    given:
+      - "$.paths[*][*].responses[*].content[*].schema"
+      - "$.paths[*][*].requestBody.content[*].schema"
+    then:
+      field: "$ref"
+      function: truthy
+
+  error-problem-details:
+    description: Every 4xx and 5xx response is declared as application/problem+json (Problem schema).
+    severity: error
+    given: "$.paths[*][*].responses[?(@property >= 400 && @property < 600)].content"
+    then:
+      field: application/problem+json
+      function: truthy
