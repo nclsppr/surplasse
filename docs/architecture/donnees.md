@@ -219,6 +219,17 @@ GÉNÉRATION                                    MÉDIAS
 
 ### Commande
 
+**TableSession** : la session anonyme du client, obtenue au scan du QR et liée à un établissement et à une table (voir [la sécurité](securite.md)). Le jeton remis au client est opaque et stocké haché : une fuite de base ne permet pas de détourner une session. L'expiration est glissante (2 heures, prolongée à chaque usage actif).
+
+| Attribut | Type | Contraintes | Commentaire |
+|---|---|---|---|
+| `id` | uuid | PK | |
+| `establishment_id` | uuid | FK, non nul | |
+| `table_qr_id` | uuid | FK, non nul | La table du QR effectivement scanné |
+| `token_hash` | text | unique, non nul | Hachage du jeton opaque remis au client |
+| `expires_at` | timestamptz | non nul | Glissante ; lignes expirées purgées automatiquement |
+| `created_at`, `updated_at` | timestamptz | non nuls | |
+
 **Order** : l'acte d'achat d'un client, sur place ou à emporter. Le panier n'est pas une commande : c'est un état purement côté client (application Commande), qui ne touche jamais la base. À la validation du panier, le Backend crée la commande directement au statut `pending_payment` (en attente de paiement).
 
 | Attribut | Type | Contraintes | Commentaire |
@@ -232,6 +243,10 @@ GÉNÉRATION                                    MÉDIAS
 | `customer_first_name` | text | nullable | Donnée personnelle minimale, pour l'appel au comptoir ; anonymisée après 24 h (voir [RGPD](../operations/rgpd.md)) |
 | `contact_email` | text | nullable | Fourni au besoin pour le reçu ou la confirmation d'une commande à emporter ; effacé après 30 jours (voir [RGPD](../operations/rgpd.md)) |
 | `total_cents` | integer | >= 0, non nul | Somme des lignes, figée au paiement |
+| `service_day` | date | non nul | Jour de service ; porte l'unicité de `display_number` |
+| `tracking_token` | text | unique, non nul | Capacité de suivi non devinable, portée par l'URL de la page de suivi |
+| `idempotency_key` | uuid | unique, non nul | Clé d'idempotence de la création (en-tête `Idempotency-Key`) |
+| `request_hash` | text | non nul | Empreinte du payload d'origine ; détecte la réutilisation de la clé avec un autre contenu |
 | `created_at`, `updated_at` | timestamptz | non nuls | |
 
 **OrderLine** : un produit commandé, avec son prix et ses options figés au moment de la commande.
@@ -245,22 +260,39 @@ GÉNÉRATION                                    MÉDIAS
 | `unit_price_cents` | integer | >= 0, non nul | Figé à la commande |
 | `quantity` | integer | >= 1, non nul | |
 | `options_json` | jsonb | non nul, défaut `[]` | Instantané dénormalisé des options choisies |
+| `note` | text | nullable | Note libre du client, transmise telle quelle en cuisine |
 | `line_total_cents` | integer | >= 0, non nul | (prix unitaire + surcoûts) x quantité |
+| `position` | integer | non nul | Ordre d'affichage des lignes, celui du panier |
 
 `options_json` est un instantané dénormalisé volontaire : chaque option choisie y est copiée avec son libellé et son surcoût au moment T (exemple : `[{"group": "Cuisson", "option": "Saignant", "extra_cost_cents": 0}]`). La carte évolue en permanence (prix modifiés, options renommées ou supprimées), alors qu'une commande payée est une archive comptable. Sans cet instantané, renommer une option réécrirait silencieusement l'historique, et supprimer un groupe casserait des jointures. Le prix et le nom du produit sont figés dans la ligne pour la même raison.
+
+**OrderEvent** : un événement de commande diffusé en SSE, persisté pour que les reconnexions rejouent ce qu'elles ont manqué via `Last-Event-ID` (voir [le backend](backend.md)). L'identifiant `bigserial` est l'identifiant monotone des événements du protocole SSE.
+
+| Attribut | Type | Contraintes | Commentaire |
+|---|---|---|---|
+| `id` | bigserial | PK | Monotone, sert d'identifiant d'événement SSE |
+| `establishment_id` | uuid | FK, non nul | Canal par établissement (Dashboard) |
+| `order_id` | uuid | FK, non nul | Canal par commande (page de suivi) |
+| `event_type` | text | non nul | Exemple : `order-status` |
+| `payload` | jsonb | non nul | Données de l'événement, telles que diffusées |
+| `created_at` | timestamptz | non nul | |
 
 **Payment** : une tentative de paiement Stripe rattachée à une commande. Aucune donnée de carte bancaire ne transite ni n'est stockée : tout reste chez Stripe.
 
 | Attribut | Type | Contraintes | Commentaire |
 |---|---|---|---|
 | `id` | uuid | PK | |
-| `order_id` | uuid | FK, non nul | Plusieurs tentatives possibles par commande |
+| `order_id` | uuid | FK, non nul | Plusieurs tentatives possibles par commande ; une seule `pending` à la fois (index partiel unique) |
+| `establishment_id` | uuid | FK, non nul | Filtrage par établissement des requêtes restaurateur |
 | `provider` | text | CHECK | `stripe` au MVP |
 | `external_reference` | text | unique, non nul | Identifiant du Payment Intent Stripe |
 | `status` | text | CHECK | `pending` (en attente), `succeeded` (réussi), `failed` (échoué), `refunded` (remboursé) |
 | `amount_cents` | integer | > 0, non nul | Commande plus pourboire éventuel |
 | `currency` | text | non nul, défaut `EUR` | EUR seul au MVP |
+| `client_secret` | text | nullable | Secret client du Payment Intent, consommé par le Payment Element |
 | `created_at`, `updated_at` | timestamptz | non nuls | |
+
+**StripeWebhookEvent** (`stripe_webhook_event`) : les identifiants d'événements Stripe déjà traités, avec contrainte d'unicité. C'est la garantie d'idempotence du webhook (voir [la sécurité](securite.md)) : une livraison dupliquée est acquittée sans effet.
 
 ### Engagement
 
@@ -422,7 +454,9 @@ Le tableau ci-dessous résume la politique par entité. Les procédures détaill
 | Space | Données publiques collectées | Jusqu'à revendication, puis suppression sur demande du propriétaire |
 | Menu, Category, Product, OptionGroup, Option | Non | Vie du compte |
 | TableQr | Non | Vie du compte |
-| Order, OrderLine | Minimales (prénom facultatif) | 10 ans (obligations comptables), prénom anonymisé avant ce terme |
+| TableSession | Non (jeton opaque haché) | Purge automatique après expiration |
+| Order, OrderLine | Minimales (prénom facultatif, note libre) | 10 ans (obligations comptables), prénom anonymisé avant ce terme |
+| OrderEvent | Non | Alignée sur Order |
 | Payment | Non (références Stripe uniquement) | 10 ans (obligations comptables) |
 | CustomerContact | Oui (email, prénom) | Jusqu'au retrait du consentement ou 3 ans d'inactivité |
 | Review | Indirectes (via CustomerContact) | Vie du compte de l'établissement, anonymisation sur demande |

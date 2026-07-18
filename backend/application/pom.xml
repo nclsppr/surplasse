@@ -28,6 +28,14 @@
       <artifactId>catalog</artifactId>
     </dependency>
     <dependency>
+      <groupId>com.surplasse</groupId>
+      <artifactId>order</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.surplasse</groupId>
+      <artifactId>payment</artifactId>
+    </dependency>
+    <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-rest-jackson</artifactId>
     </dependency>
@@ -60,6 +68,11 @@
     <dependency>
       <groupId>io.rest-assured</groupId>
       <artifactId>rest-assured</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.atlassian.oai</groupId>
+      <artifactId>swagger-request-validator-restassured</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

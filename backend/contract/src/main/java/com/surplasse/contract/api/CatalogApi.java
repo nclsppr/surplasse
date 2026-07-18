@@ -32,7 +32,7 @@ public interface CatalogApi {
     @GET
     @Path("/public")
     @Produces({ "application/json", "application/problem+json" })
-    EstablishmentPublic getEstablishmentPublic(@PathParam("slug") @Pattern(regexp="^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$") String slug);
+    Response getEstablishmentPublic(@PathParam("slug") @Pattern(regexp="^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$") String slug);
 
 
     /**
@@ -46,6 +46,6 @@ public interface CatalogApi {
     @GET
     @Path("/menu")
     @Produces({ "application/json", "application/problem+json" })
-    PublicMenu getPublishedMenu(@PathParam("slug") @Pattern(regexp="^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$") String slug);
+    Response getPublishedMenu(@PathParam("slug") @Pattern(regexp="^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$") String slug);
 
 }

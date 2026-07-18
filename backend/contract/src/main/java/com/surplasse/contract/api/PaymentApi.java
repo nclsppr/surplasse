@@ -36,6 +36,6 @@ public interface PaymentApi {
     @POST
     @Consumes({ "application/json" })
     @Produces({ "application/json", "application/problem+json" })
-    PaymentSession createPayment(@HeaderParam("Idempotency-Key") @NotNull   UUID idempotencyKey,@Valid @NotNull PaymentCreationRequest paymentCreationRequest);
+    Response createPayment(@HeaderParam("Idempotency-Key") @NotNull   UUID idempotencyKey,@Valid @NotNull PaymentCreationRequest paymentCreationRequest);
 
 }

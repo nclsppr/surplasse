@@ -10,6 +10,14 @@ import java.util.UUID;
 @ApplicationScoped
 public class ProductRepository implements PanacheRepositoryBase<Product, UUID> {
 
+    /** Products by ids, soft-deleted ones excluded, whatever their availability. */
+    public List<Product> listExistingByIds(List<UUID> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return list("id in ?1 and deletedAt is null", ids);
+    }
+
     /** Products of the given categories, soft-deleted ones excluded, in display order. */
     public List<Product> listVisibleByCategories(List<UUID> categoryIds) {
         if (categoryIds.isEmpty()) {

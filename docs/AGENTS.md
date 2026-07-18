@@ -101,9 +101,12 @@ Entités (noms de classes et, entre parenthèses, table SQL en `snake_case`) :
 | option | `Option` (`option`) |
 | groupe d'options | `OptionGroup` (`option_group`) |
 | table (support QR) | `TableQr` (`table_qr`) |
+| session de table | `TableSession` (`table_session`) |
 | commande | `Order` (`order`) |
 | ligne de commande | `OrderLine` (`order_line`) |
+| événement de commande diffusé | `OrderEvent` (`order_event`) |
 | paiement | `Payment` (`payment`) |
+| événement webhook traité | `StripeWebhookEvent` (`stripe_webhook_event`) |
 | session de magic link | `MagicLinkSession` (`magic_link_session`) |
 | contact client | `CustomerContact` (`customer_contact`) |
 | avis | `Review` (`review`) |
@@ -206,7 +209,7 @@ surplasse/
 └── .github/workflows/       # CI/CD
 ```
 
-Aujourd'hui existent `docs/`, `brand/`, la préfiguration statique de l'Onboarding, le contrat `api/openapi.yaml` (lint Spectral, chaîne de génération, ADR-0013), le squelette Backend (`common`, `contract`, `catalog`, `application`), le package `frontends/shared/` et le front Commande. Le reste est créé au fil de la roadmap.
+Aujourd'hui existent `docs/`, `brand/`, la préfiguration statique de l'Onboarding, le contrat `api/openapi.yaml` (lint Spectral, chaîne de génération, ADR-0013), le Backend (`common`, `contract`, `catalog`, `order`, `payment`, `application`), le package `frontends/shared/` et le front Commande. Le reste est créé au fil de la roadmap.
 
 ## Exécution multi-plateformes
 

@@ -3,8 +3,7 @@ package com.surplasse.catalog.resource;
 import com.surplasse.catalog.mapping.CatalogMapper;
 import com.surplasse.catalog.service.CatalogService;
 import com.surplasse.contract.api.CatalogApi;
-import com.surplasse.contract.model.EstablishmentPublic;
-import com.surplasse.contract.model.PublicMenu;
+import jakarta.ws.rs.core.Response;
 
 /** Implements the generated catalog interface: converts and delegates, no logic. */
 public class CatalogResource implements CatalogApi {
@@ -16,12 +15,14 @@ public class CatalogResource implements CatalogApi {
     }
 
     @Override
-    public EstablishmentPublic getEstablishmentPublic(String slug) {
-        return CatalogMapper.toEstablishmentPublic(service.activeEstablishmentBySlug(slug));
+    public Response getEstablishmentPublic(String slug) {
+        return Response.ok(CatalogMapper.toEstablishmentPublic(service.activeEstablishmentBySlug(slug)))
+                .build();
     }
 
     @Override
-    public PublicMenu getPublishedMenu(String slug) {
-        return CatalogMapper.toPublicMenu(service.publishedMenuBySlug(slug));
+    public Response getPublishedMenu(String slug) {
+        return Response.ok(CatalogMapper.toPublicMenu(service.publishedMenuBySlug(slug)))
+                .build();
     }
 }

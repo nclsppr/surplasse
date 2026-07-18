@@ -44,7 +44,7 @@ generate("jaxrs-spec", "backend/contract", [
   "--additional-properties",
   [
     "interfaceOnly=true",
-    "returnResponse=false",
+    "returnResponse=true",
     "useJakartaEe=true",
     "useTags=true",
     "useBeanValidation=true",

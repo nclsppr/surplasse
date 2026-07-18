@@ -4,10 +4,23 @@
 -- The contract examples in api/openapi.yaml align on this data; keep them
 -- in sync when editing.
 
+-- Order-domain rows first: they reference products and tables. Guarded on
+-- table existence: the catalog module tests run without the order and
+-- payment migrations on their classpath.
+do $$
+begin
+    if to_regclass('public.payment') is not null then delete from payment; end if;
+    if to_regclass('public.order_event') is not null then delete from order_event; end if;
+    if to_regclass('public.order_line') is not null then delete from order_line; end if;
+    if to_regclass('public."order"') is not null then delete from "order"; end if;
+    if to_regclass('public.table_session') is not null then delete from table_session; end if;
+end $$;
+
 delete from option;
 delete from option_group;
 delete from product;
 delete from category;
+delete from table_qr;
 delete from menu;
 delete from establishment;
 
@@ -16,6 +29,13 @@ insert into establishment (id, name, slug, address, status) values
 
 insert into menu (id, establishment_id, name, status) values
     ('9b2f5c1a-6d3e-4b7f-8a2c-1e9d8c7b6a5f', '7c9e6679-7425-40de-944b-e07fc1f90ae7', 'Carte principale', 'published');
+
+insert into table_qr (id, establishment_id, label, code, active) values
+    ('a0b1c2d3-e4f5-46a7-88b9-c0d1e2f3a601', '7c9e6679-7425-40de-944b-e07fc1f90ae7', 'Table 1', 'tbl_7a1c9e3b5d0f2a4c', true),
+    ('a0b1c2d3-e4f5-46a7-88b9-c0d1e2f3a602', '7c9e6679-7425-40de-944b-e07fc1f90ae7', 'Table 2', 'tbl_8b2d0f4c6e1a3b5d', true),
+    ('a0b1c2d3-e4f5-46a7-88b9-c0d1e2f3a603', '7c9e6679-7425-40de-944b-e07fc1f90ae7', 'Table 3', 'tbl_9c3e1a5d7f2b4c6e', true),
+    ('a0b1c2d3-e4f5-46a7-88b9-c0d1e2f3a604', '7c9e6679-7425-40de-944b-e07fc1f90ae7', 'Table 4', 'tbl_2f8e6a4c0b9d7e1f', true),
+    ('a0b1c2d3-e4f5-46a7-88b9-c0d1e2f3a605', '7c9e6679-7425-40de-944b-e07fc1f90ae7', 'Comptoir', 'tbl_0d4f2b6e8a3c5d7f', false);
 
 insert into category (id, menu_id, name, position) values
     ('c1a2b3c4-d5e6-47f8-89ab-cdef01234501', '9b2f5c1a-6d3e-4b7f-8a2c-1e9d8c7b6a5f', 'Entrées', 1),

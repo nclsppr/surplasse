@@ -40,7 +40,7 @@ public interface OrderApi {
     @Path("/orders")
     @Consumes({ "application/json" })
     @Produces({ "application/json", "application/problem+json" })
-    Order createOrder(@HeaderParam("Idempotency-Key") @NotNull   UUID idempotencyKey,@Valid @NotNull OrderCreationRequest orderCreationRequest);
+    Response createOrder(@HeaderParam("Idempotency-Key") @NotNull   UUID idempotencyKey,@Valid @NotNull OrderCreationRequest orderCreationRequest);
 
 
     /**
@@ -55,7 +55,7 @@ public interface OrderApi {
     @Path("/table-sessions")
     @Consumes({ "application/json" })
     @Produces({ "application/json", "application/problem+json" })
-    TableSession createTableSession(@Valid @NotNull TableSessionRequest tableSessionRequest);
+    Response createTableSession(@Valid @NotNull TableSessionRequest tableSessionRequest);
 
 
     /**
@@ -70,6 +70,6 @@ public interface OrderApi {
     @GET
     @Path("/orders/{orderId}")
     @Produces({ "application/json", "application/problem+json" })
-    Order getOrder(@PathParam("orderId") UUID orderId,@QueryParam("trackingToken") @NotNull @Pattern(regexp="^ot_[a-f0-9]{32}$")   String trackingToken);
+    Response getOrder(@PathParam("orderId") UUID orderId,@QueryParam("trackingToken") @NotNull @Pattern(regexp="^ot_[a-f0-9]{32}$")   String trackingToken);
 
 }
