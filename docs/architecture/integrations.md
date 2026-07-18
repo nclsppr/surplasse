@@ -80,9 +80,9 @@ Trois couches de frais sont à modéliser avant l'ouverture commerciale :
 |---|---|---|
 | Frais Stripe de transaction | Pourcentage plus montant fixe par paiement, variable selon le type de carte | À répartir entre Surplasse et l'établissement |
 | Frais Stripe Connect | Facturation par compte Express actif et par virement | Surplasse, à intégrer dans le modèle de prix |
-| Commission Surplasse | La rémunération de la plateforme, prélevée via `application_fee_amount` sur chaque PaymentIntent | Le mécanisme est acté, le montant reste à trancher |
+| Commission Surplasse | La rémunération de la plateforme, prélevée via `application_fee_amount` sur chaque PaymentIntent | **Actée le 2026-07-18 : 0 % pendant les 3 premiers mois de chaque établissement, puis 1,1 % par commande** |
 
-Le modèle de prix (abonnement, commission par Commande, ou mixte) n'est pas une décision d'architecture : il est traité dans la [roadmap](../roadmap.md) et devra être simulé avec les tarifs Stripe en vigueur au moment du lancement.
+Le modèle de prix est acté dans son principe : commission par commande, sans abonnement, avec une période de lancement gratuite de 3 mois par établissement puis 1,1 %. Ce taux se lit à côté des frais Stripe de transaction (qui s'appliquent dès le premier jour) et sera simulé sur le panier moyen réel avant l'ouverture commerciale. **Ces conditions doivent apparaître clairement dans la documentation publique destinée aux restaurateurs** (vitrine Onboarding, voir la [roadmap](../roadmap.md)) : la transparence tarifaire fait partie du positionnement face aux plateformes à commission opaque.
 
 ### Mode test
 
@@ -209,7 +209,9 @@ Le Backend envoie via **quarkus-mailer**, l'extension d'envoi SMTP de Quarkus : 
 | Brevo | Acteur européen, bonne délivrabilité, offre d'entrée gratuite | Interface orientée marketing, au-delà du besoin |
 | Postmark | Excellente délivrabilité transactionnelle, outillage soigné | Acteur américain, à évaluer au regard du RGPD |
 
-Le critère dominant est la délivrabilité des magic links (un magic link en spam est une panne d'authentification), suivi de la localisation des données. La configuration SPF, DKIM et DMARC du domaine `surplasse.com` est requise quel que soit le fournisseur.
+Le critère dominant est la délivrabilité des magic links (un magic link en spam est une panne d'authentification), suivi de la localisation des données. Si le VPS est pris chez OVH ou Infomaniak, leur offre d'email transactionnel entre dans la comparaison (facturation et support unifiés) sans être retenue d'office : la délivrabilité prime. La configuration SPF, DKIM et DMARC du domaine `surplasse.com` est requise quel que soit le fournisseur.
+
+En développement, aucun email réel ne part : **Mailpit** capture tout (voir le [setup](../developpement/index.md)).
 
 ### Statut de la décision
 

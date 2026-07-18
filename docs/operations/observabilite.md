@@ -149,6 +149,20 @@ Le Dashboard affiche aux restaurateurs des métriques d'activité : chiffre d'af
 
 La règle qui en découle : le Dashboard ne lit jamais Prometheus, et l'observabilité ne lit jamais les endpoints du contrat. Un chiffre montré à un restaurateur vient de la base, par le contrat, ou n'est pas montré.
 
+## Le pouls : les indicateurs métier des opérateurs et des fondateurs
+
+Troisième famille, distincte des deux précédentes : le **pouls de la plateforme**, destiné à ceux qui l'exploitent et la portent. Voir les commandes défiler et les heures de pointe se dessiner remplit deux fonctions : la détection d'incident la plus fiable qui soit (plus aucune commande en plein service du midi est une alerte, quel que soit l'état des health checks) et la motivation de voir le produit vivre réellement.
+
+L'orientation de référence tient en un outil, Grafana, avec deux sources :
+
+| Besoin | Source Grafana | Pourquoi |
+|---|---|---|
+| Graphe des commandes dans le temps, heures de pointe, volumes par établissement | **PostgreSQL en source de données directe** (requêtes sur `order`, lecture seule) | Chiffres exacts, historiques complets dès le premier jour, aucun code à écrire : la table des commandes est déjà la vérité |
+| Fil des dernières commandes (le produit « vit ») | Panneau tableau Grafana sur la même source, rafraîchi | Même exactitude ; un vrai fil temps réel poussé (SSE) reste possible plus tard comme page interne dédiée si le rafraîchissement ne suffit plus |
+| Alerte « zéro commande en heures de service » | **Prometheus** sur le compteur Micrometer de commandes créées | C'est le rôle de Prometheus : évaluer des seuils dans le temps et alerter ; le compteur existe déjà dans les métriques métier prioritaires |
+
+Autrement dit : Prometheus n'est pas le bon endroit pour des chiffres métier exacts (compteurs approximatifs, remis à zéro au redéploiement), mais il est le bon endroit pour l'alerte d'absence. Grafana réunit les deux mondes sur un même écran : les tableaux métier lisent PostgreSQL, les seuils lisent Prometheus. Un compte Grafana en lecture seule suffit aux fondateurs ; l'accès reste privé (jamais exposé publiquement, voir [la sécurité](../architecture/securite.md)). La pose concrète (conteneurs Grafana et Prometheus sur le VPS) se décide avec `infra/`, dans l'ADR déjà prévu ci-dessous.
+
 ## Ce qui reste à trancher
 
 | Sujet | Piste | Où sera consignée la décision |

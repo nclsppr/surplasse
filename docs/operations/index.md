@@ -12,6 +12,7 @@ Cette section décrit la cible d'exploitation de Surplasse : ce qui tourne en pr
 Les pages de la section :
 
 - [Environnements](environnements.md) : local et production, domaines, DNS, variables d'environnement.
+- [Outillage de l'opérateur](outillage-operateur.md) : accès à la base, logs, résultats de tests, exploration de l'API.
 - [Observabilité](observabilite.md) : logs, métriques, sondes et alertes.
 - [RGPD](rgpd.md) : données personnelles, rétention, droits des personnes.
 

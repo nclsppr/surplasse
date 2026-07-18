@@ -61,4 +61,11 @@ generate("typescript-fetch", "frontends/shared/src/api/generated", [
   "--additional-properties", "supportsES6=true,withoutRuntimeChecks=true",
 ]);
 
+// The full contract (drafts included, marked as such) is served by Swagger
+// UI at /q/swagger-ui; this copy is generated, never edited by hand.
+const staticContractPath = join(
+  root, "backend", "application", "src", "main", "resources", "META-INF", "openapi.yaml");
+mkdirSync(dirname(staticContractPath), { recursive: true });
+writeFileSync(staticContractPath, readFileSync(contractPath));
+
 console.log("Generation done: backend/contract/ and frontends/shared/src/api/generated/.");

@@ -148,6 +148,32 @@ npm run dev
 
 Vite démarre sur `http://localhost:5173` et consomme l'API locale via la valeur par défaut de `VITE_API_BASE_URL`.
 
+**3 bis. Les emails en local : Mailpit.** Aucun email réel ne part d'un poste de développement : Mailpit simule un serveur SMTP et capture tout, avec une interface de consultation sur `http://localhost:8025`.
+
+```bash
+docker run -d --name mailpit -p 1025:1025 -p 8025:8025 axllent/mailpit
+```
+
+La configuration Quarkus correspondante (posée avec le module `identity` et les magic links) :
+
+```properties
+%dev.quarkus.mailer.host=localhost
+%dev.quarkus.mailer.port=1025
+%dev.quarkus.mailer.auth-methods=NONE
+%dev.quarkus.mailer.start-tls=DISABLED
+%dev.quarkus.mailer.from=no-reply@localhost
+%dev.quarkus.mailer.mock=false
+```
+
+**3 ter. Les webhooks Stripe en local.** Le passage d'une commande à « payée » ne vient que du webhook signé. En local, la CLI Stripe les relaie (connexion au compte Stripe requise, une fois) :
+
+```bash
+stripe listen --forward-to localhost:8080/v1/webhooks/stripe
+# copier le whsec_... affiché dans STRIPE_WEBHOOK_SECRET du .env backend
+```
+
+Les fichiers `.env` du backend vivent dans `backend/application/.env` (le répertoire de travail effectif du mode dev multi-modules) ; `backend/.env.example` liste les variables attendues.
+
 **4. Ouvrir l'établissement de démonstration.** En production, Commande résout l'établissement depuis le sous-domaine (`{slug}.surplasse.com`). En développement, le slug vient de la variable `VITE_ESTABLISHMENT_SLUG`, avec l'établissement de démonstration (`le-cormoran`) par défaut (mécanisme fixé dans [conventions React](conventions-react.md)). Ouvrir `http://localhost:5173` dans le navigateur : la carte du Cormoran s'affiche. Le panier et le paiement arrivent avec la phase 2 (les clés Stripe de test permettront alors un paiement fictif avec `4242 4242 4242 4242`).
 
 À ce stade, l'environnement est fonctionnel. Dashboard et Onboarding se lancent de la même façon depuis leurs répertoires respectifs, sur les ports 5174 et 5175. Avant de committer quoi que ce soit, lire le [workflow git](workflow-git.md) : branche unique `main`, commits fréquents, build docs obligatoire avant tout push touchant `docs/`.

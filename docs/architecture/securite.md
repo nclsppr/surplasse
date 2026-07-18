@@ -200,6 +200,6 @@ PostgreSQL est sauvegardé de façon chiffrée, avec des copies hors du VPS de p
 |---|---|---|
 | Durée exacte de la session client anonyme | 2 heures glissantes | Le contrat et un ADR si le sujet s'avère structurant |
 | Rôles restaurateur différenciés (gérant, salle) | Hors MVP | ADR dédié le moment venu |
-| Outillage de gestion des secrets sur le VPS | Fichier d'environnement protégé ou coffre | ADR dédié |
+| Outillage de gestion des secrets sur le VPS | Orientation : fichier d'environnement protégé (chmod 600) sur le VPS, copies maîtresses dans un gestionnaire de mots de passe (le coffre des humains), rotation documentée. Un coffre serveur dédié (Vault, Infisical) ne se justifiera que si les secrets se multiplient réellement (notifications, API tierces) ou si plusieurs opérateurs partagent l'exploitation | ADR dédié, avec `infra/` |
 | Seuils de limitation de débit | Calibrage en pré-production | Documentation d'exploitation |
 | Plafond de taille des téléversements | De l'ordre de 10 Mo par image | Le contrat |

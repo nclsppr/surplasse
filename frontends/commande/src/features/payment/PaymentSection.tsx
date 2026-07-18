@@ -23,7 +23,7 @@ const stripePromise = publishableKey ? loadStripe(publishableKey) : undefined;
  */
 export function PaymentSection({ order }: Props) {
   const [session, setSession] = useState<PaymentSession | undefined>();
-  const [unavailable, setUnavailable] = useState(false);
+  const [failure, setFailure] = useState<"unavailable" | "session" | undefined>();
   const idempotencyKey = useMemo(() => crypto.randomUUID(), []);
 
   useEffect(() => {
@@ -31,15 +31,15 @@ export function PaymentSection({ order }: Props) {
       .createPayment({ idempotencyKey, paymentCreationRequest: { orderId: order.id } })
       .then(setSession)
       .catch((caught: unknown) => {
-        if (caught instanceof ResponseError && caught.response.status === 503) {
-          setUnavailable(true);
-        } else {
-          setUnavailable(true);
-        }
+        const expired = caught instanceof ResponseError && caught.response.status === 401;
+        setFailure(expired ? "session" : "unavailable");
       });
   }, [order.id, idempotencyKey]);
 
-  if (unavailable || (session !== undefined && stripePromise === undefined)) {
+  if (failure === "session") {
+    return <p className="mt-8 rounded-md bg-[var(--accent-tint)] p-4 text-sm">{fr.cart.noSession}</p>;
+  }
+  if (failure === "unavailable" || (session !== undefined && stripePromise === undefined)) {
     return <p className="mt-8 rounded-md bg-[var(--accent-tint)] p-4 text-sm">{fr.payment.notConfigured}</p>;
   }
   if (session === undefined || stripePromise === undefined) {
