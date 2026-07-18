@@ -1,0 +1,126 @@
+---
+label: Opérations
+order: 40
+icon: tools
+description: "La production de Surplasse : philosophie d'exploitation d'un développeur seul, inventaire des services, topologie, sauvegardes et gestion des incidents."
+---
+
+# Exploitation
+
+Cette section décrit la cible d'exploitation de Surplasse : ce qui tourne en production, où, comment c'est sauvegardé et comment on réagit quand ça casse. Rien de tout cela n'est encore provisionné ; ces pages fixent la référence que l'infrastructure devra suivre.
+
+Les pages de la section :
+
+- [Environnements](environnements.md) : local et production, domaines, DNS, variables d'environnement.
+- [Observabilité](observabilite.md) : logs, métriques, sondes et alertes.
+- [RGPD](rgpd.md) : données personnelles, rétention, droits des personnes.
+
+Le déploiement lui-même (workflows GitHub Actions, images, rollback) est décrit dans [CI/CD](../developpement/ci-cd.md).
+
+## Philosophie : l'exploitation d'un développeur seul
+
+Surplasse est développé et exploité par une seule personne. Ce fait dicte toute l'architecture de production, avant même les considérations techniques :
+
+- **Le moins de pièces mobiles possible.** Chaque service qui tourne est un service à mettre à jour, superviser, sauvegarder et déboguer à trois heures du matin. Un composant n'entre en production que s'il paie son coût d'entretien.
+- **Tout dans Docker Compose, sur un VPS unique.** Pas d'orchestrateur, pas de cluster, pas de cloud managé au lancement. Un seul VPS, une seule pile Compose versionnée dans `infra/`, un seul endroit où regarder. Kubernetes résout des problèmes que Surplasse n'a pas.
+- **Tout redéployable depuis git.** Le VPS ne contient aucun état de configuration qui ne soit pas reconstructible : les fichiers Compose et la configuration du reverse proxy vivent dans `infra/`, les images sont taggées par SHA dans le registre, les secrets sont les seuls éléments provisionnés à la main (et documentés dans [Environnements](environnements.md)). Perdre le VPS doit coûter une restauration de sauvegarde et un déploiement, pas une archéologie.
+
+Les seules dépendances externes sont des services SaaS qui portent leur propre exploitation : Stripe pour le paiement, l'API Claude pour l'extraction de carte, GitHub pour le code, la CI et la documentation.
+
+## Inventaire des services en production
+
+| Service | Techno | Rôle | Exposition |
+|---|---|---|---|
+| Reverse proxy | Caddy | Terminaison TLS (certificat wildcard automatique), routage par domaine vers les autres services | Ports 80 et 443, seul service exposé à Internet |
+| Backend | Quarkus (Java 21) | L'API REST, la logique métier, le temps réel SSE, les intégrations Stripe et Claude | `api.surplasse.com`, via Caddy |
+| Onboarding | Conteneur statique | Vitrine produit et tunnel d'embarquement des restaurateurs | `surplasse.com`, via Caddy |
+| Commande | Conteneur statique | Mini-site des établissements, carte numérique, commande et paiement client | `{slug}.surplasse.com`, via Caddy |
+| Dashboard | Conteneur statique | Suivi des commandes en temps réel et gestion de la carte pour les restaurateurs | `dashboard.surplasse.com`, via Caddy |
+| PostgreSQL | PostgreSQL 17 | La base de données unique | Réseau interne Compose uniquement |
+| MinIO | MinIO | Stockage objet : photos de cartes, images d'établissements et de produits | Réseau interne Compose uniquement |
+| Supervision | À trancher (voir [Observabilité](observabilite.md)) | Sondes de disponibilité, collecte des logs et métriques, alertes | Interface d'administration non exposée publiquement |
+
+Sur le choix du reverse proxy : Traefik excelle dans la découverte dynamique de conteneurs et brille dans des environnements où les services vont et viennent, au prix d'une configuration par labels plus verbeuse et d'un modèle mental plus riche. Caddy fait la même chose ici avec un fichier de configuration court et lisible, et gère le certificat wildcard par défi DNS-01 via un module DNS provider (build Caddy personnalisé, à prévoir dans l'image de `infra/`). La topologie de Surplasse étant statique (les mêmes services, tout le temps), la référence retient **Caddy** pour sa simplicité ; ce choix sera consigné en ADR avec la mise en place de `infra/`.
+
+Chaque front est empaqueté dans une image minimale servant ses fichiers statiques, construite et taggée par SHA par la CI (voir [CI/CD](../developpement/ci-cd.md)). L'alternative (Caddy servant directement les fichiers depuis un volume) économiserait trois conteneurs mais casserait l'uniformité « un déploiement = un jeu d'images » ; elle reste ouverte si la première approche s'avère lourde.
+
+## Topologie
+
+```
+                            Internet
+                               |
+                          80 / 443 (TLS)
+                               |
+  .............................|........................... VPS
+                               v
+                        +-------------+
+                        |    Caddy    |   certificat wildcard
+                        +------+------+   *.surplasse.com
+                               |
+         +----------+---------+---------+----------+
+         v          v                   v          v
+   +----------+ +----------+     +-----------+ +----------+
+   |Onboarding| | Commande |     | Dashboard | | Backend  |
+   |(statique)| |(statique)|     | (statique)| | (Quarkus)|
+   +----------+ +----------+     +-----------+ +----+-----+
+                                                    |
+                                       +------------+-----------+
+                                       v                        v
+                                +------------+           +-----------+
+                                | PostgreSQL |           |   MinIO   |
+                                +------------+           +-----------+
+
+   +-------------+
+   | Supervision |   sondes internes, hors du chemin des requêtes
+   +-------------+
+```
+
+Seul Caddy écoute sur l'extérieur. PostgreSQL et MinIO ne sont joignables que depuis le réseau interne Compose ; le backend est le seul à leur parler. Les appels sortants (Stripe, API Claude, envoi des magic links) partent du backend.
+
+Le routage de Caddy est purement par nom d'hôte : `api.surplasse.com` vers le backend, `dashboard.surplasse.com` vers le Dashboard, `surplasse.com` vers l'Onboarding, et tout autre sous-domaine `*.surplasse.com` vers Commande, qui résout le slug côté application. La correspondance entre domaines et certificats est détaillée dans [Environnements](environnements.md).
+
+## Le VPS lui-même
+
+Le dimensionnement initial est volontairement modeste : la charge d'un lancement (quelques établissements, quelques dizaines de commandes simultanées aux heures de pointe) tient très largement sur un VPS milieu de gamme. Le premier levier de croissance est vertical (plus gros VPS, migration par restauration de sauvegarde), et il suffira longtemps.
+
+L'entretien du système suit la même logique de sobriété :
+
+- Distribution stable, mises à jour de sécurité automatiques ; le reste des mises à jour système se fait manuellement, à intervalle régulier.
+- Accès SSH par clé uniquement, deux comptes : un compte d'administration et le compte de déploiement restreint utilisé par la CI (voir [CI/CD](../developpement/ci-cd.md)).
+- Pare-feu : seuls les ports 22, 80 et 443 sont ouverts.
+- Aucun logiciel installé hors Docker, le moteur Docker et l'outillage de sauvegarde exceptés.
+
+Le choix de l'hébergeur reste à trancher (contrainte principale : localisation des données dans l'Union européenne, voir [RGPD](rgpd.md)) et sera consigné en ADR avec la mise en place de `infra/`.
+
+## Sauvegardes
+
+La base de données est le seul état qui ne se reconstruit pas. Le régime de sauvegarde cible :
+
+| Quoi | Fréquence | Méthode |
+|---|---|---|
+| PostgreSQL | Quotidienne | `pg_dump` complet, chiffré (age ou GPG), horodaté |
+| Copie hors VPS | Quotidienne, après le dump | Transfert du dump chiffré vers un stockage tiers, hors du VPS et hors du même hébergeur |
+| Contenu MinIO | Hebdomadaire | Synchronisation des buckets vers le même stockage tiers |
+| Exercice de restauration | Trimestriel | Restauration complète du dernier dump sur un environnement local, vérification que l'application démarre et que les données sont cohérentes |
+
+Le contenu MinIO est moins critique que la base : les images de produits sont re-téléversables et la carte extraite vit en base, seule la photo originale de la carte serait perdue. La rétention exacte des dumps (nombre de jours, paliers hebdomadaires et mensuels) reste à trancher, en cohérence avec les durées de [RGPD](rgpd.md).
+
+!!! warning Une sauvegarde non testée n'existe pas
+L'exercice trimestriel de restauration n'est pas optionnel. C'est lui qui transforme un fichier de dump en sauvegarde : tant qu'une restauration complète n'a pas été rejouée, rien ne prouve que le dump est exploitable, que la clé de chiffrement est accessible et que la procédure est à jour.
+!!!
+
+## Gestion des incidents en solo
+
+Il n'y a pas d'astreinte, pas d'équipe, pas de rotation : il y a une personne, qui dort parfois. Le dispositif en tient compte.
+
+**Une page de statut simple.** Une page de statut publique, hébergée hors du VPS (pour rester joignable quand le VPS ne l'est pas), indique l'état des services principaux. Elle est alimentée par les sondes externes décrites dans [Observabilité](observabilite.md). Son URL est communiquée aux restaurateurs lors de l'embarquement.
+
+**Une hiérarchie de priorités explicite.** Quand tout casse en même temps, l'ordre de rétablissement est fixé d'avance :
+
+1. **La prise de commande et le paiement** (Commande, Backend, connectivité Stripe) : c'est le service en salle des établissements, chaque minute d'indisponibilité est un client qui ne commande pas.
+2. **Le Dashboard** : les restaurateurs doivent voir les commandes arriver ; une dégradation courte est tolérable si les commandes sont bien enregistrées.
+3. **L'Onboarding** : la vitrine et l'embarquement de nouveaux restaurateurs peuvent attendre la fin de l'incident.
+
+**Des réflexes plutôt que des runbooks épais.** Trois gestes couvrent l'essentiel : redéployer le dernier SHA sain (rollback décrit dans [CI/CD](../developpement/ci-cd.md)), redémarrer un service via Compose, restaurer la dernière sauvegarde. Chaque incident notable donne lieu à une note post-mortem courte (cause, détection, correction, prévention) conservée dans le dépôt.
+
+Ce qui reste à trancher : l'outil de page de statut (service SaaS ou page statique alimentée par les sondes) et le canal d'alerte (voir [Observabilité](observabilite.md)).

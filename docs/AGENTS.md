@@ -51,14 +51,125 @@ Le contrat OpenAPI vit dans `api/openapi.yaml`. Il est la source de vérité : l
 | État serveur | TanStack Query | 5 | Pas de Redux |
 | Contrat | OpenAPI | 3.1 | Contract-first, générateurs de clients TS et d'interfaces Java |
 | Paiement | Stripe | API courante | CB, Apple Pay, Google Pay ; PayPal en roadmap |
-| Auth restaurateur | Magic link par email | MVP | Le client final n'a jamais de compte |
-| IA | API Claude (vision) | modèles courants | Extraction de carte depuis photo, enrichissement de données publiques |
+| Auth restaurateur | Magic link par email, session JWT en cookie HttpOnly | MVP | Le client final n'a jamais de compte |
+| IA | API Claude (vision) | modèles courants | Analyse d'images (extraction de carte, données publiques) ; ne retouche pas les images |
 | Impression | Imprimante thermique ESC/POS | à trancher (ADR) | Tickets cuisine optionnels |
 | Docs | Retype | 4.6+ | Ce site ; déployé sur GitHub Pages |
 | CI/CD | GitHub Actions | | Déploiement cible : VPS avec Docker Compose |
 | Node | 24 | via nvm | Pour l'outillage frontend et docs |
 
 Toute décision structurante est consignée dans un ADR sous `docs/decisions/`. Si une page contredit un ADR, l'ADR gagne.
+
+## Langue du code
+
+**Règle non négociable : tout le code est en anglais.** Cela couvre les noms de classes, d'interfaces, de packages, de modules, de méthodes, de variables, les colonnes et tables SQL, les valeurs d'enum, les `operationId` et chemins d'API, les identifiants CSS et de composants, les messages de log, et **les commentaires**. La **documentation**, elle, reste en **français**.
+
+Conséquence pour cette documentation : la prose est en français, mais tout extrait de code, identifiant, chemin de package, nom de colonne ou valeur technique cité dans la doc est en anglais. On peut gloser un identifiant en français dans la prose (« la commande, `Order`, ... »), jamais l'inverse. Aucune page ne doit présenter un identifiant français (`IntrouvableException`, `com.surplasse.commande`, `prenom_client`, statut `payée` comme valeur stockée).
+
+### Lexique canonique français vers anglais
+
+Ce lexique fait foi. Tout identifiant de code dans la doc s'y conforme, pour que toutes les pages emploient les mêmes noms.
+
+Domaines et modules Maven (packages `com.surplasse.<module>`) :
+
+| Domaine (prose FR) | Module / package |
+|---|---|
+| catalogue | `catalog` |
+| commande | `order` |
+| paiement | `payment` |
+| identité | `identity` |
+| engagement | `engagement` |
+| génération | `generation` |
+| commun (socle) | `common` |
+| contrat (généré) | `contract` |
+| assemblage | `application` |
+
+Entités (noms de classes et, entre parenthèses, table SQL en `snake_case`) :
+
+| Entité (prose FR) | Classe (table SQL) |
+|---|---|
+| restaurateur | `Restaurateur` (`restaurateur`) |
+| client | `Customer` (`customer`) |
+| établissement | `Establishment` (`establishment`) |
+| espace pré-généré | `Space` (`space`) |
+| carte | `Menu` (`menu`) |
+| catégorie | `Category` (`category`) |
+| produit | `Product` (`product`) |
+| option | `Option` (`option`) |
+| groupe d'options | `OptionGroup` (`option_group`) |
+| table (support QR) | `TableQr` (`table_qr`) |
+| commande | `Order` (`order`) |
+| ligne de commande | `OrderLine` (`order_line`) |
+| paiement | `Payment` (`payment`) |
+| session de magic link | `MagicLinkSession` (`magic_link_session`) |
+| contact client | `CustomerContact` (`customer_contact`) |
+| avis | `Review` (`review`) |
+| pourboire | `Tip` (`tip`) |
+| consentement marketing | `MarketingConsent` (`marketing_consent`) |
+| job d'extraction | `ExtractionJob` (`extraction_job`) |
+
+Valeurs d'enum (stockées en base, donc en anglais) :
+
+| Enum | Valeurs |
+|---|---|
+| Statut de commande (`Order.status`) | `pending_payment`, `paid`, `accepted`, `preparing`, `ready`, `served`, `picked_up`, `cancelled`, `refunded` |
+| Type de commande (`Order.type`) | `on_site`, `takeaway` |
+| Statut de carte (`Menu.status`) | `draft`, `published` |
+| Cycle de vie d'un espace (`Space.status`) | `pregenerated`, `claiming`, `claimed` |
+| Cycle de vie d'un établissement (`Establishment.status`) | `configuring`, `active`, `suspended` |
+| Statut d'un job (`ExtractionJob.status`) | `pending`, `running`, `succeeded`, `failed` |
+
+Exceptions métier (dans `common`) :
+
+| Cas (prose FR) | Classe | Statut HTTP |
+|---|---|---|
+| ressource inconnue | `NotFoundException` | 404 |
+| non authentifié | `UnauthenticatedException` | 401 |
+| accès hors périmètre établissement | `AccessDeniedException` | 404 (jamais 403) |
+| conflit d'état | `ConflictException` | 409 |
+| règle métier violée | `BusinessRuleException` | 422 |
+| paiement refusé | `PaymentFailedException` | 422 |
+| dépendance externe indisponible | `DependencyUnavailableException` | 503 |
+
+Événements de domaine (au passé, dans `common`) : `OrderPaid`, `OrderAccepted`, `ProductOutOfStock`. Dossiers de feature React : `menu`, `cart`, `payment`, `tracking`, `onboarding`, `dashboard`. Les noms de tests sont en anglais (`methodName_condition_expectedResult` en Java, `describe`/`it` en anglais côté Vitest).
+
+## Décisions canoniques transverses
+
+Ces décisions sont partagées par plusieurs pages. Toute page qui les évoque doit employer exactement ce vocabulaire et ce modèle. La page de référence détaillée est indiquée entre parenthèses.
+
+### Machine à états de la commande (référence : `architecture/donnees.md`)
+
+Les valeurs stockées du statut (`Order.status`) sont en anglais ; leur glose française sert à la prose :
+
+```
+pending_payment  ->  paid  ->  accepted  ->  preparing  ->  ready  ->  served (sur place) | picked_up (à emporter)
+```
+
+Glose : `pending_payment` (en attente de paiement), `paid` (payée), `accepted` (acceptée), `preparing` (en préparation), `ready` (prête), `served` (servie), `picked_up` (retirée). Statuts terminaux de sortie : `cancelled` (abandon ou expiration avant paiement, ou refus du restaurateur avant acceptation) et `refunded` (après paiement). Valeurs proscrites, à ne jamais employer comme statut : `received`/« reçue », `draft`/« brouillon », `retrieved`/« récupérée », « Nouvelle », « Refusée », « validée ». Le passage à `paid` n'est déclenché que par le webhook Stripe signé, jamais par le retour navigateur du client. Les libellés affichés au restaurateur dans le Dashboard peuvent être plus parlants (« Nouvelle commande » pour `paid`), mais ils restent rattachés explicitement au statut canonique.
+
+### Cycle de vie du panier et de la commande
+
+Le panier est un état **purement côté client** (application Commande). Aucune commande n'existe en base tant que le panier n'est pas validé. À la validation, le Backend crée la commande directement au statut `en attente de paiement`. Il n'y a pas d'état « brouillon » de commande en base.
+
+### Domaines métier (référence : `architecture/backend.md`)
+
+Six domaines, alignés sur les modules Maven : `catalogue`, `commande`, `paiement`, `identite`, `engagement`, `generation`. Le paiement est un domaine à part entière (pas un sous-ensemble de la commande). Les espaces pré-générés et la revendication relèvent du domaine `engagement`.
+
+### Authentification et temps réel (référence : `architecture/securite.md`)
+
+La session du restaurateur est un **JWT de session court porté par un cookie `HttpOnly`, `Secure`, `SameSite=Lax`, de portée `.surplasse.com`**, posé après l'échange du magic link. Le Dashboard appelle `api.surplasse.com` en incluant les cookies (même site, sous-domaines différents) : aucun en-tête `Authorization` n'est nécessaire. C'est précisément ce qui permet au flux SSE de s'authentifier, car l'API navigateur `EventSource` n'accepte aucun en-tête personnalisé. Ne jamais décrire l'authentification restaurateur comme un `Bearer` en en-tête. Le client final, lui, reçoit un jeton de session anonyme opaque lié à l'établissement et à la table.
+
+### Séquencement (référence : `roadmap.md`)
+
+La roadmap est la source unique de l'ordre de livraison (les phases). La priorisation MoSCoW de `produit/fonctionnalites.md` exprime l'importance intrinsèque des fonctionnalités pour le produit cible, pas un calendrier. Le premier MVP réellement livrable correspond à la **phase 2** de la roadmap (commander et payer). L'extraction IA de la carte, la génération du mini-site, l'édition de carte au Dashboard et l'historique arrivent après (phases 3 et 4) ; les espaces à revendiquer relèvent de la phase 5. Aucune page ne doit présenter ces éléments comme faisant partie du premier MVP.
+
+### Traitement des images
+
+Le modèle vision de l'API Claude **analyse** les images (extraction de la carte, lecture des données publiques) mais ne **produit ni ne retouche** aucune image. L'harmonisation des photos de plats (recadrage, normalisation d'exposition, miniatures) est un traitement d'image serveur classique, distinct du modèle vision ; toute amélioration reste fidèle à l'assiette réellement servie.
+
+### Casse des entités métier
+
+En prose, les entités métier s'écrivent en minuscule : la commande, un produit, une option, un établissement, la carte. La capitale initiale est réservée aux quatre applications (Onboarding, Commande, Dashboard, Backend) et au terme « le contrat ». Dans les tableaux d'attributs, les diagrammes et le code, les noms d'entités gardent leur casse d'identifiant (`Commande`, `Produit`, `Paiement`).
 
 ## Arborescence cible du monorepo
 

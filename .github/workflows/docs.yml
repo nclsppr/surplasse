@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
       - run: npm ci
       # docs:build invoque le wrapper retype.js via node directement :
       # npm 10.9.x ne crée pas le lien node_modules/.bin/retype à

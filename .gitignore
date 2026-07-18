@@ -20,3 +20,6 @@ Thumbs.db
 .idea/
 *.iml
 .vscode/
+
+# Artefact de build Retype
+retype.manifest
