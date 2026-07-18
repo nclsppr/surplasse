@@ -206,7 +206,7 @@ surplasse/
 └── .github/workflows/       # CI/CD
 ```
 
-Aujourd'hui existent `docs/`, `brand/`, une préfiguration statique de l'Onboarding (deux pages HTML dans `frontends/onboarding/`, publiées sur Pages) et la configuration racine. Le reste est créé au fil de la roadmap.
+Aujourd'hui existent `docs/`, `brand/`, la préfiguration statique de l'Onboarding, le contrat `api/openapi.yaml` (lint Spectral, chaîne de génération, ADR-0013) et le squelette Backend (`common`, `contract`, `catalog`, `application`). Le reste est créé au fil de la roadmap.
 
 ## Exécution multi-plateformes
 

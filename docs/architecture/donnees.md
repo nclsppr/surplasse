@@ -7,7 +7,7 @@ description: Le modèle de données de référence de Surplasse, entités par do
 
 # Modèle de données
 
-Cette page décrit le modèle de données de référence de Surplasse. Le [backend](./backend.md) est le seul à accéder à la base : les frontends passent exclusivement par [le contrat OpenAPI](./api.md). Le projet n'a pas encore de code applicatif : ce qui suit est la cible que les premières migrations Flyway implémenteront.
+Cette page décrit le modèle de données de référence de Surplasse. Le [backend](./backend.md) est le seul à accéder à la base : les frontends passent exclusivement par [le contrat OpenAPI](./api.md). Le domaine catalogue est implémenté par la première migration Flyway (`backend/catalog/`, phase 1) ; les autres domaines restent la cible à implémenter.
 
 ## Principes
 
@@ -163,6 +163,7 @@ GÉNÉRATION                                    MÉDIAS
 | `description` | text | nullable | |
 | `price_cents` | integer | >= 0, non nul | Prix courant, copié dans la ligne à la commande |
 | `available` | boolean | non nul | Rupture temporaire sans retirer de la carte |
+| `position` | integer | non nul | Ordre d'affichage dans la catégorie |
 | `image_asset_id` | uuid | FK MediaAsset, nullable | Image affichée : photo téléversée ou visuel généré retenu, ou aucune |
 | `deleted_at` | timestamptz | nullable | Soft delete |
 | `created_at`, `updated_at` | timestamptz | non nuls | |
@@ -201,6 +202,7 @@ GÉNÉRATION                                    MÉDIAS
 | `name` | text | non nul | |
 | `extra_cost_cents` | integer | >= 0, défaut 0 | |
 | `available` | boolean | non nul | |
+| `position` | integer | non nul | Ordre d'affichage dans le groupe |
 | `deleted_at` | timestamptz | nullable | Soft delete |
 | `created_at`, `updated_at` | timestamptz | non nuls | |
 

@@ -10,7 +10,7 @@ description: Nommage des packages, couches et règles d'import, DTO et mapping, 
 Cette page fixe les conventions de code du Backend : comment nommer, découper et écrire le Java qui vit dans `backend/`. Elle prolonge [le backend](../architecture/backend.md), qui décrit la structure d'ensemble (modules Maven, couches, SSE, événements de domaine, jobs asynchrones) : ici, on descend au niveau du package, de la classe et de la méthode. La stratégie de test associée est décrite dans [les tests](tests.md).
 
 !!! info Documentation de référence
-Le projet n'a pas encore de code applicatif. Cette page décrit la cible de référence, au présent de spécification : elle fait office de règle du jeu dès la première classe écrite. Les points encore ouverts sont signalés explicitement.
+Ces conventions s'appliquent au code du backend depuis la phase 1 (modules `common`, `contract`, `catalog`, `application`). Les points encore ouverts sont signalés explicitement. Le formatage est imposé par Spotless (palantir-java-format) : `./mvnw spotless:apply` avant de committer, la CI vérifie.
 !!!
 
 ## Nommage des packages

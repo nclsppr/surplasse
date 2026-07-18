@@ -10,7 +10,7 @@ description: Le monolithe modulaire Quarkus, l'architecture en couches, le temps
 Le Backend est l'unique processus applicatif de Surplasse : une API REST Quarkus qui implémente [le contrat](api.md), porte la logique métier des six domaines, persiste dans PostgreSQL (voir [les données](donnees.md)) et pousse le temps réel vers le Dashboard et le mini-site Commande. Cette page décrit sa structure interne : le découpage en modules Maven, les couches à l'intérieur de chaque module, les flux SSE, les événements de domaine et les traitements asynchrones.
 
 !!! info Documentation de référence
-Le projet n'a pas encore de code applicatif. Cette page décrit la cible de référence, au présent de spécification. Les conventions de code détaillées (nommage, structure des packages, style) vivent dans [les conventions Quarkus](../developpement/conventions-quarkus.md).
+Les modules `common`, `contract`, `catalog` et `application` existent depuis la phase 1 ; les autres modules et mécanismes (SSE, événements, jobs) restent la cible de référence, décrite au présent de spécification. Les conventions de code détaillées (nommage, structure des packages, style) vivent dans [les conventions Quarkus](../developpement/conventions-quarkus.md).
 !!!
 
 ## Pourquoi Quarkus
