@@ -1,0 +1,36 @@
+<!doctype html><html lang=fr><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
+<title>Surplasse · sticker de table</title>
+<link rel="stylesheet" href="../styles.css">
+<style>
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--surface-sunken);min-height:100vh;display:flex;gap:40px;flex-wrap:wrap;align-items:center;justify-content:center;padding:48px}
+  .sticker{background:var(--surface-card);border:1px solid var(--line-1);border-radius:var(--radius-lg);box-shadow:var(--shadow-pop);width:320px;padding:28px 28px 22px;text-align:center}
+  .sticker .eyebrow{color:var(--accent);margin-bottom:4px}
+  .sticker h2{font:800 22px var(--font-display);text-transform:uppercase;color:var(--fg-1);letter-spacing:.01em;margin-bottom:18px;line-height:1.05}
+  .sticker .qr{width:220px;height:220px;border-radius:var(--radius-md)}
+  .wm{font-family:var(--font-script);font-size:40px;color:var(--accent);line-height:1;margin:16px 0 2px}
+  .url{font-family:var(--font-mono);font-size:12px;color:var(--fg-3)}
+  .tablebar{margin-top:14px;background:var(--accent);color:var(--on-accent);border-radius:var(--radius-sm);font:700 12px var(--font-mono);text-transform:uppercase;letter-spacing:.12em;padding:8px 0}
+  /* variante nuit */
+  .dark{}
+  .lbl{position:absolute;top:14px;font-family:var(--font-mono);font-size:11px;color:var(--fg-3);text-transform:uppercase;letter-spacing:.12em}
+</style></head>
+<body>
+  <div class="sticker">
+    <div class="eyebrow">Scannez pour commander</div>
+    <h2>Votre table,<br>votre carte</h2>
+    <img class="qr" src="qr-demo.png" alt="QR code Surplasse">
+    <div class="wm">Fiorella</div>
+    <div class="url">fiorella.surplasse.com</div>
+    <div class="tablebar">Table 12</div>
+  </div>
+
+  <div class="sticker theme-nuit" style="background:var(--surface-card)">
+    <div class="eyebrow">Scannez pour commander</div>
+    <h2>Votre table,<br>votre carte</h2>
+    <img class="qr" src="qr-demo.png" alt="QR code Surplasse">
+    <div class="wm">Fiorella</div>
+    <div class="url">fiorella.surplasse.com</div>
+    <div class="tablebar">Table 12</div>
+  </div>
+</body></html>

@@ -100,7 +100,11 @@ Sur les mini-sites, ces variables de base sont **surchargées par le thème de l
 
 Deux règles de marque non négociables pour les QR codes de Surplasse :
 
-- **bords arrondis** ;
+- **bords arrondis** (modules arrondis) ;
 - **logo Surplasse au centre**.
 
-Le logo (`brand/logo.svg`) est la source ; les QR d'exemple et supports (stickers, sous-verres) sont des assets dérivés. Si le logo change, ces dérivés sont **régénérés** par un script dédié, garanti par un hook.
+Le wordmark étant large, le centre du QR porte une marque compacte : le **« S » de Parisienne en orange** dans un rond ivoire ; le wordmark « Surplasse » et l'URL se placent sous le QR sur les supports (stickers, sous-verres). Chaque QR encode `https://{slug}.surplasse.com/?table={jeton}`.
+
+Génération : `python3 scripts/generate_brand_assets.py` produit les QR (modules arrondis espresso sur ivoire, correction d'erreur haute pour tolérer la marque centrale) dans `brand/qr/`. Un exemple de sticker de table est dans `brand/qr/sticker.html`.
+
+Le logo (`brand/logo.svg`) est la **source** ; les QR et supports en sont dérivés. Un hook `PostToolUse` (`scripts/check_brand_assets.py`, branché dans `.claude/settings.json`) rappelle de régénérer ces assets dès que `brand/logo.svg` change, pour qu'ils ne se désynchronisent jamais du logo.
