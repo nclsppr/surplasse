@@ -2,80 +2,105 @@
 label: Design system
 order: 25
 icon: paintbrush
-description: "L'identité visuelle de Surplasse : logo, système typographique (Archivo, Space Mono, Parisienne), palette et règles d'usage."
+description: "L'identité visuelle de Surplasse (Bistro premium) : logo, typographie, palette, thèmes et règles d'usage, d'après le design system Claude Design."
 ---
 
 # Design system
 
-Cette page fixe l'identité visuelle de Surplasse : le logo, les polices et leurs rôles, la palette et les règles d'usage. Elle est la source de référence pour les trois frontends (voir [les frontends](frontends.md)). Les assets vivent dans `brand/` à la racine du dépôt ; les tokens réutilisables par les applications vivront dans `frontends/shared/`.
+Cette page fixe l'identité visuelle de Surplasse. La **source de vérité** est le design system Claude Design « Restaurant management system design » (direction **« Bistro premium »**). Ses tokens sont mirrorés dans `brand/` (avec les polices auto-hébergées) et alimenteront le package partagé `frontends/shared/` ; les composants et UI kits seront synchronisés en phase 1.
 
 !!! info Documentation de référence
-Le projet n'a pas encore de code applicatif. La marque (logo, polices, palette) est posée ; son intégration dans les frontends viendra avec la phase 1 de la [roadmap](../roadmap.md). La palette est une proposition à confirmer.
+Le projet n'a pas encore de code applicatif. La marque est définie ; son intégration dans les frontends viendra avec la phase 1 de la [roadmap](../roadmap.md).
 !!!
+
+## Direction : Bistro premium
+
+Un menu typographique monochrome : **ivoire premium**, **encre espresso**, un seul accent **orange international / terracotta**, et un **vert bouteille** dosé pour la structure fine. Aplats, pas de dégradés. Coins quasi droits, esprit imprimé. Le produit s'efface, la carte parle.
 
 ## Logo
 
-Le logo de Surplasse est le mot **« Surplasse » composé en Parisienne**, la police script de la marque. Il n'y a pas de symbole séparé : le wordmark est le logo.
+Le logo de Surplasse est le mot **« Surplasse » composé en Parisienne**, en **orange accent** (`--accent`, `#e8481c`). Il n'y a pas de symbole séparé.
 
-- Asset de référence : `brand/logo.svg`, un SVG autonome dont la police Parisienne est embarquée (il rend identique partout, sans dépendre d'une police installée).
-- Couleur par défaut : l'encre `#2B1B12` sur fond clair. Une variante claire (papier `#FAF4E9`) est utilisée sur fond sombre ou photo.
-- Le logo sert aussi de marque au **centre des QR codes** (voir [les règles QR](#qr-codes)).
+- Asset de référence : `brand/logo.svg` (SVG autonome, police Parisienne embarquée).
+- Variantes de couleur selon le fond : accent orange sur ivoire (par défaut), encre espresso, ou ivoire (`--on-accent`) sur surface accent ou photo.
+- Le même wordmark, en plus petit, sert de marque au **centre des QR codes** (voir [QR codes](#qr-codes)).
 
-## Système typographique
+!!! warning Note de source
+Le readme du design system mentionne à un endroit « Cormorant Garamond » pour le nom : c'est un résidu contradictoire. La direction retenue (tokens `typography.css`, carte de marque, et consigne de l'auteur) est **Parisienne**.
+!!!
 
-Trois familles, trois rôles nettement séparés. Les polices sont **auto-hébergées** (fichiers `woff2` dans `brand/fonts/`), jamais servies par un CDN tiers : c'est un choix de performance et de conformité (pas de fuite d'adresse IP vers un tiers, cohérent avec la posture [RGPD](../operations/rgpd.md)).
+## Typographie
 
-| Police | Rôle | Usage précis |
+Trois familles, trois rôles nettement séparés. Les polices sont **auto-hébergées** (`brand/fonts/`, `woff2`), jamais servies par un CDN tiers : performance et conformité (pas de fuite d'adresse IP, cohérent avec la posture [RGPD](../operations/rgpd.md)).
+
+| Police | Variable | Rôle |
 |---|---|---|
-| **Archivo** | Police principale : titres et toute l'UI | Titres en capitales grasses (poids 800 et 900) ; boutons, corps, labels en 400 à 700 |
-| **Space Mono** | La méta | Descriptions de carte, quantités (« (33 cl) »), prix, horodatages, labels eyebrow en capitales espacées |
-| **Parisienne** | Le geste manuscrit | Réservée au mot « Surplasse » (le logo) et aux **noms d'établissements** (« Fiorella »). Rien d'autre |
+| **Archivo** | `--font-display`, `--font-ui` | Titres en capitales grasses (800), **par défaut en orange** ; toute l'UI en 400 à 700. Les noms de plats sont aussi en Archivo 800 capitales |
+| **Space Mono** | `--font-mono` | La méta : descriptions de carte, quantités (« (33 cl) »), prix, horodatages, labels eyebrow. Chiffres tabulaires via `.num` |
+| **Parisienne** | `--font-script` (`.script`) | Réservée au mot « Surplasse » et aux noms d'établissements. Rien d'autre |
 
-Règles d'emploi :
+Signature : les titres `h1, h2, h3` sont en capitales Archivo 800 **couleur accent**. Le **filet titré** `.rule-title` encadre un titre de deux barres orange. Les labels et boutons sont toujours en capitales avec un tracking de 0.06 à 0.1em.
 
-- **Archivo** porte la structure et l'action. Les titres forts sont en 900 capitales ; l'UI courante en 600. On ne compose jamais un paragraphe de corps en Parisienne ni en Space Mono.
-- **Space Mono** signale la donnée : un prix, une contenance, une heure, une référence de commande. Sa chasse fixe aligne naturellement les chiffres.
-- **Parisienne** est rare par définition. L'étendre au-delà du logo et des noms d'établissements diluerait son effet. Sur les mini-sites, c'est elle qui porte l'identité du restaurant, en écho au logo Surplasse.
-
-### Familles et fichiers
-
-| Famille | Poids servis | Fichiers |
-|---|---|---|
-| Archivo | 400 à 900 (police variable) | `brand/fonts/archivo-*.woff2` + `archivo.css` |
-| Space Mono | 400, 700 | `brand/fonts/spacemono-*.woff2` + `spacemono.css` |
-| Parisienne | 400 | `brand/fonts/parisienne-*.woff2` + `parisienne.css` |
-
-Chaque famille a son fichier CSS `@font-face` déjà localisé (les `url()` pointent vers les `woff2` voisins). Le frontend consommera ces déclarations depuis `frontends/shared/`.
+Échelle de type (`--text-*`, `--display-*`) : de `--text-xs` 12px à `--display-xl` 64px. Détail dans `brand/tokens/typography.css`.
 
 ## Palette
 
-Palette proposée, à confirmer. Elle vise l'univers d'une belle carte de restaurant : papier chaud, encre profonde, un rouge terracotta appétissant pour l'action.
+Palette « Bistro premium », définie par les tokens de `brand/tokens/colors.css`. Un seul accent : l'orange garde la vedette, le vert bouteille ne sert que la structure fine (entêtes, liens, tags, statuts calmes), jamais un CTA ni un titre.
 
-| Rôle | Nom | Valeur | Usage |
-|---|---|---|---|
-| Fond | Papier | `#FAF4E9` | Fond des pages et des cartes |
-| Texte | Encre | `#2B1B12` | Texte principal, logo par défaut |
-| Accent | Terracotta | `#C0432B` | Boutons, actions, accents, eyebrow |
-| Secondaire | Ambre | `#E0902F` | Accents secondaires, états, badges |
-| Méta | Méta | `#6E5F51` | Texte Space Mono secondaire, séparateurs |
+| Rôle | Token | Valeur |
+|---|---|---|
+| Fond page (ivoire) | `--bg-1` / `--surface-page` | `#f6efe0` |
+| Fond carte | `--surface-card` | `#fbf7ec` |
+| Fond creusé | `--surface-sunken` | `#ebe1cc` |
+| Encre (texte) | `--fg-1` / `--text-body` | `#2b2118` |
+| Texte secondaire | `--fg-3` / `--text-muted` | `#857463` |
+| Accent (actions, titres) | `--accent` | `#e8481c` |
+| Accent survol / pressé | `--accent-hover` / `--accent-press` | `#cf3a12` / `#b02f0c` |
+| Sur accent (texte ivoire) | `--on-accent` | `#fff7ef` |
+| Soutien (sable) | `--peach` | `#f3d5bd` |
+| Structure (vert bouteille) | `--green` | `#1e5c46` |
+| Succès | `--ok` | `#256b52` |
+| Ligne fine | `--line-1` | espresso 12% |
 
-Les paires de couleurs destinées au texte doivent respecter le contraste WCAG 2.2 AA (voir l'exigence d'[accessibilité](../produit/fonctionnalites.md)). L'encre sur papier et le papier sur terracotta passent AA ; le terracotta et l'ambre sont réservés aux grands titres, aux surfaces et aux icônes, pas au corps de petit texte sur papier.
+Toute paire texte/fond destinée à de la lecture doit respecter le contraste WCAG 2.2 AA ([accessibilité](../produit/fonctionnalites.md)) : l'encre sur ivoire et l'ivoire sur accent passent AA ; l'orange et le vert sont réservés aux titres, surfaces, icônes et petits labels, pas au corps de petit texte sur ivoire.
+
+### Thèmes
+
+Trois scopes, mêmes tokens :
+
+| Scope | Usage | Surfaces |
+|---|---|---|
+| défaut | Carte et menu client | Ivoire profond `#f6efe0` |
+| `.theme-light` | Landing marketing, dashboard | Quasi blanc `#faf8f3`, cartes blanches |
+| `.theme-nuit` | Menu du soir, mode cuisine plein écran | Espresso profond, orange éclairci |
+
+Sur les mini-sites, ces variables de base sont **surchargées par le thème de l'établissement** (couleurs extraites à l'embarquement), sur le mécanisme décrit dans [les frontends](frontends.md).
+
+## Formes, bordures, mouvement
+
+- **Rayons quasi droits** : contrôles `--radius-sm` 2px, cartes `--radius-md` 4px, modales `--radius-lg` 10px. Badges carrés en mono capitales, pas de pills (sauf le switch).
+- **Motif signature** : barres pleines accent (header, barre d'onglets de carte, barre panier/CTA en bas, footer), texte ivoire en capitales.
+- **Bordures** : 1px `--line-1` pour la structure ; filets orange (`--line-accent`, 1 à 1.5px) entre items de carte ; 1.5px accent pour boutons secondaires et modales.
+- **Ombres** discrètes (`--shadow-card`), esprit imprimé. Beaucoup de contenus se posent à plat, en listes à filets, sans carte.
+- **Hover / press / focus** : `--accent-tint`, `--accent-hover`, `scale(0.98)` au press, double anneau `--focus-ring`. Transitions 150ms ease-out, pas de bounce.
+- **Espacement** : échelle de 4px (`--sp-1` à `--sp-9`). Marketing aéré (sections 96px, conteneur 1120px) ; dashboard dense (12 à 16px).
+
+## Icônes et imagerie
+
+- **Icônes : Lucide**, trait 1.75px arrondi, 16/20px, `currentColor`. Pas d'emoji, pas d'unicode en guise d'icônes (sauf « € » et « · »).
+- **Photos** chaudes, appétissantes, lumière naturelle. Placeholders rayés avec note monospace en attendant les vraies photos. Les visuels de plats générés (voir [ADR-0011](../decisions/adr-0011-visuels-plats.md)) suivent cette direction chaude.
 
 ## Tokens et intégration frontend
 
-L'intégration concrète suivra la mise en place du package partagé `frontends/shared/` :
-
-- les couleurs deviennent des variables CSS (`--color-paper`, `--color-ink`, `--color-terracotta`, `--color-amber`, `--color-meta`) et des tokens Tailwind ;
-- les familles sont exposées comme variables de police (`--font-ui` pour Archivo, `--font-meta` pour Space Mono, `--font-script` pour Parisienne) ;
-- sur les mini-sites, la palette de base est **surchargée par le thème de l'établissement** (couleurs extraites à l'embarquement), sur le mécanisme de variables CSS décrit dans [les frontends](frontends.md).
-
-La couche de composants (Tailwind, et une bibliothèque de composants à acter par ADR) est décrite dans [les conventions React](../developpement/conventions-react.md).
+- Base mirrorée dans `brand/` : `styles.css` importe `tokens/colors.css`, `tokens/typography.css`, `tokens/spacing.css`, eux-mêmes reliés aux polices auto-hébergées de `brand/fonts/`.
+- En phase 1, ces tokens et la couche composants (Button, Card, Input, Dialog, Tabs, etc.) sont synchronisés dans `frontends/shared/` depuis le design system Claude Design.
+- La couche composants (Tailwind et une bibliothèque à acter par ADR) est décrite dans [les conventions React](../developpement/conventions-react.md).
 
 ## QR codes
 
-Les QR codes de Surplasse suivent deux règles de marque non négociables :
+Deux règles de marque non négociables pour les QR codes de Surplasse :
 
 - **bords arrondis** ;
 - **logo Surplasse au centre**.
 
-Le logo (`brand/logo.svg`) est la source ; les QR d'exemple et supports (stickers, sous-verres) sont des assets dérivés. Si le logo change, ces dérivés doivent être **régénérés** : un script de génération et un hook dédié garantissent qu'ils ne se désynchronisent pas du logo.
+Le logo (`brand/logo.svg`) est la source ; les QR d'exemple et supports (stickers, sous-verres) sont des assets dérivés. Si le logo change, ces dérivés sont **régénérés** par un script dédié, garanti par un hook.

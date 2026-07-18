@@ -1,70 +1,78 @@
 <!doctype html><html lang=fr><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="fonts/parisienne.css"><link rel="stylesheet" href="fonts/archivo.css"><link rel="stylesheet" href="fonts/spacemono.css">
+<title>Surplasse · planche de marque</title>
+<link rel="stylesheet" href="styles.css">
 <style>
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--surface-page);color:var(--text-body);padding-bottom:64px}
+  .bar{background:var(--accent);color:var(--on-accent);padding:14px 40px;display:flex;justify-content:space-between;align-items:center;font:800 14px/1 var(--font-display);text-transform:uppercase;letter-spacing:.08em}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 40px}
+  section{padding:40px 0;border-bottom:1px solid var(--line-1)}
+  .logo{font-family:var(--font-script);font-size:92px;color:var(--accent);line-height:1;margin:8px 0 6px}
+  .baseline{font:700 16px var(--font-ui);text-transform:uppercase;letter-spacing:.06em;color:var(--fg-1)}
+  .spec{margin:20px 0}
+  .role{font-family:var(--font-mono);font-size:11px;color:var(--fg-3);text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px}
+  .big{font:800 40px var(--font-display);text-transform:uppercase;color:var(--accent);letter-spacing:.015em}
+  .ui{font:600 18px var(--font-ui)}
+  .meta{font-family:var(--font-mono);color:var(--fg-3);font-size:15px}
+  .script-demo{font-family:var(--font-script);font-size:44px;color:var(--fg-1)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start}
+  .card{background:var(--surface-card);border:1px solid var(--line-1);border-radius:var(--radius-md);padding:24px 26px;box-shadow:var(--shadow-card)}
+  .estab{font-family:var(--font-script);font-size:34px;color:var(--fg-1);line-height:1}
+  .item{display:flex;justify-content:space-between;gap:14px;padding:12px 0;border-bottom:1.5px solid var(--line-accent)}
+  .item:last-of-type{border-bottom:0}
+  .name{font:800 15px var(--font-display);text-transform:uppercase;letter-spacing:.01em;color:var(--fg-1)}
+  .desc{font-family:var(--font-mono);font-size:12px;color:var(--fg-3);margin-top:3px}
+  .price{font-family:var(--font-mono);font-weight:700;font-size:15px;white-space:nowrap;color:var(--fg-1)}
+  .btn{margin-top:18px;display:inline-block;background:var(--accent);color:var(--on-accent);font:800 14px var(--font-display);text-transform:uppercase;letter-spacing:.06em;padding:13px 22px;border-radius:var(--radius-sm)}
+  .tag{display:inline-block;font:700 11px var(--font-mono);text-transform:uppercase;letter-spacing:.1em;color:var(--green);border:1px solid var(--line-green);border-radius:var(--radius-sm);padding:3px 8px}
+  .sw{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px}
+  .swatch{width:150px}
+  .chip{height:56px;border-radius:var(--radius-md);border:1px solid var(--line-1)}
+  .swatch div+div{font-family:var(--font-mono);font-size:11px;color:var(--fg-3);margin-top:6px}
+  .swatch b{color:var(--fg-1);display:block;font-weight:700}
+</style></head>
+<body>
+<div class=bar><span>Surplasse</span><span>Le circuit court de la commande</span></div>
+<div class=wrap>
 
+<section>
+  <div class=eyebrow>Identité de marque · source Claude Design</div>
+  <div class=logo>Surplasse</div>
+  <div class=baseline>Le circuit court de la commande.</div>
+</section>
 
+<section>
+  <div class=rule-title>Système typographique</div>
+  <div class=spec><div class=role>Archivo 800 capitales, orange · titres et noms de plats</div><div class=big>Créez votre restaurant</div></div>
+  <div class=spec><div class=role>Archivo 600 · UI, boutons, corps</div><div class=ui>Ajouter au panier · Suivre ma commande · Régler l'addition</div></div>
+  <div class=spec><div class=role>Space Mono · méta, prix, quantités, horodatages</div><div class="meta num">12,50 € · (33 cl) · Servie 12:47 · #A-14</div></div>
+  <div class=spec><div class=role>Parisienne · « Surplasse » et noms d'établissements</div><div class=script-demo>Fiorella · Le Petit Comptoir</div></div>
+</section>
 
-
-:root{--paper:#FAF4E9;--ink:#2B1B12;--terra:#C0432B;--amber:#E0902F;--meta:#6E5F51;--line:#E6DAC6}
-*{box-sizing:border-box;margin:0}
-body{background:var(--paper);color:var(--ink);font-family:'Archivo',sans-serif;padding:56px 64px;max-width:1040px;margin:0 auto}
-.eyebrow{font-family:'Space Mono';font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--meta)}
-.logo{font-family:'Parisienne';font-size:96px;line-height:1;color:var(--ink);margin:6px 0 4px}
-.tag{font-family:'Archivo';font-weight:800;text-transform:uppercase;letter-spacing:.04em;font-size:15px;color:var(--terra)}
-hr{border:0;border-top:1px solid var(--line);margin:40px 0}
-h2{font-family:'Archivo';font-weight:900;text-transform:uppercase;letter-spacing:.02em;font-size:13px;color:var(--meta);margin-bottom:20px}
-.spec{margin:22px 0}
-.spec .role{font-family:'Space Mono';font-size:11px;color:var(--meta);text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px}
-.arc900{font-family:'Archivo';font-weight:900;text-transform:uppercase;font-size:40px;letter-spacing:.01em}
-.arcui{font-family:'Archivo';font-weight:600;font-size:18px}
-.mono{font-family:'Space Mono';font-size:15px;color:var(--meta)}
-.script{font-family:'Parisienne';font-size:44px;color:var(--ink)}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start}
-.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:24px 26px}
-.card .estab{font-family:'Parisienne';font-size:34px;color:var(--ink);line-height:1}
-.card .cat{font-family:'Space Mono';font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:var(--terra);margin:16px 0 10px}
-.item{display:flex;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px dashed var(--line)}
-.item .name{font-family:'Archivo';font-weight:700;font-size:16px}
-.item .desc{font-family:'Space Mono';font-size:12px;color:var(--meta);margin-top:3px}
-.item .price{font-family:'Space Mono';font-weight:700;font-size:15px;white-space:nowrap}
-.btn{margin-top:18px;display:inline-block;background:var(--terra);color:#fff;font-family:'Archivo';font-weight:800;text-transform:uppercase;letter-spacing:.05em;font-size:14px;padding:13px 22px;border-radius:999px}
-.sw{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px}
-.swatch{width:150px}
-.chip{height:60px;border-radius:12px;border:1px solid rgba(0,0,0,.08)}
-.chip+div{font-family:'Space Mono';font-size:11px;color:var(--meta);margin-top:6px}
-.chip+div b{color:var(--ink);display:block;font-weight:700}
-</style></head><body>
-<div class=eyebrow>Identité de marque — proposition</div>
-<div class=logo>Surplasse</div>
-<div class=tag>Le circuit court de la commande.</div>
-
-<hr><h2>Système typographique</h2>
-<div class=spec><div class=role>Archivo 900 — titres capitales</div><div class=arc900>Créez votre restaurant</div></div>
-<div class=spec><div class=role>Archivo 600 — UI, boutons, corps</div><div class=arcui>Ajouter au panier · Suivre ma commande · Régler l'addition</div></div>
-<div class=spec><div class=role>Space Mono — méta, prix, quantités, horodatages</div><div class=mono>12,50 € · (33 cl) · Servie 12:47 · #A-14</div></div>
-<div class=spec><div class=role>Parisienne — « Surplasse » et noms d'établissements</div><div class=script>Fiorella · Le Petit Comptoir</div></div>
-
-<hr><h2>Le système en situation</h2>
-<div class=grid>
-  <div class=card>
-    <div class=estab>Fiorella</div>
-    <div class=cat>Antipasti</div>
-    <div class=item><div><div class=name>Burrata des Pouilles</div><div class=desc>tomates confites, basilic, huile d'olive</div></div><div class=price>13,00 €</div></div>
-    <div class=item><div><div class=name>Vitello tonnato</div><div class=desc>veau rosé, sauce au thon, câpres</div></div><div class=price>14,50 €</div></div>
-    <div class=cat>Boissons</div>
-    <div class=item><div><div class=name>Chianti Classico</div><div class=desc>verre (12 cl)</div></div><div class=price>7,00 €</div></div>
-    <div class=btn>Ajouter · 2 articles</div>
-  </div>
-  <div>
-    <h2 style="margin-top:6px">Palette proposée</h2>
-    <div class=sw>
-      <div class=swatch><div class=chip style="background:#FAF4E9"></div><div><b>Papier</b>#FAF4E9</div></div>
-      <div class=swatch><div class=chip style="background:#2B1B12"></div><div><b>Encre</b>#2B1B12</div></div>
-      <div class=swatch><div class=chip style="background:#C0432B"></div><div><b>Terracotta</b>#C0432B</div></div>
-      <div class=swatch><div class=chip style="background:#E0902F"></div><div><b>Ambre</b>#E0902F</div></div>
-      <div class=swatch><div class=chip style="background:#6E5F51"></div><div><b>Méta</b>#6E5F51</div></div>
+<section>
+  <div class=rule-title>Le système en situation</div>
+  <div class=grid style="margin-top:24px">
+    <div class=card>
+      <div class=estab>Fiorella</div>
+      <div style="margin:14px 0 6px"><span class=tag>Ouvert · service du soir</span></div>
+      <div class=item><div><div class=name>Burrata des Pouilles</div><div class=desc>tomates confites, basilic, huile d'olive</div></div><div class="price num">13,00 €</div></div>
+      <div class=item><div><div class=name>Vitello tonnato</div><div class=desc>veau rosé, sauce au thon, câpres</div></div><div class="price num">14,50 €</div></div>
+      <div class=item><div><div class=name>Chianti Classico</div><div class=desc>verre (12 cl)</div></div><div class="price num">7,00 €</div></div>
+      <div class=btn>Ajouter · 2 articles</div>
     </div>
-    <p class=mono style="margin-top:18px;line-height:1.6">Papier + encre pour le fond et le texte, terracotta pour les actions et accents, ambre en secondaire, méta pour le Space Mono. Palette <b style="color:#2B1B12">à confirmer</b>.</p>
+    <div>
+      <div class=role style="margin-bottom:10px">Palette · Bistro premium</div>
+      <div class=sw>
+        <div class=swatch><div class=chip style="background:#f6efe0"></div><div><b>Ivoire (page)</b>#f6efe0</div></div>
+        <div class=swatch><div class=chip style="background:#2b2118"></div><div><b>Encre espresso</b>#2b2118</div></div>
+        <div class=swatch><div class=chip style="background:#e8481c"></div><div><b>Accent orange</b>#e8481c</div></div>
+        <div class=swatch><div class=chip style="background:#1e5c46"></div><div><b>Vert bouteille</b>#1e5c46</div></div>
+        <div class=swatch><div class=chip style="background:#f3d5bd"></div><div><b>Sable</b>#f3d5bd</div></div>
+      </div>
+      <p class=meta style="margin-top:18px;line-height:1.6">Un seul accent (l'orange garde la vedette), le vert bouteille dosé pour la structure fine. Coins quasi droits (2 / 4 / 10px). Trois thèmes : ivoire, <b style="color:var(--fg-1)">.theme-light</b>, <b style="color:var(--fg-1)">.theme-nuit</b>.</p>
+    </div>
   </div>
+</section>
+
 </div>
 </body></html>

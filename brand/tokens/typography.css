@@ -1,0 +1,78 @@
+/* Surplasse type : Archivo (capitales grasses + UI), Space Mono (méta, prix détaillés), Parisienne (script de marque) */
+/* Polices auto-hébergées (choix RGPD/perf), pas de CDN : voir ../fonts/. */
+@import url('../fonts/archivo.css');
+@import url('../fonts/spacemono.css');
+@import url('../fonts/parisienne.css');
+
+:root {
+  --font-display: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+  --font-ui: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'Space Mono', ui-monospace, monospace;
+  --font-script: 'Parisienne', cursive;
+
+  /* Scale */
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 15px;
+  --text-lg: 17px;
+  --text-xl: 22px;
+  --display-sm: 24px;
+  --display-md: 34px;
+  --display-lg: 46px;
+  --display-xl: 64px;
+
+  --tracking-caps: 0.08em;
+}
+
+body {
+  font-family: var(--font-ui);
+  font-size: var(--text-md);
+  line-height: 1.55;
+  color: var(--text-body);
+  background: var(--surface-page);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Titres : capitales grasses, encre orange : la signature */
+h1, h2, h3, .display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-transform: uppercase;
+  line-height: 1.04;
+  letter-spacing: 0.015em;
+  color: var(--accent);
+  margin: 0;
+  text-wrap: balance;
+}
+
+/* Script de marque : « Surplasse », noms d'établissements */
+.script {
+  font-family: var(--font-script);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+a { color: var(--green); text-decoration: none; }
+a:hover { color: var(--green-hover); text-decoration: underline; text-underline-offset: 3px; }
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.mono { font-family: var(--font-mono); }
+.num { font-variant-numeric: tabular-nums; }
+
+/* Filet titre : barres CSS de part et d'autre d'un titre en capitales */
+.rule-title {
+  display: flex; align-items: center; gap: 16px;
+  font: 800 var(--display-sm)/1 var(--font-display);
+  text-transform: uppercase; letter-spacing: 0.015em; color: var(--accent);
+}
+.rule-title::before, .rule-title::after { content: ""; flex: 1; height: 1.5px; background: var(--accent); }

@@ -1,0 +1,121 @@
+/* Surplasse : « Bistro premium ». Ivoire, encre espresso, orange international/terracotta. */
+/* Source : projet Claude Design « Restaurant management system design » (Nico). */
+:root {
+  /* Surfaces (ivoires) */
+  --bg-0: #ebe1cc;
+  --bg-1: #f6efe0;
+  --bg-2: #f1e8d6;
+  --bg-2b: #fbf7ec;
+  --bg-3: #fffef8;
+  --surface-page: var(--bg-1);
+  --surface-card: var(--bg-2b);
+  --surface-raised: var(--bg-3);
+  --surface-sunken: var(--bg-0);
+
+  /* Encre (espresso chaud) */
+  --fg-1: #2b2118;
+  --fg-2: #55483a;
+  --fg-3: #857463;
+  --fg-4: #b3a48f;
+  --text-body: var(--fg-1);
+  --text-muted: var(--fg-3);
+  --text-faint: var(--fg-4);
+
+  /* Accent : orange international / terracotta */
+  --accent: #e8481c;
+  --accent-hover: #cf3a12;
+  --accent-press: #b02f0c;
+  --accent-tint: rgba(232, 72, 28, 0.08);
+  --accent-tint-strong: rgba(232, 72, 28, 0.18);
+  --on-accent: #fff7ef;
+
+  /* Soutien : sable terracotta */
+  --peach: #f3d5bd;
+  --peach-tint: rgba(243, 213, 189, 0.4);
+
+  /* Structure : vert bouteille (dosé : entêtes, liens, statuts calmes) */
+  --green: #1e5c46;
+  --green-hover: #174838;
+  --green-tint: rgba(30, 92, 70, 0.08);
+  --green-tint-strong: rgba(30, 92, 70, 0.16);
+  --on-green: #eef6ef;
+  --line-green: rgba(30, 92, 70, 0.4);
+
+  /* Sémantiques */
+  --ok: #256b52;
+  --ok-tint: rgba(37, 107, 82, 0.12);
+  --warn: oklch(0.55 0.11 75);
+  --warn-tint: oklch(0.55 0.11 75 / 0.12);
+  --danger: oklch(0.5 0.15 30);
+  --danger-tint: oklch(0.5 0.15 30 / 0.12);
+
+  /* Lignes */
+  --line-1: rgba(43, 33, 24, 0.12);
+  --line-2: rgba(43, 33, 24, 0.22);
+  --line-accent: rgba(232, 72, 28, 0.55);
+
+  /* Ombres : discrètes, esprit imprimé */
+  --shadow-card: 0 1px 0 rgba(43,33,24,.04), 0 4px 16px rgba(43,33,24,.06);
+  --shadow-pop: 0 2px 4px rgba(43,33,24,.08), 0 16px 40px rgba(43,33,24,.18);
+
+  /* Focus */
+  --focus-ring: 0 0 0 2px var(--bg-1), 0 0 0 4px var(--accent);
+}
+
+/* Light premium : scope quasi blanc (landing, dashboard) ; la carte/menu garde l'ivoire */
+.theme-light {
+  --bg-0: #ece8de;
+  --bg-1: #faf8f3;
+  --bg-2: #f4f1e9;
+  --bg-2b: #ffffff;
+  --bg-3: #ffffff;
+  --surface-page: var(--bg-1);
+  --surface-card: var(--bg-2b);
+  --surface-raised: var(--bg-3);
+  --surface-sunken: var(--bg-0);
+  --line-1: rgba(43, 33, 24, 0.10);
+  --line-2: rgba(43, 33, 24, 0.20);
+  --shadow-card: 0 1px 0 rgba(43,33,24,.03), 0 4px 18px rgba(43,33,24,.05);
+}
+
+/* Nuit : scope sombre optionnel (menu du soir, mode cuisine) */
+.theme-nuit {
+  --bg-0: #150f0a;
+  --bg-1: #1d1510;
+  --bg-2: #241a13;
+  --bg-2b: #271d15;
+  --bg-3: #32251b;
+  --surface-page: var(--bg-1);
+  --surface-card: var(--bg-2b);
+  --surface-raised: var(--bg-3);
+  --surface-sunken: var(--bg-0);
+  --fg-1: #f6ecdd;
+  --fg-2: #d5c5ae;
+  --fg-3: #a08c74;
+  --fg-4: #6f6050;
+  --text-body: var(--fg-1);
+  --text-muted: var(--fg-3);
+  --text-faint: var(--fg-4);
+  --accent: #ff6a3a;
+  --accent-hover: #ff8258;
+  --accent-press: #e05423;
+  --accent-tint: rgba(255, 106, 58, 0.13);
+  --accent-tint-strong: rgba(255, 106, 58, 0.26);
+  --on-accent: #2a0f05;
+  --peach: #e0b28d;
+  --peach-tint: rgba(224, 178, 141, 0.18);
+  --green: #63b193;
+  --green-hover: #7cc3a7;
+  --green-tint: rgba(99, 177, 147, 0.12);
+  --green-tint-strong: rgba(99, 177, 147, 0.22);
+  --on-green: #0c1f17;
+  --line-green: rgba(99, 177, 147, 0.45);
+  --ok: #63b193;
+  --ok-tint: rgba(99, 177, 147, 0.14);
+  --line-1: rgba(246, 236, 221, 0.1);
+  --line-2: rgba(246, 236, 221, 0.18);
+  --line-accent: rgba(255, 106, 58, 0.5);
+  --shadow-card: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+  --shadow-pop: 0 2px 6px rgba(0,0,0,.35), 0 16px 48px rgba(0,0,0,.45);
+  --focus-ring: 0 0 0 2px var(--bg-1), 0 0 0 4px var(--accent);
+}
