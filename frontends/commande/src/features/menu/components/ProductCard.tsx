@@ -1,7 +1,11 @@
+import { useState } from "react";
 import { formatPriceCents } from "@surplasse/shared";
 import type { MenuProduct } from "@surplasse/shared";
 
 import { fr } from "../../../i18n/fr";
+import { useCart } from "../../cart/hooks/useCart";
+import type { CartOption } from "../../cart/hooks/useCart";
+import { ProductSheet } from "./ProductSheet";
 
 type Props = {
   product: MenuProduct;
@@ -9,6 +13,21 @@ type Props = {
 };
 
 export function ProductCard({ product, currency }: Props) {
+  const { addLine } = useCart();
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  const add = (options: CartOption[], note: string | undefined) => {
+    addLine({
+      productId: product.id,
+      productName: product.name,
+      unitPriceCents: product.priceCents,
+      quantity: 1,
+      options,
+      note,
+    });
+    setSheetOpen(false);
+  };
+
   return (
     <article
       className={`rounded-lg border border-[var(--line-1)] bg-[var(--surface-card)] p-4 [box-shadow:var(--shadow-card)] ${
@@ -49,6 +68,20 @@ export function ProductCard({ product, currency }: Props) {
             </div>
           ))}
         </dl>
+      )}
+
+      {product.available && (
+        <button
+          type="button"
+          onClick={() => setSheetOpen(true)}
+          className="mt-3 min-h-11 w-full rounded-md bg-[var(--structure-tint)] font-semibold text-[var(--structure)] hover:bg-[var(--accent-tint)]"
+        >
+          {fr.menu.add}
+        </button>
+      )}
+
+      {sheetOpen && (
+        <ProductSheet product={product} currency={currency} onAdd={add} onClose={() => setSheetOpen(false)} />
       )}
     </article>
   );
