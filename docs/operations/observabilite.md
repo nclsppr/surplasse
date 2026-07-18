@@ -105,7 +105,7 @@ Micrometer fournit gratuitement les métriques techniques standards (latence par
 | Échecs de paiement | Compteur, par cause (refus carte, erreur Stripe, expiration) | Distingue le refus bancaire normal d'une panne d'intégration Stripe |
 | Latence p95 de l'API carte | Histogramme sur les endpoints de lecture de la carte | La carte est la première page vue après le scan : sa lenteur tue la commande avant qu'elle n'existe |
 | Connexions SSE actives | Jauge, par type de canal (établissement, commande) | Une jauge à zéro en plein service signifie que les Dashboards sont aveugles (voir [le temps réel](../architecture/backend.md#le-temps-réel--sse-via-mutiny)) |
-| Jobs d'extraction en échec | Compteur, avec la jauge des jobs en attente | Des embarquements bloqués et un budget d'API Claude qui brûle pour rien |
+| Jobs d'extraction en échec | Compteur, avec la jauge des jobs en attente | Des embarquements bloqués et un budget d'API OpenAI qui brûle pour rien |
 
 Ces six mesures couvrent les quatre pannes silencieuses du tableau d'ouverture. Toute métrique métier supplémentaire se justifie par le même critère : quelle perte détecte-t-elle ?
 

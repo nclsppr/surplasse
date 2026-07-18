@@ -9,7 +9,7 @@ description: Le parcours d'embarquement du restaurateur, de la découverte de su
 
 L'embarquement est le parcours par lequel un restaurateur crée son établissement sur Surplasse : de la découverte de la promesse « une photo suffit » jusqu'à la première commande encaissée en salle. C'est le parcours le plus critique du produit. S'il échoue, rien d'autre n'existe. Il est porté par l'application Onboarding (`surplasse.com`), s'appuie sur le backend pour l'extraction et la persistance, et débouche sur les deux autres applications : le mini-site servi par Commande et le pilotage dans le Dashboard.
 
-Cette page décrit la cible de référence du tunnel, étape par étape. Le projet n'a pas encore de code applicatif : tout ce qui suit est une spécification, et les points restant à trancher sont signalés explicitement. Les fonctionnalités mobilisées à chaque étape sont détaillées dans [la page fonctionnalités](../fonctionnalites.md), et les intégrations externes (Stripe, API Claude) dans [la page intégrations](../../architecture/integrations.md).
+Cette page décrit la cible de référence du tunnel, étape par étape. Le projet n'a pas encore de code applicatif : tout ce qui suit est une spécification, et les points restant à trancher sont signalés explicitement. Les fonctionnalités mobilisées à chaque étape sont détaillées dans [la page fonctionnalités](../fonctionnalites.md), et les intégrations externes (Stripe, API OpenAI) dans [la page intégrations](../../architecture/integrations.md).
 
 ## Vue d'ensemble du tunnel
 
@@ -73,7 +73,7 @@ Les étapes 1 à 4 sont conçues pour être parcourues en une seule session, san
 
 **Actions du restaurateur** : aucune. Il attend devant un écran d'attente.
 
-**Ce que fait le système** : le backend appelle l'API Claude (vision) pour lire la photo et en extraire une structure : catégories, produits avec descriptions, prix, options détectées (tailles, suppléments explicites sur la carte). Chaque valeur extraite porte un indice de confiance ; les valeurs douteuses sont marquées « à vérifier » pour l'étape de relecture. En parallèle, une harmonisation optionnelle des photos du lieu et des plats (recadrage, tonalité cohérente) peut être proposée. Les détails de l'intégration sont décrits dans [la page intégrations](../../architecture/integrations.md).
+**Ce que fait le système** : le backend appelle l'API OpenAI (vision) pour lire la photo et en extraire une structure : catégories, produits avec descriptions, prix, options détectées (tailles, suppléments explicites sur la carte). Chaque valeur extraite porte un indice de confiance ; les valeurs douteuses sont marquées « à vérifier » pour l'étape de relecture. En parallèle, une harmonisation optionnelle des photos du lieu et des plats (recadrage, tonalité cohérente) peut être proposée. Les détails de l'intégration sont décrits dans [la page intégrations](../../architecture/integrations.md).
 
 Le délai perçu est un enjeu à part entière. L'écran d'attente affiche des étapes lisibles (« lecture de la carte », « structuration des produits », « génération du mini-site ») plutôt qu'une barre muette. La cible de durée de bout en bout reste à trancher (ordre de grandeur visé : moins de deux minutes) ; au-delà d'un seuil, le tunnel doit proposer de continuer par email (« nous vous prévenons quand c'est prêt »).
 

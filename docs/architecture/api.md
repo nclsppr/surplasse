@@ -91,7 +91,7 @@ Incorrect : GET /v1/establishments/{id}/menus/{menuId}/products
 | `PATCH` | Modification partielle | 200 |
 | `DELETE` | Suppression | 204 |
 
-Côté erreurs : 400 pour une requête invalide, 401 pour une authentification absente ou expirée, 403 pour une action interdite sur une ressource de son propre établissement (état non revendiqué ou suspendu), 404 pour une ressource inconnue ou hors du périmètre du demandeur (jamais 403 dans ce cas, pour ne pas confirmer son existence), 409 pour un conflit d'état, 422 pour une règle métier violée, 429 pour un dépassement de quota, 503 pour une dépendance externe indisponible après retentatives (Stripe, API Claude).
+Côté erreurs : 400 pour une requête invalide, 401 pour une authentification absente ou expirée, 403 pour une action interdite sur une ressource de son propre établissement (état non revendiqué ou suspendu), 404 pour une ressource inconnue ou hors du périmètre du demandeur (jamais 403 dans ce cas, pour ne pas confirmer son existence), 409 pour un conflit d'état, 422 pour une règle métier violée, 429 pour un dépassement de quota, 503 pour une dépendance externe indisponible après retentatives (Stripe, API OpenAI).
 
 ### Pagination par curseur
 

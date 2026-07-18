@@ -51,7 +51,7 @@ Le restaurateur fait avancer chaque commande d'un geste (un bouton par transitio
  +----------+
 ```
 
-Les libellés affichés au restaurateur sont rattachés aux statuts canoniques du [modèle de données](../../architecture/donnees.md) : « Nouvelle » correspond au statut `payée` (la commande arrive déjà réglée), « Refusée » à `annulée` avec remboursement. Le restaurateur agit d'un geste par transition (accepter, démarrer la préparation, marquer prête, puis servie ou retirée).
+Les libellés affichés au restaurateur sont rattachés aux statuts canoniques du [modèle de données](../../architecture/donnees.md) : « Nouvelle » correspond au statut `paid` (la commande arrive déjà réglée), « Refusée » à `cancelled` avec remboursement. Le restaurateur agit d'un geste par transition (accepter, démarrer la préparation, marquer prête, puis servie ou retirée).
 
 Le client suit ces changements d'état en direct sur son téléphone. Pour le sur place, « Servie » clôt la commande quand le plat arrive à table ; pour l'à emporter, « Prête » déclenche la notification de retrait et « Retirée » correspond à la remise au comptoir.
 

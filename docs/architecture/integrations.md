@@ -2,12 +2,12 @@
 label: Intégrations
 order: 60
 icon: link
-description: "Les services externes du système Surplasse : Stripe, extraction IA via l'API Claude, données publiques, emails transactionnels, impression thermique, stockage objet et QR codes."
+description: "Les services externes du système Surplasse : Stripe, extraction IA via l'API OpenAI, données publiques, emails transactionnels, impression thermique, stockage objet et QR codes."
 ---
 
 # Les intégrations
 
-Le Backend est le seul point de contact avec les services externes : aucun frontend ne parle directement à Stripe (hors confirmation du Payment Element), à l'API Claude ou au fournisseur d'emails. Cette page décrit chaque intégration : son rôle, son mode d'intégration, ses risques et l'état de la décision. La gestion des secrets (clés API, signatures de webhooks) et la vérification des webhooks sont détaillées dans [la sécurité](securite.md).
+Le Backend est le seul point de contact avec les services externes : aucun frontend ne parle directement à Stripe (hors confirmation du Payment Element), à l'API OpenAI ou au fournisseur d'emails. Cette page décrit chaque intégration : son rôle, son mode d'intégration, ses risques et l'état de la décision. La gestion des secrets (clés API, signatures de webhooks) et la vérification des webhooks sont détaillées dans [la sécurité](securite.md).
 
 !!! info Documentation de référence
 Le projet n'a pas encore de code applicatif. Cette page décrit la cible de référence, au présent de spécification. Les points non tranchés sont signalés et donnent lieu à des ADR dans [decisions](../decisions/).
@@ -96,7 +96,7 @@ Stripe comme prestataire de paiement et le compte Connect Express sont actés ([
 
 ### Rôle
 
-C'est l'intégration qui rend la promesse du produit possible : transformer une photo de carte en carte numérique structurée, sans saisie manuelle. Elle est portée par le domaine Génération du Backend et s'appuie sur l'API Claude en mode vision.
+C'est l'intégration qui rend la promesse du produit possible : transformer une photo de carte en carte numérique structurée, sans saisie manuelle. Elle est portée par le domaine Génération du Backend et s'appuie sur l'API OpenAI en mode vision.
 
 ### Pipeline
 
@@ -108,7 +108,7 @@ C'est l'intégration qui rend la promesse du produit possible : transformer une 
                                    ▼
                      Job asynchrone (domaine Génération)
                                    │
-                                   │  appel API Claude (vision),
+                                   │  appel API OpenAI (vision),
                                    │  sortie structurée JSON
                                    ▼
                      Validation du schéma (catégories,
@@ -124,13 +124,23 @@ C'est l'intégration qui rend la promesse du produit possible : transformer une 
                                    Carte publiée
 ```
 
-Le mode d'intégration est asynchrone de bout en bout : le téléversement crée un job, le frontend Onboarding suit son avancement sans bloquer le parcours, et le résultat n'est jamais publié directement. La sortie de l'API Claude est demandée en JSON structuré et validée contre le schéma de la carte (celui du contrat) avant d'être proposée à la relecture.
+Le mode d'intégration est asynchrone de bout en bout : le téléversement crée un job, le frontend Onboarding suit son avancement sans bloquer le parcours, et le résultat n'est jamais publié directement. La sortie de l'API OpenAI est demandée en JSON structuré et validée contre le schéma de la carte (celui du contrat) avant d'être proposée à la relecture.
 
 **La relecture humaine est obligatoire : l'IA propose, le restaurateur dispose.** Aucun prix, aucun libellé extrait n'est publié sans passage par l'écran de relecture. C'est une garantie de qualité (un prix mal lu est une erreur commerciale, pas un bug) et le principe qui rend l'imperfection de l'extraction acceptable : une extraction à 90 % juste avec une relecture rapide vaut mieux qu'une saisie manuelle complète.
 
-### Harmonisation des photos de plats
+### Images de plats : harmonisation et génération
 
-L'harmonisation des photos de plats est un traitement d'image serveur classique, distinct du modèle vision : le modèle de l'API Claude analyse les images mais n'en produit ni n'en retouche aucune. Une bibliothèque de traitement d'image applique recadrage, normalisation de l'exposition et génération de miniatures, pour une cohérence visuelle entre les photos d'une même carte. Le modèle vision peut, lui, servir en amont à repérer les photos inexploitables (floues, mal cadrées) et à suggérer un recadrage. La règle est **l'amélioration sans tromperie** : le principe de fidélité à l'assiette réellement servie interdit de générer un plat qui n'existe pas, d'ajouter des ingrédients ou d'embellir au point de créer une attente que la cuisine ne tiendra pas. On ajuste la photo, jamais le plat. Toute retouche générative reste hors périmètre.
+Deux traitements distincts s'appliquent aux photos de plats, à ne pas confondre.
+
+L'**harmonisation** est un traitement d'image serveur classique (recadrage, normalisation de l'exposition, génération de miniatures) appliqué aux photos existantes, pour une cohérence visuelle entre les photos d'une même carte. Le modèle vision peut, en amont, repérer les photos inexploitables (floues, mal cadrées) et suggérer un recadrage.
+
+La **génération de visuels de plats** est une capacité assumée de l'API OpenAI (génération d'images) : à l'embarquement, à partir des photos de plats fournies par le restaurateur (ou la personne qui l'embarque), Surplasse produit des visuels harmonisés candidats. Elle est cadrée par l'[ADR-0011 : visuels de plats générés](../decisions/adr-0011-visuels-plats.md) :
+
+- **Sources maîtrisées uniquement** : la génération part des photos fournies par le restaurateur, jamais de photos de tiers (touristes, plateformes), pour des raisons de droits.
+- **Choix produit par produit** : à la configuration de la carte, chaque produit peut porter une photo téléversée, un visuel proposé par Surplasse, ou aucune image. Le restaurateur décide ; rien de généré n'est publié sans son choix explicite.
+- **Fidélité** : un visuel illustre un plat réellement servi (il part d'une photo de ce plat), il ne l'invente pas ; il est présenté comme une suggestion de présentation, jamais comme la photo littérale de l'assiette servie.
+
+Les visuels générés sont stockés comme des `MediaAsset` (`source = generated`, `status = proposed`) que le restaurateur sélectionne ou écarte (voir [le modèle de données](donnees.md)).
 
 ### Coûts et limites
 
@@ -144,7 +154,7 @@ L'harmonisation des photos de plats est un traitement d'image serveur classique,
 
 ### Statut de la décision
 
-L'API Claude comme moteur d'extraction est actée dans la stack de référence. Le choix du modèle exact, les seuils de qualité d'image et le plafond de coût par embarquement restent à affiner pendant la construction du MVP.
+L'API OpenAI comme moteur d'extraction et de génération de visuels est actée ([ADR-0010](../decisions/adr-0010-fournisseur-ia.md) et [ADR-0011](../decisions/adr-0011-visuels-plats.md)), derrière une interface qui la garde interchangeable. Le choix du modèle exact, les seuils de qualité d'image et le plafond de coût par embarquement restent à affiner pendant la construction du MVP.
 
 ## Enrichissement depuis les données publiques
 
@@ -293,7 +303,9 @@ Pas de décision structurante : implémentation backend standard, prévue avec l
 | Intégration | Décision structurante | Statut |
 |---|---|---|
 | Stripe | Connect Express, Payment Element, webhook source de vérité | Acté : [ADR Stripe Connect](../decisions/adr-0007-stripe.md) |
-| Extraction IA | API Claude en vision, relecture humaine obligatoire | Acté dans la stack ; modèle et seuils à affiner |
+| Fournisseur IA | API OpenAI derrière interface (vision et génération d'images) | Acté : [ADR-0010](../decisions/adr-0010-fournisseur-ia.md) |
+| Extraction de carte | API OpenAI en vision, relecture humaine obligatoire | Acté dans la stack ; modèle et seuils à affiner |
+| Visuels de plats générés | Sources maîtrisées, choix produit par produit, fidélité | Acté : [ADR-0011](../decisions/adr-0011-visuels-plats.md) |
 | Données publiques | Sources, preuve de revendication, rétention | À trancher (ADR à venir) |
 | Emails | SMTP via quarkus-mailer | Mode acté ; fournisseur à trancher (ADR à venir) |
 | Impression thermique | Imprimante cloud ou application compagnon | Reportée, hors MVP (ADR à venir) |

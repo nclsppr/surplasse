@@ -89,7 +89,7 @@ Le corps explique le pourquoi. Le comment est dans le diff, inutile de le paraph
 
 | Catégorie | Exemples | Pourquoi |
 |---|---|---|
-| Secrets | clés Stripe, clé API Claude, tokens, mots de passe | Un secret poussé est un secret compromis, même supprimé ensuite |
+| Secrets | clés Stripe, clé API OpenAI, tokens, mots de passe | Un secret poussé est un secret compromis, même supprimé ensuite |
 | Fichiers d'environnement | `.env`, `.env.local` | Contiennent des secrets ou des valeurs propres à une machine |
 | Dépendances | `node_modules/`, artefacts Maven dans `target/` | Reconstructibles depuis `package-lock.json` et `pom.xml` |
 | Sortie de build docs | `docs-site/` | Régénérée par `npm run docs:build`, déployée par la CI |
@@ -133,7 +133,7 @@ Le principe : **l'historique de `main` est immuable**. On avance, on ne réécri
 - **Avant le push, tout est permis.** Un commit local non poussé peut être amendé (`git commit --amend`), fusionné ou réordonné librement. La frontière est le push : ce qui est poussé est figé.
 
 !!! info Cas extrême : un secret poussé
-Si un secret atteint `main` malgré tout, la réécriture d'historique ne le sauve pas : le secret est compromis dès le push. La réponse est la révocation immédiate du secret (rotation de la clé chez Stripe, Anthropic ou autre), puis un commit qui le retire du dépôt. Voir [sécurité](../architecture/securite.md).
+Si un secret atteint `main` malgré tout, la réécriture d'historique ne le sauve pas : le secret est compromis dès le push. La réponse est la révocation immédiate du secret (rotation de la clé chez Stripe, OpenAI ou autre), puis un commit qui le retire du dépôt. Voir [sécurité](../architecture/securite.md).
 !!!
 
 ## Tags de version par application

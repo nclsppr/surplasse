@@ -110,14 +110,14 @@ Point pratique assumé : un client qui n'a rien fourni n'est pas identifiable, e
 | Stripe | Paiement | Données de carte bancaire (collectées directement par Stripe Elements, jamais vues par Surplasse), montant, référence de commande | Périmètre PCI DSS porté par Stripe (voir [sécurité](../architecture/securite.md#posture-générale)) ; transferts encadrés par ses clauses contractuelles |
 | Hébergeur du VPS (à trancher) | Hébergement du Backend et de PostgreSQL | L'ensemble des données en base | Hébergeur européen exigé, données localisées dans l'Union européenne |
 | Fournisseur d'emails (à trancher) | Envoi des magic links, reçus et notifications | Adresses email des destinataires, contenu des messages | Fournisseur européen privilégié ; décision consignée dans un ADR |
-| Anthropic (API Claude) | Extraction de carte depuis photo, enrichissement de données publiques | Photos de cartes de restaurant, données publiques d'établissements | Aucune donnée de client final, jamais (voir ci-dessous) ; accord de traitement des données et absence d'entraînement sur les contenus soumis à vérifier à la contractualisation |
+| OpenAI (API OpenAI) | Extraction de carte depuis photo, enrichissement de données publiques | Photos de cartes de restaurant, données publiques d'établissements | Aucune donnée de client final, jamais (voir ci-dessous) ; accord de traitement des données et absence d'entraînement sur les contenus soumis à vérifier à la contractualisation |
 
 Chaque sous-traitant fait l'objet d'un accord de traitement des données (DPA) avant toute mise en production ; la liste ci-dessus est publiée dans la politique de confidentialité du produit et tenue à jour dans cette page.
 
 ## L'IA et les données personnelles
 
 !!! warning Aucune donnée de client final vers l'API d'extraction
-Le pipeline d'extraction (voir [intégrations](../architecture/integrations.md)) ne transmet à l'API Claude que des photos de cartes de restaurant et des données publiques d'établissements : des données professionnelles, par nature destinées à être affichées publiquement. Aucune donnée de client final (email, prénom, contenu de commande, historique) ne doit jamais transiter par un appel à l'API d'extraction ou d'enrichissement, quelle qu'en soit la raison. Cette règle est structurelle : le module `generation` du Backend n'a tout simplement pas accès aux données des commandes (voir [les règles de dépendances entre modules](../architecture/backend.md#un-monolithe-modulaire)), et elle est vérifiée en revue de code.
+Le pipeline d'extraction (voir [intégrations](../architecture/integrations.md)) ne transmet à l'API OpenAI que des photos de cartes de restaurant et des données publiques d'établissements : des données professionnelles, par nature destinées à être affichées publiquement. Aucune donnée de client final (email, prénom, contenu de commande, historique) ne doit jamais transiter par un appel à l'API d'extraction ou d'enrichissement, quelle qu'en soit la raison. Cette règle est structurelle : le module `generation` du Backend n'a tout simplement pas accès aux données des commandes (voir [les règles de dépendances entre modules](../architecture/backend.md#un-monolithe-modulaire)), et elle est vérifiée en revue de code.
 !!!
 
 Les photos passent en outre par le pipeline de réécriture décrit dans la page [sécurité](../architecture/securite.md#televersements), qui détruit les métadonnées EXIF (dont la géolocalisation) avant tout envoi.
@@ -148,7 +148,7 @@ Ces stockages relèvent de l'exemption de consentement prévue par les lignes di
 | Qualification des rôles (responsable ou sous-traitant selon les traitements) | Validation juridique | Avant la rédaction des conditions générales |
 | Absence de bandeau cookies sur le front Commande | Validation juridique | Avant le lancement |
 | Hébergeur du VPS et fournisseur d'emails (européens) | Décision, ADR | Avant le premier déploiement |
-| Conditions du DPA Anthropic (entraînement, localisation) | Vérification contractuelle | Avant la mise en production de l'extraction |
+| Conditions du DPA OpenAI (entraînement, localisation) | Vérification contractuelle | Avant la mise en production de l'extraction |
 | Adresse de contact définitive et politique de confidentialité publiée | Rédaction | Avant le lancement |
 
 ## Pour aller plus loin
@@ -158,4 +158,4 @@ Ces stockages relèvent de l'exemption de consentement prévue par les lignes di
 | [Sécurité](../architecture/securite.md) | La protection technique des données : sessions, autorisations, téléversements, sauvegardes |
 | [Les données](../architecture/donnees.md) | Le modèle de données complet et le tableau de conservation de référence |
 | [Observabilité](observabilite.md) | La règle de non-journalisation des données personnelles et la rétention des logs |
-| [Intégrations](../architecture/integrations.md) | Les échanges concrets avec Stripe et l'API Claude |
+| [Intégrations](../architecture/integrations.md) | Les échanges concrets avec Stripe et l'API OpenAI |

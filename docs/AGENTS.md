@@ -52,7 +52,7 @@ Le contrat OpenAPI vit dans `api/openapi.yaml`. Il est la source de vérité : l
 | Contrat | OpenAPI | 3.1 | Contract-first, générateurs de clients TS et d'interfaces Java |
 | Paiement | Stripe | API courante | CB, Apple Pay, Google Pay ; PayPal en roadmap |
 | Auth restaurateur | Magic link par email, session JWT en cookie HttpOnly | MVP | Le client final n'a jamais de compte |
-| IA | API Claude (vision) | modèles courants | Analyse d'images (extraction de carte, données publiques) ; ne retouche pas les images |
+| IA | API OpenAI (derrière interface) | modèles courants | Extraction de carte et données publiques (vision) ; génération de visuels de plats à l'embarquement |
 | Impression | Imprimante thermique ESC/POS | à trancher (ADR) | Tickets cuisine optionnels |
 | Docs | Retype | 4.6+ | Ce site ; déployé sur GitHub Pages |
 | CI/CD | GitHub Actions | | Déploiement cible : VPS avec Docker Compose |
@@ -107,6 +107,7 @@ Entités (noms de classes et, entre parenthèses, table SQL en `snake_case`) :
 | pourboire | `Tip` (`tip`) |
 | consentement marketing | `MarketingConsent` (`marketing_consent`) |
 | job d'extraction | `ExtractionJob` (`extraction_job`) |
+| média (image stockée) | `MediaAsset` (`media_asset`) |
 
 Valeurs d'enum (stockées en base, donc en anglais) :
 
@@ -118,6 +119,9 @@ Valeurs d'enum (stockées en base, donc en anglais) :
 | Cycle de vie d'un espace (`Space.status`) | `pregenerated`, `claiming`, `claimed` |
 | Cycle de vie d'un établissement (`Establishment.status`) | `configuring`, `active`, `suspended` |
 | Statut d'un job (`ExtractionJob.status`) | `pending`, `running`, `succeeded`, `failed` |
+| Source d'un média (`MediaAsset.source`) | `uploaded`, `generated` |
+| Nature d'un média (`MediaAsset.kind`) | `dish`, `place`, `logo`, `menu_scan` |
+| Statut d'un média (`MediaAsset.status`) | `proposed`, `selected`, `archived` |
 
 Exceptions métier (dans `common`) :
 
@@ -163,9 +167,19 @@ La session du restaurateur est un **JWT de session court porté par un cookie `H
 
 La roadmap est la source unique de l'ordre de livraison (les phases). La priorisation MoSCoW de `produit/fonctionnalites.md` exprime l'importance intrinsèque des fonctionnalités pour le produit cible, pas un calendrier. Le premier MVP réellement livrable correspond à la **phase 2** de la roadmap (commander et payer). L'extraction IA de la carte, la génération du mini-site, l'édition de carte au Dashboard et l'historique arrivent après (phases 3 et 4) ; les espaces à revendiquer relèvent de la phase 5. Aucune page ne doit présenter ces éléments comme faisant partie du premier MVP.
 
-### Traitement des images
+### Fournisseur IA
 
-Le modèle vision de l'API Claude **analyse** les images (extraction de la carte, lecture des données publiques) mais ne **produit ni ne retouche** aucune image. L'harmonisation des photos de plats (recadrage, normalisation d'exposition, miniatures) est un traitement d'image serveur classique, distinct du modèle vision ; toute amélioration reste fidèle à l'assiette réellement servie.
+L'IA (extraction de carte et de données publiques par vision, et génération de visuels de plats) passe par l'**API OpenAI**, validée par un test d'amorçage. Elle est toujours placée derrière une interface du domaine `generation` (par exemple `MenuExtractor`, `DishImageGenerator`) pour rester interchangeable. Voir `decisions/adr-0010-fournisseur-ia.md`. Ne jamais transmettre de données de client final à l'IA (une carte de restaurant est une donnée professionnelle).
+
+### Visuels de plats générés (référence : `decisions/adr-0011-visuels-plats.md`)
+
+La génération de visuels de plats est **dans le périmètre**, sous conditions strictes :
+
+- **Sources maîtrisées uniquement.** Les images générées partent des photos fournies à l'embarquement par le restaurateur (ou la personne qui l'embarque), jamais de photos de tiers (touristes, plateformes) : ces dernières posent un problème de droits.
+- **Choix du restaurateur, produit par produit.** À la configuration de la carte, chaque produit peut porter soit une photo téléversée, soit un visuel proposé par Surplasse, soit aucune image. Le restaurateur décide ; rien de généré n'est publié sans son choix explicite.
+- **Fidélité.** Un visuel n'illustre qu'un plat réellement servi (il part d'une photo de ce plat) ; il ne l'invente pas et ne crée pas une attente que la cuisine ne tiendra pas. Il est présenté comme une suggestion de présentation, jamais comme la photo littérale de l'assiette servie.
+
+Distinguer toujours l'**harmonisation** (recadrage, exposition, miniatures des photos existantes, traitement d'image serveur classique) de la **génération** (nouveau visuel produit par l'IA à partir des photos fournies).
 
 ### Casse des entités métier
 

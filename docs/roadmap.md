@@ -137,7 +137,7 @@ Faire disparaître le coût d'entrée. Un restaurateur photographie sa carte, Su
 
 ### Livrables
 
-- Extraction IA de la carte depuis une photo (API Claude, vision) : catégories, produits, options, prix, avec écran de relecture et correction avant publication.
+- Extraction IA de la carte depuis une photo (API OpenAI, vision) : catégories, produits, options, prix, avec écran de relecture et correction avant publication.
 - Génération du mini-site de l'établissement avec choix d'un thème.
 - Stripe Connect Express en production : chaque établissement encaisse sur son propre compte.
 - Tunnel d'embarquement complet dans le front Onboarding : de la photo de la carte à la première commande encaissable.

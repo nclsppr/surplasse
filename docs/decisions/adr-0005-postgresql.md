@@ -21,7 +21,7 @@ Le backend Quarkus persiste des données de natures très différentes (voir [le
 | La carte | Catégories, produits, options, prix | Relationnel classique, intégrité référentielle |
 | Établissements et espaces | Espaces pré-générés, revendications, comptes restaurateurs | Relationnel, unicité, traçabilité de la revendication |
 | Lignes de commande | Options et prix figés au moment de l'achat | Instantané immuable, structure variable selon le produit |
-| Embarquement | Résultats bruts d'extraction de carte par l'API Claude | Payloads semi-structurés, schéma évolutif |
+| Embarquement | Résultats bruts d'extraction de carte par l'API OpenAI | Payloads semi-structurés, schéma évolutif |
 | Travaux asynchrones | Génération d'espaces, extraction IA, envois d'emails | File de travaux fiable |
 
 Deux formes cohabitent donc : un cœur relationnel et transactionnel (l'argent, les commandes, la carte) et des payloads flexibles dont le schéma bouge vite (les options figées d'une ligne de commande, les sorties du modèle de vision). S'y ajoutent des besoins annexes, files de travaux et cache, qui appellent classiquement un second moteur (Redis, broker de messages).

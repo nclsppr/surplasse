@@ -119,11 +119,11 @@ La règle de placement est simple et sans exception :
 - Les lectures pures ne portent pas `@Transactional`.
 - L'émission d'événements de domaine observés en phase post-commit (voir [le backend](../architecture/backend.md#les-événements-de-domaine)) garantit qu'aucun effet secondaire ne part pour une transaction finalement annulée.
 
-Pour les traitements longs, une règle absolue : **jamais de transaction ouverte pendant un appel externe**. Un appel Stripe ou un appel à l'API Claude peut durer des secondes ; le faire dans une transaction retiendrait une connexion du pool et des verrous pendant toute la durée de l'appel. Le motif imposé est en trois temps :
+Pour les traitements longs, une règle absolue : **jamais de transaction ouverte pendant un appel externe**. Un appel Stripe ou un appel à l'API OpenAI peut durer des secondes ; le faire dans une transaction retiendrait une connexion du pool et des verrous pendant toute la durée de l'appel. Le motif imposé est en trois temps :
 
 ```
 transaction courte 1        appel externe               transaction courte 2
-enregistrer l'intention ──► Stripe, API Claude, email ──► enregistrer le résultat
+enregistrer l'intention ──► Stripe, API OpenAI, email ──► enregistrer le résultat
 (job « en attente »)        (hors transaction)           (succès ou échec, retentative)
 ```
 
@@ -145,7 +145,7 @@ Chaque domaine lève des **exceptions métier** explicites, qui étendent une pe
 | `ConflictException` | espace déjà revendiqué, modification concurrente | 409 |
 | `BusinessRuleException` | panier contenant un produit en rupture, montant incohérent | 422 |
 | `PaymentFailedException` | paiement refusé par Stripe | 422 |
-| `DependencyUnavailableException` | Stripe ou l'API Claude injoignable après retentatives | 503 |
+| `DependencyUnavailableException` | Stripe ou l'API OpenAI injoignable après retentatives | 503 |
 | toute exception non mappée | bug | 500, sans détail interne dans la réponse |
 
 Trois règles d'usage :
@@ -171,13 +171,13 @@ La configuration applicative passe exclusivement par des interfaces `@ConfigMapp
 @ConfigMapping(prefix = "surplasse.generation")
 public interface GenerationConfig {
 
-    /** Claude model used for menu extraction. */
+    /** OpenAI model used for menu extraction. */
     String model();
 
     /** Maximum attempts for an extraction job. */
     int maxAttempts();
 
-    /** Timeout for a single Claude API call. */
+    /** Timeout for a single OpenAI API call. */
     Duration callTimeout();
 }
 ```
@@ -215,7 +215,7 @@ Le condensé de ce que la revue refuse systématiquement :
 | Injection de champ `@Inject` | dépendances cachées, testabilité dégradée | injection par constructeur, champs `final` |
 | `@Transactional` sur une resource ou un repository | frontière transactionnelle au mauvais niveau | `@Transactional` sur la méthode de service |
 | `@ConfigProperty` hors `@ConfigMapping` | configuration éparpillée, invérifiable au démarrage | le `@ConfigMapping` du domaine |
-| Appel externe (Stripe, API Claude) en transaction ouverte | connexion et verrous retenus pendant des secondes | motif en trois temps, worker de jobs |
+| Appel externe (Stripe, API OpenAI) en transaction ouverte | connexion et verrous retenus pendant des secondes | motif en trois temps, worker de jobs |
 
 ## Pour aller plus loin
 

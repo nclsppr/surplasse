@@ -87,7 +87,7 @@ Conséquences concrètes : code splitting agressif par route (la page de paiemen
 
 ### Thème par établissement
 
-Chaque mini-site porte l'identité de son établissement : c'est le cœur du positionnement (le restaurant garde son identité, Surplasse s'efface). Les couleurs et éléments d'identité sont extraits lors de l'embarquement (analyse des photos et des données publiques par l'API Claude, voir [les intégrations](integrations.md)) et stockés côté backend comme configuration de l'établissement.
+Chaque mini-site porte l'identité de son établissement : c'est le cœur du positionnement (le restaurant garde son identité, Surplasse s'efface). Les couleurs et éléments d'identité sont extraits lors de l'embarquement (analyse des photos et des données publiques par l'API OpenAI, voir [les intégrations](integrations.md)) et stockés côté backend comme configuration de l'établissement.
 
 Au chargement, l'application récupère cette configuration et l'injecte sous forme de variables CSS :
 

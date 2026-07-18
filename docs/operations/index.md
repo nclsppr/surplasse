@@ -25,14 +25,14 @@ Surplasse est développé et exploité par une seule personne. Ce fait dicte tou
 - **Tout dans Docker Compose, sur un VPS unique.** Pas d'orchestrateur, pas de cluster, pas de cloud managé au lancement. Un seul VPS, une seule pile Compose versionnée dans `infra/`, un seul endroit où regarder. Kubernetes résout des problèmes que Surplasse n'a pas.
 - **Tout redéployable depuis git.** Le VPS ne contient aucun état de configuration qui ne soit pas reconstructible : les fichiers Compose et la configuration du reverse proxy vivent dans `infra/`, les images sont taggées par SHA dans le registre, les secrets sont les seuls éléments provisionnés à la main (et documentés dans [Environnements](environnements.md)). Perdre le VPS doit coûter une restauration de sauvegarde et un déploiement, pas une archéologie.
 
-Les seules dépendances externes sont des services SaaS qui portent leur propre exploitation : Stripe pour le paiement, l'API Claude pour l'extraction de carte, GitHub pour le code, la CI et la documentation.
+Les seules dépendances externes sont des services SaaS qui portent leur propre exploitation : Stripe pour le paiement, l'API OpenAI pour l'extraction de carte, GitHub pour le code, la CI et la documentation.
 
 ## Inventaire des services en production
 
 | Service | Techno | Rôle | Exposition |
 |---|---|---|---|
 | Reverse proxy | Caddy | Terminaison TLS (certificat wildcard automatique), routage par domaine vers les autres services | Ports 80 et 443, seul service exposé à Internet |
-| Backend | Quarkus (Java 21) | L'API REST, la logique métier, le temps réel SSE, les intégrations Stripe et Claude | `api.surplasse.com`, via Caddy |
+| Backend | Quarkus (Java 21) | L'API REST, la logique métier, le temps réel SSE, les intégrations Stripe et OpenAI | `api.surplasse.com`, via Caddy |
 | Onboarding | Conteneur statique | Vitrine produit et tunnel d'embarquement des restaurateurs | `surplasse.com`, via Caddy |
 | Commande | Conteneur statique | Mini-site des établissements, carte numérique, commande et paiement client | `{slug}.surplasse.com`, via Caddy |
 | Dashboard | Conteneur statique | Suivi des commandes en temps réel et gestion de la carte pour les restaurateurs | `dashboard.surplasse.com`, via Caddy |
@@ -75,7 +75,7 @@ Chaque front est empaqueté dans une image minimale servant ses fichiers statiqu
    +-------------+
 ```
 
-Seul Caddy écoute sur l'extérieur. PostgreSQL et MinIO ne sont joignables que depuis le réseau interne Compose ; le backend est le seul à leur parler. Les appels sortants (Stripe, API Claude, envoi des magic links) partent du backend.
+Seul Caddy écoute sur l'extérieur. PostgreSQL et MinIO ne sont joignables que depuis le réseau interne Compose ; le backend est le seul à leur parler. Les appels sortants (Stripe, API OpenAI, envoi des magic links) partent du backend.
 
 Le routage de Caddy est purement par nom d'hôte : `api.surplasse.com` vers le backend, `dashboard.surplasse.com` vers le Dashboard, `surplasse.com` vers l'Onboarding, et tout autre sous-domaine `*.surplasse.com` vers Commande, qui résout le slug côté application. La correspondance entre domaines et certificats est détaillée dans [Environnements](environnements.md).
 

@@ -74,10 +74,11 @@ COMMANDE                                      ENGAGEMENT
                     | Payment |  (1 Order -> n Payment)
                     +---------+
 
-GÉNÉRATION
-+---------------+ 1        n +---------------+
-| Establishment |----------->| ExtractionJob |
-+---------------+            +---------------+
+GÉNÉRATION                                    MÉDIAS
++---------------+ 1        n +---------------+  +------------+ 0..1  +---------+
+| Establishment |----------->| ExtractionJob |  | MediaAsset |<------| Product |
++---------------+            +---------------+  +------------+       +---------+
+                                                (uploaded | generated)
 ```
 
 ## Entités par domaine
@@ -162,7 +163,21 @@ GÉNÉRATION
 | `description` | text | nullable | |
 | `price_cents` | integer | >= 0, non nul | Prix courant, copié dans la ligne à la commande |
 | `available` | boolean | non nul | Rupture temporaire sans retirer de la carte |
+| `image_asset_id` | uuid | FK MediaAsset, nullable | Image affichée : photo téléversée ou visuel généré retenu, ou aucune |
 | `deleted_at` | timestamptz | nullable | Soft delete |
+| `created_at`, `updated_at` | timestamptz | non nuls | |
+
+**MediaAsset** : une image stockée (objet dans le stockage S3-compatible), qu'elle soit téléversée par le restaurateur ou générée par l'IA à l'embarquement. Un produit référence au plus un `MediaAsset` comme image affichée ; les visuels générés non retenus restent en base au statut `proposed` tant que le restaurateur ne les a pas écartés.
+
+| Attribut | Type | Contraintes | Commentaire |
+|---|---|---|---|
+| `id` | uuid | PK | |
+| `establishment_id` | uuid | FK | Toutes les images appartiennent à un établissement |
+| `kind` | text | CHECK | `dish`, `place`, `logo`, `menu_scan` |
+| `source` | text | CHECK | `uploaded` (photo du restaurateur) ou `generated` (visuel produit par l'IA) |
+| `status` | text | CHECK | `proposed` (candidat généré), `selected` (retenu), `archived` |
+| `storage_key` | text | non nul | Clé de l'objet dans le stockage S3-compatible |
+| `source_asset_id` | uuid | FK MediaAsset, nullable | Pour un `generated`, la photo fournie qui a servi de source |
 | `created_at`, `updated_at` | timestamptz | non nuls | |
 
 **OptionGroup** : un ensemble d'options d'un produit (cuisson, taille, suppléments), avec ses règles de choix.
@@ -226,7 +241,7 @@ GÉNÉRATION
 | `product_id` | uuid | FK, non nul | Référence, peut pointer un produit soft-deleted |
 | `product_name` | text | non nul | Figé à la commande |
 | `unit_price_cents` | integer | >= 0, non nul | Figé à la commande |
-| `quantite` | integer | >= 1, non nul | |
+| `quantity` | integer | >= 1, non nul | |
 | `options_json` | jsonb | non nul, défaut `[]` | Instantané dénormalisé des options choisies |
 | `line_total_cents` | integer | >= 0, non nul | (prix unitaire + surcoûts) x quantité |
 
@@ -292,13 +307,13 @@ GÉNÉRATION
 
 ### Génération
 
-**ExtractionJob** : un travail asynchrone d'extraction par l'API Claude (carte depuis photo, enrichissement depuis données publiques). Le résultat est une proposition que le restaurateur valide dans le Dashboard, jamais une écriture directe dans le Catalogue.
+**ExtractionJob** : un travail asynchrone confié à l'API OpenAI, qu'il s'agisse d'extraction (carte depuis photo, enrichissement depuis données publiques) ou de génération de visuels de plats à partir des photos fournies. Le résultat est une proposition que le restaurateur valide dans le Dashboard, jamais une écriture directe dans le Catalogue : une extraction produit une carte structurée à relire, une génération produit des `MediaAsset` au statut `proposed` à retenir ou écarter.
 
 | Attribut | Type | Contraintes | Commentaire |
 |---|---|---|---|
 | `id` | uuid | PK | |
 | `establishment_id` | uuid | FK, non nul | |
-| `type` | text | CHECK | `menu_photo` (carte depuis photo), `public_enrichment` (enrichissement public) |
+| `type` | text | CHECK | `menu_photo` (carte depuis photo), `public_enrichment` (enrichissement public), `dish_visuals` (génération de visuels de plats) |
 | `status` | text | CHECK | `pending` (en attente), `running` (en cours), `succeeded` (réussi), `failed` (échoué) |
 | `input_payload` | jsonb | non nul | Références des images et paramètres |
 | `result` | jsonb | nullable | Carte structurée proposée |

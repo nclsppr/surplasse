@@ -29,7 +29,7 @@ Le monorepo contient l'intégralité du système : le contrat, le backend, les t
 
 ### La simplicité opérationnelle prime
 
-La cible de déploiement est un VPS unique piloté par Docker Compose, décrit dans `infra/`. Pas de Kubernetes, pas de services managés propriétaires au-delà de Stripe et de l'API Claude, pas d'autoscaling. Un restaurant indépendant génère quelques dizaines de commandes par service : la charge se mesure en requêtes par seconde à un chiffre, et un VPS correctement dimensionné la tient avec une marge confortable. Chaque brique ajoutée doit justifier son coût d'exploitation, pas seulement son intérêt technique.
+La cible de déploiement est un VPS unique piloté par Docker Compose, décrit dans `infra/`. Pas de Kubernetes, pas de services managés propriétaires au-delà de Stripe et de l'API OpenAI, pas d'autoscaling. Un restaurant indépendant génère quelques dizaines de commandes par service : la charge se mesure en requêtes par seconde à un chiffre, et un VPS correctement dimensionné la tient avec une marge confortable. Chaque brique ajoutée doit justifier son coût d'exploitation, pas seulement son intérêt technique.
 
 ### Le client final ne subit jamais la complexité
 
@@ -62,14 +62,14 @@ Les deux acteurs, les quatre applications et les systèmes externes :
        ▼          ▼          ▼             ▼                ▼
    ┌────────┐ ┌────────┐ ┌────────┐ ┌────────────┐ ┌───────────────┐
    │ Stripe │ │  API   │ │ Emails │ │ Imprimante │ │ DNS wildcard  │
-   │        │ │ Claude │ │        │ │ thermique  │ │ *.surplasse.com│
+   │        │ │ OpenAI │ │        │ │ thermique  │ │ *.surplasse.com│
    └────────┘ └────────┘ └────────┘ └────────────┘ └───────────────┘
 ```
 
 | Système externe | Rôle |
 |---|---|
 | Stripe | Paiements client (CB, Apple Pay, Google Pay) et reversement au restaurateur via Stripe Connect ; envoie des webhooks au Backend |
-| API Claude | Extraction de la carte depuis une photo (vision) et enrichissement de données publiques pour les espaces pré-générés |
+| API OpenAI | Extraction de la carte depuis une photo (vision) et enrichissement de données publiques pour les espaces pré-générés |
 | Emails | Magic links d'authentification restaurateur et notifications transactionnelles ; le fournisseur d'envoi reste à trancher (ADR) |
 | Imprimante thermique | Impression optionnelle des tickets cuisine en ESC/POS ; le mode d'intégration reste à trancher (ADR) |
 | DNS wildcard | L'enregistrement `*.surplasse.com` route chaque mini-site `{slug}.surplasse.com` vers le même point d'entrée |
@@ -166,7 +166,7 @@ Seuls `docs/` et la configuration racine existent aujourd'hui. Le reste est cré
 
 1. **Entrée.** Le restaurateur arrive sur Onboarding, soit spontanément, soit via la revendication d'un espace pré-généré pour son établissement.
 2. **Photo.** Il fournit le nom de l'établissement et une photo de sa carte, plus quelques images s'il en a.
-3. **Extraction.** Le Backend crée un job d'extraction asynchrone : l'API Claude (vision) lit la photo et en tire une carte structurée (catégories, produits, options, prix). Le frontend suit l'avancement du job sans bloquer le parcours.
+3. **Extraction.** Le Backend crée un job d'extraction asynchrone : l'API OpenAI (vision) lit la photo et en tire une carte structurée (catégories, produits, options, prix). Le frontend suit l'avancement du job sans bloquer le parcours.
 4. **Prévisualisation.** Le restaurateur voit sa carte extraite et son mini-site généré. Il corrige ce que l'extraction a mal lu : c'est une relecture, pas une saisie.
 5. **Authentification.** Son compte est créé par magic link envoyé par email. Aucun mot de passe.
 6. **Paiements.** Il connecte les encaissements via le parcours Stripe Connect, qui collecte ses informations légales et bancaires. Le type de compte est Connect Express, acté dans l'[ADR-0007](../decisions/adr-0007-stripe.md).
@@ -187,7 +187,7 @@ Le Backend est découpé en six domaines, chacun étant un module Maven :
 | **Paiement** | L'intégration Stripe : PaymentIntents, webhooks, comptes Connect, reversements |
 | **Identité** | Les restaurateurs, les magic links, les sessions et les droits sur les établissements |
 | **Engagement** | Les espaces pré-générés, la revendication, les relances et les métriques d'usage |
-| **Génération** | Les jobs d'extraction IA (API Claude), la génération des mini-sites et des QR codes |
+| **Génération** | Les jobs d'extraction IA (API OpenAI), la génération des mini-sites et des QR codes |
 
 Les frontières, les dépendances autorisées entre modules et la structure interne de chaque domaine sont détaillées dans [le backend](backend.md).
 
@@ -199,5 +199,5 @@ Les frontières, les dépendances autorisées entre modules et la structure inte
 | [Le backend](backend.md) | Le monolithe modulaire Quarkus, les domaines, les jobs asynchrones |
 | [Le contrat et l'API](api.md) | Le workflow contract-first, les conventions OpenAPI, la génération de code |
 | [Les données](donnees.md) | Le modèle de données PostgreSQL, les migrations Flyway, le stockage objet |
-| [Les intégrations](integrations.md) | Stripe, API Claude, emails, impression thermique, DNS wildcard |
+| [Les intégrations](integrations.md) | Stripe, API OpenAI, emails, impression thermique, DNS wildcard |
 | [La sécurité](securite.md) | Authentification, webhooks signés, isolation des établissements, RGPD |

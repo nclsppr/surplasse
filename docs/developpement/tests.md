@@ -54,7 +54,7 @@ Côté React, Vitest teste les hooks et les fonctions pures : logique de panier 
 
 Chaque module Maven du backend teste ses propres endpoints avec `@QuarkusTest`, contre une vraie base PostgreSQL démarrée par Testcontainers. Pas de base en mémoire, pas de H2 : la version de PostgreSQL testée est celle de la production (17), et les migrations Flyway s'appliquent au démarrage du conteneur, ce qui teste les migrations elles-mêmes au passage.
 
-Le périmètre d'un test d'intégration : une requête HTTP entre dans le module, une réponse en sort, la base a changé comme attendu. Les intégrations externes (Stripe, API Claude, envoi d'emails) sont remplacées par des doublures à la frontière du module ; elles ont leurs propres tests de contrat ou sont couvertes en E2E.
+Le périmètre d'un test d'intégration : une requête HTTP entre dans le module, une réponse en sort, la base a changé comme attendu. Les intégrations externes (Stripe, API OpenAI, envoi d'emails) sont remplacées par des doublures à la frontière du module ; elles ont leurs propres tests de contrat ou sont couvertes en E2E.
 
 !!! info Un conteneur par module, pas par test
 Le conteneur PostgreSQL est réutilisé entre les tests d'un même module, avec un nettoyage des données entre chaque test. Le coût de démarrage est payé une fois, la suite reste rapide.
@@ -87,7 +87,7 @@ Les E2E couvrent les parcours critiques uniquement, avec Playwright, contre une 
 Deux règles d'exécution :
 
 - Les parcours de l'application Commande tournent **sur mobile émulé** (viewport et tactile Playwright) : c'est le contexte réel du client attablé. Le Dashboard tourne en viewport desktop.
-- L'extraction de carte par l'API Claude est remplacée par une réponse enregistrée : le parcours d'embarquement doit être déterministe et ne pas dépendre d'un appel IA en CI.
+- L'extraction de carte par l'API OpenAI est remplacée par une réponse enregistrée : le parcours d'embarquement doit être déterministe et ne pas dépendre d'un appel IA en CI.
 
 Tout ce qui n'est pas dans ce tableau se teste plus bas dans la pyramide. Un bug attrapé uniquement par un E2E est l'indice d'un test manquant à un étage inférieur.
 

@@ -13,7 +13,7 @@ Accepté, 2026-07-18.
 
 ## Contexte
 
-Le Backend est l'unique processus applicatif de Surplasse : il implémente [le contrat](../architecture/api.md), porte toute la logique métier et la persistance, intègre Stripe et l'API Claude, et pousse le temps réel vers le Dashboard et le mini-site Commande. Le choix de son framework est la décision technique la plus engageante du projet : tout le code métier en héritera.
+Le Backend est l'unique processus applicatif de Surplasse : il implémente [le contrat](../architecture/api.md), porte toute la logique métier et la persistance, intègre Stripe et l'API OpenAI, et pousse le temps réel vers le Dashboard et le mini-site Commande. Le choix de son framework est la décision technique la plus engageante du projet : tout le code métier en héritera.
 
 Le domaine est transactionnel par nature. Une commande traverse des états (panier, validée, payée, en préparation, prête), déclenche un paiement Stripe dont les webhooks arrivent de façon asynchrone, et doit rester cohérente avec la disponibilité des produits de la carte. Ce métier appelle des transactions solides, un ORM mûr, des migrations disciplinées : le terrain classique de l'écosystème Java d'entreprise.
 

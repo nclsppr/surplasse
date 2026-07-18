@@ -7,7 +7,7 @@ description: Posture de sécurité de Surplasse, modèle de menaces, authentific
 
 # Sécurité
 
-Cette page décrit la posture de sécurité cible de Surplasse : ce que la plateforme protège, contre quoi, et par quels mécanismes. Elle complète la [vue d'ensemble de l'architecture](index.md), la page [intégrations](integrations.md) pour les échanges avec Stripe et l'API Claude, et la page [RGPD](../operations/rgpd.md) pour le volet données personnelles.
+Cette page décrit la posture de sécurité cible de Surplasse : ce que la plateforme protège, contre quoi, et par quels mécanismes. Elle complète la [vue d'ensemble de l'architecture](index.md), la page [intégrations](integrations.md) pour les échanges avec Stripe et l'API OpenAI, et la page [RGPD](../operations/rgpd.md) pour le volet données personnelles.
 
 ## Posture générale
 
@@ -142,7 +142,7 @@ L'endpoint de webhook est le seul endpoint public non couvert par le CORS applic
 
 | Règle | Détail |
 |---|---|
-| Variables d'environnement uniquement | Tous les secrets (clés Stripe, clé API Claude, secret de signature JWT, identifiants SMTP, mot de passe PostgreSQL) sont injectés par l'environnement, jamais codés en dur |
+| Variables d'environnement uniquement | Tous les secrets (clés Stripe, clé API OpenAI, secret de signature JWT, identifiants SMTP, mot de passe PostgreSQL) sont injectés par l'environnement, jamais codés en dur |
 | Jamais dans git | Aucun secret dans l'historique, y compris dans les fichiers de configuration Docker Compose : les valeurs sensibles sont référencées, pas inscrites |
 | `.env.example` committé | Un fichier d'exemple liste toutes les variables attendues, avec des valeurs vides ou factices, pour documenter la configuration sans rien exposer |
 | Rotation | Les secrets sont rotables sans redéploiement de code : rotation planifiée au moins annuelle, rotation immédiate en cas de suspicion de fuite (le secret JWT supporte une double validité temporaire pour ne pas invalider brutalement les sessions) |
@@ -168,7 +168,7 @@ Les seuls fichiers téléversés sont des images : photo de la carte à l'embarq
 3. Réécriture systématique : chaque image acceptée est décodée puis réencodée dans un format de sortie contrôlé, ce qui détruit métadonnées, charges utiles annexes et données EXIF (y compris la géolocalisation, un point RGPD autant que sécurité).
 4. Aucune exécution ni interprétation : les fichiers sont stockés hors de toute racine servie directement, servis avec un `Content-Type` image forcé et `Content-Disposition` neutre, jamais depuis le domaine de l'API.
 
-Les photos de carte transmises à l'API Claude pour extraction suivent le même pipeline avant envoi (voir [intégrations](integrations.md)).
+Les photos de carte transmises à l'API OpenAI pour extraction suivent le même pipeline avant envoi (voir [intégrations](integrations.md)).
 
 ## Limitation de débit {#limitation-de-debit}
 
@@ -180,7 +180,7 @@ Une limitation de débit s'applique par IP et par session sur les endpoints sens
 | Échange de jeton de magic link | IP | Empêcher la recherche exhaustive de jetons |
 | Création de Commande | Session client et IP | Limiter les commandes en rafale et la nuisance en salle |
 | Lecture de la carte | IP | Freiner le scraping massif sans gêner l'usage normal |
-| Endpoints d'embarquement (génération IA) | IP | Protéger le budget d'appels à l'API Claude |
+| Endpoints d'embarquement (génération IA) | IP | Protéger le budget d'appels à l'API OpenAI |
 
 Les seuils exacts restent à trancher et seront calibrés en pré-production. Les dépassements répondent en 429 avec `Retry-After`.
 

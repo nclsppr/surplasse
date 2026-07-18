@@ -28,7 +28,7 @@ La priorisation ci-dessous fait foi. Ajouter une fonctionnalité au périmètre 
 
 ## 1. Embarquement et génération IA
 
-Le cœur de la promesse : un restaurateur passe d'une photo de sa carte à un mini-site commandable en quelques minutes. L'extraction s'appuie sur l'API Claude (vision), conformément à la [stack de référence](../architecture/index.md).
+Le cœur de la promesse : un restaurateur passe d'une photo de sa carte à un mini-site commandable en quelques minutes. L'extraction s'appuie sur l'API OpenAI (vision), conformément à la [stack de référence](../architecture/index.md).
 
 | Fonctionnalité | Description | Priorité | Applications |
 |---|---|---|---|
@@ -37,7 +37,8 @@ Le cœur de la promesse : un restaurateur passe d'une photo de sa carte à un mi
 | Génération du mini-site | À partir des données extraites et de quelques photos, Surplasse génère le mini-site public de l'établissement sur `{slug}.surplasse.com`. | Must | Onboarding, Commande, Backend |
 | Activation du compte par magic link | Le restaurateur active son compte et accède au Dashboard via un lien envoyé par email, sans mot de passe. | Must | Onboarding, Dashboard, Backend |
 | Thème visuel extrait | L'IA dérive une palette de couleurs et une ambiance typographique depuis le logo et les photos fournies, pour que le mini-site ressemble au restaurant. | Should | Onboarding, Commande, Backend |
-| Harmonisation des photos de plats | Les photos de plats fournies par le restaurateur sont harmonisées par un traitement d'image serveur (cadrage, normalisation de la lumière, miniatures) pour un rendu homogène sur la carte, sans jamais générer un plat qui n'existe pas. | Should | Onboarding, Backend |
+| Harmonisation des photos de plats | Les photos de plats fournies par le restaurateur sont harmonisées par un traitement d'image serveur (cadrage, normalisation de la lumière, miniatures) pour un rendu homogène sur la carte. | Should | Onboarding, Backend |
+| Génération de visuels de plats | À partir des photos de plats fournies à l'embarquement, l'IA produit des visuels candidats, présentés comme suggestions de présentation. Sources maîtrisées uniquement, jamais de photos de tiers. Voir [ADR-0011](../decisions/adr-0011-visuels-plats.md). | Should | Onboarding, Backend |
 
 ## 2. Espaces à revendiquer
 
@@ -60,6 +61,7 @@ La carte est la donnée centrale du produit : ce que le client consulte côté C
 | Fonctionnalité | Description | Priorité | Applications |
 |---|---|---|---|
 | Catégories et produits | La carte est organisée en catégories ordonnées (entrées, plats, desserts, boissons) contenant des produits avec nom, description, photo et prix. | Must | Commande, Dashboard, Backend |
+| Image par produit | Pour chaque produit, le restaurateur choisit son image depuis le Dashboard : téléverser sa propre photo, retenir un visuel proposé par Surplasse, ou aucune image. | Must | Dashboard, Backend |
 | Options de produits | Un produit porte des options : variantes exclusives (cuisson, taille) ou suppléments cumulables, avec impact sur le prix. | Must | Commande, Dashboard, Backend |
 | Édition de la carte | Le restaurateur modifie la carte depuis le Dashboard : ajout, retrait, réorganisation, changement de prix, sans délai de publication. | Must | Dashboard, Backend |
 | Disponibilités | Un produit peut être marqué indisponible en un geste (rupture du jour) ; il reste visible ou masqué selon le choix du restaurateur. | Must | Commande, Dashboard, Backend |

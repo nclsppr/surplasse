@@ -145,7 +145,7 @@ Les jobs prévus au MVP :
 
 | Job | Déclencheur | Effet |
 |---|---|---|
-| **Extraction IA** | L'embarquement : le restaurateur envoie la photo de sa carte | Appel de l'API Claude (vision), production de la carte structurée, progression consultable par le frontend |
+| **Extraction IA** | L'embarquement : le restaurateur envoie la photo de sa carte | Appel de l'API OpenAI (vision), production de la carte structurée, progression consultable par le frontend |
 | **Envoi d'email** | Magic link demandé, notification transactionnelle | Remise via l'extension `mailer`, avec retentatives |
 | **Génération des QR codes** | Activation d'un établissement, ajout de tables | Production des QR codes de table et de la planche imprimable |
 
@@ -173,7 +173,7 @@ La configuration suit les profils standards de Quarkus, dans un unique `applicat
 
 | Profil | Usage | Particularités |
 |---|---|---|
-| `%dev` | Développement local | **Dev Services PostgreSQL** : Quarkus démarre un conteneur PostgreSQL jetable, aucune installation ni configuration locale ; clés Stripe et Claude en mode test |
+| `%dev` | Développement local | **Dev Services PostgreSQL** : Quarkus démarre un conteneur PostgreSQL jetable, aucune installation ni configuration locale ; clés Stripe et OpenAI en mode test |
 | `%test` | Tests automatisés | Dev Services également, base éphémère par exécution ; les intégrations externes sont doublées (voir [les tests](../developpement/conventions-quarkus.md)) |
 | `%prod` | VPS de production | Toute valeur sensible ou dépendante de l'environnement vient des variables d'environnement injectées par Docker Compose, jamais du dépôt |
 

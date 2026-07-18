@@ -101,7 +101,7 @@ En développement, la liste des variables réellement obligatoires est courte : 
 |---|---|---|---|
 | `STRIPE_SECRET_KEY` | Backend | clé secrète Stripe (mode test en dev : `sk_test_...`) | oui, pour les parcours de paiement |
 | `STRIPE_WEBHOOK_SECRET` | Backend | signature des webhooks Stripe (fournie par la CLI Stripe en local) | oui, pour les webhooks |
-| `ANTHROPIC_API_KEY` | Backend | clé API Claude pour l'extraction de carte depuis photo | oui, pour l'embarquement |
+| `OPENAI_API_KEY` | Backend | clé API OpenAI pour l'extraction de carte depuis photo | oui, pour l'embarquement |
 | `QUARKUS_DATASOURCE_JDBC_URL` | Backend | DSN PostgreSQL | non en dev (Dev Services), oui en production |
 | `VITE_API_BASE_URL` | chaque frontend | URL de base de l'API | non (défaut : `http://localhost:8080`) |
 | `VITE_STRIPE_PUBLISHABLE_KEY` | Commande | clé publique Stripe pour le paiement côté client (`pk_test_...`) | oui, pour payer |

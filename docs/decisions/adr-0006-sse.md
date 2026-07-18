@@ -59,14 +59,14 @@ Les deux flux sont décrits dans [le contrat](../architecture/api.md) au même t
 ```
 Client (Commande)              backend Quarkus                Dashboard
       |                              |                            |
-      | POST /commandes  (REST)      |                            |
+      | POST /v1/orders  (REST)      |                            |
       |----------------------------->|                            |
-      |                              |  event: commande.creee     |
+      |                              |  event: order.created      |
       |                              |  (SSE) -------------------->|
       |                              |                            |
-      |                              |   POST .../statut  (REST)  |
+      |                              |   POST .../status  (REST)  |
       |                              |<---------------------------|
-      |  event: commande.statut      |                            |
+      |  event: order.status         |                            |
       |<---------------------- (SSE) |                            |
       |                              |                            |
    coupure reseau                    |                            |

@@ -116,7 +116,7 @@ Les secrets sont portés par les GitHub Environments, pas par des secrets de dé
 | `VPS_USER` | `production` | Utilisateur de déploiement (non privilégié) |
 | `VPS_SSH_KEY` | `production` | Clé privée SSH dédiée au déploiement |
 
-Le push vers GHCR utilise le `GITHUB_TOKEN` éphémère du workflow, aucun secret supplémentaire n'est requis. Les secrets applicatifs (Stripe, API Claude, base de données) ne transitent jamais par la CI : ils vivent dans le fichier d'environnement du VPS, décrit dans [Environnements](../operations/environnements.md). La CI sait déployer, elle ne sait pas ce que l'application déploie.
+Le push vers GHCR utilise le `GITHUB_TOKEN` éphémère du workflow, aucun secret supplémentaire n'est requis. Les secrets applicatifs (Stripe, API OpenAI, base de données) ne transitent jamais par la CI : ils vivent dans le fichier d'environnement du VPS, décrit dans [Environnements](../operations/environnements.md). La CI sait déployer, elle ne sait pas ce que l'application déploie.
 
 Cette séparation borne le rayon d'action d'une compromission : un secret de CI qui fuite donne au pire un accès SSH restreint au compte de déploiement, pas les clés Stripe live. Elle simplifie aussi la rotation : changer une clé applicative se fait sur le VPS et se prend en compte au redémarrage du service concerné, sans toucher à GitHub.
 

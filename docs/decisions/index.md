@@ -85,7 +85,7 @@ Ne jamais « corriger » un ADR pour l'aligner sur une page plus récente. Soit 
 
 ## Registre des ADR
 
-Neuf ADR sont acceptés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'à l'outil de documentation.
+Onze ADR sont acceptés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'à la politique de visuels générés.
 
 | Numéro | Titre | Statut | Lien |
 |---|---|---|---|
@@ -98,5 +98,7 @@ Neuf ADR sont acceptés à ce jour. Ils couvrent les choix structurants du proje
 | 0007 | Stripe pour les paiements | Accepté | [ADR-0007](adr-0007-stripe.md) |
 | 0008 | Magic link pour l'authentification des restaurateurs | Accepté | [ADR-0008](adr-0008-magic-link.md) |
 | 0009 | Retype pour la documentation | Accepté | [ADR-0009](adr-0009-retype.md) |
+| 0010 | Fournisseur IA (OpenAI derrière interface) | Accepté | [ADR-0010](adr-0010-fournisseur-ia.md) |
+| 0011 | Visuels de plats générés | Accepté | [ADR-0011](adr-0011-visuels-plats.md) |
 
 Les décisions encore ouvertes (par exemple le choix de la solution d'impression thermique ESC/POS mentionné dans la stack de référence) donneront lieu à de futurs ADR au fil de la [roadmap](../roadmap.md).

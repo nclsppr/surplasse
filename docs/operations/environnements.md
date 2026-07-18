@@ -18,7 +18,7 @@ Surplasse ne connaît que deux environnements : le poste de développement local
 | Données | Jeu de données de démonstration (seed), réinitialisable à volonté ; jamais de données réelles | Données réelles des établissements et des commandes |
 | Base de données | PostgreSQL éphémère via Dev Services, ou conteneur local | PostgreSQL 17, sauvegardé quotidiennement |
 | Stripe | **Mode test** exclusivement (cartes de test, webhooks relayés par la CLI Stripe) | **Mode live** |
-| IA (extraction de carte) | Simulée par défaut : réponses enregistrées rejouées sans appel réseau ; appel réel à l'API Claude activable à la demande pour travailler sur l'extraction | API Claude réelle |
+| IA (extraction de carte) | Simulée par défaut : réponses enregistrées rejouées sans appel réseau ; appel réel à l'API OpenAI activable à la demande pour travailler sur l'extraction | API OpenAI réelle |
 | Magic links | Capturés localement (boîte mail de dev), aucun email réel ne part | Envoi réel |
 | Déployé par | Personne : lancé à la main | La CI, à chaque push sur `main` (voir [CI/CD](../developpement/ci-cd.md)) |
 
@@ -88,7 +88,7 @@ Les noms ci-dessous sont la référence ; les valeurs ne figurent évidemment nu
 | `QUARKUS_DATASOURCE_PASSWORD` | Mot de passe associé |
 | `STRIPE_SECRET_KEY` | Clé secrète Stripe (live) |
 | `STRIPE_WEBHOOK_SECRET` | Secret de signature des webhooks Stripe |
-| `ANTHROPIC_API_KEY` | Clé de l'API Claude (extraction de carte, enrichissement) |
+| `OPENAI_API_KEY` | Clé de l'API OpenAI (extraction de carte, enrichissement) |
 | `S3_ENDPOINT_URL` | Endpoint MinIO (réseau interne Compose) |
 | `S3_ACCESS_KEY` | Identifiant d'accès MinIO du backend |
 | `S3_SECRET_KEY` | Secret d'accès associé |
