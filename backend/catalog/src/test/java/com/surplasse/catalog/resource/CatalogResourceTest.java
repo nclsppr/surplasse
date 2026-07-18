@@ -74,7 +74,8 @@ class CatalogResourceTest {
                 .then()
                 .statusCode(404)
                 .contentType(PROBLEM_JSON)
-                .body("type", containsString("resource-not-found"));
+                .body("type", containsString("resource-not-found"))
+                .body("instance", equalTo("/v1/establishments/nulle-part/menu"));
     }
 
     @Test

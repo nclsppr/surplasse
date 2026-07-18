@@ -24,7 +24,7 @@ public class RouteNotFoundMapper implements ExceptionMapper<NotFoundException> {
                 "Resource not found",
                 404,
                 "No resource matches this path.",
-                "/" + uriInfo.getPath());
+                DomainExceptionMapper.instancePath(uriInfo));
         return Response.status(404)
                 .type(DomainExceptionMapper.PROBLEM_JSON)
                 .entity(payload)

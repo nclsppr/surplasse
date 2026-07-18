@@ -12,6 +12,12 @@ public class DomainExceptionMapper implements ExceptionMapper<DomainException> {
 
     static final String PROBLEM_JSON = "application/problem+json";
 
+    /** Request path with exactly one leading slash, whatever the runtime returns. */
+    static String instancePath(UriInfo uriInfo) {
+        String path = uriInfo.getPath();
+        return path.startsWith("/") ? path : "/" + path;
+    }
+
     @Context
     UriInfo uriInfo;
 
@@ -22,7 +28,7 @@ public class DomainExceptionMapper implements ExceptionMapper<DomainException> {
                 exception.title(),
                 exception.status(),
                 exception.getMessage(),
-                "/" + uriInfo.getPath());
+                instancePath(uriInfo));
         return Response.status(exception.status())
                 .type(PROBLEM_JSON)
                 .entity(payload)
