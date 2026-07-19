@@ -3,11 +3,14 @@ package com.surplasse.order.resource;
 import com.surplasse.common.identity.RestaurateurIdentityGateway;
 import com.surplasse.contract.api.OrderApi;
 import com.surplasse.contract.model.OrderCreationRequest;
+import com.surplasse.contract.model.OrderStatusUpdate;
 import com.surplasse.contract.model.TableSessionRequest;
 import com.surplasse.order.mapping.OrderMapper;
 import com.surplasse.order.service.OperationalOrderService;
+import com.surplasse.order.service.OrderEventBroadcaster;
 import com.surplasse.order.service.OrderEventStreamer;
 import com.surplasse.order.service.OrderService;
+import com.surplasse.order.service.OrderStatusService;
 import com.surplasse.order.service.TableSessionService;
 import io.smallrye.common.annotation.Blocking;
 import io.smallrye.mutiny.Multi;
@@ -35,6 +38,8 @@ public class OrderResource implements OrderApi {
     private final TableSessionService tableSessionService;
     private final OrderService orderService;
     private final OperationalOrderService operationalOrderService;
+    private final OrderStatusService orderStatusService;
+    private final OrderEventBroadcaster orderEventBroadcaster;
     private final OrderEventStreamer orderEventStreamer;
 
     @Context
@@ -47,10 +52,14 @@ public class OrderResource implements OrderApi {
             TableSessionService tableSessionService,
             OrderService orderService,
             OperationalOrderService operationalOrderService,
+            OrderStatusService orderStatusService,
+            OrderEventBroadcaster orderEventBroadcaster,
             OrderEventStreamer orderEventStreamer) {
         this.tableSessionService = tableSessionService;
         this.orderService = orderService;
         this.operationalOrderService = operationalOrderService;
+        this.orderStatusService = orderStatusService;
+        this.orderEventBroadcaster = orderEventBroadcaster;
         this.orderEventStreamer = orderEventStreamer;
     }
 
@@ -91,6 +100,17 @@ public class OrderResource implements OrderApi {
         return Response.ok(OrderMapper.toOrderPage(operationalOrderService.list(
                         cookie(RestaurateurIdentityGateway.ACCESS_COOKIE), establishmentId, cursor, limit)))
                 .build();
+    }
+
+    @Override
+    public Response updateOrderStatus(UUID orderId, OrderStatusUpdate request) {
+        OrderStatusService.StatusUpdate update = orderStatusService.update(
+                cookie(RestaurateurIdentityGateway.ACCESS_COOKIE),
+                orderId,
+                com.surplasse.order.entity.OrderStatus.fromDbValue(
+                        request.getStatus().value()));
+        update.event().ifPresent(orderEventBroadcaster::publish);
+        return Response.ok(OrderMapper.toOrderStatusResult(update)).build();
     }
 
     private String cookie(String name) {

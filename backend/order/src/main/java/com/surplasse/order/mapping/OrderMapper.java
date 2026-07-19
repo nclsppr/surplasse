@@ -4,10 +4,12 @@ import com.surplasse.contract.model.DashboardOrder;
 import com.surplasse.contract.model.Order;
 import com.surplasse.contract.model.OrderLine;
 import com.surplasse.contract.model.OrderLineOption;
+import com.surplasse.contract.model.OrderStatusResult;
 import com.surplasse.contract.model.TableSession;
 import com.surplasse.order.service.OperationalOrderService;
 import com.surplasse.order.service.OptionsJson;
 import com.surplasse.order.service.OrderService.OrderView;
+import com.surplasse.order.service.OrderStatusService.StatusUpdate;
 import com.surplasse.order.service.TableSessionService.OpenedSession;
 
 /** Transports order entities to the DTOs of the contract. Computes nothing. */
@@ -42,6 +44,12 @@ public final class OrderMapper {
                 .items(page.items().stream().map(OrderMapper::toDashboardOrder).toList())
                 .nextCursor(page.nextCursor())
                 .hasMore(page.hasMore());
+    }
+
+    public static OrderStatusResult toOrderStatusResult(StatusUpdate update) {
+        return new OrderStatusResult()
+                .id(update.orderId())
+                .status(OrderStatusResult.StatusEnum.fromString(update.status().dbValue()));
     }
 
     private static DashboardOrder toDashboardOrder(OrderView view) {

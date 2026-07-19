@@ -6,6 +6,7 @@ import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import io.quarkus.panache.common.Page;
 import io.quarkus.panache.common.Sort;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.persistence.LockModeType;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -24,6 +25,11 @@ public class OrderRepository implements PanacheRepositoryBase<Order, UUID> {
     public Optional<Order> findByIdForEstablishment(UUID orderId, UUID establishmentId) {
         return find("id = ?1 and establishmentId = ?2", orderId, establishmentId)
                 .firstResultOptional();
+    }
+
+    /** Serializes concurrent status updates for one order. Must run inside a transaction. */
+    public Optional<Order> findByIdForUpdate(UUID orderId) {
+        return find("id", orderId).withLock(LockModeType.PESSIMISTIC_WRITE).firstResultOptional();
     }
 
     public long countByEstablishmentAndServiceDay(UUID establishmentId, LocalDate serviceDay) {

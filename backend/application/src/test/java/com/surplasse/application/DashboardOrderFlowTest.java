@@ -122,6 +122,78 @@ class DashboardOrderFlowTest {
                 .body("type", containsString("validation-error"));
     }
 
+    @Test
+    void updateOrderStatus_authenticatedPilot_advancesTheOrderAndRemovesItAfterService() {
+        String accessToken = loginPilot();
+        CreatedOrder order = createAndPay(OrderFlowTest.openSession());
+
+        updateStatus(null, order.id(), "accepted")
+                .then()
+                .statusCode(401)
+                .contentType(PROBLEM_JSON)
+                .body("type", containsString("session-expired"));
+
+        updateStatus(accessToken, UUID.randomUUID().toString(), "accepted")
+                .then()
+                .statusCode(404)
+                .contentType(PROBLEM_JSON)
+                .body("type", containsString("resource-not-found"));
+
+        updateStatus(accessToken, order.id(), "ready")
+                .then()
+                .statusCode(409)
+                .contentType(PROBLEM_JSON)
+                .body("type", containsString("order-not-modifiable"));
+
+        updateStatus(accessToken, order.id(), "accepted")
+                .then()
+                .statusCode(200)
+                .body("id", equalTo(order.id()))
+                .body("status", equalTo("accepted"));
+        updateStatus(accessToken, order.id(), "accepted")
+                .then()
+                .statusCode(200)
+                .body("status", equalTo("accepted"));
+        updateStatus(accessToken, order.id(), "preparing")
+                .then()
+                .statusCode(200)
+                .body("status", equalTo("preparing"));
+        updateStatus(accessToken, order.id(), "ready")
+                .then()
+                .statusCode(200)
+                .body("status", equalTo("ready"));
+
+        updateStatus(accessToken, order.id(), "picked_up")
+                .then()
+                .statusCode(422)
+                .contentType(PROBLEM_JSON)
+                .body("type", containsString("business-rule-violation"));
+
+        updateStatus(accessToken, order.id(), "served")
+                .then()
+                .statusCode(200)
+                .body("status", equalTo("served"));
+
+        List<String> operationalIds = given().filter(ContractValidation.FILTER)
+                .header("Cookie", ACCESS_COOKIE + "=" + accessToken)
+                .queryParam("establishmentId", ESTABLISHMENT)
+                .when()
+                .get("/v1/orders")
+                .then()
+                .statusCode(200)
+                .extract()
+                .path("items.id");
+        assertFalse(operationalIds.contains(order.id()));
+
+        given().filter(ContractValidation.FILTER)
+                .queryParam("trackingToken", order.trackingToken())
+                .when()
+                .get("/v1/orders/{orderId}", order.id())
+                .then()
+                .statusCode(200)
+                .body("status", equalTo("served"));
+    }
+
     private CreatedOrder createAndPay(String tableSession) {
         CreatedOrder order = createOrder(tableSession);
         given().contentType(ContentType.JSON)
@@ -144,7 +216,7 @@ class DashboardOrderFlowTest {
     }
 
     private static CreatedOrder createOrder(String tableSession) {
-        String id = given().contentType(ContentType.JSON)
+        Response response = given().contentType(ContentType.JSON)
                 .header("X-Table-Session", tableSession)
                 .header("Idempotency-Key", UUID.randomUUID().toString())
                 .body(OrderFlowTest.burgerAndPanissesCart())
@@ -152,8 +224,18 @@ class DashboardOrderFlowTest {
                 .then()
                 .statusCode(201)
                 .extract()
-                .path("id");
-        return new CreatedOrder(id);
+                .response();
+        return new CreatedOrder(response.path("id"), response.path("trackingToken"));
+    }
+
+    private static Response updateStatus(String accessToken, String orderId, String status) {
+        var request = given().contentType(ContentType.JSON);
+        if (accessToken != null) {
+            request.filter(ContractValidation.FILTER).header("Cookie", ACCESS_COOKIE + "=" + accessToken);
+        }
+        return request.body("{\"status\":\"%s\"}".formatted(status))
+                .when()
+                .patch("/v1/orders/{orderId}/status", orderId);
     }
 
     private String loginPilot() {
@@ -189,5 +271,5 @@ class DashboardOrderFlowTest {
         throw new AssertionError("The magic link email was not captured.");
     }
 
-    private record CreatedOrder(String id) {}
+    private record CreatedOrder(String id, String trackingToken) {}
 }
