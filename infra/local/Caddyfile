@@ -33,6 +33,17 @@ https://{$APP_BASE_DOMAIN}, https://*.{$APP_BASE_DOMAIN} {
 		}
 	}
 
+	@api_onboarding {
+		host {$SURPLASSE_API_HOST}
+		header Origin {$ONBOARDING_URL}
+	}
+	handle @api_onboarding {
+		reverse_proxy 127.0.0.1:8080 {
+			import local_forwarded_headers
+			header_down Access-Control-Allow-Credentials "true"
+		}
+	}
+
 	@api host {$SURPLASSE_API_HOST}
 	handle @api {
 		reverse_proxy 127.0.0.1:8080 {

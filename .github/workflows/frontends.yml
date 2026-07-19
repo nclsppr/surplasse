@@ -75,6 +75,7 @@ jobs:
           docker run --rm \
             -e APP_BASE_DOMAIN=surplasse.test \
             -e APP_BASE_URL=https://surplasse.test \
+            -e ONBOARDING_URL=https://surplasse.test \
             -e DASHBOARD_URL=https://dashboard.surplasse.test \
             -e SURPLASSE_LOCAL_CERT_FILE=/certs/cert.pem \
             -e SURPLASSE_LOCAL_KEY_FILE=/certs/key.pem \
@@ -87,6 +88,8 @@ jobs:
             -v "$RUNNER_TEMP/surplasse-caddy:/certs:ro" \
             caddy:2.10.2 \
             caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+      - name: Test the credentialed CORS boundary
+        run: npm run local:cors:test
 
   shared:
     runs-on: ubuntu-latest

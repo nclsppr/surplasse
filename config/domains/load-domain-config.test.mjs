@@ -91,7 +91,7 @@ test("backend wrapper exports one coherent profile without Java URL defaults", (
     new URL("../../scripts/run-with-domain-profile.sh", import.meta.url),
   );
   const command = [
-    "printf '%s\\n' \"$APP_BASE_DOMAIN\" \"$SURPLASSE_PLATFORM_API_URL\" \"$SURPLASSE_PLATFORM_DASHBOARD_URL\" \"$CORS_ORIGINS\"",
+    "printf '%s\\n' \"$APP_BASE_DOMAIN\" \"$SURPLASSE_PLATFORM_API_URL\" \"$ONBOARDING_URL\" \"$SURPLASSE_PLATFORM_DASHBOARD_URL\" \"$CORS_PUBLIC_ORIGINS\"",
   ];
 
   const development = execFileSync(script, ["development", "bash", "-c", ...command], {
@@ -104,15 +104,36 @@ test("backend wrapper exports one coherent profile without Java URL defaults", (
   assert.deepEqual(development, [
     "surplasse.test",
     "https://api.surplasse.test",
+    "https://surplasse.test",
     "https://dashboard.surplasse.test",
     "https://surplasse.test,/https:\\/\\/[a-z0-9-]+\\.surplasse\\.test/",
   ]);
   assert.deepEqual(production, [
     "surplasse.com",
     "https://api.surplasse.com",
+    "https://surplasse.com",
     "https://dashboard.surplasse.com",
     "https://surplasse.com,/https:\\/\\/[a-z0-9-]+\\.surplasse\\.com/",
   ]);
+});
+
+test("backend CORS stays public and without credentials in every runtime profile", () => {
+  const properties = readFileSync(
+    new URL("../../backend/application/src/main/resources/application.properties", import.meta.url),
+    "utf8",
+  );
+
+  for (const profile of ["dev", "prod", "test"]) {
+    assert.match(
+      properties,
+      new RegExp(`%${profile}\\.quarkus\\.http\\.cors\\.origins=\\$\\{CORS_PUBLIC_ORIGINS\\}`, "u"),
+    );
+    assert.match(
+      properties,
+      new RegExp(`%${profile}\\.quarkus\\.http\\.cors\\.access-control-allow-credentials=false`, "u"),
+    );
+  }
+  assert.doesNotMatch(properties, /access-control-allow-credentials=true/u);
 });
 
 test("runtime configuration code contains no Surplasse environment literal", () => {

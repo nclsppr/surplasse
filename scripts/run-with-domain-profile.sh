@@ -36,6 +36,7 @@ for variable_name in \
   APP_SCHEME \
   APP_BASE_DOMAIN \
   APP_BASE_URL \
+  ONBOARDING_URL \
   DASHBOARD_URL \
   API_URL \
   RESERVED_SUBDOMAINS; do
@@ -55,7 +56,7 @@ done
 }
 
 escaped_base_domain="${APP_BASE_DOMAIN//./\\.}"
-export CORS_ORIGINS="https://${APP_BASE_DOMAIN},/https:\/\/[a-z0-9-]+\.${escaped_base_domain}/"
+export CORS_PUBLIC_ORIGINS="https://${APP_BASE_DOMAIN},/https:\/\/[a-z0-9-]+\.${escaped_base_domain}/"
 export SMTP_FROM="${SMTP_FROM:-no-reply@${APP_BASE_DOMAIN}}"
 
 # Quarkus tests for individual modules do not load the assembly module's
