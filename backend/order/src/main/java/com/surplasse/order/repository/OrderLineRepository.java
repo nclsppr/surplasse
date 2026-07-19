@@ -13,4 +13,11 @@ public class OrderLineRepository implements PanacheRepositoryBase<OrderLine, UUI
     public List<OrderLine> listByOrderOrdered(UUID orderId) {
         return list("orderId = ?1", Sort.by("position"), orderId);
     }
+
+    public List<OrderLine> listByOrdersOrdered(List<UUID> orderIds) {
+        if (orderIds.isEmpty()) {
+            return List.of();
+        }
+        return list("orderId in ?1", Sort.by("orderId").and("position"), orderIds);
+    }
 }

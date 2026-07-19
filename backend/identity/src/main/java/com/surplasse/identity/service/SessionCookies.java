@@ -1,5 +1,6 @@
 package com.surplasse.identity.service;
 
+import com.surplasse.common.identity.RestaurateurIdentityGateway;
 import com.surplasse.identity.config.IdentityConfig;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.time.Clock;
@@ -10,7 +11,7 @@ import java.time.Instant;
 @ApplicationScoped
 public class SessionCookies {
 
-    public static final String ACCESS_COOKIE = "surplasse_session";
+    public static final String ACCESS_COOKIE = RestaurateurIdentityGateway.ACCESS_COOKIE;
     public static final String REFRESH_COOKIE = "surplasse_refresh";
 
     private static final String ACCESS_PATH = "/";

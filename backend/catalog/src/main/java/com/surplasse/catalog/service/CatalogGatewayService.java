@@ -65,6 +65,13 @@ public class CatalogGatewayService implements CatalogGateway {
     }
 
     @Override
+    public Map<UUID, String> findTableLabels(Collection<UUID> tableQrIds) {
+        return tableQrRepository.listByIds(tableQrIds).stream()
+                .collect(Collectors.toMap(
+                        com.surplasse.catalog.entity.TableQr::getId, com.surplasse.catalog.entity.TableQr::getLabel));
+    }
+
+    @Override
     public Map<UUID, ProductPricing> priceProducts(UUID establishmentId, Collection<UUID> productIds) {
         Optional<Menu> menu = menuRepository.findPublishedByEstablishment(establishmentId);
         if (menu.isEmpty() || productIds.isEmpty()) {

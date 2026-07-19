@@ -73,7 +73,7 @@ curl --fail https://api.surplasse.com/q/health/ready
 docker compose stop backend
 ```
 
-Le démarrage exige PostgreSQL, les migrations Flyway, les clés JWT RS256 montées hors image et la configuration SMTP décrite dans [Environnements](environnements.md#backend-quarkus). Flyway applique V5 avec le reste du schéma avant que la readiness passe à `UP`. Une mise à jour ou un retour arrière redéploie l'image Backend entière : il n'existe aucune opération propre à `identity`. Ubuntu LTS fait foi.
+Le démarrage exige PostgreSQL, les migrations Flyway, les clés JWT RS256 montées hors image et la configuration SMTP décrite dans [Environnements](environnements.md#backend-quarkus). Flyway applique les migrations jusqu'à V6 avant que la readiness passe à `UP`. Une mise à jour ou un retour arrière redéploie l'image Backend entière : il n'existe aucune opération propre à `identity`. Ubuntu LTS fait foi.
 
 Sur le choix du reverse proxy : Traefik excelle dans la découverte dynamique de conteneurs et brille dans des environnements où les services vont et viennent, au prix d'une configuration par labels plus verbeuse et d'un modèle mental plus riche. Caddy fait la même chose ici avec un fichier de configuration court et lisible, et gère le certificat wildcard par défi DNS-01 via un module DNS provider (build Caddy personnalisé, à prévoir dans l'image de `infra/`). La topologie de Surplasse étant statique (les mêmes services, tout le temps), la référence retient **Caddy** pour sa simplicité ; ce choix sera consigné en ADR avec la mise en place de `infra/`.
 
@@ -138,7 +138,7 @@ La base de données est le seul état qui ne se reconstruit pas. Le régime de s
 | Contenu MinIO | Hebdomadaire | Synchronisation des buckets vers le même stockage tiers |
 | Exercice de restauration | Trimestriel | Restauration complète du dernier dump sur un environnement local, vérification que l'application démarre et que les données sont cohérentes |
 
-Le dump PostgreSQL inclut les tables d'identité ajoutées par V5 : restaurateurs, magic links et refresh tokens hachés. Aucune sauvegarde ni aucun volume distinct ne leur est nécessaire. L'exercice de restauration vérifie aussi le rattachement entre restaurateurs et établissements ainsi que l'état Flyway de V5.
+Le dump PostgreSQL inclut les tables d'identité ajoutées par V5 : restaurateurs, magic links et refresh tokens hachés. Aucune sauvegarde ni aucun volume distinct ne leur est nécessaire. L'exercice de restauration vérifie aussi le rattachement entre restaurateurs et établissements, l'état Flyway de V6 et la présence de l'index partiel `order_operational_page_idx`.
 
 Le contenu MinIO est moins critique que la base : les images de produits sont re-téléversables et la carte extraite vit en base, seule la photo originale de la carte serait perdue. La rétention exacte des dumps (nombre de jours, paliers hebdomadaires et mensuels) reste à trancher, en cohérence avec les durées de [RGPD](rgpd.md).
 

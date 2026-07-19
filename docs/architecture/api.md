@@ -110,6 +110,8 @@ GET /v1/orders?establishmentId=2c9e7a41-5b8d-4f3a-9e6b-7d1c2a3b4c5d&limit=50&cur
 
 Quand `hasMore` vaut `false`, `nextCursor` est absent. La pagination par curseur reste stable quand de nouvelles commandes arrivent en tête de liste, ce qu'un offset ne garantit pas.
 
+La première liste paginée effectivement livrée est `GET /v1/orders`. Elle exige le cookie de session restaurateur et `establishmentId`, puis retourne uniquement les commandes `paid`, `accepted`, `preparing` et `ready`. Le curseur est lié à l'établissement. Une ressource inconnue ou hors du périmètre du restaurateur répond 404. Les lignes de commande sont des instantanés et la capacité de suivi du client n'est jamais exposée dans ce modèle Dashboard.
+
 ### Erreurs au format Problem Details (RFC 9457)
 
 Toute réponse d'erreur est un document `application/problem+json` conforme à la RFC 9457, avec un champ `type` stable qui identifie l'erreur applicative.

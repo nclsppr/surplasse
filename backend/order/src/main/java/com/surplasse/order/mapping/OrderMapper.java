@@ -1,9 +1,11 @@
 package com.surplasse.order.mapping;
 
+import com.surplasse.contract.model.DashboardOrder;
 import com.surplasse.contract.model.Order;
 import com.surplasse.contract.model.OrderLine;
 import com.surplasse.contract.model.OrderLineOption;
 import com.surplasse.contract.model.TableSession;
+import com.surplasse.order.service.OperationalOrderService;
 import com.surplasse.order.service.OptionsJson;
 import com.surplasse.order.service.OrderService.OrderView;
 import com.surplasse.order.service.TableSessionService.OpenedSession;
@@ -32,6 +34,27 @@ public final class OrderMapper {
                 .totalCents(view.order().getTotalCents())
                 .currency("EUR")
                 .trackingToken(view.order().getTrackingToken())
+                .createdAt(view.order().getCreatedAt());
+    }
+
+    public static com.surplasse.contract.model.OrderPage toOrderPage(OperationalOrderService.OrderPage page) {
+        return new com.surplasse.contract.model.OrderPage()
+                .items(page.items().stream().map(OrderMapper::toDashboardOrder).toList())
+                .nextCursor(page.nextCursor())
+                .hasMore(page.hasMore());
+    }
+
+    private static DashboardOrder toDashboardOrder(OrderView view) {
+        return new DashboardOrder()
+                .id(view.order().getId())
+                .displayNumber(view.order().getDisplayNumber())
+                .status(DashboardOrder.StatusEnum.fromString(
+                        view.order().getStatus().dbValue()))
+                .type(DashboardOrder.TypeEnum.fromString(view.order().getType().dbValue()))
+                .tableLabel(view.tableLabel())
+                .lines(view.lines().stream().map(OrderMapper::toOrderLine).toList())
+                .totalCents(view.order().getTotalCents())
+                .currency("EUR")
                 .createdAt(view.order().getCreatedAt());
     }
 

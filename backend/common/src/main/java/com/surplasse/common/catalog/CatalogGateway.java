@@ -20,6 +20,9 @@ public interface CatalogGateway {
     /** Human label of a table, for display on orders. */
     Optional<String> findTableLabel(UUID tableQrId);
 
+    /** Human labels of tables, resolved in one catalog query for order lists. */
+    Map<UUID, String> findTableLabels(Collection<UUID> tableQrIds);
+
     /**
      * Pricing snapshot of the requested products, restricted to the published
      * menu of the establishment: a product outside that menu is simply absent

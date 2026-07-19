@@ -1,9 +1,11 @@
 package com.surplasse.order.resource;
 
+import com.surplasse.common.identity.RestaurateurIdentityGateway;
 import com.surplasse.contract.api.OrderApi;
 import com.surplasse.contract.model.OrderCreationRequest;
 import com.surplasse.contract.model.TableSessionRequest;
 import com.surplasse.order.mapping.OrderMapper;
+import com.surplasse.order.service.OperationalOrderService;
 import com.surplasse.order.service.OrderEventStreamer;
 import com.surplasse.order.service.OrderService;
 import com.surplasse.order.service.TableSessionService;
@@ -16,6 +18,7 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.Cookie;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -31,6 +34,7 @@ public class OrderResource implements OrderApi {
 
     private final TableSessionService tableSessionService;
     private final OrderService orderService;
+    private final OperationalOrderService operationalOrderService;
     private final OrderEventStreamer orderEventStreamer;
 
     @Context
@@ -40,9 +44,13 @@ public class OrderResource implements OrderApi {
     Sse sse;
 
     OrderResource(
-            TableSessionService tableSessionService, OrderService orderService, OrderEventStreamer orderEventStreamer) {
+            TableSessionService tableSessionService,
+            OrderService orderService,
+            OperationalOrderService operationalOrderService,
+            OrderEventStreamer orderEventStreamer) {
         this.tableSessionService = tableSessionService;
         this.orderService = orderService;
+        this.operationalOrderService = operationalOrderService;
         this.orderEventStreamer = orderEventStreamer;
     }
 
@@ -76,6 +84,18 @@ public class OrderResource implements OrderApi {
     public Response getOrder(UUID orderId, String trackingToken) {
         return Response.ok(OrderMapper.toOrder(orderService.getForTracking(orderId, trackingToken)))
                 .build();
+    }
+
+    @Override
+    public Response listOrders(UUID establishmentId, String cursor, Integer limit) {
+        return Response.ok(OrderMapper.toOrderPage(operationalOrderService.list(
+                        cookie(RestaurateurIdentityGateway.ACCESS_COOKIE), establishmentId, cursor, limit)))
+                .build();
+    }
+
+    private String cookie(String name) {
+        Cookie cookie = headers.getCookies().get(name);
+        return cookie == null ? null : cookie.getValue();
     }
 
     /**

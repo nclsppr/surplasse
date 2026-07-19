@@ -113,6 +113,12 @@ L'extraction par IA arrive en phase 3. En phase 2, la carte du pilote est saisie
 - Dashboard minimal : flux SSE des commandes entrantes, acceptation des commandes, authentification du restaurateur par magic link.
 - Boucle de retour avec le restaurateur pilote : observations de service, irritants, demandes.
 
+### État de livraison au 2026-07-19
+
+Le flux client local couvre déjà le scan du QR code, la carte, le panier, la création de commande, le paiement en environnement de test et le suivi. L'identité restaurateur couvre le magic link, les cookies de session, la rotation du refresh token et l'autorisation par établissement. Le Backend expose désormais la file paginée des commandes opérationnelles au futur Dashboard.
+
+Il reste à livrer le frontend Dashboard minimal, les transitions de statut côté restaurateur et le flux SSE par établissement. Viennent ensuite le passage Stripe en conditions live, le service à blanc, les corrections issues du pilote et enfin le service réel qui constitue le critère de sortie de la phase.
+
 ### Risques et parades
 
 | Risque | Parade |

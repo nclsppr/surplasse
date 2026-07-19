@@ -7,7 +7,7 @@ description: Le modèle de données de référence de Surplasse, entités par do
 
 # Modèle de données
 
-Cette page décrit le modèle de données de référence de Surplasse. Le [backend](./backend.md) est le seul à accéder à la base : les frontends passent exclusivement par [le contrat OpenAPI](./api.md). Les domaines catalogue, commande, paiement et identité sont matérialisés par les migrations Flyway V1 à V5 ; les autres domaines restent la cible à implémenter.
+Cette page décrit le modèle de données de référence de Surplasse. Le [backend](./backend.md) est le seul à accéder à la base : les frontends passent exclusivement par [le contrat OpenAPI](./api.md). Les domaines catalogue, commande, paiement et identité sont matérialisés par les migrations Flyway V1 à V6 ; les autres domaines restent la cible à implémenter.
 
 ## Principes
 
@@ -448,10 +448,11 @@ Un établissement créé directement par l'embarquement (sans pré-génération)
 | V3 | `order` | commandes et suivi |
 | V4 | `payment` | paiements et webhooks Stripe |
 | V5 | `identity` | restaurateurs, magic links, familles de refresh tokens, rattachement des établissements |
+| V6 | `order` | index partiel de pagination des commandes opérationnelles |
 
-V5 vit dans `backend/identity/src/main/resources/db/migration/V5__identity_schema.sql`. Flyway l'applique au démarrage de l'assemblage Backend, comme les quatre versions précédentes. Le seed local associe le compte de démonstration à l'établissement pilote ; il n'est jamais chargé en production.
+V5 vit dans `backend/identity/src/main/resources/db/migration/V5__identity_schema.sql`. Le seed local associe le compte de démonstration à l'établissement pilote ; il n'est jamais chargé en production. V6 vit dans `backend/order/src/main/resources/db/migration/V6__operational_order_index.sql`. Son index partiel couvre `(establishment_id, created_at DESC, id DESC)` uniquement pour `paid`, `accepted`, `preparing` et `ready`, soit la file active lue par le Dashboard.
 
-Les tables V5 appartiennent à l'unique base PostgreSQL. Elles sont donc incluses dans chaque `pg_dump`, dans la copie chiffrée hors VPS et dans l'exercice trimestriel de restauration. Elles n'ajoutent ni volume ni sauvegarde séparés. Une restauration doit vérifier que Flyway voit V5 comme appliquée et que les liens entre `restaurateur`, `restaurateur_session`, `magic_link_session` et `establishment` sont cohérents.
+Flyway applique V1 à V6 au démarrage de l'assemblage Backend. Les tables V5 appartiennent à l'unique base PostgreSQL. Elles sont donc incluses dans chaque `pg_dump`, dans la copie chiffrée hors VPS et dans l'exercice trimestriel de restauration. Elles n'ajoutent ni volume ni sauvegarde séparés. L'index V6 ne contient aucune donnée supplémentaire à sauvegarder : PostgreSQL le restaure avec le schéma. Une restauration doit vérifier que Flyway voit V6 comme appliquée, que l'index `order_operational_page_idx` existe et que les liens entre `restaurateur`, `restaurateur_session`, `magic_link_session` et `establishment` sont cohérents.
 
 ## Invariants métier
 

@@ -10,6 +10,7 @@ import static com.surplasse.order.entity.OrderStatus.READY;
 import static com.surplasse.order.entity.OrderStatus.REFUNDED;
 import static com.surplasse.order.entity.OrderStatus.SERVED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
@@ -54,6 +55,18 @@ class OrderStatusTest {
     void dbValue_everyStatus_roundTrips() {
         for (OrderStatus status : OrderStatus.values()) {
             assertEquals(status, OrderStatus.fromDbValue(status.dbValue()));
+        }
+    }
+
+    @Test
+    void isOperational_onlyActiveRestaurantQueueStatuses_areIncluded() {
+        assertEquals(Set.of(PAID, ACCEPTED, PREPARING, READY), Set.copyOf(OrderStatus.operationalValues()));
+        for (OrderStatus status : OrderStatus.values()) {
+            if (Set.of(PAID, ACCEPTED, PREPARING, READY).contains(status)) {
+                assertTrue(status.isOperational(), status.name());
+            } else {
+                assertFalse(status.isOperational(), status.name());
+            }
         }
     }
 }
