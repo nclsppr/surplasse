@@ -150,18 +150,12 @@ class DashboardOrderFlowTest {
                 .statusCode(200)
                 .body("id", equalTo(order.id()))
                 .body("status", equalTo("accepted"));
-        updateStatus(accessToken, order.id(), "accepted")
-                .then()
-                .statusCode(200)
-                .body("status", equalTo("accepted"));
+        updateStatus(accessToken, order.id(), "accepted").then().statusCode(200).body("status", equalTo("accepted"));
         updateStatus(accessToken, order.id(), "preparing")
                 .then()
                 .statusCode(200)
                 .body("status", equalTo("preparing"));
-        updateStatus(accessToken, order.id(), "ready")
-                .then()
-                .statusCode(200)
-                .body("status", equalTo("ready"));
+        updateStatus(accessToken, order.id(), "ready").then().statusCode(200).body("status", equalTo("ready"));
 
         updateStatus(accessToken, order.id(), "picked_up")
                 .then()
@@ -169,10 +163,7 @@ class DashboardOrderFlowTest {
                 .contentType(PROBLEM_JSON)
                 .body("type", containsString("business-rule-violation"));
 
-        updateStatus(accessToken, order.id(), "served")
-                .then()
-                .statusCode(200)
-                .body("status", equalTo("served"));
+        updateStatus(accessToken, order.id(), "served").then().statusCode(200).body("status", equalTo("served"));
 
         List<String> operationalIds = given().filter(ContractValidation.FILTER)
                 .header("Cookie", ACCESS_COOKIE + "=" + accessToken)
