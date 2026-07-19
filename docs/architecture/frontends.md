@@ -145,12 +145,14 @@ Le détail fonctionnel des écrans est décrit dans [le parcours restaurateur](.
 
 ## Onboarding : la porte d'entrée
 
-Onboarding est le site public de Surplasse sur `surplasse.com`. Il joue deux rôles successifs :
+Onboarding est le site public de Surplasse sur `surplasse.com`. Il joue quatre rôles complémentaires :
 
-1. **La vitrine marketing** : elle porte le manifeste produit (« Le circuit court de la commande ») et reprend le discours de [la vision](../produit/vision.md) : démonstration du produit, positionnement face aux marketplaces, tarifs. C'est la seule surface où le ton marketing est assumé.
+1. **La homepage** : elle porte le manifeste produit (« Le circuit court de la commande »), démontre le produit, présente le positionnement et les tarifs, puis conduit le restaurateur vers l'embarquement. C'est la seule surface où le ton marketing est assumé.
 2. **Le tunnel d'embarquement** : le parcours qui transforme un visiteur en restaurateur actif. Nom de l'établissement, téléversement de la photo de la carte et de quelques images, génération du mini-site, activation par magic link. Le téléversement de photos est soigné (compression côté client avant envoi, reprise en cas de coupure, aperçu immédiat) car c'est le moment de vérité du produit. Le tunnel gère aussi la revendication d'un espace pré-généré quand l'établissement a été identifié en amont.
+3. **La documentation publique destinée aux restaurateurs** : elle explique le fonctionnement, les paiements, la commission Surplasse et les frais Stripe dans un langage accessible avant l'activation.
+4. **Le blog** : il publie des articles utiles aux restaurateurs et porte la stratégie de contenu, de référencement et de SEO global de `surplasse.com`.
 
-Le détail pas à pas vit dans [le parcours d'embarquement](../produit/parcours/onboarding-restaurateur.md).
+Le détail pas à pas du tunnel vit dans [le parcours d'embarquement](../produit/parcours/onboarding-restaurateur.md). Le séquencement de la documentation publique et du blog est fixé dans la [roadmap](../roadmap.md).
 
 ## Structure de dossiers par application
 

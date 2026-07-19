@@ -209,7 +209,10 @@ Le circuit court de la commande devient un circuit court de la relation. Le rest
 - Espaces pré-générés pour des établissements identifiés en ligne, avec parcours de revendication par le restaurateur.
 - Impression thermique des tickets cuisine (ESC/POS) : l'ADR reste à trancher (matériel supporté, pont local ou impression réseau).
 - Supports QR premium pour les tables (chevalets, stickers).
-- **SEO et contenu de la vitrine** : travail de référencement global de `surplasse.com`, documentation publique destinée aux restaurateurs (fonctionnement, tarifs : 0 % les 3 premiers mois puis 1,1 % par commande, voir [les intégrations](architecture/integrations.md)) et **blog** d'articles orientés référencement. La vitrine Onboarding grandit donc en trois volets : le tunnel d'embarquement, la documentation restaurateurs et le blog. La production des articles sera automatisée (Claude Routines) une fois `surplasse.com` réellement déployé.
+- **Vitrine Onboarding et acquisition SEO** : `surplasse.com` grandit en trois volets publics complémentaires :
+  - une homepage qui présente Surplasse et conduit les restaurateurs vers le tunnel d'embarquement ;
+  - une documentation publique destinée aux restaurateurs, qui explique le fonctionnement, les paiements et les tarifs, dont la commission Surplasse de 0 % pendant les 3 premiers mois puis 1 % par commande, hors frais Stripe (voir [les intégrations](architecture/integrations.md) et l'[ADR-0015](decisions/adr-0015-modele-commission.md)) ;
+  - un blog d'articles utiles aux restaurateurs, destiné au référencement et au SEO global de `surplasse.com`. La production des articles sera automatisée une fois la vitrine réellement déployée.
 
 ### Risques et parades
 

@@ -80,9 +80,11 @@ Trois couches de frais sont à modéliser avant l'ouverture commerciale :
 |---|---|---|
 | Frais Stripe de transaction | Pourcentage plus montant fixe par paiement, variable selon le type de carte | À répartir entre Surplasse et l'établissement |
 | Frais Stripe Connect | Facturation par compte Express actif et par virement | Surplasse, à intégrer dans le modèle de prix |
-| Commission Surplasse | La rémunération de la plateforme, prélevée via `application_fee_amount` sur chaque PaymentIntent | **Actée le 2026-07-18 : 0 % pendant les 3 premiers mois de chaque établissement, puis 1,1 % par commande** |
+| Commission Surplasse | La rémunération de la plateforme, prélevée via `application_fee_amount` sur chaque PaymentIntent | **Actée le 2026-07-19 : 0 % pendant les 3 premiers mois de chaque établissement, puis 1 % par commande** |
 
-Le modèle de prix est acté dans son principe : commission par commande, sans abonnement, avec une période de lancement gratuite de 3 mois par établissement puis 1,1 %. Ce taux se lit à côté des frais Stripe de transaction (qui s'appliquent dès le premier jour) et sera simulé sur le panier moyen réel avant l'ouverture commerciale. **Ces conditions doivent apparaître clairement dans la documentation publique destinée aux restaurateurs** (vitrine Onboarding, voir la [roadmap](../roadmap.md)) : la transparence tarifaire fait partie du positionnement face aux plateformes à commission opaque.
+Le modèle de prix est acté : commission par commande, sans abonnement, avec une commission Surplasse de 0 % pendant les 3 premiers mois suivant l'activation de chaque établissement, puis 1 %. Les frais Stripe restent distincts et s'appliquent dès le premier paiement. Leur montant exact sera vérifié selon le moyen de paiement, le schéma de charges Connect et le panier moyen réel avant l'ouverture commerciale.
+
+Ces conditions doivent apparaître clairement sur la future homepage et dans la documentation publique destinée aux restaurateurs. La communication sépare toujours la commission Surplasse des frais Stripe : la transparence tarifaire fait partie du positionnement face aux plateformes à commission opaque. Le détail de la décision figure dans l'[ADR-0015](../decisions/adr-0015-modele-commission.md) et sa mise en visibilité dans la [roadmap](../roadmap.md).
 
 ### Mode test
 
@@ -90,7 +92,7 @@ Tout le développement se fait en **mode test Stripe** : clés de test, cartes d
 
 ### Statut de la décision
 
-Stripe comme prestataire de paiement et le compte Connect Express sont actés ([ADR Stripe Connect](../decisions/adr-0007-stripe.md)). Restent à trancher : le montant de la commission Surplasse et le modèle de prix.
+Stripe comme prestataire de paiement et le compte Connect Express sont actés ([ADR Stripe Connect](../decisions/adr-0007-stripe.md)). La commission Surplasse est actée dans l'[ADR-0015](../decisions/adr-0015-modele-commission.md). Restent à trancher le schéma de charges Connect, le montant exact des frais Stripe applicables et leur répartition.
 
 ## Extraction IA de la carte
 
