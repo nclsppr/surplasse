@@ -167,7 +167,7 @@ Six domaines, alignés sur les modules Maven : `catalogue`, `commande`, `paiemen
 
 ### Authentification et temps réel (référence : `architecture/securite.md`)
 
-La session du restaurateur est un **JWT court porté par un cookie hôte uniquement émis par `api.surplasse.com`, `HttpOnly`, `Secure` en production, `SameSite=Lax`, `Path=/`**, posé après l'échange du magic link. Un second cookie hôte uniquement porte le refresh token opaque, rotatif et haché en base. Le Dashboard appelle `api.surplasse.com` avec `credentials: "include"` et le flux SSE utilise `withCredentials: true` : aucun en-tête `Authorization` n'est nécessaire. Ne jamais définir `Domain=.surplasse.com`, qui exposerait inutilement les cookies aux mini-sites, ni décrire l'authentification restaurateur comme un `Bearer` en en-tête. Le client final, lui, reçoit un jeton de session anonyme opaque lié à l'établissement et à la table.
+La session du restaurateur est un **JWT court porté par un cookie hôte uniquement émis par `api.surplasse.com`, `HttpOnly`, `Secure` en production, `SameSite=Lax`, `Path=/`**, posé après l'échange du magic link. Le lien transporte son jeton à usage unique dans le fragment `#token=...`, que le Dashboard retire avant l'échange par POST. Un second cookie hôte uniquement porte le refresh token opaque, rotatif et haché en base. Le Dashboard appelle `api.surplasse.com` avec `credentials: "include"` et le flux SSE utilise `withCredentials: true` : aucun en-tête `Authorization` n'est nécessaire. Ne jamais définir `Domain=.surplasse.com`, qui exposerait inutilement les cookies aux mini-sites, ni décrire l'authentification restaurateur comme un `Bearer` en en-tête. Le client final, lui, reçoit un jeton de session anonyme opaque lié à l'établissement et à la table.
 
 ### Séquencement (référence : `roadmap.md`)
 
@@ -209,7 +209,7 @@ surplasse/
 └── .github/workflows/       # CI/CD
 ```
 
-Aujourd'hui existent `docs/`, `brand/`, la préfiguration statique de l'Onboarding, le contrat `api/openapi.yaml` (lint Spectral, chaîne de génération, ADR-0013), le Backend (`common`, `contract`, `catalog`, `order`, `payment`, `identity`, `application`), le package `frontends/shared/` et le front Commande. Le reste est créé au fil de la roadmap.
+Aujourd'hui existent `docs/`, `brand/`, la préfiguration statique de l'Onboarding, le contrat `api/openapi.yaml` (lint Spectral, chaîne de génération, ADR-0013), le Backend (`common`, `contract`, `catalog`, `order`, `payment`, `identity`, `application`), le package `frontends/shared/`, Commande et un premier Dashboard. Ce Dashboard couvre la connexion par magic link, la restauration de session, la sélection d'un établissement autorisé et la liste REST des commandes opérationnelles. Il reste en lecture seule, sans flux SSE établissement. Le reste est créé au fil de la roadmap.
 
 ## Exécution multi-plateformes
 

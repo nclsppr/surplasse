@@ -10,7 +10,7 @@ description: "L'identité visuelle de Surplasse (Bistro premium) : logo, typogra
 Cette page fixe l'identité visuelle de Surplasse. La **source de vérité** est le design system Claude Design « Restaurant management system design » (direction **« Bistro premium »**). Ses tokens sont mirrorés dans `brand/` (avec les polices auto-hébergées) et alimenteront le package partagé `frontends/shared/` ; les composants et UI kits seront synchronisés en phase 1.
 
 !!! info Documentation de référence
-La marque est définie dans `brand/` et ses premières briques sont consommées par `frontends/shared/` et Commande. L'Onboarding React et le Dashboard l'intégreront à leur création selon la [roadmap](../roadmap.md).
+La marque est définie dans `brand/` et ses premières briques sont consommées par `frontends/shared/`, Commande et le premier Dashboard. L'Onboarding React l'intégrera à sa création selon la [roadmap](../roadmap.md).
 !!!
 
 ## Direction : Bistro premium
@@ -62,7 +62,7 @@ Palette « Bistro premium », définie par les tokens de `brand/tokens/colors.cs
 | Succès | `--ok` | `#256b52` |
 | Ligne fine | `--line-1` | espresso 12% |
 
-Toute paire texte/fond destinée à de la lecture doit respecter le contraste WCAG 2.2 AA ([accessibilité](../produit/fonctionnalites.md)) : l'encre sur ivoire et l'ivoire sur accent passent AA ; l'orange et le vert sont réservés aux titres, surfaces, icônes et petits labels, pas au corps de petit texte sur ivoire.
+Toute paire texte/fond destinée à de la lecture doit respecter le contraste WCAG 2.2 AA ([accessibilité](../produit/fonctionnalites.md)). L'encre sur ivoire passe AA. L'ivoire sur l'accent `#e8481c` est réservé au grand texte : pour un bouton ou un petit libellé, utiliser du blanc sur `--accent-press` ou une autre paire vérifiée. Sur ivoire, `--accent-press` porte les petits textes orange, tandis que `--accent` reste réservé aux grands titres, surfaces et icônes.
 
 ### Thèmes
 
@@ -92,7 +92,7 @@ Sur les mini-sites, ces variables de base sont **surchargées par le thème de l
 
 ## Tokens et intégration frontend
 
-- Base mirrorée dans `brand/` : `styles.css` importe `tokens/colors.css`, `tokens/typography.css`, `tokens/spacing.css`, eux-mêmes reliés aux polices auto-hébergées de `brand/fonts/`.
+- Base mirrorée dans `brand/` : `styles.css` importe d'abord les polices auto-hébergées de `brand/fonts/`, puis `tokens/colors.css`, `tokens/typography.css` et `tokens/spacing.css`. Cet ordre garde les déclarations `@font-face` en tête de la feuille assemblée.
 - En phase 1, ces tokens et la couche composants (Button, Card, Input, Dialog, Tabs, etc.) sont synchronisés dans `frontends/shared/` depuis le design system Claude Design.
 - La couche composants (Tailwind et une bibliothèque à acter par ADR) est décrite dans [les conventions React](../developpement/conventions-react.md).
 

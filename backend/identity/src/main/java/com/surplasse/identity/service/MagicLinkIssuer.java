@@ -45,7 +45,13 @@ public class MagicLinkIssuer {
     }
 
     private URI loginUrl(String token) {
-        String base = config.magicLinkLandingUrl().toASCIIString();
-        return URI.create(base + (base.contains("?") ? "&" : "?") + "token=" + token);
+        return loginUrl(config.magicLinkLandingUrl(), token);
+    }
+
+    static URI loginUrl(URI landingUrl, String token) {
+        if (landingUrl.getFragment() != null) {
+            throw new IllegalArgumentException("The magic link landing URL cannot carry a fragment.");
+        }
+        return URI.create(landingUrl.toASCIIString() + "#token=" + token);
     }
 }

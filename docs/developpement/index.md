@@ -10,7 +10,7 @@ description: Prérequis, installation, commandes, ports et premier lancement de 
 Cette page est le point d'entrée de la section développement : ce qu'il faut installer sur sa machine, comment cloner et lancer le monorepo, quelles commandes exécuter dans chaque répertoire et comment diagnostiquer les problèmes les plus fréquents. Pour comprendre ce que l'on fait tourner avant de le lancer, lire d'abord la [vue d'ensemble de l'architecture](../architecture/index.md).
 
 !!! info État actuel
-Au 2026-07-19, existent : la documentation (`docs/`), la charte graphique (`brand/`), la préfiguration statique de l'Onboarding, le contrat (`api/openapi.yaml`) avec son lint et sa chaîne de génération, le Backend (`backend/` : modules `common`, `contract`, `catalog`, `order`, `payment`, `identity`, `application`), le package partagé (`frontends/shared/`) et Commande (`frontends/commande/`) avec carte, panier, paiement et suivi. Le Dashboard et l'Onboarding React restent à créer. La page distingue toujours ce qui est exécutable de ce qui est seulement prévu.
+Au 2026-07-19, existent : la documentation (`docs/`), la charte graphique (`brand/`), la préfiguration statique de l'Onboarding, le contrat (`api/openapi.yaml`) avec son lint et sa chaîne de génération, le Backend (`backend/` : modules `common`, `contract`, `catalog`, `order`, `payment`, `identity`, `application`), le package partagé (`frontends/shared/`), Commande (`frontends/commande/`) avec carte, panier, paiement et suivi, et le premier Dashboard (`frontends/dashboard/`). Ce Dashboard permet la connexion par magic link, restaure la session, sélectionne un établissement autorisé et lit ses commandes opérationnelles par REST. Il reste en lecture seule, sans flux SSE établissement. L'Onboarding React reste à créer. La page distingue toujours ce qui est exécutable de ce qui est seulement prévu.
 !!!
 
 ## Prérequis
@@ -59,21 +59,22 @@ La catégorie d'exécution est obligatoire : développement seulement, build ou 
 L'installation se fait en deux temps : l'outillage commun à la racine, puis les dépendances de chaque application dans son répertoire.
 
 ```bash
-# 1. Cloner le monorepo
+# 1. Clone the monorepo
 git clone git@github.com:nclsppr/surplasse.git
 cd surplasse
 
-# 2. Outillage racine (documentation et contrat OpenAPI)
+# 2. Install root tooling for documentation and the OpenAPI contract
 nvm use
 npm ci
 
-# 3. Dépendances des composants actuels, depuis la racine
-(cd frontends/shared && npm ci)           # paquet source, sans serveur autonome
-(cd frontends/commande && npm ci)         # application Commande
-(cd backend && ./mvnw dependency:resolve) # optionnel, quarkus:dev le fait aussi
+# 3. Install current component dependencies from the repository root
+(cd frontends/shared && npm ci)           # source package, no standalone server
+(cd frontends/commande && npm ci)         # Commande application
+(cd frontends/dashboard && npm ci)        # Dashboard application
+(cd backend && ./mvnw dependency:resolve) # optional, quarkus:dev resolves them too
 ```
 
-Le `npm ci` racine installe Retype, Spectral et OpenAPI Generator. Les frontends ont chacun leur propre `package.json` et leurs propres dépendances : il n'y a pas de workspace npm global. Le package partagé `frontends/shared/` est consommé en source via une dépendance `file:../shared`, conformément à l'[ADR-0014](../decisions/adr-0014-liaison-shared.md). L'Onboarding actuel est statique et n'a pas encore de dépendances npm. Le Dashboard n'existe pas encore.
+Le `npm ci` racine installe Retype, Spectral et OpenAPI Generator. Les frontends ont chacun leur propre `package.json` et leurs propres dépendances : il n'y a pas de workspace npm global. Le package partagé `frontends/shared/` est consommé en source via une dépendance `file:../shared`, conformément à l'[ADR-0014](../decisions/adr-0014-liaison-shared.md). Il faut donc installer `shared` avant de vérifier Commande ou le Dashboard. L'Onboarding actuel est statique et n'a pas encore de dépendances npm.
 
 ## Cycle de vie des composants actuels
 
@@ -90,7 +91,7 @@ Le `npm ci` racine installe Retype, Spectral et OpenAPI Generator. Les frontends
 | `frontends/shared` | Bibliothèque TypeScript ; `npm run check` et `npm test`, aucun serveur | Compilée dans les frontends, aucun conteneur distinct |
 | `frontends/commande` | Application Vite ; `npm run dev` | Front statique Commande en production |
 | `frontends/onboarding` | Préfiguration HTML statique ; aucun package npm actuellement | Publiée avec GitHub Pages aujourd'hui, futur front statique Onboarding sur le VPS |
-| `frontends/dashboard` | Absent, port 5174 réservé | Futur front statique Dashboard sur le VPS |
+| `frontends/dashboard` | Application Vite ; `npm run dev`, port strict 5174 | Exécutable localement, non déployée ; cible statique sur `dashboard.surplasse.com` |
 
 ## Cycle de vie des logiciels tiers
 
@@ -103,6 +104,26 @@ Le `npm ci` racine installe Retype, Spectral et OpenAPI Generator. Les frontends
 | Retype | Prévisualisation locale et build CI | Aucun processus Retype. Le résultat statique est publié sur GitHub Pages |
 | MinIO | Prévu avec le domaine `generation`, pas encore installé | Futur service persistant de la pile Docker Compose |
 | Caddy | Inutile au développement quotidien ; prévu pour reproduire la topologie complète | Futur reverse proxy de la pile Docker Compose |
+
+### Dépendances d'exécution du Dashboard
+
+Le verrou exact des versions vit dans `frontends/dashboard/package-lock.json`. Leur catégorie d'exécution est la suivante :
+
+| Dépendance | Version de référence | Catégorie | Sort en production |
+|---|---|---|---|
+| React et React DOM | 19 | Bibliothèques applicatives | Oui, intégrées au JavaScript statique produit par Vite ; aucun processus autonome |
+| React Router | 7 | Bibliothèque applicative | Oui, intégrée au JavaScript statique |
+| TanStack Query | 5 | Bibliothèque applicative | Oui, intégrée au JavaScript statique |
+| `frontends/shared` | version du même commit | Paquet source interne | Oui, compilé dans le Dashboard ; aucun paquet ni conteneur séparé |
+| Polices auto-hébergées de `brand/fonts/` et wordmark `brand/logo.svg` | version du même commit | Assets de marque au build | Oui, intégrés aux fichiers statiques ; aucune requête vers un CDN |
+| Node.js | 24 | Développement, build et CI | Non, absent du serveur statique une fois les fichiers construits |
+| Vite et son plugin React | 6 | Développement, build et CI | Non, absents du processus de production |
+| Tailwind CSS et son plugin Vite | 4 | Développement et build | Non, seules les feuilles de style produites sont livrées |
+| TypeScript | 5 | Build et CI | Non |
+| ESLint et ses plugins | 9 | Développement et CI | Non |
+| Vitest | 3 | Développement et CI | Non |
+
+Après `npm run build`, le résultat est un dossier `dist/` statique. Il ne conserve aucune donnée, ne monte aucun volume et ne possède aucun processus Node. En local, seul le serveur Vite écoute sur 5174 pendant `npm run dev`.
 
 ## Commandes par répertoire
 
@@ -123,6 +144,8 @@ Chaque composant expose un petit jeu de commandes stables. Une ligne « vérific
 | `frontends/shared/` | `npm run check && npm test` | typecheck et tests de la bibliothèque, sans serveur |
 | `frontends/commande/` | `npm run dev` | serveur Vite de Commande avec rechargement à chaud |
 | `frontends/commande/` | `npm run lint && npm test && npm run build` | vérification complète de Commande |
+| `frontends/dashboard/` | `npm run dev` | serveur Vite du Dashboard avec rechargement à chaud, port strict 5174 |
+| `frontends/dashboard/` | `npm run lint && npm test && npm run build` | vérification complète du Dashboard |
 | racine | `python3 -m http.server 4173` | prévisualisation statique de l'Onboarding et de la marque |
 
 Pour la prévisualisation statique, ouvrir `http://localhost:4173/frontends/onboarding/` ou `http://localhost:4173/brand/board.html`. La commande est identique sous macOS, Linux et Windows via WSL2. L'arrêter avec `Ctrl+C`.
@@ -156,6 +179,67 @@ curl --include \
 
 Le message apparaît dans `http://localhost:8025`. `Ctrl+C` arrête le Backend et donc le module. `docker stop surplasse-mailpit` arrête séparément la capture SMTP. En cas de différence entre plateformes, le comportement sous Ubuntu LTS fait foi.
 
+### Cycle de vie du Dashboard
+
+Le Dashboard est une application Vite. Les mêmes commandes sont supportées sur macOS, Linux et Windows via WSL2. Le développement Windows natif reste exclu. Il dépend du Backend pour les sessions et les commandes, de Mailpit pour lire les magic links locaux et de `frontends/shared/` au build. Il ne crée aucune base, donnée persistante ni volume.
+
+Depuis la racine du dépôt, installer les dépendances et créer la configuration locale :
+
+```bash
+(cd frontends/shared && npm ci)
+cd frontends/dashboard
+npm ci
+cp .env.example .env
+```
+
+Le fichier d'exemple fixe `VITE_API_BASE_URL=http://localhost:8080`. Cette variable est publique et injectée au build. Elle ne contient jamais de secret.
+
+Dans trois terminaux, lancer Mailpit, le Backend puis le Dashboard :
+
+```bash
+# Terminal 1, from the repository root
+docker run --detach --rm \
+  --name surplasse-mailpit \
+  --publish 127.0.0.1:1025:1025 \
+  --publish 127.0.0.1:8025:8025 \
+  axllent/mailpit:v1.30.4
+curl --fail http://localhost:8025/readyz
+```
+
+```bash
+# Terminal 2
+cd backend
+./mvnw quarkus:dev
+```
+
+```bash
+# Terminal 3
+cd frontends/dashboard
+npm run dev
+```
+
+Vérifier d'abord les deux services :
+
+```bash
+curl --fail http://localhost:8080/q/health/ready
+curl --fail http://localhost:5174/
+```
+
+Ouvrir ensuite `http://localhost:5174/auth/login`, demander un lien pour `pilote@le-cormoran.example`, puis ouvrir `http://localhost:8025`. Le lien transporte le jeton dans le fragment `#token=...` : ce fragment n'est pas envoyé au serveur Vite, et le Dashboard le retire immédiatement de la barre d'adresse avant l'échange par POST. Après connexion, `/service` affiche en lecture seule les commandes opérationnelles de l'établissement autorisé.
+
+Ne pas mélanger les noms d'hôte en local. Avec l'API configurée sur `http://localhost:8080`, ouvrir le Dashboard sur `http://localhost:5174`, pas sur `http://127.0.0.1:5174`. `localhost` et `127.0.0.1` ne forment pas le même site pour les cookies `SameSite`, même si les deux adresses visent la machine locale.
+
+La vérification complète du module se lance sans Backend ni Mailpit :
+
+```bash
+cd frontends/dashboard
+npm run lint
+npm test
+npm run build
+```
+
+Arrêter les deux processus interactifs avec `Ctrl+C`, puis arrêter Mailpit avec `docker stop surplasse-mailpit`. Le conteneur Mailpit utilise `--rm` et aucun volume : son arrêt supprime les messages capturés. Le dossier `dist/` peut être supprimé et reconstruit à volonté ; il ne contient aucune donnée utilisateur.
+
 ## Ports conventionnels
 
 Chaque application a son port fixe en développement, pour que les URL locales soient stables et que les configurations (CORS, URL de base API) n'aient jamais à deviner.
@@ -165,14 +249,14 @@ Chaque application a son port fixe en développement, pour que les URL locales s
 | 8080 | Backend (API Quarkus) | `http://localhost:8080` |
 | 5432 | PostgreSQL (conteneur monté par les Dev Services, port fixé via `quarkus.datasource.devservices.port` dans le profil `%dev`) | `localhost:5432` |
 | 5173 | Commande | `http://localhost:5173` |
-| 5174 | Dashboard, à sa création | `http://localhost:5174` |
+| 5174 | Dashboard | `http://localhost:5174` |
 | 5175 | Onboarding React, à sa création | `http://localhost:5175` |
 | 5005 | Documentation (Retype) | `http://localhost:5005` |
 | 4173 | Prévisualisation statique actuelle | `http://localhost:4173` |
 | 1025 | Mailpit SMTP, publié sur l'interface loopback seulement | `localhost:1025` |
 | 8025 | Mailpit, interface web et sonde de santé, publié sur l'interface loopback seulement | `http://localhost:8025` |
 
-Les ports 5173 à 5175 suivent l'ordre alphabétique des noms d'applications (Commande, Dashboard, Onboarding). Seul Commande est actuellement configuré. Les ports 5174 et 5175 sont réservés et seront fixés avec `strictPort` dans le `vite.config.ts` de chaque frontend lors de sa création. Un port occupé doit faire échouer le lancement plutôt que de glisser silencieusement vers un port voisin.
+Les ports 5173 à 5175 suivent l'ordre alphabétique des noms d'applications (Commande, Dashboard, Onboarding). Commande et le Dashboard fixent déjà leur port avec `strictPort` dans leur `vite.config.ts`. Le port 5175 reste réservé à l'Onboarding React. Un port occupé doit faire échouer le lancement plutôt que de glisser silencieusement vers un port voisin.
 
 ## Variables d'environnement
 
@@ -181,6 +265,7 @@ Le principe : chaque application committe un fichier `.env.example` listant tout
 ```bash
 cp backend/.env.example backend/.env
 cp frontends/commande/.env.example frontends/commande/.env
+cp frontends/dashboard/.env.example frontends/dashboard/.env
 ```
 
 En développement, la liste des variables réellement obligatoires est courte : les Dev Services fournissent PostgreSQL sans configuration, et les URL locales ont des valeurs par défaut. Les variables principales prévues :
@@ -207,7 +292,7 @@ Les clés réelles (même les clés Stripe de test) ne sont jamais committées :
 
 ## Le premier lancement, pas à pas
 
-Le scénario nominal du premier lancement traverse la moitié du système : backend, base de données, migrations et front Commande. Le voici raconté dans l'ordre.
+Le scénario nominal du premier lancement traverse la moitié du système : Backend, base de données, migrations, Commande et Dashboard. Le voici raconté dans l'ordre.
 
 **1. Démarrer Docker.** Vérifier que le démon tourne (`docker info` répond sans erreur). C'est le seul prérequis silencieux de l'étape suivante.
 
@@ -257,11 +342,13 @@ stripe listen --forward-to localhost:8080/v1/webhooks/stripe
 # copier le whsec_... affiché dans STRIPE_WEBHOOK_SECRET du .env backend
 ```
 
-Le fichier `.env` du backend vit dans `backend/.env`, à côté de `backend/.env.example`, puisque les commandes Maven sont lancées depuis `backend/`. Le fichier de Commande vit dans `frontends/commande/.env`, à côté de son exemple.
+Le fichier `.env` du Backend vit dans `backend/.env`, à côté de `backend/.env.example`, puisque les commandes Maven sont lancées depuis `backend/`. Les fichiers de Commande et du Dashboard vivent dans leur répertoire respectif, à côté de leur `.env.example`.
 
 **4. Ouvrir l'établissement de démonstration.** En production, Commande résout l'établissement depuis le sous-domaine (`{slug}.surplasse.com`). En développement, le slug vient de la variable `VITE_ESTABLISHMENT_SLUG`, avec l'établissement de démonstration (`le-cormoran`) par défaut. Ouvrir `http://localhost:5173/?table=tbl_2f8e6a4c0b9d7e1f` : la carte du Cormoran s'affiche et le code de la Table 4 ouvre une session anonyme. Le panier, le paiement Stripe de test et le suivi sont disponibles. La carte de test standard est `4242 4242 4242 4242`.
 
-À ce stade, le Backend et Commande sont fonctionnels. Le Dashboard n'existe pas encore. La préfiguration de l'Onboarding se consulte avec le serveur statique sur le port 4173 ; elle ne possède pas encore de serveur Vite. Avant de committer quoi que ce soit, lire le [workflow git](workflow-git.md) : branche unique `main`, commits fréquents, build docs obligatoire avant tout push touchant `docs/`.
+**5. Lancer le Dashboard.** Avec Mailpit et le Backend encore actifs, lancer `npm run dev` dans `frontends/dashboard/`, puis ouvrir `http://localhost:5174/auth/login`. Demander le magic link du compte `pilote@le-cormoran.example`, l'ouvrir depuis `http://localhost:8025`, puis vérifier la liste REST sur `/service`. Le Dashboard ne modifie pas encore les commandes et n'ouvre pas encore de flux SSE établissement.
+
+À ce stade, le Backend, Commande et le premier Dashboard sont fonctionnels localement. La préfiguration de l'Onboarding se consulte avec le serveur statique sur le port 4173 ; elle ne possède pas encore de serveur Vite. Avant de committer quoi que ce soit, lire le [workflow git](workflow-git.md) : branche unique `main`, commits fréquents, build docs obligatoire avant tout push touchant `docs/`.
 
 ## Résolution des problèmes courants
 
@@ -273,6 +360,7 @@ Le fichier `.env` du backend vit dans `backend/.env`, à côté de `backend/.env
 | les Dev Services échouent, `Could not connect to Docker` | le démon Docker n'est pas démarré | lancer Docker Desktop ou OrbStack, vérifier avec `docker info`, relancer `./mvnw quarkus:dev` |
 | `docs:watch` ou `docs:build` échoue, binaire `retype` introuvable dans `.bin` | le lien `node_modules/.bin/retype` n'a pas été créé par npm | appeler Retype directement : `node node_modules/retypeapp/retype.js start --port 5005` (ou `build`) ; c'est d'ailleurs la forme utilisée par les scripts npm du `package.json` racine |
 | le front affiche des erreurs réseau vers l'API | le backend n'est pas lancé, ou `VITE_API_BASE_URL` pointe ailleurs | vérifier que `http://localhost:8080/q/health` répond, vérifier le `.env` du frontend |
+| le Dashboard revient à la connexion après le magic link | le Dashboard a été ouvert sur `127.0.0.1` alors que l'API et le lien utilisent `localhost`, donc le cookie `SameSite` n'est pas envoyé | ouvrir `http://localhost:5174` et conserver `VITE_API_BASE_URL=http://localhost:8080` ; ne pas mélanger les deux noms d'hôte |
 | le paiement de test échoue immédiatement | clés Stripe absentes ou mélange de clés (test côté back, autre compte côté front) | vérifier `STRIPE_SECRET_KEY` et `VITE_STRIPE_PUBLISHABLE_KEY` : même compte, toutes deux en mode test |
 | `./mvnw verify` échoue à charger des classes de test alors qu'elles compilent | `quarkus:dev` tourne sur le même workspace : les deux écrivent dans `target/` | arrêter le mode dev avant `verify` (ou inversement), puis relancer |
 

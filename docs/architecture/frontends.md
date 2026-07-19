@@ -7,7 +7,11 @@ description: Le socle React commun, le package partagé et les spécificités de
 
 # Frontends
 
-Surplasse expose trois applications web distinctes : **Onboarding** (vitrine et embarquement des restaurateurs), **Commande** (mini-site et commande client) et **Dashboard** (pilotage temps réel côté restaurant). Elles partagent un socle technique unique et un package commun, mais restent trois applications séparées, déployées indépendamment, chacune optimisée pour son public et son contexte d'usage. Commande et `frontends/shared/` sont implémentés ; l'Onboarding React et le Dashboard restent à créer. Cette page décrit la cible commune et signale l'état de chaque application.
+Surplasse expose trois applications web distinctes : **Onboarding** (vitrine et embarquement des restaurateurs), **Commande** (mini-site et commande client) et **Dashboard** (pilotage temps réel côté restaurant). Elles partagent un socle technique unique et un package commun, mais restent trois applications séparées, déployées indépendamment, chacune optimisée pour son public et son contexte d'usage. Commande, `frontends/shared/` et un premier Dashboard sont implémentés ; l'Onboarding React reste à créer. Cette page décrit la cible commune et signale l'état de chaque application.
+
+!!! info État du premier Dashboard
+Le module actuel couvre la connexion par magic link, le renouvellement de session, la sélection d'un établissement autorisé et la liste REST paginée des commandes opérationnelles. Il reste en lecture seule. Le flux SSE établissement, les transitions de statut, le son et les métriques ne sont pas encore disponibles.
+!!!
 
 Le choix de trois applications React distinctes plutôt qu'une application unique ou qu'un framework SSR est motivé dans [l'ADR 0004](../decisions/adr-0004-trois-frontends-react.md).
 
@@ -64,7 +68,7 @@ Aucune logique métier serveur n'est dupliquée dans `shared/` ni dans aucun fro
 | Cible d'appareil | Mobile d'abord, exclusivement pensé téléphone | Desktop et tablette d'abord | Desktop et mobile à parité |
 | Exigence de performance | Critique : budget strict, réseau mobile supposé | Confortable : réseau du restaurant, session longue | Standard : bonne première impression |
 | Mode de rendu | SPA, avec pré-rendu léger des pages vitrine (à confirmer par ADR) | SPA pure, derrière authentification | SPA, pré-rendu des pages marketing envisagé |
-| Temps réel | Oui : flux SSE de suivi de la commande ([ADR-0006](../decisions/adr-0006-sse.md)) ; polling en repli si le flux ne s'établit pas | Oui : flux SSE des commandes entrantes | Non |
+| Temps réel | Oui : flux SSE de suivi de la commande ([ADR-0006](../decisions/adr-0006-sse.md)) ; polling en repli si le flux ne s'établit pas | Cible : flux SSE des commandes entrantes ; premier incrément REST sans polling | Non |
 | Authentification | Aucune : le client n'a jamais de compte | Magic link par email | Magic link en fin de tunnel |
 
 ## Commande : l'application critique
@@ -137,7 +141,7 @@ Le Dashboard vit sur le comptoir ou en cuisine, souvent sur une tablette posée 
 
 Ses traits distinctifs :
 
-- **Flux SSE des commandes** : le Dashboard maintient une connexion Server-Sent Events vers le backend (voir [l'API](api.md)) pour recevoir chaque nouvelle commande sans polling. La reconnexion est automatique avec repli exponentiel, et chaque reconnexion déclenche une resynchronisation via TanStack Query pour rattraper les événements manqués. L'état de la connexion est visible en permanence dans l'interface : un service en plein rush doit savoir s'il est à jour.
+- **Flux SSE des commandes** : la cible du Dashboard maintient une connexion Server-Sent Events vers le Backend (voir [l'API](api.md)) pour recevoir chaque nouvelle commande sans polling. Conformément à l'[ADR-0006](../decisions/adr-0006-sse.md), l'objet navigateur `EventSource` gère lui-même la reconnexion et renvoie `Last-Event-ID`. Le frontend ne recrée pas une stratégie exponentielle parallèle. À chaque réouverture du flux, TanStack Query resynchronise la liste REST pour rattraper les événements manqués. L'état de la connexion reste visible en permanence. Ce flux n'est pas encore présent dans le premier incrément, qui repose uniquement sur la lecture REST.
 - **Notifications sonores** : une nouvelle commande émet un signal sonore, activable et réglable par le restaurateur. Le son est un canal de premier ordre en cuisine, pas un gadget.
 - **Data-viz sobre** : les métriques (chiffre d'affaires, volume de commandes, produits les plus vendus) sont présentées avec des graphiques simples et lisibles, sans bibliothèque de charting lourde ni animation décorative. Les chiffres priment sur le spectacle.
 
@@ -186,7 +190,7 @@ Règles associées :
 - Ce qui sert à deux features ou plus remonte : dans `app/` s'il est propre à l'application, dans `shared/` s'il est propre à Surplasse.
 - Les hooks d'accès aux données vivent dans la feature qui les possède et enveloppent le client généré de `shared/api/`.
 
-Dashboard et Onboarding suivent la même structure avec leurs propres features (`commandes/`, `carte-gestion/`, `metriques/` pour l'un ; `vitrine/`, `embarquement/`, `revendication/` pour l'autre).
+Le Dashboard applique déjà ce découpage avec `auth/` pour la session restaurateur et `dashboard/` pour la liste opérationnelle. Les futures features de gestion de la carte et de métriques seront ajoutées dans leurs propres dossiers. L'Onboarding suivra la même structure avec `vitrine/`, `embarquement/` et `revendication/` lors de sa migration React.
 
 ## Ce qui est volontairement exclu
 

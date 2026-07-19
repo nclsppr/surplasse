@@ -1,8 +1,5 @@
 /* Surplasse type : Archivo (capitales grasses + UI), Space Mono (méta, prix détaillés), Parisienne (script de marque) */
-/* Polices auto-hébergées (choix RGPD/perf), pas de CDN : voir ../fonts/. */
-@import url('../fonts/archivo.css');
-@import url('../fonts/spacemono.css');
-@import url('../fonts/parisienne.css');
+/* Font faces are imported first by brand/styles.css to keep bundled CSS valid. */
 
 :root {
   --font-display: 'Archivo', 'Helvetica Neue', Arial, sans-serif;

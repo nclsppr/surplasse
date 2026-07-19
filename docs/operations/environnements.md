@@ -10,7 +10,7 @@ description: "Deux environnements seulement (local et production) : domaines, DN
 Surplasse ne connaît que deux environnements : le poste de développement local et la production. Cette page décrit ce que chacun contient, les domaines et certificats de la production, et les variables d'environnement attendues par chaque service. Le pourquoi de l'absence de staging est argumenté dans [CI/CD](../developpement/ci-cd.md) ; la topologie des services est décrite dans [Exploitation](index.md).
 
 !!! warning État réel au 2026-07-19
-Le Backend, y compris le module `identity`, et Commande sont exécutables localement. La documentation et la préfiguration statique de l'Onboarding sont publiées sur GitHub Pages. La pile VPS, `infra/`, le Dashboard, l'Onboarding React, l'IA, MinIO, Caddy et le fournisseur SMTP de production ne sont pas encore implémentés ou sélectionnés. Toutes les mentions de production ci-dessous décrivent donc la cible à rendre exécutable dans le commit qui introduira `infra/`.
+Le Backend, y compris le module `identity`, Commande et le premier Dashboard sont exécutables localement. Le Dashboard est encore en lecture seule par REST. La documentation et la préfiguration statique de l'Onboarding sont publiées sur GitHub Pages. La pile VPS, `infra/`, l'image de production du Dashboard, l'Onboarding React, l'IA, MinIO, Caddy et le fournisseur SMTP de production ne sont pas encore implémentés ou sélectionnés. Toutes les mentions de production ci-dessous décrivent donc la cible à rendre exécutable dans le commit qui introduira `infra/`.
 !!!
 
 ## Deux environnements, pas un de plus
@@ -36,10 +36,12 @@ En local, les applications tournent sur des ports distincts plutôt que sur des 
 |---|---|---|---|
 | Onboarding | Préfiguration statique seulement | `localhost:4173/frontends/onboarding/` | `surplasse.com` |
 | Commande | Exécutable localement | `localhost:5173` | `{slug}.surplasse.com` |
-| Dashboard | Module absent | port 5174 réservé | `dashboard.surplasse.com` |
+| Dashboard | Exécutable localement, lecture REST | `localhost:5174` | `dashboard.surplasse.com`, non déployé |
 | Backend | Exécutable localement | `localhost:8080` | `api.surplasse.com` |
 
-Ces ports sont la convention fixée dans le [setup](../developpement/index.md) (section « Ports conventionnels »). Les ports des modules absents restent réservés jusqu'à leur création.
+Ces ports sont la convention fixée dans le [setup](../developpement/index.md) (section « Ports conventionnels »). Vite refuse de déplacer silencieusement le Dashboard vers un autre port si 5174 est occupé.
+
+En local, le Dashboard et l'API doivent utiliser le même nom d'hôte. La configuration de référence associe `http://localhost:5174` à `http://localhost:8080`. Ouvrir le Dashboard sur `127.0.0.1` tout en gardant l'API sur `localhost` change le site vu par le navigateur et peut empêcher l'envoi des cookies `SameSite`. Le magic link local place par ailleurs son jeton dans `#token=...` : le fragment n'atteint ni Vite ni ses journaux d'accès et le Dashboard le retire avant son POST d'échange.
 
 ## Les domaines
 
@@ -147,9 +149,17 @@ Avant et après chaque redémarrage, `curl --fail https://api.surplasse.com/q/he
 
 ### Les trois fronts
 
-Aucune variable à l'exécution : Onboarding, Commande et Dashboard sont des fichiers statiques. Leur configuration (URL de l'API, clé publique Stripe) est injectée au moment du build par la CI via des variables `VITE_*`, et fait donc partie de l'image taggée par SHA. Changer une de ces valeurs, c'est reconstruire.
+Aucune variable à l'exécution : Onboarding, Commande et Dashboard sont ou seront des fichiers statiques. Leur configuration est injectée au moment du build par la CI via des variables `VITE_*`, et fait donc partie de l'image taggée par SHA. Changer une de ces valeurs impose une reconstruction.
 
-Le tableau fixe l'inventaire cible des composants futurs, pas encore leur forme finale. Les variables déjà utilisées par le Backend et Commande sont documentées dans le [setup local](../developpement/index.md#variables-denvironnement) et leurs fichiers `.env.example` font foi.
+| Application | Variable de build | État et valeur de production cible |
+|---|---|---|
+| Dashboard | `VITE_API_BASE_URL` | Implémentée ; `https://api.surplasse.com` dans le build de production |
+| Commande | `VITE_API_BASE_URL` | Implémentée ; `https://api.surplasse.com` dans le build de production |
+| Commande | `VITE_STRIPE_PUBLISHABLE_KEY` | Implémentée ; clé publique live injectée au build |
+| Commande | `VITE_ESTABLISHMENT_SLUG` | Développement local seulement ; le sous-domaine fournit le slug en production |
+| Onboarding | À confirmer avec le module React | Cible non implémentée |
+
+Le fichier `frontends/dashboard/.env.example` fait foi pour le développement et ne contient que `VITE_API_BASE_URL=http://localhost:8080`. Cette valeur n'est pas un secret. Le Dashboard n'a aucune donnée ni aucun volume propre : ses données viennent du Backend avec les cookies hôte uniquement de l'API.
 
 ## Reproduire la topologie de production en local
 

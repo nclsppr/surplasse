@@ -50,8 +50,8 @@ Le monorepo suit un découpage par filtres de chemins (`paths`) : un push qui ne
 | `pages.yml` | `push` sur `main` (filtre de chemins à venir) | Build Retype, assemblage du site public (docs, landing, marque), déploiement GitHub Pages (décrit ci-dessus) |
 | `api.yml` | `push`, chemins `api/**`, `openapitools.json`, `scripts/api/**` | Lint Spectral, contrôle de compatibilité `oasdiff` contre le commit précédent (dérogation par préfixe de commit `api!:`), fraîcheur de la génération (`npm run api:generate` puis `git diff --exit-code`) |
 | `backend.yml` | `push`, chemins `backend/**`, `api/**` | Java 21 Temurin, cache Maven, `./mvnw -B verify` : compilation, tests unitaires et d'intégration (PostgreSQL 17 via Testcontainers, réponses validées contre le contrat), formatage Spotless |
-| `frontends.yml` | `push`, chemins `frontends/**`, `api/**` (un job par paquet : `shared`, `commande` aujourd'hui, les autres fronts à leur création) | Node 24, `npm ci`, ESLint, `tsc --noEmit`, tests Vitest, build Vite |
-| `images.yml` (cible) | `push` sur `main`, chemins `backend/**`, `frontends/**`, `infra/**` | Build des images Docker (backend et les trois fronts), tag par SHA de commit, push vers le registre (GHCR) |
+| `frontends.yml` | `push`, chemins `frontends/**`, `brand/**`, `api/**` (jobs actuels : `shared`, `commande`, `dashboard`) | Node 24, `npm ci`, ESLint, `tsc --noEmit`, tests Vitest, build Vite |
+| `images.yml` (cible) | `push` sur `main`, chemins `backend/**`, `frontends/**`, `brand/**`, `infra/**` | Build des images Docker (backend et les trois fronts), tag par SHA de commit, push vers le registre (GHCR) |
 | `deploy.yml` (cible) | Fin réussie de `images.yml` sur `main`, ou déclenchement manuel avec un SHA en paramètre | Connexion SSH au VPS, `docker compose pull`, `docker compose up -d`, healthcheck post-déploiement |
 
 L'enchaînement sur un push touchant du code applicatif se lit ainsi :
@@ -62,16 +62,18 @@ push sur main
      +--> filtres de chemins
      |         |
      |         +--> backend.yml     (si backend/ ou api/ touchés)
-     |         +--> frontends.yml   (si frontends/ ou api/ touchés)
+     |         +--> frontends.yml   (si frontends/, brand/ ou api/ touchés)
      |         +--> api.yml         (si api/ touché)
      |         +--> pages.yml       (si docs/ ou brand/ touchés)
      |
-     +--> images.yml  (si backend/, frontends/ ou infra/ touchés)
+     +--> images.yml  (si backend/, frontends/, brand/ ou infra/ touchés)
                 |
                 +--> deploy.yml  (si images.yml réussit)
 ```
 
 Les workflows de vérification et la construction des images tournent en parallèle : un test rouge n'empêche pas mécaniquement la construction d'une image, mais `deploy.yml` ne part que si `images.yml` a réussi, et la discipline de correction immédiate (voir la philosophie ci-dessus) fait le reste. Rendre le déploiement dépendant de tous les workflows de vérification est une évolution possible, à trancher quand les workflows existeront.
+
+Les jobs `commande` et `dashboard` installent d'abord `frontends/shared/`, consommé en source conformément à l'ADR-0014, puis leur propre verrou npm. Le job Dashboard exécute successivement `npm run lint`, `npm test` et `npm run build`. Ce dernier inclut `tsc --noEmit` avant le build Vite. Aucun de ces outils de vérification ne devient un processus de production.
 
 Deux règles transversales :
 

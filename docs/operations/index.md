@@ -47,7 +47,7 @@ La documentation et la préfiguration statique de l'Onboarding sont actuellement
 | Backend | Quarkus (Java 21) | Exécutable localement, non déployé | API REST, logique métier, temps réel SSE et intégrations | `api.surplasse.com`, via Caddy |
 | Onboarding | Conteneur statique | Cible non construite | Vitrine produit et tunnel d'embarquement | `surplasse.com`, via Caddy |
 | Commande | Conteneur statique | Exécutable localement, non déployé | Mini-site, carte, commande et paiement | `{slug}.surplasse.com`, via Caddy |
-| Dashboard | Conteneur statique | Module absent | Suivi des commandes en temps réel | `dashboard.surplasse.com`, via Caddy |
+| Dashboard | React, build statique | Exécutable localement, non déployé | Authentification et liste REST des commandes, en lecture seule ; temps réel encore absent | Cible : `dashboard.surplasse.com`, via Caddy |
 | PostgreSQL | PostgreSQL 17 | Dev Services local, cible Compose absente | Base de données unique | Réseau interne Compose uniquement |
 | MinIO | MinIO | Module absent | Stockage objet des images | Réseau interne Compose uniquement |
 | Supervision | À trancher | Cible non provisionnée | Sondes, logs, métriques et alertes | Interface d'administration privée |
@@ -74,6 +74,37 @@ docker compose stop backend
 ```
 
 Le démarrage exige PostgreSQL, les migrations Flyway, les clés JWT RS256 montées hors image et la configuration SMTP décrite dans [Environnements](environnements.md#backend-quarkus). Flyway applique les migrations jusqu'à V6 avant que la readiness passe à `UP`. Une mise à jour ou un retour arrière redéploie l'image Backend entière : il n'existe aucune opération propre à `identity`. Ubuntu LTS fait foi.
+
+### Cycle de vie du Dashboard sous Ubuntu LTS
+
+Le Dashboard est aujourd'hui exécutable localement mais absent de la production. Le dépôt ne contient encore ni image statique du Dashboard, ni service Compose, ni routage Caddy. La seule procédure exécutable avant ce provisionnement est la construction de l'artefact statique :
+
+```bash
+cd frontends/shared
+npm ci
+npm run check
+npm test
+
+cd ../dashboard
+npm ci
+npm run lint
+npm test
+VITE_API_BASE_URL=https://api.surplasse.com npm run build
+```
+
+Cette construction produit `frontends/dashboard/dist/`. La valeur `VITE_API_BASE_URL` est intégrée aux fichiers au build : elle n'est pas lue au démarrage. Le résultat ne conserve aucune donnée et n'utilise aucun volume. React, React Router, TanStack Query et `frontends/shared` sont intégrés aux fichiers statiques. Node, Vite, Tailwind CSS, TypeScript, ESLint et Vitest restent dans l'étape de build ou de CI et sont absents du conteneur statique cible.
+
+Le futur commit `infra/` devra construire une image immuable depuis ce dossier, déclarer un service Compose `dashboard` et rendre alors les commandes suivantes réellement exécutables sur Ubuntu LTS :
+
+```bash
+# Target only: the dashboard service does not exist in the repository yet
+docker compose up -d dashboard
+docker compose restart dashboard
+curl --fail https://dashboard.surplasse.com/
+docker compose stop dashboard
+```
+
+Une mise à jour remplacera l'image par un nouveau SHA. Un retour arrière redéploiera le dernier SHA sain, sans restauration de données. Le Dashboard n'a ni sauvegarde, ni restauration, ni migration propre : toute donnée métier reste dans PostgreSQL derrière le Backend. Tant que l'image, le service Compose et le routage ne sont pas ajoutés, le Dashboard est explicitement non déployable et les commandes cibles ci-dessus ne doivent pas être utilisées comme preuve d'une production disponible.
 
 Sur le choix du reverse proxy : Traefik excelle dans la découverte dynamique de conteneurs et brille dans des environnements où les services vont et viennent, au prix d'une configuration par labels plus verbeuse et d'un modèle mental plus riche. Caddy fait la même chose ici avec un fichier de configuration court et lisible, et gère le certificat wildcard par défi DNS-01 via un module DNS provider (build Caddy personnalisé, à prévoir dans l'image de `infra/`). La topologie de Surplasse étant statique (les mêmes services, tout le temps), la référence retient **Caddy** pour sa simplicité ; ce choix sera consigné en ADR avec la mise en place de `infra/`.
 

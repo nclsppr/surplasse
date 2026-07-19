@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - "frontends/**"
+      - "brand/**"
       - "api/**"
       - ".github/workflows/frontends.yml"
   workflow_dispatch:
@@ -41,11 +42,34 @@ jobs:
           cache-dependency-path: |
             frontends/commande/package-lock.json
             frontends/shared/package-lock.json
-      # shared est consommé en source (ADR-0014) : ses dépendances de
-      # développement doivent être installées pour le typecheck du front.
+      # shared is consumed as source (ADR-0014), so its development
+      # dependencies must be installed for frontend type checking.
       - run: npm ci --prefix ../shared
       - run: npm ci
       - run: npm run lint
       - run: npm test
-      # build inclut la vérification TypeScript (tsc --noEmit)
+      # The build includes TypeScript checking through tsc --noEmit.
+      - run: npm run build
+
+  dashboard:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontends/dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            frontends/dashboard/package-lock.json
+            frontends/shared/package-lock.json
+      # shared is consumed as source (ADR-0014), so its development
+      # dependencies must be installed for frontend type checking.
+      - run: npm ci --prefix ../shared
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      # The build includes TypeScript checking through tsc --noEmit.
       - run: npm run build

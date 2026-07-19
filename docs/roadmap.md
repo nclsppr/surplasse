@@ -115,9 +115,11 @@ L'extraction par IA arrive en phase 3. En phase 2, la carte du pilote est saisie
 
 ### État de livraison au 2026-07-19
 
-Le flux client local couvre déjà le scan du QR code, la carte, le panier, la création de commande, le paiement en environnement de test et le suivi. L'identité restaurateur couvre le magic link, les cookies de session, la rotation du refresh token et l'autorisation par établissement. Le Backend expose désormais la file paginée des commandes opérationnelles au futur Dashboard.
+Le flux client local couvre déjà le scan du QR code, la carte, le panier, la création de commande, le paiement en environnement de test et le suivi. L'identité restaurateur couvre le magic link, les cookies de session, la rotation du refresh token et l'autorisation par établissement. Le Backend expose la file paginée des commandes opérationnelles. Un premier Dashboard consomme cette lecture REST après une connexion par magic link et permet de sélectionner un établissement autorisé.
 
-Il reste à livrer le frontend Dashboard minimal, les transitions de statut côté restaurateur et le flux SSE par établissement. Viennent ensuite le passage Stripe en conditions live, le service à blanc, les corrections issues du pilote et enfin le service réel qui constitue le critère de sortie de la phase.
+Le Dashboard actuel reste en lecture seule. Il reste à livrer les transitions de statut côté restaurateur et le flux SSE par établissement pour atteindre le Dashboard minimal de cette phase. Viennent ensuite le passage Stripe en conditions live, le service à blanc, les corrections issues du pilote et enfin le service réel qui constitue le critère de sortie de la phase.
+
+Avant toute mise en production du Dashboard, deux durcissements navigateur sont obligatoires : séparer les origines CORS publiques des origines autorisées à envoyer les cookies restaurateur, puis coordonner la rotation du refresh token entre plusieurs onglets. La configuration actuelle est adaptée au développement local, pas encore à une exposition publique. Les critères et les pistes sont détaillés dans la page [sécurité](architecture/securite.md#durcissements-dashboard-avant-production).
 
 ### Risques et parades
 
@@ -126,6 +128,8 @@ Il reste à livrer le frontend Dashboard minimal, les transitions de statut côt
 | Le produit casse en plein service et brûle la confiance du pilote | Répéter le service à blanc en conditions réelles avant le premier service payant ; prévoir un repli papier assumé |
 | Le paiement en live expose à des obligations réglementaires mal anticipées | Rester en mode test jusqu'à validation du parcours ; passer en live sur un périmètre minimal avec Stripe comme garde-fou |
 | Le réseau du restaurant est mauvais et le temps réel ne suit pas | Tester le SSE en conditions dégradées ; le Dashboard doit survivre à une reconnexion sans perdre de commande |
+| Un mini-site compromis appelle l'API avec les cookies du restaurateur | Réserver les requêtes CORS avec credentials aux origines Dashboard et Onboarding explicitement autorisées ; traiter les mini-sites comme des origines publiques sans credentials |
+| Deux onglets renouvellent la même session en même temps | Sérialiser la rotation entre onglets ou rendre la rotation idempotente pendant une fenêtre bornée, puis couvrir le scénario par un test navigateur |
 | Le pilote demande des fonctionnalités hors périmètre | Tout noter, ne rien promettre : les demandes nourrissent les phases 4 et 5 |
 
 ### Exclusions explicites

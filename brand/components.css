@@ -10,7 +10,7 @@
 .sp-btn:active { transform: scale(0.98); }
 .sp-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .sp-btn:disabled { opacity: .45; pointer-events: none; }
-.sp-btn--primary { background: var(--accent); color: var(--on-accent); }
+.sp-btn--primary { background: var(--accent-press); color: var(--on-accent); }
 .sp-btn--primary:hover { background: var(--accent-hover); }
 .sp-btn--primary:active { background: var(--accent-press); }
 .sp-btn--secondary { background: transparent; color: var(--accent); border-color: var(--accent); }

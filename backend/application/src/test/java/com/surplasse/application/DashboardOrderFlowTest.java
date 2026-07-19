@@ -30,7 +30,7 @@ class DashboardOrderFlowTest {
     private static final String PILOT_EMAIL = "pilote@le-cormoran.example";
     private static final String ACCESS_COOKIE = "surplasse_session";
     private static final String PROBLEM_JSON = "application/problem+json";
-    private static final Pattern MAGIC_LINK_TOKEN = Pattern.compile("[?&]token=([A-Za-z0-9_-]{43,128})");
+    private static final Pattern MAGIC_LINK_TOKEN = Pattern.compile("[?#&]token=([A-Za-z0-9_-]{43,128})");
 
     @Inject
     MockMailbox mailbox;

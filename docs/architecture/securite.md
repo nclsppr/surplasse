@@ -24,8 +24,19 @@ Trois choix structurants minimisent le risque à la source :
 Le reste de la posture découle de ce socle : sessions courtes, autorisations filtrées par établissement, validation stricte des entrées, chiffrement en transit partout.
 
 !!! info État actuel au 2026-07-19
-Le catalogue, la commande, le paiement et le module Backend `identity` sont implémentés localement. La lecture paginée des commandes opérationnelles authentifie le restaurateur et vérifie son appartenance à l'établissement avant toute requête métier. Le Dashboard reste à implémenter et rien n'est encore déployé en production. L'identité s'exécute dans l'unique processus Backend, sans service autonome.
+Le catalogue, la commande, le paiement et le module Backend `identity` sont implémentés localement. La lecture paginée des commandes opérationnelles authentifie le restaurateur et vérifie son appartenance à l'établissement avant toute requête métier. Le premier Dashboard utilise ce parcours et reste en lecture seule. Rien n'est encore déployé en production. L'identité s'exécute dans l'unique processus Backend, sans service autonome.
 !!!
+
+## Durcissements Dashboard avant production {#durcissements-dashboard-avant-production}
+
+Le parcours local protège déjà le jeton de magic link, les cookies et l'autorisation par établissement. Deux points restent néanmoins bloquants avant d'exposer le Dashboard sur Internet :
+
+| Point | Risque actuel | Critère de fermeture |
+|---|---|---|
+| CORS avec cookies | La configuration de production autorise encore les credentials pour le motif des mini-sites `*.surplasse.com`. Une faille XSS sur un mini-site pourrait alors tenter de lire des endpoints restaurateur avec les cookies de l'API. | Les routes restaurateur n'acceptent les credentials que depuis les origines Dashboard et Onboarding explicitement listées. Les mini-sites utilisent uniquement les routes publiques, sans credentials. Le découpage est couvert par des tests CORS positifs et négatifs. |
+| Rotation entre onglets | Le Dashboard mutualise un renouvellement concurrent dans un onglet, mais pas entre plusieurs onglets. Deux renouvellements simultanés peuvent réutiliser le même refresh token et provoquer la révocation de toute sa famille. | Une coordination inter-onglets, par exemple Web Locks et BroadcastChannel avec repli documenté, ou une tolérance serveur bornée et idempotente, garantit un seul renouvellement effectif. Un test navigateur ouvre deux onglets et vérifie que la session reste valide. |
+
+Le choix précis du découpage CORS et de la coordination de session sera consigné dans un ADR si son impact dépasse le Dashboard. Tant que ces critères ne sont pas satisfaits, la configuration `%prod` ne vaut pas autorisation de déployer.
 
 ## Modèle de menaces
 
@@ -95,6 +106,7 @@ Points d'implémentation imposés :
 - La réponse à la demande de magic link est identique que l'email existe ou non en base, pour ne pas permettre l'énumération des comptes.
 - La demande de magic link est limitée en débit : par email cible et par IP (voir [Limitation de débit](#limitation-de-debit)).
 - L'échange du jeton (étape 5) passe par une page intermédiaire qui déclenche un POST, pour éviter la consommation du jeton par les outils de prévisualisation de liens des clients email.
+- Le lien place le jeton dans le fragment `#token=...`, jamais dans la query string. Le navigateur ne transmet pas ce fragment au serveur statique, aux journaux d'accès ni dans le référent HTTP. Le Dashboard le retire immédiatement de l'URL avant l'échange par POST.
 - Le JWT ne contient aucune donnée personnelle : uniquement l'identifiant du restaurateur, l'identifiant de famille de session et les claims techniques de validité.
 - Le JWT est signé en RS256. Son en-tête porte le `kid` de la clé courante ; le Backend signe avec une clé privée et vérifie avec un JWKS public contenant la clé courante et, pendant une rotation, la précédente.
 - Le refresh token est opaque et seule son empreinte est stockée. Chaque rotation conserve l'ancien enregistrement jusqu'à expiration ; sa réutilisation révoque toute la famille.
@@ -165,7 +177,7 @@ Tout le trafic est chiffré, sans exception ni période de transition :
 - HTTPS partout, avec un certificat wildcard couvrant `*.surplasse.com` (nécessaire pour les mini-sites en `{slug}.surplasse.com`) et le domaine apex.
 - HSTS activé sur tous les domaines (avec `includeSubDomains`), pour interdire tout repli en clair.
 - CSP stricte sur les trois fronts (Onboarding, Commande, Dashboard) : scripts et styles limités à l'origine et aux domaines Stripe requis par Elements, aucune source `unsafe-inline` pour les scripts.
-- CORS limité aux domaines connus : l'API n'accepte que les origines des trois fronts ; le sous-domaine wildcard des mini-sites est validé par motif côté backend, jamais par un `*` global.
+- CORS séparé selon la sensibilité : les endpoints restaurateur avec cookies n'acceptent que les origines Dashboard et Onboarding explicitement listées ; les mini-sites sous `{slug}.surplasse.com` n'accèdent qu'aux endpoints publics sans credentials. Ce découpage est la cible obligatoire avant production, pas encore l'état de la configuration locale.
 - Cookies de session hôte uniquement pour `api.surplasse.com`, sans attribut `Domain`, en `Secure`, `HttpOnly`, `SameSite=Lax`.
 
 ## Téléversements {#televersements}
@@ -212,3 +224,5 @@ PostgreSQL est sauvegardé de façon chiffrée, avec des copies hors du VPS de p
 | Outillage de gestion des secrets sur le VPS | Orientation : fichier d'environnement protégé (chmod 600) sur le VPS, copies maîtresses dans un gestionnaire de mots de passe (le coffre des humains), rotation documentée. Un coffre serveur dédié (Vault, Infisical) ne se justifiera que si les secrets se multiplient réellement (notifications, API tierces) ou si plusieurs opérateurs partagent l'exploitation | ADR dédié, avec `infra/` |
 | Seuils de limitation hors demande de magic link et futur stockage partagé des compteurs | Calibrage avant activation de chaque endpoint, stockage partagé avant toute seconde instance | Documentation d'exploitation |
 | Plafond de taille des téléversements | De l'ordre de 10 Mo par image | Le contrat |
+| Découpage CORS entre routes publiques et restaurateur | Origines explicites avec credentials pour Dashboard et Onboarding, routes publiques sans credentials pour les mini-sites | ADR si une séparation d'API ou de domaine est retenue |
+| Coordination du refresh token entre onglets | Web Locks et BroadcastChannel côté Dashboard, ou tolérance serveur bornée et idempotente | ADR si le protocole de rotation serveur évolue |
