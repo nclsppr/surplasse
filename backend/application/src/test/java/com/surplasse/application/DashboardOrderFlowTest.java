@@ -4,15 +4,26 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.quarkus.mailer.Mail;
 import io.quarkus.mailer.MockMailbox;
 import io.quarkus.test.junit.QuarkusTest;
+import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
+import io.restassured.path.json.JsonPath;
 import io.restassured.response.Response;
 import jakarta.inject.Inject;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -185,6 +196,37 @@ class DashboardOrderFlowTest {
                 .body("status", equalTo("served"));
     }
 
+    @Test
+    void streamEstablishmentOrderEvents_authenticatedPilot_replaysMissedActivity() throws Exception {
+        String accessToken = loginPilot();
+        CreatedOrder order = createAndPay(OrderFlowTest.openSession());
+
+        SseEvent paid = readOrderEvent(accessToken, null, order.id());
+        assertEquals("order-status", paid.name());
+        assertEquals("paid", JsonPath.from(paid.data()).getString("status"));
+
+        updateStatus(accessToken, order.id(), "accepted").then().statusCode(200);
+
+        SseEvent accepted = readOrderEvent(accessToken, paid.id(), order.id());
+        assertTrue(Long.parseLong(accepted.id()) > Long.parseLong(paid.id()));
+        assertEquals("accepted", JsonPath.from(accepted.data()).getString("status"));
+
+        given().when()
+                .get("/v1/establishments/{establishmentId}/order-events", ESTABLISHMENT)
+                .then()
+                .statusCode(401)
+                .contentType(PROBLEM_JSON)
+                .body("type", containsString("session-expired"));
+
+        given().header("Cookie", ACCESS_COOKIE + "=" + accessToken)
+                .when()
+                .get("/v1/establishments/{establishmentId}/order-events", UUID.randomUUID())
+                .then()
+                .statusCode(404)
+                .contentType(PROBLEM_JSON)
+                .body("type", containsString("resource-not-found"));
+    }
+
     private CreatedOrder createAndPay(String tableSession) {
         CreatedOrder order = createOrder(tableSession);
         given().contentType(ContentType.JSON)
@@ -229,6 +271,61 @@ class DashboardOrderFlowTest {
                 .patch("/v1/orders/{orderId}/status", orderId);
     }
 
+    private static SseEvent readOrderEvent(String accessToken, String lastEventId, String orderId) throws Exception {
+        HttpRequest.Builder request = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:%d/v1/establishments/%s/order-events"
+                        .formatted(RestAssured.port, ESTABLISHMENT)))
+                .timeout(Duration.ofSeconds(5))
+                .header("Accept", "text/event-stream")
+                .header("Cookie", ACCESS_COOKIE + "=" + accessToken)
+                .GET();
+        if (lastEventId != null) {
+            request.header("Last-Event-ID", lastEventId);
+        }
+
+        HttpResponse<InputStream> response = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
+                .build()
+                .send(request.build(), HttpResponse.BodyHandlers.ofInputStream());
+        if (response.statusCode() != 200) {
+            throw new AssertionError("Expected SSE response 200, got %d: %s"
+                    .formatted(
+                            response.statusCode(), new String(response.body().readAllBytes(), StandardCharsets.UTF_8)));
+        }
+        assertTrue(response.headers().firstValue("Content-Type").orElse("").startsWith("text/event-stream"));
+
+        try (BufferedReader reader =
+                new BufferedReader(new InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
+            for (int eventIndex = 0; eventIndex < 100; eventIndex++) {
+                SseEvent event = readSseEvent(reader);
+                if (event.data().contains(orderId)) {
+                    return event;
+                }
+            }
+        }
+        throw new AssertionError("No SSE event matched order " + orderId);
+    }
+
+    private static SseEvent readSseEvent(BufferedReader reader) throws Exception {
+        String id = null;
+        String name = null;
+        String data = null;
+        String line;
+        while ((line = reader.readLine()) != null) {
+            if (line.isEmpty() && id != null) {
+                return new SseEvent(id, name, data == null ? "" : data);
+            }
+            if (line.startsWith("id:")) {
+                id = line.substring(3).strip();
+            } else if (line.startsWith("event:")) {
+                name = line.substring(6).strip();
+            } else if (line.startsWith("data:")) {
+                data = line.substring(5).strip();
+            }
+        }
+        throw new AssertionError("The SSE stream ended before a complete event was received.");
+    }
+
     private String loginPilot() {
         mailbox.clear();
         given().filter(ContractValidation.FILTER)
@@ -263,4 +360,6 @@ class DashboardOrderFlowTest {
     }
 
     private record CreatedOrder(String id, String trackingToken) {}
+
+    private record SseEvent(String id, String name, String data) {}
 }

@@ -13,4 +13,8 @@ public class OrderEventRepository implements PanacheRepositoryBase<OrderEvent, L
     public List<OrderEvent> listForOrderAfter(UUID orderId, long afterEventId) {
         return list("orderId = ?1 and id > ?2", Sort.by("id"), orderId, afterEventId);
     }
+
+    public List<OrderEvent> listForEstablishmentAfter(UUID establishmentId, long afterEventId) {
+        return list("establishmentId = ?1 and id > ?2", Sort.by("id"), establishmentId, afterEventId);
+    }
 }
