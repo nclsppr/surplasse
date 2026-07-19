@@ -7,6 +7,7 @@ import { Brand } from "../../components/Brand";
 import { fr } from "../../i18n/fr";
 import { OrderBoard } from "./OrderBoard";
 import { useEstablishmentSelection } from "./useEstablishmentSelection";
+import { useEstablishmentOrderEvents } from "./useEstablishmentOrderEvents";
 import { useOperationalOrders } from "./useOperationalOrders";
 
 interface ServicePageProps {
@@ -90,6 +91,7 @@ interface OperationalServiceProps {
 
 function OperationalService({ session, selectedId, onSelect }: OperationalServiceProps) {
   const orders = useOperationalOrders(selectedId);
+  const liveStatus = useEstablishmentOrderEvents(selectedId);
   const allOrders = orders.data?.pages.flatMap((page) => page.items) ?? [];
   const updatedAt = orders.dataUpdatedAt
     ? timeFormatter.format(new Date(orders.dataUpdatedAt))
@@ -132,6 +134,10 @@ function OperationalService({ session, selectedId, onSelect }: OperationalServic
               <strong>{session.establishments[0]?.name}</strong>
             </div>
           )}
+          <div className={`live-status live-status-${liveStatus}`} role="status">
+            <span className="live-status-dot" aria-hidden="true" />
+            <span>{fr.service.live[liveStatus]}</span>
+          </div>
           <div className="refresh-control">
             <button
               className="button button-secondary"

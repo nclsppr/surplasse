@@ -433,6 +433,46 @@ button:disabled {
   gap: var(--sp-1);
 }
 
+.live-status {
+  display: flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-3);
+  border: 1.5px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  color: var(--fg-2);
+  background: var(--surface-raised);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.live-status-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--fg-2);
+}
+
+.live-status-connected {
+  color: var(--green);
+  border-color: var(--green);
+}
+
+.live-status-connected .live-status-dot {
+  background: var(--green);
+}
+
+.live-status-connecting .live-status-dot,
+.live-status-reconnecting .live-status-dot {
+  animation: live-pulse 1.2s ease-in-out infinite;
+}
+
 .establishment-picker > span,
 .single-establishment > span,
 .refresh-control small {
@@ -828,6 +868,12 @@ button:disabled {
   }
 }
 
+@keyframes live-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
 @media (max-width: 800px) {
   .service-header {
     align-items: flex-start;
@@ -857,6 +903,10 @@ button:disabled {
 
   .refresh-control {
     flex: 1;
+  }
+
+  .live-status {
+    justify-content: center;
   }
 }
 

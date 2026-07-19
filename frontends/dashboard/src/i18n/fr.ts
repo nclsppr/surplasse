@@ -35,6 +35,11 @@ export const fr = {
     refresh: "Actualiser",
     refreshing: "Actualisation…",
     updatedAt: (time: string) => `Mis à jour à ${time}`,
+    live: {
+      connecting: "Connexion au direct",
+      connected: "Temps réel actif",
+      reconnecting: "Reconnexion au direct",
+    },
     logout: "Se déconnecter",
     logoutError: "La déconnexion a échoué. Réessayez.",
     noEstablishmentTitle: "Aucun établissement accessible",
