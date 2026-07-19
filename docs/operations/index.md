@@ -47,7 +47,7 @@ La documentation et la préfiguration statique de l'Onboarding sont actuellement
 | Backend | Quarkus (Java 21) | Exécutable localement, non déployé | API REST, logique métier, temps réel SSE et intégrations | `api.surplasse.com`, via Caddy |
 | Onboarding | Conteneur statique | Cible non construite | Vitrine produit et tunnel d'embarquement | `surplasse.com`, via Caddy |
 | Commande | Conteneur statique | Exécutable localement, non déployé | Mini-site, carte, commande et paiement | `{slug}.surplasse.com`, via Caddy |
-| Dashboard | React, build statique | Exécutable localement, non déployé | Authentification, liste REST et avancement des commandes ; temps réel encore absent | Cible : `dashboard.surplasse.com`, via Caddy |
+| Dashboard | React, build statique | Exécutable localement, non déployé | Authentification, suivi SSE et avancement des commandes | Cible : `dashboard.surplasse.com`, via Caddy |
 | PostgreSQL | PostgreSQL 17 | Dev Services local, cible Compose absente | Base de données unique | Réseau interne Compose uniquement |
 | MinIO | MinIO | Module absent | Stockage objet des images | Réseau interne Compose uniquement |
 | Supervision | À trancher | Cible non provisionnée | Sondes, logs, métriques et alertes | Interface d'administration privée |

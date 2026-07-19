@@ -9,8 +9,8 @@ description: Le socle React commun, le package partagé et les spécificités de
 
 Surplasse expose trois applications web distinctes : **Onboarding** (vitrine et embarquement des restaurateurs), **Commande** (mini-site et commande client) et **Dashboard** (pilotage temps réel côté restaurant). Elles partagent un socle technique unique et un package commun, mais restent trois applications séparées, déployées indépendamment, chacune optimisée pour son public et son contexte d'usage. Commande, `frontends/shared/` et un premier Dashboard sont implémentés ; l'Onboarding React reste à créer. Cette page décrit la cible commune et signale l'état de chaque application.
 
-!!! info État du premier Dashboard
-Le module actuel couvre la connexion par magic link, le renouvellement de session, la sélection d'un établissement autorisé, la liste REST paginée des commandes opérationnelles et leur avancement jusqu'au service ou au retrait. Chaque mutation met à jour le cache TanStack Query puis déclenche une resynchronisation REST. Le flux SSE établissement, le son et les métriques ne sont pas encore disponibles.
+!!! info État du Dashboard minimal
+Le module actuel couvre la connexion par magic link, le renouvellement de session, la sélection d'un établissement autorisé, la liste REST paginée des commandes opérationnelles et leur avancement jusqu'au service ou au retrait. Le flux SSE authentifié par établissement invalide cette liste à chaque événement et à chaque reconnexion. L'état du direct reste visible dans la barre de service. Le son et les métriques ne sont pas encore disponibles.
 !!!
 
 Le choix de trois applications React distinctes plutôt qu'une application unique ou qu'un framework SSR est motivé dans [l'ADR 0004](../decisions/adr-0004-trois-frontends-react.md).
@@ -69,7 +69,7 @@ Aucune logique métier serveur n'est dupliquée dans `shared/` ni dans aucun fro
 | Cible d'appareil | Mobile d'abord, exclusivement pensé téléphone | Desktop et tablette d'abord | Desktop et mobile à parité |
 | Exigence de performance | Critique : budget strict, réseau mobile supposé | Confortable : réseau du restaurant, session longue | Standard : bonne première impression |
 | Mode de rendu | SPA, avec pré-rendu léger des pages vitrine (à confirmer par ADR) | SPA pure, derrière authentification | SPA, pré-rendu des pages marketing envisagé |
-| Temps réel | Oui : flux SSE de suivi de la commande ([ADR-0006](../decisions/adr-0006-sse.md)) ; polling en repli si le flux ne s'établit pas | Cible : flux SSE des commandes entrantes ; premier incrément REST sans polling | Non |
+| Temps réel | Oui : flux SSE de suivi de la commande ([ADR-0006](../decisions/adr-0006-sse.md)) ; polling en repli si le flux ne s'établit pas | Oui : flux SSE des commandes de l'établissement et resynchronisation REST | Non |
 | Authentification | Aucune : le client n'a jamais de compte | Magic link par email | Magic link en fin de tunnel |
 
 ## Commande : l'application critique
@@ -142,7 +142,7 @@ Le Dashboard vit sur le comptoir ou en cuisine, souvent sur une tablette posée 
 
 Ses traits distinctifs :
 
-- **Flux SSE des commandes** : la cible du Dashboard maintient une connexion Server-Sent Events vers le Backend (voir [l'API](api.md)) pour recevoir chaque nouvelle commande sans polling. Conformément à l'[ADR-0006](../decisions/adr-0006-sse.md), l'objet navigateur `EventSource` gère lui-même la reconnexion et renvoie `Last-Event-ID`. Le frontend ne recrée pas une stratégie exponentielle parallèle. À chaque réouverture du flux, TanStack Query resynchronise la liste REST pour rattraper les événements manqués. L'état de la connexion reste visible en permanence. Ce flux n'est pas encore présent dans le premier incrément, qui repose uniquement sur la lecture REST.
+- **Flux SSE des commandes** : le Dashboard maintient une connexion Server-Sent Events vers le Backend (voir [l'API](api.md)) pour recevoir chaque nouvelle commande sans polling. Conformément à l'[ADR-0006](../decisions/adr-0006-sse.md), l'objet navigateur `EventSource` gère lui-même la reconnexion et renvoie `Last-Event-ID`. Le frontend ne recrée pas une stratégie exponentielle parallèle. Chaque événement et chaque réouverture du flux invalident la liste TanStack Query, puis REST resynchronise l'état complet. L'état de la connexion reste visible en permanence.
 - **Notifications sonores** : une nouvelle commande émet un signal sonore, activable et réglable par le restaurateur. Le son est un canal de premier ordre en cuisine, pas un gadget.
 - **Data-viz sobre** : les métriques (chiffre d'affaires, volume de commandes, produits les plus vendus) sont présentées avec des graphiques simples et lisibles, sans bibliothèque de charting lourde ni animation décorative. Les chiffres priment sur le spectacle.
 

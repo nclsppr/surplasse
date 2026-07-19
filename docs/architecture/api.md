@@ -199,11 +199,11 @@ Groupes d'endpoints prévus par domaine :
 | Commandes côté client | `POST /v1/orders`, `GET /v1/orders/{id}` | Client anonyme |
 | Commandes côté restaurateur | `GET /v1/orders`, `PATCH /v1/orders/{id}/status` | Restaurateur |
 | Paiements | `POST /v1/payments`, `GET /v1/payments/{id}` | Client anonyme |
-| Temps réel | `GET /v1/establishments/{id}/order-events` (SSE) | Restaurateur |
+| Temps réel | `GET /v1/establishments/{id}/order-events` (SSE), implémenté | Restaurateur |
 | Temps réel | `GET /v1/orders/{id}/events` (SSE) | Client anonyme (jeton propre à la commande) |
 | Webhooks | `POST /v1/webhooks/stripe` | Signature Stripe |
 
-Le découpage exact des endpoints reste à trancher au moment de la rédaction du contrat ; ce tableau fixe les domaines et leurs périmètres, pas la forme finale de chaque chemin. La description détaillée des mécanismes d'authentification se trouve dans [la page sécurité](securite.md).
+Le tableau mêle les routes implémentées et des routes encore prévues. Le contrat fixe la forme exacte de chaque opération sortie du statut `x-draft`. La description détaillée des mécanismes d'authentification se trouve dans [la page sécurité](securite.md).
 
 ## Outillage
 

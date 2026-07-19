@@ -98,6 +98,8 @@ Deux types de canaux :
 | **Par établissement** | Le Dashboard | Nouvelles commandes payées, changements de statut, ruptures de produits |
 | **Par commande** | La page de suivi du mini-site Commande | Les changements de statut de cette commande uniquement |
 
+Les deux canaux de commande sont implémentés. Chaque transition persistée est diffusée à la fois sur le canal de la commande concernée et sur celui de son établissement. Le canal par établissement rejoue les événements persistés dont l'identifiant est supérieur à `Last-Event-ID` avant de reprendre le direct.
+
 Le canal par établissement est authentifié par le cookie `HttpOnly` hôte uniquement pour `api.surplasse.com` (voir [la sécurité](securite.md)). Ce point est structurant : l'API navigateur `EventSource` n'accepte aucun en-tête personnalisé, donc aucun `Authorization: Bearer` ; le Dashboard utilise `withCredentials: true` pour envoyer le cookie à l'API. Le canal par commande est adressé par un jeton non devinable propre à la commande : le client n'a pas de compte, le jeton fait office de capacité d'accès (transmis en paramètre de l'URL du flux).
 
 ### Stratégie de reconnexion

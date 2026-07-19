@@ -24,7 +24,7 @@ Trois choix structurants minimisent le risque à la source :
 Le reste de la posture découle de ce socle : sessions courtes, autorisations filtrées par établissement, validation stricte des entrées, chiffrement en transit partout.
 
 !!! info État actuel au 2026-07-19
-Le catalogue, la commande, le paiement et le module Backend `identity` sont implémentés localement. La lecture paginée et l'avancement des commandes opérationnelles authentifient le restaurateur et vérifient son appartenance à l'établissement avant toute opération métier. Le premier Dashboard utilise ce parcours pour faire avancer les commandes jusqu'au service ou au retrait. Rien n'est encore déployé en production. L'identité s'exécute dans l'unique processus Backend, sans service autonome.
+Le catalogue, la commande, le paiement et le module Backend `identity` sont implémentés localement. La lecture paginée, l'avancement des commandes et le flux SSE authentifient le restaurateur et vérifient son appartenance à l'établissement avant toute opération métier. Le Dashboard utilise ce parcours pour recevoir et faire avancer les commandes jusqu'au service ou au retrait. Rien n'est encore déployé en production. L'identité s'exécute dans l'unique processus Backend, sans service autonome.
 !!!
 
 ## Durcissements Dashboard avant production {#durcissements-dashboard-avant-production}

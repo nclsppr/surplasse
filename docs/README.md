@@ -16,9 +16,9 @@ Surplasse n'est pas une marketplace : le restaurant garde son identité, ses pri
 | Aspect | État en juillet 2026 |
 |---|---|
 | Phase | Phase 2, commander et payer, en cours |
-| Code applicatif | Contrat OpenAPI, Backend Quarkus jusqu'à l'identité restaurateur, package TypeScript partagé, Commande et premier Dashboard avec avancement des commandes |
+| Code applicatif | Contrat OpenAPI, Backend Quarkus jusqu'à l'identité restaurateur, package TypeScript partagé, Commande et Dashboard minimal avec suivi temps réel |
 | Existant dans le dépôt | Applications locales, topologie HTTPS `surplasse.test`, cockpit de modules, documentation, marque et préfiguration statique de l'Onboarding |
-| Prochaines étapes | Flux SSE établissement et actions opérationnelles du Dashboard, selon la [roadmap](roadmap.md) |
+| Prochaines étapes | Durcissements navigateur, Stripe en conditions live et service à blanc, selon la [roadmap](roadmap.md) |
 
 !!! info Existant et cible
 Les pages distinguent l'état implémenté de la cible de référence. Les points encore ouverts sont signalés explicitement dans les pages concernées, et chaque décision structurante est consignée dans un [ADR](decisions/index.md).
