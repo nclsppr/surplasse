@@ -12,7 +12,7 @@ Surplasse est un canal de commande directe pour les restaurants indépendants : 
 | `api/` | Contrat OpenAPI, source de vérité de l'API | Disponible |
 | `backend/` | Backend Quarkus, PostgreSQL Dev Services et modules métier | Disponible localement |
 | `frontends/commande/` | Mini-site client React | Disponible localement |
-| `frontends/dashboard/` | Dashboard React en lecture seule | Disponible localement |
+| `frontends/dashboard/` | Dashboard React avec suivi et avancement des commandes | Disponible localement |
 | `frontends/onboarding/` | Préfiguration HTML de la vitrine | Disponible |
 | `frontends/shared/` | Design system et client API TypeScript | Disponible |
 | `infra/local/` | DNS wildcard, HTTPS mkcert et routage Caddy | Disponible sur le poste de développement |

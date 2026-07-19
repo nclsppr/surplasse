@@ -10,7 +10,7 @@ description: Prérequis, installation, commandes, ports et premier lancement de 
 Cette page est le point d'entrée de la section développement : ce qu'il faut installer sur sa machine, comment cloner et lancer le monorepo, quelles commandes exécuter dans chaque répertoire et comment diagnostiquer les problèmes les plus fréquents. Pour comprendre ce que l'on fait tourner avant de le lancer, lire d'abord la [vue d'ensemble de l'architecture](../architecture/index.md).
 
 !!! info État actuel
-Au 2026-07-19, existent : la documentation (`docs/`), la charte graphique (`brand/`), la préfiguration statique de l'Onboarding, le contrat (`api/openapi.yaml`) avec son lint et sa chaîne de génération, le Backend (`backend/` : modules `common`, `contract`, `catalog`, `order`, `payment`, `identity`, `application`), le package partagé (`frontends/shared/`), Commande (`frontends/commande/`) avec carte, panier, paiement et suivi, et le premier Dashboard (`frontends/dashboard/`). Ce Dashboard permet la connexion par magic link, restaure la session, sélectionne un établissement autorisé et lit ses commandes opérationnelles par REST. Il reste en lecture seule, sans flux SSE établissement. L'Onboarding React reste à créer. La page distingue toujours ce qui est exécutable de ce qui est seulement prévu.
+Au 2026-07-19, existent : la documentation (`docs/`), la charte graphique (`brand/`), la préfiguration statique de l'Onboarding, le contrat (`api/openapi.yaml`) avec son lint et sa chaîne de génération, le Backend (`backend/` : modules `common`, `contract`, `catalog`, `order`, `payment`, `identity`, `application`), le package partagé (`frontends/shared/`), Commande (`frontends/commande/`) avec carte, panier, paiement et suivi, et le premier Dashboard (`frontends/dashboard/`). Ce Dashboard permet la connexion par magic link, restaure la session, sélectionne un établissement autorisé, lit ses commandes opérationnelles par REST et les fait avancer jusqu'au service ou au retrait. Il reste sans flux SSE établissement. L'Onboarding React reste à créer. La page distingue toujours ce qui est exécutable de ce qui est seulement prévu.
 !!!
 
 !!! info URL locales canoniques
@@ -240,7 +240,7 @@ curl --fail https://api.surplasse.test/q/health/ready
 curl --fail https://dashboard.surplasse.test/
 ```
 
-Ouvrir ensuite `https://dashboard.surplasse.test/auth/login`, demander un lien pour `pilote@le-cormoran.example`, puis ouvrir `https://mail.surplasse.test`. Le lien transporte le jeton dans le fragment `#token=...` : ce fragment n'est pas envoyé au serveur Vite, et le Dashboard le retire immédiatement de la barre d'adresse avant l'échange par POST. Après connexion, `/service` affiche en lecture seule les commandes opérationnelles de l'établissement autorisé.
+Ouvrir ensuite `https://dashboard.surplasse.test/auth/login`, demander un lien pour `pilote@le-cormoran.example`, puis ouvrir `https://mail.surplasse.test`. Le lien transporte le jeton dans le fragment `#token=...` : ce fragment n'est pas envoyé au serveur Vite, et le Dashboard le retire immédiatement de la barre d'adresse avant l'échange par POST. Après connexion, `/service` affiche les commandes opérationnelles de l'établissement autorisé. Les actions permettent de les accepter, de lancer leur préparation, de les marquer prêtes, puis servies ou retirées selon leur type.
 
 Ne pas revenir aux ports HTTP dans le navigateur. Le couple canonique est `https://dashboard.surplasse.test` et `https://api.surplasse.test`. Il exerce les cookies `Secure`, le CORS, le hostname et les en-têtes de proxy comme la production.
 
@@ -343,7 +343,7 @@ Ouvrir `https://le-cormoran.surplasse.test/?table=tbl_2f8e6a4c0b9d7e1f`. Le host
 
 **5. Vérifier le Dashboard et les magic links.**
 
-Ouvrir `https://dashboard.surplasse.test/auth/login`, demander un lien pour `pilote@le-cormoran.example`, puis lire le message dans `https://mail.surplasse.test`. Après échange du jeton, `/service` affiche les commandes opérationnelles en lecture seule.
+Ouvrir `https://dashboard.surplasse.test/auth/login`, demander un lien pour `pilote@le-cormoran.example`, puis lire le message dans `https://mail.surplasse.test`. Après échange du jeton, `/service` affiche les commandes opérationnelles. Faire avancer une commande payée jusqu'à `served` et vérifier qu'elle quitte alors la file active.
 
 **6. Relayer les webhooks Stripe si le paiement est testé.**
 

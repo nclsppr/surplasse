@@ -112,6 +112,8 @@ Quand `hasMore` vaut `false`, `nextCursor` est absent. La pagination par curseur
 
 La première liste paginée effectivement livrée est `GET /v1/orders`. Elle exige le cookie de session restaurateur et `establishmentId`, puis retourne uniquement les commandes `paid`, `accepted`, `preparing` et `ready`. Le curseur est lié à l'établissement. Une ressource inconnue ou hors du périmètre du restaurateur répond 404. Les lignes de commande sont des instantanés et la capacité de suivi du client n'est jamais exposée dans ce modèle Dashboard.
 
+`PATCH /v1/orders/{orderId}/status` est également livré. Il accepte uniquement l'étape opérationnelle suivante : `accepted`, `preparing`, `ready`, puis `served` ou `picked_up` selon le type de commande. Répéter le statut déjà atteint est idempotent. Un saut répond 409, une fin incompatible avec le type répond 422, et une commande inconnue ou hors périmètre répond 404. `refunded` reste exclu : un remboursement doit déclencher une opération du domaine paiement, pas une simple écriture de statut.
+
 ### Erreurs au format Problem Details (RFC 9457)
 
 Toute réponse d'erreur est un document `application/problem+json` conforme à la RFC 9457, avec un champ `type` stable qui identifie l'erreur applicative.
