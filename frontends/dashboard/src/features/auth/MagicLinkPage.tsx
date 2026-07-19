@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { queryKeys, type RestaurateurSession } from "@surplasse/shared";
+import type { RestaurateurSession } from "@surplasse/shared";
 import { Link, useNavigate } from "react-router-dom";
 
-import { magicLinkExchangeCoordinator, queryClient } from "../../app/runtime";
+import { magicLinkExchangeCoordinator, sessionCoordinator } from "../../app/runtime";
 import { AuthShell } from "../../components/AuthShell";
 import { fr } from "../../i18n/fr";
 
@@ -28,7 +28,7 @@ export function MagicLinkPage() {
         if (!active) {
           return;
         }
-        queryClient.setQueryData(queryKeys.session(), session);
+        sessionCoordinator.setAuthenticatedSession(session);
         navigate("/service", { replace: true });
       })
       .catch(() => {
