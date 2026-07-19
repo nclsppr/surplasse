@@ -2,6 +2,7 @@ package com.surplasse.contract.api;
 
 import com.surplasse.contract.model.Order;
 import com.surplasse.contract.model.OrderCreationRequest;
+import com.surplasse.contract.model.OrderPage;
 import com.surplasse.contract.model.Problem;
 import com.surplasse.contract.model.TableSession;
 import com.surplasse.contract.model.TableSessionRequest;
@@ -71,5 +72,22 @@ public interface OrderApi {
     @Path("/orders/{orderId}")
     @Produces({ "application/json", "application/problem+json" })
     Response getOrder(@PathParam("orderId") UUID orderId,@QueryParam("trackingToken") @NotNull @Pattern(regexp="^ot_[a-f0-9]{32}$")   String trackingToken);
+
+
+    /**
+     * Cursor-paginated list of the operational orders of one establishment for the Dashboard, sorted by creation timestamp and identifier, both descending. Only `paid`, `accepted`, `preparing` and `ready` orders are returned. Pending payment and terminal orders are deliberately excluded from this phase.  The opaque cursor stays stable while new orders arrive and is never interpreted by the client. The restaurateur session cookie and establishment membership are both required: an unknown establishment and an establishment outside the caller's scope yield the same 404. 
+     *
+     * @param establishmentId Establishment whose orders are listed.
+     * @param cursor Opaque cursor returned by the previous page.
+     * @param limit Page size, between 1 and 100.
+     * @return One page of orders, newest first.
+     * @return The establishment identifier, limit or cursor is invalid.
+     * @return The restaurateur session is missing or expired.
+     * @return Unknown establishment, or establishment outside the caller's scope.
+     */
+    @GET
+    @Path("/orders")
+    @Produces({ "application/json", "application/problem+json" })
+    Response listOrders(@QueryParam("establishmentId") @NotNull   UUID establishmentId,@QueryParam("cursor") @Size(min=1,max=512)   String cursor,@QueryParam("limit") @Min(1) @Max(100) @DefaultValue("50")   Integer limit);
 
 }

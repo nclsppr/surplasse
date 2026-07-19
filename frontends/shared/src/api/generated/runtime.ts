@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * Surplasse API
- * Surplasse lets independent restaurants run their own direct ordering channel. This contract is the single source of truth of the API: the backend implements Java interfaces generated from it, the frontends consume a generated TypeScript client.  Version 0.1 covers the public catalog, ordering, payment and restaurateur identity flows. Dashboard reads remain drafts (`x-draft` blocks, excluded from generation and compatibility checks) until their authorization is implemented end to end.  Conventions: paths are prefixed with `/v1`, money amounts are integers in cents with a `Cents` suffix, timestamps are ISO 8601 UTC, and every error is an RFC 9457 Problem Details document. 
+ * Surplasse lets independent restaurants run their own direct ordering channel. This contract is the single source of truth of the API: the backend implements Java interfaces generated from it, the frontends consume a generated TypeScript client.  Version 0.1 covers the public catalog, ordering, payment, restaurateur identity flows and the authenticated operational-order list. Other Dashboard reads remain drafts (`x-draft` blocks, excluded from generation and compatibility checks) until their authorization is implemented end to end.  Conventions: paths are prefixed with `/v1`, money amounts are integers in cents with a `Cents` suffix, timestamps are ISO 8601 UTC, and every error is an RFC 9457 Problem Details document. 
  *
  * The version of the OpenAPI document: 0.1.0
  * 

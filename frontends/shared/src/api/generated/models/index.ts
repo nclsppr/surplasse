@@ -1,6 +1,90 @@
 /* tslint:disable */
 /* eslint-disable */
 /**
+ * An operational order displayed to the establishment staff. The customer tracking capability is deliberately omitted.
+ * 
+ * @export
+ * @interface DashboardOrder
+ */
+export interface DashboardOrder {
+    /**
+     * Identifier of the order.
+     * @type {string}
+     * @memberof DashboardOrder
+     */
+    id: string;
+    /**
+     * Short number displayed to the customer and staff.
+     * @type {string}
+     * @memberof DashboardOrder
+     */
+    displayNumber: string;
+    /**
+     * Current operational status of the order.
+     * @type {string}
+     * @memberof DashboardOrder
+     */
+    status: DashboardOrderStatusEnum;
+    /**
+     * Type of the order.
+     * @type {string}
+     * @memberof DashboardOrder
+     */
+    type: DashboardOrderTypeEnum;
+    /**
+     * Label of the table. Absent for takeaway.
+     * @type {string}
+     * @memberof DashboardOrder
+     */
+    tableLabel?: string;
+    /**
+     * Lines frozen when the order was created.
+     * @type {Array<OrderLine>}
+     * @memberof DashboardOrder
+     */
+    lines: Array<OrderLine>;
+    /**
+     * Total amount in cents.
+     * @type {number}
+     * @memberof DashboardOrder
+     */
+    totalCents: number;
+    /**
+     * ISO 4217 currency code.
+     * @type {string}
+     * @memberof DashboardOrder
+     */
+    currency: string;
+    /**
+     * Creation timestamp in UTC.
+     * @type {string}
+     * @memberof DashboardOrder
+     */
+    createdAt: string;
+}
+
+
+/**
+ * @export
+ */
+export const DashboardOrderStatusEnum = {
+    Paid: 'paid',
+    Accepted: 'accepted',
+    Preparing: 'preparing',
+    Ready: 'ready'
+} as const;
+export type DashboardOrderStatusEnum = typeof DashboardOrderStatusEnum[keyof typeof DashboardOrderStatusEnum];
+
+/**
+ * @export
+ */
+export const DashboardOrderTypeEnum = {
+    OnSite: 'on_site',
+    Takeaway: 'takeaway'
+} as const;
+export type DashboardOrderTypeEnum = typeof DashboardOrderTypeEnum[keyof typeof DashboardOrderTypeEnum];
+
+/**
  * Public profile of an establishment, rendered on its mini-site.
  * @export
  * @interface EstablishmentPublic
@@ -425,6 +509,32 @@ export interface OrderLineRequest {
      * @memberof OrderLineRequest
      */
     note?: string;
+}
+/**
+ * One cursor-paginated page of operational orders, newest first. nextCursor is present exactly when hasMore is true.
+ * 
+ * @export
+ * @interface OrderPage
+ */
+export interface OrderPage {
+    /**
+     * Operational orders in this page.
+     * @type {Array<DashboardOrder>}
+     * @memberof OrderPage
+     */
+    items: Array<DashboardOrder>;
+    /**
+     * Opaque cursor to request the following page.
+     * @type {string}
+     * @memberof OrderPage
+     */
+    nextCursor?: string;
+    /**
+     * Whether another page exists.
+     * @type {boolean}
+     * @memberof OrderPage
+     */
+    hasMore: boolean;
 }
 /**
  * The order to open a Stripe payment session for.

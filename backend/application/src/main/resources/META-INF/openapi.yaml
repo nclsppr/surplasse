@@ -10,10 +10,11 @@ info:
     backend implements Java interfaces generated from it, the frontends
     consume a generated TypeScript client.
 
-    Version 0.1 covers the public catalog, ordering, payment and restaurateur
-    identity flows. Dashboard reads remain drafts (`x-draft` blocks, excluded
-    from generation and compatibility checks) until their authorization is
-    implemented end to end.
+    Version 0.1 covers the public catalog, ordering, payment, restaurateur
+    identity flows and the authenticated operational-order list. Other
+    Dashboard reads remain drafts (`x-draft` blocks, excluded from generation
+    and compatibility checks) until their authorization is implemented end to
+    end.
 
     Conventions: paths are prefixed with `/v1`, money amounts are integers
     in cents with a `Cents` suffix, timestamps are ISO 8601 UTC, and every
@@ -242,12 +243,11 @@ paths:
 
   /v1/orders:
     get:
-      x-draft: true
       tags: [order]
       operationId: listOrders
       summary: List the operational orders of an establishment
       description: |
-        Draft. Cursor-paginated list of the operational orders of one
+        Cursor-paginated list of the operational orders of one
         establishment for the Dashboard, sorted by creation timestamp and
         identifier, both descending. Only `paid`, `accepted`, `preparing`
         and `ready` orders are returned. Pending payment and terminal orders
@@ -1515,7 +1515,6 @@ components:
         createdAt: "2026-07-18T12:34:56Z"
 
     DashboardOrder:
-      x-draft: true
       type: object
       description: >
         An operational order displayed to the establishment staff. The
@@ -1574,7 +1573,6 @@ components:
         createdAt: "2026-07-18T12:34:56Z"
 
     OrderPage:
-      x-draft: true
       type: object
       description: >
         One cursor-paginated page of operational orders, newest first.
