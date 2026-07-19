@@ -10,7 +10,7 @@ description: Health checks, logs structurés, métriques Micrometer, alerting mi
 Cette page décrit comment Surplasse s'observe en production : ce qui est mesuré, où cela s'affiche, et qui est réveillé quand quelque chose casse. Elle complète la page [sécurité](../architecture/securite.md) (dont elle partage la philosophie de sobriété), la page [backend](../architecture/backend.md) (qui liste les extensions Quarkus concernées) et la page [RGPD](rgpd.md) (qui encadre ce que les logs et les métriques ont le droit de contenir).
 
 !!! info Documentation de référence
-Le projet n'a pas encore de code applicatif ni d'infrastructure déployée. Cette page décrit la cible de référence, au présent de spécification : ce que le premier déploiement doit embarquer, et ce qui sera posé plus tard, quand le besoin sera réel.
+Le Backend est exécutable localement et expose déjà ses endpoints de santé. Aucune infrastructure de production n'est déployée et Micrometer n'est pas encore installé. Cette page distingue ce qui existe de la cible du premier déploiement et des briques à poser plus tard.
 !!!
 
 ## Le principe : observer d'abord ce qui coûte

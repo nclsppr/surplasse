@@ -10,7 +10,7 @@ description: "Les services externes du système Surplasse : Stripe, extraction I
 Le Backend est le seul point de contact avec les services externes : aucun frontend ne parle directement à Stripe (hors confirmation du Payment Element), à l'API OpenAI ou au fournisseur d'emails. Cette page décrit chaque intégration : son rôle, son mode d'intégration, ses risques et l'état de la décision. La gestion des secrets (clés API, signatures de webhooks) et la vérification des webhooks sont détaillées dans [la sécurité](securite.md).
 
 !!! info Documentation de référence
-Le projet n'a pas encore de code applicatif. Cette page décrit la cible de référence, au présent de spécification. Les points non tranchés sont signalés et donnent lieu à des ADR dans [decisions](../decisions/).
+Le paiement Stripe est déjà implémenté dans le Backend et Commande. Les autres intégrations décrites ici restent des cibles tant que leur module n'existe pas. Les points non tranchés sont signalés et donnent lieu à des ADR dans [decisions](../decisions/).
 !!!
 
 ## Stripe : les paiements

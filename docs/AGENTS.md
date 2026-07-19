@@ -215,7 +215,16 @@ Aujourd'hui existent `docs/`, `brand/`, la préfiguration statique de l'Onboardi
 
 Le développement est supporté sur macOS, Windows et Linux. Sous Windows, la référence est WSL2 avec Ubuntu : on y suit les instructions Linux, le développement natif hors WSL2 n'est pas supporté. La production tourne sous Ubuntu LTS sur le VPS : en cas de comportement divergent entre systèmes, Ubuntu fait foi.
 
-**Règle : tout ajout d'un module frontend, d'un module backend ou d'un logiciel tiers (PostgreSQL, MinIO, Caddy, ...) s'accompagne, dans le même commit, de la documentation de son installation et de son lancement sur les trois systèmes.** Côté développement, cela vit dans la page setup (`docs/developpement/index.md`) ; côté production (Ubuntu sur le VPS), dans les pages `docs/operations/`.
+**Règle : tout ajout d'un module frontend, d'un module backend, d'un package ou d'un logiciel tiers (PostgreSQL, MinIO, Caddy, ...) s'accompagne, dans le même commit, de sa documentation d'exécution.** Cette documentation précise obligatoirement :
+
+- son rôle et son état réel, disponible ou seulement prévu ;
+- sa catégorie d'exécution : développement seulement, build ou CI, ou service de production ;
+- sa version de référence ou son image de conteneur épinglée, ses dépendances et ses données ou volumes persistants ;
+- ses prérequis, son installation, sa configuration et ses variables, sa commande de lancement, son URL ou son port et sa commande de vérification sur macOS, Windows (WSL2) et Linux ;
+- sa destination en production. Un composant absent de la production est explicitement marqué comme tel. Un service de production documente son déploiement, son démarrage, son redémarrage et son contrôle de santé sous Ubuntu LTS ;
+- son mode d'arrêt et, s'il conserve des données, sa sauvegarde et sa restauration.
+
+Un module bibliothèque qui ne se lance pas seul le dit explicitement et fournit sa commande de test ou de vérification. Côté développement, la référence vit dans `docs/developpement/index.md`. Côté production, l'équivalent vit dans `docs/operations/`. Une documentation au futur ne suffit plus dès que le composant entre réellement dans le dépôt.
 
 ## Arborescence de la documentation
 

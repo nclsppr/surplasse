@@ -13,11 +13,11 @@ Cette page répond aux questions quotidiennes de celui qui exploite Surplasse : 
 
 | | Local (Dev Services) | Production (VPS) |
 |---|---|---|
-| Hôte | `localhost:5432` (port fixé, voir le [setup](../developpement/index.md)) | Réseau interne Compose uniquement : jamais exposé ; passer par un tunnel SSH (`ssh -L 5432:localhost:5432 <vps>` puis `localhost:5432`) |
+| Hôte | `localhost:5432` (port fixé, voir le [setup](../developpement/index.md)) | Cible non provisionnée. PostgreSQL restera sur le réseau interne Compose, sans port publié sur l'hôte |
 | Base / utilisateur / mot de passe | `quarkus` / `quarkus` / `quarkus` (identifiants par défaut des Dev Services) | Variables `POSTGRES_*` du fichier d'environnement du VPS (voir [environnements](environnements.md)) |
 | Données | Seed de démonstration, réinitialisable en relançant le mode dev | Données réelles : lecture prudente, jamais d'écriture manuelle (Flyway est le seul DDL, les services le seul DML) |
 
-Pour l'interface humaine, tout client PostgreSQL convient : **TablePlus**, **DBeaver** ou **pgAdmin** en application de bureau, `psql` en terminal. Aucun client web n'est hébergé sur le VPS (une surface d'attaque de plus pour un besoin couvert par le tunnel SSH).
+Pour l'interface humaine en local, tout client PostgreSQL convient : **TablePlus**, **DBeaver** ou **pgAdmin** en application de bureau, `psql` en terminal. En production, la commande de référence sera `docker compose exec postgres psql` depuis le VPS. Aucun client web ne sera hébergé. Si un accès graphique distant devient nécessaire, son tunnel sera conçu et documenté avec `infra/`, sans publier PostgreSQL sur Internet.
 
 ## Lire les logs
 
@@ -33,13 +33,13 @@ Pour l'interface humaine, tout client PostgreSQL convient : **TablePlus**, **DBe
 |---|---|
 | `./mvnw verify` en local | La vérité avant tout push ; rapports détaillés dans `backend/*/target/surefire-reports/` |
 | Onglet Actions du dépôt GitHub | Les workflows `api`, `backend`, `frontends` sur chaque push ; un rouge se corrige avant toute autre tâche ([CI/CD](../developpement/ci-cd.md)) |
-| `npm test` dans `frontends/*` | Vitest en local |
+| `npm test` dans `frontends/shared` ou `frontends/commande` | Vitest en local ; les autres frontends n'existent pas encore |
 
 ## Explorer et requêter l'API
 
 Le backend sert **Swagger UI sur `/q/swagger-ui`** (en dev), alimenté par le contrat lui-même : `npm run api:generate` copie `api/openapi.yaml` tel quel (brouillons visibles, marqués `x-draft`) dans les ressources de l'application, et le scan d'annotations est désactivé pour que le contrat reste l'unique source. On peut y lire chaque endpoint et l'appeler directement (penser à l'en-tête `X-Table-Session` pour les endpoints de commande).
 
-En complément : `/q/health` (santé), `/q/metrics` (métriques Micrometer, avec le domaine paiement), `/q/dev-ui` (dev uniquement). L'exposition de Swagger UI en production reste fermée par défaut ; l'ouvrir serait une décision explicite.
+En complément : `/q/health` (santé) et `/q/dev-ui` (développement uniquement). L'endpoint `/q/metrics` arrivera avec l'extension Micrometer lors du chantier d'observabilité ; il n'existe pas encore. L'exposition de Swagger UI en production reste fermée par défaut ; l'ouvrir serait une décision explicite.
 
 ## Les secrets
 

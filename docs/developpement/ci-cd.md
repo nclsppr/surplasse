@@ -7,7 +7,7 @@ description: "Intégration et déploiement continus : le garde-fou du workflow s
 
 # CI/CD
 
-Surplasse s'appuie sur GitHub Actions pour l'intégration continue et le déploiement. Cette page décrit le seul workflow existant aujourd'hui (le build et le déploiement de la documentation), puis la cible : les workflows de vérification par application, la construction des images Docker et le déploiement sur le VPS.
+Surplasse s'appuie sur GitHub Actions pour l'intégration continue et le déploiement. Les workflows Pages, API, Backend et Frontends existent. La construction des images Docker et le déploiement sur le VPS restent des cibles, absentes tant que `infra/` n'existe pas.
 
 Pour le détail des environnements et de la topologie de production, voir [Environnements](../operations/environnements.md) et [Exploitation](../operations/index.md).
 

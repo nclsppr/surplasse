@@ -18,6 +18,14 @@ Les pages de la section :
 
 Le déploiement lui-même (workflows GitHub Actions, images, rollback) est décrit dans [CI/CD](../developpement/ci-cd.md).
 
+## Règle d'entrée en production
+
+Tout nouveau module ou logiciel tiers est classé dès son introduction : développement seulement, build ou CI, ou service de production. Cette classification est consignée dans le [guide de développement](../developpement/index.md), même quand le composant ne tourne jamais sur le VPS.
+
+Un composant destiné à la production n'est pas considéré comme documenté tant que les opérations suivantes ne sont pas décrites pour Ubuntu LTS : provisionnement ou construction de l'image, configuration et secrets, démarrage et redémarrage, contrôle de santé, mise à jour et retour arrière. Un composant qui conserve des données documente aussi ses volumes, sa sauvegarde et sa restauration. Ces informations arrivent dans le même commit que le service ou la dépendance.
+
+Un outil réservé au développement ou à la CI indique explicitement qu'il est absent de la production. Quand un autre service remplit ce rôle en production, comme le fournisseur SMTP à la place de Mailpit, l'équivalent est nommé. Une description de cible au futur ne suffit plus dès que le composant est ajouté à `infra/` ou utilisé par une application déployée.
+
 ## Philosophie : l'exploitation d'un développeur seul
 
 Surplasse est développé et exploité par une seule personne. Ce fait dicte toute l'architecture de production, avant même les considérations techniques :
@@ -30,16 +38,19 @@ Les seules dépendances externes sont des services SaaS qui portent leur propre 
 
 ## Inventaire des services en production
 
-| Service | Techno | Rôle | Exposition |
-|---|---|---|---|
-| Reverse proxy | Caddy | Terminaison TLS (certificat wildcard automatique), routage par domaine vers les autres services | Ports 80 et 443, seul service exposé à Internet |
-| Backend | Quarkus (Java 21) | L'API REST, la logique métier, le temps réel SSE, les intégrations Stripe et OpenAI | `api.surplasse.com`, via Caddy |
-| Onboarding | Conteneur statique | Vitrine produit et tunnel d'embarquement des restaurateurs | `surplasse.com`, via Caddy |
-| Commande | Conteneur statique | Mini-site des établissements, carte numérique, commande et paiement client | `{slug}.surplasse.com`, via Caddy |
-| Dashboard | Conteneur statique | Suivi des commandes en temps réel et gestion de la carte pour les restaurateurs | `dashboard.surplasse.com`, via Caddy |
-| PostgreSQL | PostgreSQL 17 | La base de données unique | Réseau interne Compose uniquement |
-| MinIO | MinIO | Stockage objet : photos de cartes, images d'établissements et de produits | Réseau interne Compose uniquement |
-| Supervision | À trancher (voir [Observabilité](observabilite.md)) | Sondes de disponibilité, collecte des logs et métriques, alertes | Interface d'administration non exposée publiquement |
+La documentation et la préfiguration statique de l'Onboarding sont actuellement publiées sur GitHub Pages. La pile VPS ci-dessous n'est pas encore provisionnée. Le commit qui introduira `infra/` remplacera chaque statut cible par une procédure exécutable.
+
+| Service | Techno | Statut | Rôle | Exposition |
+|---|---|---|---|---|
+| Site public actuel | GitHub Pages | En service | Documentation, marque et préfiguration statique de l'Onboarding | URL GitHub Pages |
+| Reverse proxy | Caddy | Cible non provisionnée | Terminaison TLS et routage par domaine | Ports 80 et 443, seul service du VPS exposé |
+| Backend | Quarkus (Java 21) | Exécutable localement, non déployé | API REST, logique métier, temps réel SSE et intégrations | `api.surplasse.com`, via Caddy |
+| Onboarding | Conteneur statique | Cible non construite | Vitrine produit et tunnel d'embarquement | `surplasse.com`, via Caddy |
+| Commande | Conteneur statique | Exécutable localement, non déployé | Mini-site, carte, commande et paiement | `{slug}.surplasse.com`, via Caddy |
+| Dashboard | Conteneur statique | Module absent | Suivi des commandes en temps réel | `dashboard.surplasse.com`, via Caddy |
+| PostgreSQL | PostgreSQL 17 | Dev Services local, cible Compose absente | Base de données unique | Réseau interne Compose uniquement |
+| MinIO | MinIO | Module absent | Stockage objet des images | Réseau interne Compose uniquement |
+| Supervision | À trancher | Cible non provisionnée | Sondes, logs, métriques et alertes | Interface d'administration privée |
 
 Sur le choix du reverse proxy : Traefik excelle dans la découverte dynamique de conteneurs et brille dans des environnements où les services vont et viennent, au prix d'une configuration par labels plus verbeuse et d'un modèle mental plus riche. Caddy fait la même chose ici avec un fichier de configuration court et lisible, et gère le certificat wildcard par défi DNS-01 via un module DNS provider (build Caddy personnalisé, à prévoir dans l'image de `infra/`). La topologie de Surplasse étant statique (les mêmes services, tout le temps), la référence retient **Caddy** pour sa simplicité ; ce choix sera consigné en ADR avec la mise en place de `infra/`.
 

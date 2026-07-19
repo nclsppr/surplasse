@@ -5,7 +5,7 @@
   "description": "Surplasse : le circuit court de la commande. Monorepo (docs, contrat OpenAPI, backend Quarkus, frontends React).",
   "scripts": {
     "docs:build": "node node_modules/retypeapp/retype.js build",
-    "docs:watch": "node node_modules/retypeapp/retype.js watch",
+    "docs:watch": "node node_modules/retypeapp/retype.js start --port 5005",
     "api:lint": "spectral lint api/openapi.yaml --ruleset api/.spectral.yaml --fail-severity warn",
     "api:diff": "bash scripts/api/oasdiff.sh",
     "api:generate": "node scripts/api/generate.mjs"

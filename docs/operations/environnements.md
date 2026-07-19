@@ -9,6 +9,10 @@ description: "Deux environnements seulement (local et production) : domaines, DN
 
 Surplasse ne connaît que deux environnements : le poste de développement local et la production. Cette page décrit ce que chacun contient, les domaines et certificats de la production, et les variables d'environnement attendues par chaque service. Le pourquoi de l'absence de staging est argumenté dans [CI/CD](../developpement/ci-cd.md) ; la topologie des services est décrite dans [Exploitation](index.md).
 
+!!! warning État réel au 2026-07-19
+Le local Backend et Commande est exécutable. La documentation et la préfiguration statique de l'Onboarding sont publiées sur GitHub Pages. La pile VPS, `infra/`, le Dashboard, l'Onboarding React, l'IA, les magic links, MinIO et Caddy ne sont pas encore implémentés. Toutes les mentions de production ci-dessous décrivent donc la cible à rendre exécutable dans le commit qui introduira `infra/`.
+!!!
+
 ## Deux environnements, pas un de plus
 
 | | Local | Production |
@@ -18,9 +22,9 @@ Surplasse ne connaît que deux environnements : le poste de développement local
 | Données | Jeu de données de démonstration (seed), réinitialisable à volonté ; jamais de données réelles | Données réelles des établissements et des commandes |
 | Base de données | PostgreSQL éphémère via Dev Services, ou conteneur local | PostgreSQL 17, sauvegardé quotidiennement |
 | Stripe | **Mode test** exclusivement (cartes de test, webhooks relayés par la CLI Stripe) | **Mode live** |
-| IA (extraction de carte) | Simulée par défaut : réponses enregistrées rejouées sans appel réseau ; appel réel à l'API OpenAI activable à la demande pour travailler sur l'extraction | API OpenAI réelle |
-| Magic links | Capturés localement (boîte mail de dev), aucun email réel ne part | Envoi réel |
-| Déployé par | Personne : lancé à la main | La CI, à chaque push sur `main` (voir [CI/CD](../developpement/ci-cd.md)) |
+| IA (extraction de carte) | Cible future : réponses enregistrées par défaut et appel réel activable | Cible future : API OpenAI réelle |
+| Magic links | Cible future : capturés par Mailpit, sans email réel | Cible future : fournisseur SMTP transactionnel |
+| Déployé par | Personne : lancé à la main | Cible future : CI à chaque push sur `main` (voir [CI/CD](../developpement/ci-cd.md)) |
 
 La règle d'étanchéité est absolue : aucune clé live, aucune donnée réelle et aucun secret de production ne se trouve jamais sur un poste local. Le mode simulé de l'IA sert aussi les tests : il rend les parcours d'embarquement rejouables sans coût ni latence d'appel.
 
@@ -28,14 +32,14 @@ Deux environnements seulement, cela signifie aussi qu'il n'existe aucun endroit 
 
 En local, les applications tournent sur des ports distincts plutôt que sur des domaines :
 
-| Application | Local | Production |
-|---|---|---|
-| Onboarding | `localhost:5175` | `surplasse.com` |
-| Commande | `localhost:5173` (slug de test en paramètre ou en sous-domaine local) | `{slug}.surplasse.com` |
-| Dashboard | `localhost:5174` | `dashboard.surplasse.com` |
-| Backend | `localhost:8080` (mode dev Quarkus) | `api.surplasse.com` |
+| Application | Statut | Local | Production cible |
+|---|---|---|---|
+| Onboarding | Préfiguration statique seulement | `localhost:4173/frontends/onboarding/` | `surplasse.com` |
+| Commande | Exécutable localement | `localhost:5173` | `{slug}.surplasse.com` |
+| Dashboard | Module absent | port 5174 réservé | `dashboard.surplasse.com` |
+| Backend | Exécutable localement | `localhost:8080` | `api.surplasse.com` |
 
-Ces ports sont la convention fixée dans le [setup](../developpement/index.md) (section « Ports conventionnels ») : chaque application a son port fixe, avec l'option `strictPort` activée côté Vite.
+Ces ports sont la convention fixée dans le [setup](../developpement/index.md) (section « Ports conventionnels »). Les ports des modules absents restent réservés jusqu'à leur création.
 
 ## Les domaines
 
@@ -73,11 +77,11 @@ Le défi DNS-01 exige que Caddy puisse créer cet enregistrement TXT automatique
 
 Le renouvellement est entièrement automatique : Caddy renouvelle le certificat avant expiration sans intervention. La seule supervision nécessaire est une sonde d'expiration de certificat (voir [Observabilité](observabilite.md)), au cas où le jeton d'API DNS serait révoqué ou expiré.
 
-## Variables d'environnement en production
+## Variables d'environnement de la production cible
 
-Les secrets de production vivent dans un fichier d'environnement sur le VPS, hors git, référencé par la pile Compose de `infra/`. Ils sont provisionnés à la main (c'est le seul état non reconstructible depuis git avec la base de données, voir [Exploitation](index.md)) et ne transitent jamais par la CI : celle-ci ne détient que ses propres secrets de déploiement, listés dans [CI/CD](../developpement/ci-cd.md).
+Lorsque `infra/` existera, les secrets de production vivront dans un fichier d'environnement sur le VPS, hors git, référencé par la pile Compose. Ils seront provisionnés à la main et ne transiteront jamais par la CI : celle-ci ne détiendra que ses propres secrets de déploiement, listés dans [CI/CD](../developpement/ci-cd.md).
 
-Les noms ci-dessous sont la référence ; les valeurs ne figurent évidemment nulle part dans la documentation.
+Les noms ci-dessous sont l'inventaire cible. Le commit qui introduira chaque intégration devra confirmer ces noms dans un `.env.example`, documenter ceux qui sont obligatoires et retirer la mention de cible. Les valeurs réelles ne figurent évidemment nulle part dans la documentation.
 
 ### Backend (Quarkus)
 
@@ -122,7 +126,7 @@ Les noms ci-dessous sont la référence ; les valeurs ne figurent évidemment nu
 
 Aucune variable à l'exécution : Onboarding, Commande et Dashboard sont des fichiers statiques. Leur configuration (URL de l'API, clé publique Stripe) est injectée au moment du build par la CI via des variables `VITE_*`, et fait donc partie de l'image taggée par SHA. Changer une de ces valeurs, c'est reconstruire.
 
-Le nommage définitif des variables applicatives (préfixe `SURPLASSE_` ou noms Quarkus bruts) reste à trancher à l'écriture du backend ; le tableau ci-dessus fixe l'inventaire, pas la forme finale de chaque nom.
+Le tableau fixe l'inventaire cible des composants futurs, pas encore leur forme finale. Les variables déjà utilisées par le Backend et Commande sont documentées dans le [setup local](../developpement/index.md#variables-denvironnement) et leurs fichiers `.env.example` font foi.
 
 ## Reproduire la topologie de production en local
 

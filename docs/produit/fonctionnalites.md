@@ -9,7 +9,7 @@ description: La carte fonctionnelle complète de Surplasse, priorisée selon la 
 
 Cette page recense toutes les fonctionnalités du produit, organisées par domaine fonctionnel et priorisées selon la méthode MoSCoW. La priorité dit l'importance intrinsèque d'une fonctionnalité pour le produit cible ; elle ne dit pas quand elle est livrée. L'ordre de livraison, lui, est fixé par la [roadmap](../roadmap.md), seule source du séquencement et de la définition du premier MVP livrable.
 
-Le produit n'ayant pas encore de code applicatif, chaque fonctionnalité est décrite ici comme une cible de référence. Les pages [vision](vision.md) et [personas](personas.md) donnent le pourquoi ; les [parcours détaillés](parcours/onboarding-restaurateur.md) donnent le comment, pas à pas.
+Le produit est en phase 2 : le Backend et Commande couvrent déjà la carte, le panier, le paiement et le suivi. Cette page reste la carte fonctionnelle du produit cible ; la [roadmap](../roadmap.md) indique précisément ce qui est livré, en cours ou futur. Les pages [vision](vision.md) et [personas](personas.md) donnent le pourquoi ; les [parcours détaillés](parcours/onboarding-restaurateur.md) donnent le comment, pas à pas.
 
 ## Méthode de priorisation
 

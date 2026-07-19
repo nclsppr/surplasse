@@ -10,7 +10,7 @@ description: Prérequis, installation, commandes, ports et premier lancement de 
 Cette page est le point d'entrée de la section développement : ce qu'il faut installer sur sa machine, comment cloner et lancer le monorepo, quelles commandes exécuter dans chaque répertoire et comment diagnostiquer les problèmes les plus fréquents. Pour comprendre ce que l'on fait tourner avant de le lancer, lire d'abord la [vue d'ensemble de l'architecture](../architecture/index.md).
 
 !!! info État actuel
-Depuis le 2026-07-18 (phase 1) existent : la documentation (`docs/`), la charte graphique (`brand/`), la landing statique de l'Onboarding, le contrat (`api/openapi.yaml`) avec son lint et sa chaîne de génération, le squelette du Backend (`backend/` : modules `common`, `contract`, `catalog`, `application`, migrations Flyway et seed de démonstration), le package partagé (`frontends/shared/`) et le front Commande (`frontends/commande/`). Dashboard et Onboarding applicatifs restent à créer ; cette page passe du statut de cible au réel au fur et à mesure. Cette page décrit la cible de référence, au présent de spécification, et elle est tenue à jour au fil des phases de la [roadmap](../roadmap.md) : à chaque application créée, la section correspondante passe de la cible au réel.
+Au 2026-07-19, existent : la documentation (`docs/`), la charte graphique (`brand/`), la préfiguration statique de l'Onboarding, le contrat (`api/openapi.yaml`) avec son lint et sa chaîne de génération, le Backend (`backend/` : modules `common`, `contract`, `catalog`, `order`, `payment`, `application`), le package partagé (`frontends/shared/`) et Commande (`frontends/commande/`) avec carte, panier, paiement et suivi. Le Dashboard et l'Onboarding React restent à créer. La page distingue toujours ce qui est exécutable de ce qui est seulement prévu.
 !!!
 
 ## Prérequis
@@ -26,6 +26,8 @@ L'environnement de développement repose sur des gestionnaires de versions (nvm,
 | Docker | Docker Engine 27 ou plus | Docker Desktop ou [OrbStack](https://orbstack.dev/) | Docker Engine + plugin Compose (paquets officiels Docker) |
 | Docker Compose | v2 (plugin `docker compose`) | inclus dans Docker Desktop et OrbStack | inclus dans les paquets officiels |
 | Compte Stripe | mode test | création sur [stripe.com](https://stripe.com), aucune donnée bancaire réelle requise | identique |
+| Stripe CLI | version courante | `brew install stripe/stripe-cli/stripe` | installation `apt` officielle décrite par [Stripe](https://docs.stripe.com/stripe-cli/install?locale=fr-FR) |
+| Python | 3.x | `brew install python` | paquet `python3` de la distribution |
 
 Précisions :
 
@@ -34,6 +36,9 @@ Précisions :
 - **Maven** : ne jamais dépendre d'un Maven global. Toutes les commandes backend passent par `./mvnw`, qui télécharge la bonne version de Maven au premier appel.
 - **Docker** : indispensable même sans travailler sur l'infra, car les Dev Services de Quarkus s'en servent pour démarrer PostgreSQL automatiquement en développement (voir [le premier lancement](#le-premier-lancement-pas-à-pas)).
 - **Stripe en mode test** : les clés de test (`sk_test_...`, `pk_test_...`) suffisent pour tout le développement. Aucun paiement réel ne transite en local.
+- **Stripe CLI** : elle sert uniquement au développement pour relayer et rejouer les webhooks. Sous Windows, l'installation `apt` se fait dans WSL2. La CLI est absente de la production.
+- **Python 3** : il ne sert qu'à prévisualiser les pages statiques de l'Onboarding et de la marque. Il n'entre ni dans les builds ni en production.
+- **Bash, `curl` et `tar`** : présents par défaut sur macOS, Linux et WSL2, ils servent au contrôle de compatibilité OpenAPI. Ce sont uniquement des outils de build et de CI.
 
 ### Windows : passer par WSL2
 
@@ -44,7 +49,9 @@ Ce choix a un avantage : WSL2 avec Ubuntu, c'est le système de la production. L
 ### Chaque nouveau module documente son lancement
 
 !!! warning La règle vaut pour tout ajout
-Tout ajout d'un module frontend, d'un module backend ou d'un logiciel tiers (PostgreSQL, MinIO, Caddy, ...) s'accompagne, dans le même commit, de la mise à jour de cette page : prérequis, installation et lancement sur macOS, Windows (WSL2) et Linux. Côté production (Ubuntu sur le VPS), l'équivalent vit dans les pages [Opérations](../operations/index.md).
+Tout ajout d'un module frontend, d'un module backend, d'un package ou d'un logiciel tiers (PostgreSQL, MinIO, Caddy, ...) met à jour cette page dans le même commit. La contribution indique son rôle, son état réel, sa catégorie d'exécution, sa version ou son image épinglée, ses dépendances, ses variables et volumes, ses prérequis, sa configuration, son lancement, son arrêt et sa vérification sur macOS, Windows (WSL2) et Linux.
+
+La catégorie d'exécution est obligatoire : développement seulement, build ou CI, ou service de production. Un module bibliothèque précise qu'il n'a pas de processus autonome et donne sa commande de vérification. Un service destiné à la production met aussi à jour les pages [Opérations](../operations/index.md) avec son déploiement et son exploitation sous Ubuntu LTS. Un outil absent de la production le dit explicitement et nomme, si nécessaire, son équivalent de production.
 !!!
 
 ## Installation
@@ -56,32 +63,67 @@ L'installation se fait en deux temps : l'outillage commun à la racine, puis les
 git clone git@github.com:nclsppr/surplasse.git
 cd surplasse
 
-# 2. Outillage racine (documentation Retype)
+# 2. Outillage racine (documentation et contrat OpenAPI)
 nvm use
-npm install
+npm ci
 
-# 3. Dépendances par application (au fil des besoins)
-cd frontends/shared && npm install       # une fois : le paquet partagé, consommé en source
-cd frontends/commande && npm install     # idem pour dashboard/ et onboarding/ à leur création
-cd backend && ./mvnw dependency:resolve  # optionnel, quarkus:dev le fait aussi
+# 3. Dépendances des composants actuels, depuis la racine
+(cd frontends/shared && npm ci)           # paquet source, sans serveur autonome
+(cd frontends/commande && npm ci)         # application Commande
+(cd backend && ./mvnw dependency:resolve) # optionnel, quarkus:dev le fait aussi
 ```
 
-Le `npm install` racine n'installe que l'outillage de documentation (Retype). Les frontends ont chacun leur propre `package.json` et leurs propres dépendances : il n'y a pas de workspace npm global qui installerait tout d'un coup, chaque application reste installable et lançable indépendamment. Le package partagé `frontends/shared/` est consommé par les trois frontends via une dépendance `file:../shared` (lien symbolique npm, paquet consommé en source TypeScript), conformément à l'[ADR-0014](../decisions/adr-0014-liaison-shared.md).
+Le `npm ci` racine installe Retype, Spectral et OpenAPI Generator. Les frontends ont chacun leur propre `package.json` et leurs propres dépendances : il n'y a pas de workspace npm global. Le package partagé `frontends/shared/` est consommé en source via une dépendance `file:../shared`, conformément à l'[ADR-0014](../decisions/adr-0014-liaison-shared.md). L'Onboarding actuel est statique et n'a pas encore de dépendances npm. Le Dashboard n'existe pas encore.
+
+## Cycle de vie des composants actuels
+
+| Composant | Nature et lancement local | Destination |
+|---|---|---|
+| `docs/` | Retype, `npm run docs:watch` à la racine | Build CI publié sur GitHub Pages, absent du VPS applicatif |
+| `brand/` | Ressources statiques ; prévisualisation avec le serveur statique décrit plus bas | Intégré aux fronts et au site Pages, aucun processus autonome |
+| `api/openapi.yaml` | Contrat vérifié par `npm run api:lint` et généré par `npm run api:generate` | Artefact de build ; copie exposée par le Backend, aucun service autonome |
+| `backend/common` | Bibliothèque Maven ; `./mvnw -pl common -am test` | Embarquée dans le Backend, aucun conteneur distinct |
+| `backend/contract` | Sources générées ; `npm run api:generate`, puis build Maven | Embarqué dans le Backend et consommé au build, aucun conteneur distinct |
+| `backend/catalog`, `backend/order`, `backend/payment` | Modules métier ; `./mvnw -pl <module> -am test` | Embarqués dans le Backend, aucun conteneur distinct |
+| `backend/application` | Assemblage exécutable ; `./mvnw quarkus:dev` depuis `backend/` | Service Backend Quarkus en production |
+| `frontends/shared` | Bibliothèque TypeScript ; `npm run check` et `npm test`, aucun serveur | Compilée dans les frontends, aucun conteneur distinct |
+| `frontends/commande` | Application Vite ; `npm run dev` | Front statique Commande en production |
+| `frontends/onboarding` | Préfiguration HTML statique ; aucun package npm actuellement | Publiée avec GitHub Pages aujourd'hui, futur front statique Onboarding sur le VPS |
+| `frontends/dashboard` | Absent, port 5174 réservé | Futur front statique Dashboard sur le VPS |
+
+## Cycle de vie des logiciels tiers
+
+| Logiciel | Développement et tests | Production |
+|---|---|---|
+| PostgreSQL 17 | Requis. Démarré automatiquement par les Dev Services et Testcontainers, aucune installation serveur locale | Requis. Service persistant de la future pile Docker Compose, sauvegardé quotidiennement |
+| Mailpit | Futur outil de développement du module `identity`, non requis actuellement | Absent. Un fournisseur SMTP transactionnel prendra le relais |
+| Stripe CLI | Développement seulement, pour relayer et rejouer les webhooks | Absente. Stripe appelle directement le webhook public du Backend |
+| Stripe | Compte et clés de test | Service SaaS requis avec comptes Connect et clés live |
+| Retype | Prévisualisation locale et build CI | Aucun processus Retype. Le résultat statique est publié sur GitHub Pages |
+| MinIO | Prévu avec le domaine `generation`, pas encore installé | Futur service persistant de la pile Docker Compose |
+| Caddy | Inutile au développement quotidien ; prévu pour reproduire la topologie complète | Futur reverse proxy de la pile Docker Compose |
 
 ## Commandes par répertoire
 
-Chaque répertoire du monorepo expose un petit jeu de commandes stables. Les scripts npm des frontends portent les mêmes noms dans les trois applications : ce qui s'apprend sur Commande vaut pour Dashboard et Onboarding.
+Chaque composant expose un petit jeu de commandes stables. Une ligne « vérification » remplace la commande de lancement pour les bibliothèques qui n'ont pas de processus autonome.
 
 | Répertoire | Commande | Effet |
 |---|---|---|
 | racine | `npm run docs:watch` | serveur local de la documentation avec rechargement (port 5005) |
 | racine | `npm run docs:build` | build de vérification des docs (sortie dans `docs-site/`), obligatoire avant tout push touchant `docs/` |
+| racine | `npm run api:lint` | lint Spectral du contrat |
+| racine | `npm run api:generate` | régénération des interfaces Java, du client TypeScript et de la copie Swagger UI |
+| racine | `npm run api:diff` | contrôle de compatibilité du contrat par rapport à la révision de référence |
 | `backend/` | `./mvnw quarkus:dev` | backend en mode dev : rechargement à chaud, Dev Services, Dev UI sur `/q/dev-ui` |
 | `backend/` | `./mvnw test` | tests unitaires et d'intégration du backend |
 | `backend/` | `./mvnw package` | build du déployable |
-| `frontends/*/` | `npm run dev` | serveur Vite avec rechargement à chaud |
-| `frontends/*/` | `npm run build` | build de production (vérification TypeScript incluse) |
-| `frontends/*/` | `npm run test` | tests du frontend |
+| `backend/` | `./mvnw -pl order -am test` | exemple de vérification d'un module et de ses dépendances, sans le lancer seul |
+| `frontends/shared/` | `npm run check && npm test` | typecheck et tests de la bibliothèque, sans serveur |
+| `frontends/commande/` | `npm run dev` | serveur Vite de Commande avec rechargement à chaud |
+| `frontends/commande/` | `npm run lint && npm test && npm run build` | vérification complète de Commande |
+| racine | `python3 -m http.server 4173` | prévisualisation statique de l'Onboarding et de la marque |
+
+Pour la prévisualisation statique, ouvrir `http://localhost:4173/frontends/onboarding/` ou `http://localhost:4173/brand/board.html`. La commande est identique sous macOS, Linux et Windows via WSL2. L'arrêter avec `Ctrl+C`.
 
 Le détail des conventions par pile est dans les pages dédiées : [conventions React](conventions-react.md), [conventions Quarkus](conventions-quarkus.md), [conventions API et contrat](conventions-api.md). La stratégie de test complète est décrite dans [tests](tests.md).
 
@@ -94,18 +136,22 @@ Chaque application a son port fixe en développement, pour que les URL locales s
 | 8080 | Backend (API Quarkus) | `http://localhost:8080` |
 | 5432 | PostgreSQL (conteneur monté par les Dev Services, port fixé via `quarkus.datasource.devservices.port` dans le profil `%dev`) | `localhost:5432` |
 | 5173 | Commande | `http://localhost:5173` |
-| 5174 | Dashboard | `http://localhost:5174` |
-| 5175 | Onboarding | `http://localhost:5175` |
+| 5174 | Dashboard, à sa création | `http://localhost:5174` |
+| 5175 | Onboarding React, à sa création | `http://localhost:5175` |
 | 5005 | Documentation (Retype) | `http://localhost:5005` |
+| 4173 | Prévisualisation statique actuelle | `http://localhost:4173` |
+| 1025 | Mailpit SMTP, futur outil de développement | `localhost:1025` |
+| 8025 | Mailpit, future interface web de développement | `http://localhost:8025` |
 
-Les ports 5173 à 5175 suivent l'ordre alphabétique des noms d'applications (Commande, Dashboard, Onboarding) et la convention Vite : 5173 est le port par défaut, les deux autres sont fixés dans le `vite.config.ts` de chaque frontend. Un port déjà occupé fait échouer le lancement plutôt que de glisser silencieusement vers un port voisin (option `strictPort` activée), pour que les URL locales restent prévisibles.
+Les ports 5173 à 5175 suivent l'ordre alphabétique des noms d'applications (Commande, Dashboard, Onboarding). Seul Commande est actuellement configuré. Les ports 5174 et 5175 sont réservés et seront fixés avec `strictPort` dans le `vite.config.ts` de chaque frontend lors de sa création. Un port occupé doit faire échouer le lancement plutôt que de glisser silencieusement vers un port voisin.
 
 ## Variables d'environnement
 
-Le principe : chaque application committe un fichier `.env.example` listant toutes ses variables avec des valeurs factices et un commentaire par variable. Le fichier `.env` réel est ignoré par git. Prendre un nouveau poste en main se résume à copier l'exemple et remplir les vraies valeurs :
+Le principe : chaque application committe un fichier `.env.example` listant toutes ses variables avec des valeurs factices et un commentaire par variable. Le fichier `.env` réel est ignoré par git. Les composants actuels se configurent depuis la racine avec :
 
 ```bash
-cp .env.example .env   # dans chaque application concernée
+cp backend/.env.example backend/.env
+cp frontends/commande/.env.example frontends/commande/.env
 ```
 
 En développement, la liste des variables réellement obligatoires est courte : les Dev Services fournissent PostgreSQL sans configuration, et les URL locales ont des valeurs par défaut. Les variables principales prévues :
@@ -114,9 +160,10 @@ En développement, la liste des variables réellement obligatoires est courte : 
 |---|---|---|---|
 | `STRIPE_SECRET_KEY` | Backend | clé secrète Stripe (mode test en dev : `sk_test_...`) | oui, pour les parcours de paiement |
 | `STRIPE_WEBHOOK_SECRET` | Backend | signature des webhooks Stripe (fournie par la CLI Stripe en local) | oui, pour les webhooks |
-| `OPENAI_API_KEY` | Backend | clé API OpenAI pour l'extraction de carte depuis photo | oui, pour l'embarquement |
+| `OPENAI_API_KEY` | Backend | future clé API OpenAI pour le domaine `generation`, absent actuellement | non, future phase 3 |
 | `QUARKUS_DATASOURCE_JDBC_URL` | Backend | DSN PostgreSQL | non en dev (Dev Services), oui en production |
 | `VITE_API_BASE_URL` | chaque frontend | URL de base de l'API | non (défaut : `http://localhost:8080`) |
+| `VITE_ESTABLISHMENT_SLUG` | Commande | slug utilisé sur localhost, sans sous-domaine | non (défaut : `le-cormoran`) |
 | `VITE_STRIPE_PUBLISHABLE_KEY` | Commande | clé publique Stripe pour le paiement côté client (`pk_test_...`) | oui, pour payer |
 
 !!! warning Jamais de secret dans git
@@ -142,28 +189,13 @@ Au premier appel, le wrapper télécharge Maven puis les dépendances : compter 
 
 ```bash
 cd frontends/commande
-npm install    # au premier lancement seulement
+npm ci         # si les dépendances n'ont pas encore été installées
 npm run dev
 ```
 
 Vite démarre sur `http://localhost:5173` et consomme l'API locale via la valeur par défaut de `VITE_API_BASE_URL`.
 
-**3 bis. Les emails en local : Mailpit.** Aucun email réel ne part d'un poste de développement : Mailpit simule un serveur SMTP et capture tout, avec une interface de consultation sur `http://localhost:8025`.
-
-```bash
-docker run -d --name mailpit -p 1025:1025 -p 8025:8025 axllent/mailpit
-```
-
-La configuration Quarkus correspondante (posée avec le module `identity` et les magic links) :
-
-```properties
-%dev.quarkus.mailer.host=localhost
-%dev.quarkus.mailer.port=1025
-%dev.quarkus.mailer.auth-methods=NONE
-%dev.quarkus.mailer.start-tls=DISABLED
-%dev.quarkus.mailer.from=no-reply@localhost
-%dev.quarkus.mailer.mock=false
-```
+**Étape future, non requise actuellement : les emails en local.** Mailpit sera ajouté avec le module `identity` et les magic links. Ce commit devra épingler sa version, fournir ses commandes de démarrage, de vérification et d'arrêt sur macOS, Linux et WSL2, puis documenter la configuration Quarkus. Aucun fournisseur SMTP de production ne sera nécessaire pour lancer les modules actuels.
 
 **3 ter. Les webhooks Stripe en local.** Le passage d'une commande à « payée » ne vient que du webhook signé. En local, la CLI Stripe les relaie (connexion au compte Stripe requise, une fois) :
 
@@ -172,11 +204,11 @@ stripe listen --forward-to localhost:8080/v1/webhooks/stripe
 # copier le whsec_... affiché dans STRIPE_WEBHOOK_SECRET du .env backend
 ```
 
-Les fichiers `.env` du backend vivent dans `backend/application/.env` (le répertoire de travail effectif du mode dev multi-modules) ; `backend/.env.example` liste les variables attendues.
+Le fichier `.env` du backend vit dans `backend/.env`, à côté de `backend/.env.example`, puisque les commandes Maven sont lancées depuis `backend/`. Le fichier de Commande vit dans `frontends/commande/.env`, à côté de son exemple.
 
-**4. Ouvrir l'établissement de démonstration.** En production, Commande résout l'établissement depuis le sous-domaine (`{slug}.surplasse.com`). En développement, le slug vient de la variable `VITE_ESTABLISHMENT_SLUG`, avec l'établissement de démonstration (`le-cormoran`) par défaut (mécanisme fixé dans [conventions React](conventions-react.md)). Ouvrir `http://localhost:5173` dans le navigateur : la carte du Cormoran s'affiche. Le panier et le paiement arrivent avec la phase 2 (les clés Stripe de test permettront alors un paiement fictif avec `4242 4242 4242 4242`).
+**4. Ouvrir l'établissement de démonstration.** En production, Commande résout l'établissement depuis le sous-domaine (`{slug}.surplasse.com`). En développement, le slug vient de la variable `VITE_ESTABLISHMENT_SLUG`, avec l'établissement de démonstration (`le-cormoran`) par défaut. Ouvrir `http://localhost:5173/?table=tbl_2f8e6a4c0b9d7e1f` : la carte du Cormoran s'affiche et le code de la Table 4 ouvre une session anonyme. Le panier, le paiement Stripe de test et le suivi sont disponibles. La carte de test standard est `4242 4242 4242 4242`.
 
-À ce stade, l'environnement est fonctionnel. Dashboard et Onboarding se lancent de la même façon depuis leurs répertoires respectifs, sur les ports 5174 et 5175. Avant de committer quoi que ce soit, lire le [workflow git](workflow-git.md) : branche unique `main`, commits fréquents, build docs obligatoire avant tout push touchant `docs/`.
+À ce stade, le Backend et Commande sont fonctionnels. Le Dashboard n'existe pas encore. La préfiguration de l'Onboarding se consulte avec le serveur statique sur le port 4173 ; elle ne possède pas encore de serveur Vite. Avant de committer quoi que ce soit, lire le [workflow git](workflow-git.md) : branche unique `main`, commits fréquents, build docs obligatoire avant tout push touchant `docs/`.
 
 ## Résolution des problèmes courants
 
@@ -186,7 +218,7 @@ Les fichiers `.env` du backend vivent dans `backend/application/.env` (le réper
 | erreurs de build frontend étranges, syntaxe non reconnue | mauvaise version de Node active | `node -v` doit afficher 24 ; sinon `nvm use` à la racine du repo |
 | `release version 21 not supported` ou erreur de compilation Java | mauvais JDK actif | `java -version` doit afficher 21 ; sinon `sdk use java 21-tem` |
 | les Dev Services échouent, `Could not connect to Docker` | le démon Docker n'est pas démarré | lancer Docker Desktop ou OrbStack, vérifier avec `docker info`, relancer `./mvnw quarkus:dev` |
-| `docs:watch` ou `docs:build` échoue, binaire `retype` introuvable dans `.bin` | le lien `node_modules/.bin/retype` n'a pas été créé par npm | appeler Retype directement : `node node_modules/retypeapp/retype.js watch` (ou `build`) ; c'est d'ailleurs la forme utilisée par les scripts npm du `package.json` racine |
+| `docs:watch` ou `docs:build` échoue, binaire `retype` introuvable dans `.bin` | le lien `node_modules/.bin/retype` n'a pas été créé par npm | appeler Retype directement : `node node_modules/retypeapp/retype.js start --port 5005` (ou `build`) ; c'est d'ailleurs la forme utilisée par les scripts npm du `package.json` racine |
 | le front affiche des erreurs réseau vers l'API | le backend n'est pas lancé, ou `VITE_API_BASE_URL` pointe ailleurs | vérifier que `http://localhost:8080/q/health` répond, vérifier le `.env` du frontend |
 | le paiement de test échoue immédiatement | clés Stripe absentes ou mélange de clés (test côté back, autre compte côté front) | vérifier `STRIPE_SECRET_KEY` et `VITE_STRIPE_PUBLISHABLE_KEY` : même compte, toutes deux en mode test |
 | `./mvnw verify` échoue à charger des classes de test alors qu'elles compilent | `quarkus:dev` tourne sur le même workspace : les deux écrivent dans `target/` | arrêter le mode dev avant `verify` (ou inversement), puis relancer |
