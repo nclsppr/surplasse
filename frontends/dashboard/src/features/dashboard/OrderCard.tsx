@@ -1,8 +1,11 @@
 import { formatPriceCents, type DashboardOrder } from "@surplasse/shared";
 
 import { fr } from "../../i18n/fr";
+import { nextOrderStatus } from "./orderStatus";
+import { useOrderStatusMutation } from "./useOrderStatusMutation";
 
 interface OrderCardProps {
+  establishmentId: string;
   order: DashboardOrder;
 }
 
@@ -11,7 +14,10 @@ const timeFormatter = new Intl.DateTimeFormat("fr-FR", {
   minute: "2-digit",
 });
 
-export function OrderCard({ order }: OrderCardProps) {
+export function OrderCard({ establishmentId, order }: OrderCardProps) {
+  const statusMutation = useOrderStatusMutation(establishmentId);
+  const nextStatus = nextOrderStatus(order);
+  const action = fr.service.actions[nextStatus];
   const createdTime = timeFormatter.format(new Date(order.createdAt));
   const location = order.tableLabel
     ? order.tableLabel
@@ -48,6 +54,23 @@ export function OrderCard({ order }: OrderCardProps) {
         <span>{order.type === "takeaway" ? fr.service.takeaway : fr.service.onSite}</span>
         <strong>{formatPriceCents(order.totalCents, order.currency)}</strong>
       </footer>
+
+      <div className="order-card-action-area">
+        <button
+          aria-label={fr.service.actions.label(action, order.displayNumber)}
+          className="button button-primary order-card-action"
+          disabled={statusMutation.isPending}
+          onClick={() => statusMutation.mutate({ orderId: order.id, status: nextStatus })}
+          type="button"
+        >
+          {statusMutation.isPending ? fr.service.actions.pending : action}
+        </button>
+        {statusMutation.isError ? (
+          <p className="order-card-action-error" role="alert">
+            {fr.service.actions.error}
+          </p>
+        ) : null}
+      </div>
     </article>
   );
 }

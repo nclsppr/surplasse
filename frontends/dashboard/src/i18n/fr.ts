@@ -31,7 +31,6 @@ export const fr = {
   service: {
     eyebrow: "Service en cours",
     title: "Commandes opérationnelles",
-    readOnly: "Vue en lecture seule",
     establishmentLabel: "Établissement",
     refresh: "Actualiser",
     refreshing: "Actualisation…",
@@ -81,5 +80,15 @@ export const fr = {
     options: (options: string) => `Options : ${options}`,
     note: (note: string) => `Note : ${note}`,
     createdAt: (time: string) => `Reçue à ${time}`,
+    actions: {
+      accepted: "Accepter",
+      preparing: "Lancer la préparation",
+      ready: "Marquer comme prête",
+      served: "Marquer comme servie",
+      picked_up: "Marquer comme retirée",
+      pending: "Mise à jour…",
+      error: "La commande n’a pas pu être mise à jour. Réessayez.",
+      label: (action: string, displayNumber: string) => `${action}, commande ${displayNumber}`,
+    },
   },
 } as const;

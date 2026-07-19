@@ -109,7 +109,6 @@ function OperationalService({ session, selectedId, onSelect }: OperationalServic
         <div className="service-title">
           <div className="title-line">
             <p className="eyebrow">{fr.service.eyebrow}</p>
-            <span className="read-only-badge">{fr.service.readOnly}</span>
           </div>
           <h1>{fr.service.title}</h1>
           <p className="service-count">{fr.service.orderCount(allOrders.length)}</p>
@@ -178,7 +177,7 @@ function OperationalService({ session, selectedId, onSelect }: OperationalServic
         <>
           {allOrders.length === 0 ? <p className="board-empty">{fr.service.emptyBoard}</p> : null}
           <section className="order-board-scroll" aria-label={fr.service.boardLabel} tabIndex={0}>
-            <OrderBoard orders={allOrders} />
+            <OrderBoard establishmentId={selectedId} orders={allOrders} />
           </section>
           {orders.hasNextPage ? (
             <div className="load-more">

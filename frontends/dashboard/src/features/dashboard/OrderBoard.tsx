@@ -20,10 +20,11 @@ const columns: ReadonlyArray<StatusColumn> = [
 ];
 
 interface OrderBoardProps {
+  establishmentId: string;
   orders: ReadonlyArray<DashboardOrder>;
 }
 
-export function OrderBoard({ orders }: OrderBoardProps) {
+export function OrderBoard({ establishmentId, orders }: OrderBoardProps) {
   return (
     <div className="order-board">
       {columns.map((column) => {
@@ -39,7 +40,9 @@ export function OrderBoard({ orders }: OrderBoardProps) {
             </header>
             <div className="order-stack">
               {columnOrders.length > 0 ? (
-                columnOrders.map((order) => <OrderCard key={order.id} order={order} />)
+                columnOrders.map((order) => (
+                  <OrderCard establishmentId={establishmentId} key={order.id} order={order} />
+                ))
               ) : (
                 <div className="column-empty">
                   <p>{column.empty}</p>

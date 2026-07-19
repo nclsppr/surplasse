@@ -2,6 +2,8 @@ import {
   createIdentityApi,
   createRestaurateurOrderApi,
   type OrderPage,
+  type OrderStatusResult,
+  type OrderStatusUpdateStatusEnum,
   type RestaurateurSession,
 } from "@surplasse/shared";
 
@@ -15,6 +17,7 @@ export interface IdentityClient {
 
 export interface RestaurateurOrderClient {
   listOrders(establishmentId: string, cursor?: string, limit?: number): Promise<OrderPage>;
+  updateStatus(orderId: string, status: OrderStatusUpdateStatusEnum): Promise<OrderStatusResult>;
 }
 
 export interface DashboardClients {
@@ -38,6 +41,8 @@ export function createDashboardClients(baseUrl: string): DashboardClients {
     orders: {
       listOrders: (establishmentId, cursor, limit) =>
         orderApi.listOrders({ establishmentId, cursor, limit }),
+      updateStatus: (orderId, status) =>
+        orderApi.updateOrderStatus({ orderId, orderStatusUpdate: { status } }),
     },
   };
 }

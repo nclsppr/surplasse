@@ -401,19 +401,6 @@ button:disabled {
   gap: var(--sp-3);
 }
 
-.read-only-badge {
-  padding: var(--sp-1) var(--sp-2);
-  border: 1px solid var(--line-green);
-  border-radius: var(--radius-sm);
-  color: var(--green);
-  background: var(--green-tint);
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
 .service-title h1 {
   margin: var(--sp-2) 0 0;
   color: var(--accent);
@@ -690,6 +677,25 @@ button:disabled {
 .order-card-footer strong {
   color: var(--fg-1);
   font-size: var(--text-sm);
+}
+
+.order-card-action-area {
+  display: grid;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-3) var(--sp-3);
+}
+
+.order-card-action {
+  width: 100%;
+  min-height: 2.75rem;
+  font-size: var(--text-xs);
+}
+
+.order-card-action-error {
+  margin: 0;
+  color: var(--accent-press);
+  font-size: var(--text-xs);
+  line-height: 1.4;
 }
 
 .column-empty {
