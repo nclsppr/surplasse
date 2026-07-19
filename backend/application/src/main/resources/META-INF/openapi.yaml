@@ -983,16 +983,26 @@ paths:
 
   /v1/establishments/{establishmentId}/order-events:
     get:
-      x-draft: true
       x-sse: true
       tags: [order]
       operationId: streamEstablishmentOrderEvents
       summary: Stream the order activity of an establishment (SSE)
       description: |
-        Draft. Server-Sent Events stream of the order activity of an
-        establishment (new paid orders, status changes) for the Dashboard.
-        Authenticated by the restaurateur session cookie, which the browser
-        sends with the EventSource request.
+        Server-Sent Events stream of the order activity of one establishment
+        for the Dashboard. Each `order-status` event notifies a new paid order
+        or a later status change. The Dashboard resynchronizes its REST list
+        when it receives an event, so this stream remains an accelerator and
+        never the source of truth.
+
+        The restaurateur session cookie and establishment membership are both
+        required. The browser sends the cookie with `EventSource` configured
+        with `withCredentials: true`. Each event carries a monotonic id; on
+        reconnection the standard `Last-Event-ID` header replays missed events
+        before live delivery resumes. Marked `x-sse`: contractual, but excluded
+        from client and server generation, and consumed with the native
+        EventSource API.
+      security:
+        - restaurateurSession: []
       parameters:
         - name: establishmentId
           in: path
@@ -1001,9 +1011,42 @@ paths:
           schema:
             type: string
             format: uuid
+          example: 7c9e6679-7425-40de-944b-e07fc1f90ae7
       responses:
         "200":
-          description: The event stream.
+          description: The event stream for the authorized establishment.
+          content:
+            text/event-stream:
+              schema:
+                $ref: "#/components/schemas/EventStream"
+              example: |
+                id: 42
+                event: order-status
+                data: {"orderId":"0d9e8c7b-6a5f-4e3d-8c2b-1a0f9e8d7c6b","status":"paid"}
+        "401":
+          description: The restaurateur session is missing or expired.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/session-expired
+                title: Session expired
+                status: 401
+                detail: The restaurateur session is expired or missing.
+                instance: /v1/establishments/7c9e6679-7425-40de-944b-e07fc1f90ae7/order-events
+        "404":
+          description: Unknown establishment, or establishment outside the caller's scope.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/resource-not-found
+                title: Resource not found
+                status: 404
+                detail: The establishment does not exist or is not accessible.
+                instance: /v1/establishments/7c9e6679-7425-40de-944b-e07fc1f90ae7/order-events
 
 components:
   securitySchemes:
