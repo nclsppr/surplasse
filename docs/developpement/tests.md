@@ -48,7 +48,7 @@ Une classe de logique métier qui exige un conteneur pour être testée est un s
 
 ### Frontends : Vitest
 
-Côté React, Vitest teste les hooks et les fonctions pures : logique de panier de l'application Commande, formatage des prix et des dates, sélecteurs et transformations de données du Dashboard, validation des formulaires de l'Onboarding. Le rendu complet des écrans n'est pas un objectif unitaire : il est couvert plus haut, par les tests de contrat avec MSW et par les E2E.
+Côté React, Vitest teste les hooks et les fonctions pures : logique de panier de l'application Commande, formatage des prix et des dates, sélecteurs et transformations de données du Dashboard, coordination de session dans un onglet et entre onglets, validation des formulaires de l'Onboarding. Le rendu complet des écrans n'est pas un objectif unitaire : il est couvert plus haut, par les tests de contrat avec MSW et par les E2E.
 
 ### Domaines et cockpit : Node natif
 

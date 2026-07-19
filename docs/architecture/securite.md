@@ -29,14 +29,14 @@ Le catalogue, la commande, le paiement et le module Backend `identity` sont impl
 
 ## Durcissements Dashboard avant production {#durcissements-dashboard-avant-production}
 
-Le parcours local protège déjà le jeton de magic link, les cookies et l'autorisation par établissement. Deux durcissements navigateur ont été identifiés avant d'exposer le Dashboard sur Internet. Le cloisonnement CORS est maintenant fermé par défaut dans le Backend et vérifié sur le proxy local. La coordination entre onglets reste bloquante :
+Le parcours local protège déjà le jeton de magic link, les cookies et l'autorisation par établissement. Les deux durcissements navigateur identifiés avant d'exposer le Dashboard sur Internet sont maintenant livrés et vérifiés localement :
 
 | Point | État | Risque et garde-fou |
 |---|---|---|
-| CORS avec cookies | Fermé dans la configuration applicative et le proxy de référence | Quarkus accepte l'apex et les sous-domaines directs comme origines publiques, mais refuse les credentials dans tous ses profils, y compris `%prod`. Caddy les rétablit seulement après comparaison exacte avec `DASHBOARD_URL` ou `ONBOARDING_URL`. Les tests refusent les credentials à un mini-site et à une origine externe. Le futur Caddy de production devra reproduire cette branche exacte avant de pouvoir servir le Dashboard. |
-| Rotation entre onglets | Bloquant | Le Dashboard mutualise un renouvellement concurrent dans un onglet, mais pas entre plusieurs onglets. Deux renouvellements simultanés peuvent réutiliser le même refresh token et provoquer la révocation de toute sa famille. Une coordination inter-onglets, avec Web Locks et BroadcastChannel ou un repli documenté, doit garantir un seul renouvellement effectif. Un test navigateur ouvrira deux onglets et vérifiera que la session reste valide. |
+| CORS avec cookies | Livré et vérifié localement | Quarkus accepte l'apex et les sous-domaines directs comme origines publiques, mais refuse les credentials dans tous ses profils, y compris `%prod`. Caddy les rétablit seulement après comparaison exacte avec `DASHBOARD_URL` ou `ONBOARDING_URL`. Les tests refusent les credentials à un mini-site et à une origine externe. Le futur Caddy de production devra reproduire cette branche exacte avant de pouvoir servir le Dashboard. |
+| Rotation entre onglets | Livré et vérifié localement | Le Dashboard place le renouvellement sous un Web Lock exclusif commun à tous les onglets. Une fois le verrou acquis, il relit d'abord la session : si un autre onglet l'a déjà renouvelée, la requête initiale est rejouée sans nouvelle rotation. Sinon, un seul refresh token est consommé. BroadcastChannel propage la nouvelle session ou la déconnexion. Sans Web Locks, le Dashboard échoue de manière sûre et demande une nouvelle connexion au lieu de risquer une réutilisation du refresh token. Les tests unitaires couvrent la coordination et un scénario réel à deux onglets a conservé la session avec une seule rotation en base. |
 
-La configuration `%prod` échoue désormais de manière sûre : sans règle explicite au proxy de production, aucune réponse CORS ne peut être lue avec les cookies restaurateur. Cette fermeture ne vaut pas autorisation de déployer le Dashboard. Le Caddy du VPS reste à provisionner et la coordination de session entre onglets reste à livrer. Le protocole de coordination sera consigné dans un ADR seulement s'il modifie la rotation côté serveur.
+La configuration `%prod` échoue désormais de manière sûre : sans règle explicite au proxy de production, aucune réponse CORS ne peut être lue avec les cookies restaurateur. Cette fermeture ne vaut pas autorisation de déployer le Dashboard. Le Caddy du VPS reste à provisionner avec la même sélection exacte des origines. La coordination ne modifie pas le protocole de rotation côté serveur ; elle complète la décision de session de l'[ADR-0008](../decisions/adr-0008-magic-link.md).
 
 ## Modèle de menaces
 
@@ -112,6 +112,7 @@ Points d'implémentation imposés :
 - Le refresh token est opaque et seule son empreinte est stockée. Chaque rotation conserve l'ancien enregistrement jusqu'à expiration ; sa réutilisation révoque toute la famille.
 - Les cookies `surplasse_session` et `surplasse_refresh` sont hôte uniquement pour l'API, sans attribut `Domain`. Ils sont `HttpOnly`, `SameSite=Lax` et `Secure` dans les deux environnements HTTPS. Le JWT utilise `Path=/` et le refresh token `Path=/v1/auth/sessions`.
 - Le Dashboard envoie les cookies avec `credentials: "include"` ; son `EventSource` utilise `withCredentials: true`.
+- Le Dashboard sérialise la rotation entre onglets avec Web Locks, vérifie la session après acquisition du verrou, puis diffuse les changements de session avec BroadcastChannel. L'absence de Web Locks force une nouvelle connexion au premier JWT expiré.
 
 La remise du magic link est asynchrone mais non durable au MVP. Le Backend répond 202 après avoir persisté le jeton, sans attendre le SMTP. Un arrêt du processus ou un échec SMTP à cet instant peut perdre l'email. Le restaurateur peut alors demander un nouveau lien, ce qui invalide le précédent. Aucun jeton ni aucune adresse email n'est journalisé.
 
@@ -224,4 +225,3 @@ PostgreSQL est sauvegardé de façon chiffrée, avec des copies hors du VPS de p
 | Outillage de gestion des secrets sur le VPS | Orientation : fichier d'environnement protégé (chmod 600) sur le VPS, copies maîtresses dans un gestionnaire de mots de passe (le coffre des humains), rotation documentée. Un coffre serveur dédié (Vault, Infisical) ne se justifiera que si les secrets se multiplient réellement (notifications, API tierces) ou si plusieurs opérateurs partagent l'exploitation | ADR dédié, avec `infra/` |
 | Seuils de limitation hors demande de magic link et futur stockage partagé des compteurs | Calibrage avant activation de chaque endpoint, stockage partagé avant toute seconde instance | Documentation d'exploitation |
 | Plafond de taille des téléversements | De l'ordre de 10 Mo par image | Le contrat |
-| Coordination du refresh token entre onglets | Web Locks et BroadcastChannel côté Dashboard, ou tolérance serveur bornée et idempotente | ADR si le protocole de rotation serveur évolue |

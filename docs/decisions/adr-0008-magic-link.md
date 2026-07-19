@@ -101,6 +101,12 @@ Les deux cookies restaurateur sont **hôte uniquement pour l'API**, soit `api.su
 
 Le choix écarte volontairement `Domain=.surplasse.com` et `Domain=.surplasse.test`. Cette portée élargie n'apporte rien au parcours et rendrait les cookies disponibles lors des requêtes vers chaque mini-site. Les cookies restent `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/` pour le JWT et `Path=/v1/auth/sessions` pour le refresh token. Le développement local utilise HTTPS avec mkcert afin de tester exactement cet invariant.
 
+### Coordination de la rotation entre onglets
+
+La réutilisation d'un refresh token déjà tourné révoque toute sa famille. Le Dashboard doit donc empêcher deux onglets de renouveler simultanément la même session. Chaque renouvellement prend le Web Lock exclusif `surplasse:restaurateur-session-refresh`. Après acquisition, l'onglet relit la session courante avant toute rotation : une réponse authentifiée signifie qu'un autre onglet a déjà renouvelé les cookies et la requête initiale peut être rejouée. Une réponse 401 autorise un unique appel de rotation sous le verrou.
+
+Le canal BroadcastChannel `surplasse:restaurateur-session` propage la session restaurateur non secrète après une connexion ou un renouvellement, ainsi que l'effacement de session après une déconnexion. Les cookies restent `HttpOnly` et ne transitent jamais par ce canal. Si Web Locks n'est pas disponible, le Dashboard échoue de manière sûre au premier JWT expiré : il efface son état local et demande une nouvelle connexion, sans tenter de rotation concurrente. Ce choix évite toute tolérance idempotente supplémentaire dans le Backend.
+
 !!! warning Le fournisseur d'email devient critique
 Avec le magic link, l'envoi d'email n'est plus une commodité : c'est le chemin de connexion. Le choix du fournisseur d'email transactionnel (délivrabilité, SPF, DKIM, DMARC, supervision des rebonds) reste à trancher et sera traité dans la page [Intégrations](../architecture/integrations.md).
 !!!
