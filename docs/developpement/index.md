@@ -300,7 +300,7 @@ Les URL publiques sont centralisées dans `config/domains/development.env` et `c
 | `DASHBOARD_URL`, `API_URL` | tous | origines canoniques du Dashboard et du Backend | oui, fournies par le profil versionné |
 | `RESERVED_SUBDOMAINS` | Commande et infrastructure | noms exclus des slugs d'établissement | oui, fourni par le profil versionné |
 | `COOKIE_DOMAIN` | décision de sécurité | doit rester vide pour des cookies API hôte uniquement | oui, vide dans les deux profils |
-| `CORS_ORIGINS` | Backend | apex exact et motif du sous-domaine direct courant | oui, dérivé par le wrapper de profil |
+| `CORS_PUBLIC_ORIGINS` | Backend | apex exact et motif du sous-domaine direct courant, sans credentials | oui, dérivé par le wrapper de profil |
 | `AUTH_JWT_AUDIENCE` | Backend | audience attendue du JWT restaurateur | non, valeur locale fournie |
 | `VITE_API_BASE_URL` | chaque frontend | override de l'URL de base de l'API | non, profil local `https://api.surplasse.test` |
 | `VITE_ESTABLISHMENT_SLUG` | Commande | repli pour un test direct du port Vite, sans sous-domaine | non, défaut `le-cormoran` |

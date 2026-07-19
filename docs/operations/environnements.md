@@ -101,7 +101,7 @@ Les noms d'identité et de SMTP ci-dessous sont stabilisés par le module `ident
 | `API_URL` | origine publique du Backend et émetteur JWT obligatoire |
 | `RESERVED_SUBDOMAINS` | noms exclus des slugs d'établissement |
 | `COOKIE_DOMAIN` | vide par décision de sécurité ; les cookies restent hôte uniquement |
-| `CORS_ORIGINS` | apex et motif du sous-domaine direct, dérivés de `APP_BASE_DOMAIN` par le wrapper de profil |
+| `CORS_PUBLIC_ORIGINS` | apex et motif du sous-domaine direct, dérivés de `APP_BASE_DOMAIN` par le wrapper de profil, toujours sans credentials côté Quarkus |
 | `QUARKUS_DATASOURCE_JDBC_URL` | URL JDBC de PostgreSQL (réseau interne Compose) |
 | `QUARKUS_DATASOURCE_USERNAME` | Utilisateur applicatif de la base |
 | `QUARKUS_DATASOURCE_PASSWORD` | Mot de passe associé |
@@ -125,7 +125,7 @@ Les noms d'identité et de SMTP ci-dessous sont stabilisés par le module `ident
 
 Les variables JWT de chemin, de `kid` et de JWKS ainsi que les variables SMTP sont obligatoires en production. Les fichiers de clés et les secrets SMTP sont provisionnés sur Ubuntu LTS hors de l'image Backend. Ils sont montés en lecture seule ou injectés par le fichier d'environnement protégé du VPS. Ubuntu LTS fait foi en cas de divergence de chemins ou de permissions.
 
-Le futur conteneur Backend utilisera `scripts/run-with-domain-profile.sh production` comme point d'entrée avant la commande Java. Le wrapper source uniquement `config/domains/production.env`, puis dérive `CORS_ORIGINS` et la valeur de repli de `SMTP_FROM`. Quarkus construit le magic link depuis `DASHBOARD_URL`, l'émetteur JWT depuis `API_URL` et impose les cookies `Secure` hors tests. Les secrets du VPS peuvent remplacer uniquement les variables prévues. Sans profil, le Backend échoue au démarrage au lieu de choisir silencieusement `.test` ou `.com`.
+Le futur conteneur Backend utilisera `scripts/run-with-domain-profile.sh production` comme point d'entrée avant la commande Java. Le wrapper source uniquement `config/domains/production.env`, puis dérive `CORS_PUBLIC_ORIGINS` et la valeur de repli de `SMTP_FROM`. Quarkus construit le magic link depuis `DASHBOARD_URL`, l'émetteur JWT depuis `API_URL` et impose les cookies `Secure` hors tests. Il produit `Access-Control-Allow-Credentials: false`, y compris en `%prod`. Le Caddy du VPS devra supprimer cet en-tête pour les origines publiques et le remplacer par `true` seulement quand `Origin` correspond exactement à `DASHBOARD_URL` ou `ONBOARDING_URL`. Les secrets du VPS peuvent remplacer uniquement les variables prévues. Sans profil, le Backend échoue au démarrage au lieu de choisir silencieusement `.test` ou `.com`.
 
 ### Rotation des clés JWT
 

@@ -29,14 +29,14 @@ Le catalogue, la commande, le paiement et le module Backend `identity` sont impl
 
 ## Durcissements Dashboard avant production {#durcissements-dashboard-avant-production}
 
-Le parcours local protège déjà le jeton de magic link, les cookies et l'autorisation par établissement. Deux points restent néanmoins bloquants avant d'exposer le Dashboard sur Internet :
+Le parcours local protège déjà le jeton de magic link, les cookies et l'autorisation par établissement. Deux durcissements navigateur ont été identifiés avant d'exposer le Dashboard sur Internet. Le cloisonnement CORS est maintenant fermé par défaut dans le Backend et vérifié sur le proxy local. La coordination entre onglets reste bloquante :
 
-| Point | Risque actuel | Critère de fermeture |
+| Point | État | Risque et garde-fou |
 |---|---|---|
-| CORS avec cookies | Le Backend de production conserve les credentials pour l'apex et tout sous-domaine direct autorisé par le profil. Le Dashboard fonctionne, mais un mini-site compromis pourrait donc lire une réponse authentifiée. | Le Caddy de production ajoute les credentials uniquement pour les origines Dashboard et Onboarding explicitement listées. Les mini-sites gardent les routes publiques sans credentials. Le découpage est couvert par des tests CORS positifs et négatifs. |
-| Rotation entre onglets | Le Dashboard mutualise un renouvellement concurrent dans un onglet, mais pas entre plusieurs onglets. Deux renouvellements simultanés peuvent réutiliser le même refresh token et provoquer la révocation de toute sa famille. | Une coordination inter-onglets, par exemple Web Locks et BroadcastChannel avec repli documenté, ou une tolérance serveur bornée et idempotente, garantit un seul renouvellement effectif. Un test navigateur ouvre deux onglets et vérifie que la session reste valide. |
+| CORS avec cookies | Fermé dans la configuration applicative et le proxy de référence | Quarkus accepte l'apex et les sous-domaines directs comme origines publiques, mais refuse les credentials dans tous ses profils, y compris `%prod`. Caddy les rétablit seulement après comparaison exacte avec `DASHBOARD_URL` ou `ONBOARDING_URL`. Les tests refusent les credentials à un mini-site et à une origine externe. Le futur Caddy de production devra reproduire cette branche exacte avant de pouvoir servir le Dashboard. |
+| Rotation entre onglets | Bloquant | Le Dashboard mutualise un renouvellement concurrent dans un onglet, mais pas entre plusieurs onglets. Deux renouvellements simultanés peuvent réutiliser le même refresh token et provoquer la révocation de toute sa famille. Une coordination inter-onglets, avec Web Locks et BroadcastChannel ou un repli documenté, doit garantir un seul renouvellement effectif. Un test navigateur ouvrira deux onglets et vérifiera que la session reste valide. |
 
-La configuration actuelle conserve le comportement de production antérieur afin que l'outillage local ne le modifie pas, mais elle n'est pas le niveau de cloisonnement final. Le choix précis du découpage CORS au proxy et de la coordination de session sera consigné dans un ADR si son impact dépasse le Dashboard. Tant que ces critères ne sont pas satisfaits, la configuration `%prod` ne vaut pas autorisation de déployer.
+La configuration `%prod` échoue désormais de manière sûre : sans règle explicite au proxy de production, aucune réponse CORS ne peut être lue avec les cookies restaurateur. Cette fermeture ne vaut pas autorisation de déployer le Dashboard. Le Caddy du VPS reste à provisionner et la coordination de session entre onglets reste à livrer. Le protocole de coordination sera consigné dans un ADR seulement s'il modifie la rotation côté serveur.
 
 ## Modèle de menaces
 
@@ -177,7 +177,7 @@ Tout le trafic est chiffré, sans exception ni période de transition :
 - HTTPS partout, avec un certificat wildcard couvrant `*.surplasse.com` (nécessaire pour les mini-sites en `{slug}.surplasse.com`) et le domaine apex.
 - HSTS activé sur tous les domaines (avec `includeSubDomains`), pour interdire tout repli en clair.
 - CSP stricte sur les trois fronts (Onboarding, Commande, Dashboard) : scripts et styles limités à l'origine et aux domaines Stripe requis par Elements, aucune source `unsafe-inline` pour les scripts.
-- CORS séparé selon la sensibilité : le profil injecte seulement l'apex et un sous-domaine direct HTTPS du domaine courant. En local, Quarkus refuse les credentials et Caddy les ajoute uniquement pour l'origine exacte `dashboard.surplasse.test`. La production conserve temporairement les credentials sur sa liste d'origines `.com`; son Caddy devra reproduire la branche exacte du Dashboard avant tout déploiement, conformément au bloqueur ci-dessus.
+- CORS séparé selon la sensibilité : `CORS_PUBLIC_ORIGINS` contient seulement l'apex et le motif d'un sous-domaine direct HTTPS du domaine courant. Quarkus refuse les credentials en développement, en test et en production. Caddy les ajoute uniquement pour les origines exactes du Dashboard et de l'Onboarding. Le futur Caddy du VPS doit appliquer la même règle avant de servir ces fronts.
 - Cookies de session hôte uniquement pour `api.surplasse.test` en local et `api.surplasse.com` en production, sans attribut `Domain`, en `Secure`, `HttpOnly`, `SameSite=Lax`.
 
 ## Téléversements {#televersements}
@@ -224,5 +224,4 @@ PostgreSQL est sauvegardé de façon chiffrée, avec des copies hors du VPS de p
 | Outillage de gestion des secrets sur le VPS | Orientation : fichier d'environnement protégé (chmod 600) sur le VPS, copies maîtresses dans un gestionnaire de mots de passe (le coffre des humains), rotation documentée. Un coffre serveur dédié (Vault, Infisical) ne se justifiera que si les secrets se multiplient réellement (notifications, API tierces) ou si plusieurs opérateurs partagent l'exploitation | ADR dédié, avec `infra/` |
 | Seuils de limitation hors demande de magic link et futur stockage partagé des compteurs | Calibrage avant activation de chaque endpoint, stockage partagé avant toute seconde instance | Documentation d'exploitation |
 | Plafond de taille des téléversements | De l'ordre de 10 Mo par image | Le contrat |
-| Découpage CORS entre routes publiques et restaurateur | Origines explicites avec credentials pour Dashboard et Onboarding, routes publiques sans credentials pour les mini-sites | ADR si une séparation d'API ou de domaine est retenue |
 | Coordination du refresh token entre onglets | Web Locks et BroadcastChannel côté Dashboard, ou tolérance serveur bornée et idempotente | ADR si le protocole de rotation serveur évolue |

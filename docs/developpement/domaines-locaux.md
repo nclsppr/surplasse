@@ -217,7 +217,13 @@ Ils définissent le schéma, le domaine racine et les URL canoniques. Les fronte
 
 `COOKIE_DOMAIN` est présent et vide pour rendre la décision visible. Les cookies `surplasse_session` et `surplasse_refresh` restent hôte uniquement sur `api.surplasse.test` ou `api.surplasse.com`. Ils sont `Secure`, `HttpOnly` et `SameSite=Lax`. Définir `.surplasse.test` exposerait une session restaurateur à tous les mini-sites.
 
-Le CORS local accepte seulement l'apex et un sous-domaine HTTPS direct de `surplasse.test`. Caddy n'autorise les credentials que pour l'origine exacte du Dashboard. Les mini-sites accèdent aux routes publiques sans credentials. La configuration `%prod` reste distincte et utilise `.com`.
+Le CORS local accepte seulement l'apex et un sous-domaine HTTPS direct de `surplasse.test`. Le Backend reçoit cette liste dans `CORS_PUBLIC_ORIGINS` et n'autorise jamais les credentials. Caddy les ajoute seulement pour les origines exactes du Dashboard et de l'Onboarding. Les mini-sites accèdent aux routes publiques sans credentials. La configuration `%prod` applique le même refus par défaut avec les origines `.com`.
+
+Le contrôle automatisé lance un Caddy éphémère avec Docker et vérifie les réponses pour le Dashboard, l'Onboarding, un mini-site et une origine externe :
+
+```bash
+npm run local:cors:test
+```
 
 Toute future URL de restaurant, de QR code, d'email, d'authentification ou de paiement consomme cette configuration. Les retours Stripe actuels utilisent l'URL du navigateur, qui garde naturellement `.test` en local et `.com` en production.
 

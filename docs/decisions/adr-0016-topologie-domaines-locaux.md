@@ -42,6 +42,8 @@ Un cockpit Node réservé au développement expose l'inventaire des URL et leur 
 
 Les cookies restaurateur restent hôte uniquement sur l'API, sans attribut `Domain`. `COOKIE_DOMAIN` reste vide dans la configuration publique. Cette absence est volontaire : partager `.surplasse.test` ou `.surplasse.com` exposerait la session de l'API à tous les mini-sites.
 
+Le CORS suit la même frontière. Quarkus autorise l'apex et les sous-domaines directs comme origines publiques, sans credentials dans aucun profil. Caddy est le seul composant autorisé à ajouter `Access-Control-Allow-Credentials: true`, après une comparaison exacte de `Origin` avec les URL canoniques du Dashboard ou de l'Onboarding. Un mini-site conserve donc l'accès aux routes publiques sans pouvoir lire une réponse authentifiée. Le Caddy de production devra reprendre cette règle lors de son provisionnement.
+
 ## Conséquences
 
 ### Positives
