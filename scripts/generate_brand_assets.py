@@ -104,6 +104,20 @@ def generate(output_directory: Path, *, quiet: bool = False) -> None:
         print("wrote brand/qr/center-mark.png")
 
 
+def images_have_same_pixels(first: Path, second: Path) -> bool:
+    """Compare decoded pixels so PNG compression remains platform-independent."""
+    if not first.is_file() or not second.is_file():
+        return False
+    with Image.open(first) as actual, Image.open(second) as generated:
+        actual.load()
+        generated.load()
+        return (
+            actual.mode == generated.mode
+            and actual.size == generated.size
+            and actual.tobytes() == generated.tobytes()
+        )
+
+
 def check_assets() -> None:
     expected_names = ["center-mark.png", *DOMAIN_PROFILES.values()]
     with TemporaryDirectory(prefix="surplasse-brand-") as temporary_directory:
@@ -112,8 +126,10 @@ def check_assets() -> None:
         stale = [
             name
             for name in expected_names
-            if not (OUT / name).is_file()
-            or (OUT / name).read_bytes() != (generated_directory / name).read_bytes()
+            if not images_have_same_pixels(
+                OUT / name,
+                generated_directory / name,
+            )
         ]
     if stale:
         raise SystemExit(
