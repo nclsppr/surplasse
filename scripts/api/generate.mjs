@@ -7,7 +7,7 @@
  * frontends/shared/src/api/generated/. Outputs are committed; this script is
  * the only way to regenerate them.
  */
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,6 +18,19 @@ import { filterDrafts } from "./filter.mjs";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const contractPath = join(root, "api", "openapi.yaml");
 const filteredPath = join(root, "node_modules", ".cache", "surplasse", "openapi.filtered.yaml");
+
+function assertJava21() {
+  const result = spawnSync("java", ["-version"], { encoding: "utf8" });
+  const banner = `${result.stdout ?? ""}${result.stderr ?? ""}`;
+  const major = banner.match(/version "(?:1\.)?(\d+)/)?.[1];
+
+  if (result.error || result.status !== 0 || major !== "21") {
+    console.error(
+      "Error: OpenAPI generation requires JDK 21. Install it and make sure `java -version` reports 21 before retrying.",
+    );
+    process.exit(1);
+  }
+}
 
 function generate(generator, output, extraArgs) {
   execFileSync(
@@ -36,6 +49,9 @@ function generate(generator, output, extraArgs) {
 const doc = filterDrafts(YAML.parse(readFileSync(contractPath, "utf8")));
 mkdirSync(dirname(filteredPath), { recursive: true });
 writeFileSync(filteredPath, YAML.stringify(doc));
+
+// Validate the external runtime before deleting any committed generated file.
+assertJava21();
 
 rmSync(join(root, "backend", "contract", "src", "main", "java"), { recursive: true, force: true });
 generate("jaxrs-spec", "backend/contract", [

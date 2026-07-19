@@ -216,7 +216,7 @@ Le fichier `.env` du backend vit dans `backend/.env`, à côté de `backend/.env
 |---|---|---|
 | `Port 8080 already in use` (ou 5173, 5432...) | un autre processus occupe le port conventionnel | identifier le processus (`lsof -i :8080`) et l'arrêter ; ne pas changer le port de l'application |
 | erreurs de build frontend étranges, syntaxe non reconnue | mauvaise version de Node active | `node -v` doit afficher 24 ; sinon `nvm use` à la racine du repo |
-| `release version 21 not supported` ou erreur de compilation Java | mauvais JDK actif | `java -version` doit afficher 21 ; sinon `sdk use java 21-tem` |
+| `OpenAPI generation requires JDK 21`, `release version 21 not supported` ou erreur de compilation Java | JDK absent ou mauvaise version active | `java -version` doit afficher 21 ; relever la dernière Temurin 21 avec `sdk list java`, puis exécuter `sdk install java <identifiant>` et `sdk use java <identifiant>` |
 | les Dev Services échouent, `Could not connect to Docker` | le démon Docker n'est pas démarré | lancer Docker Desktop ou OrbStack, vérifier avec `docker info`, relancer `./mvnw quarkus:dev` |
 | `docs:watch` ou `docs:build` échoue, binaire `retype` introuvable dans `.bin` | le lien `node_modules/.bin/retype` n'a pas été créé par npm | appeler Retype directement : `node node_modules/retypeapp/retype.js start --port 5005` (ou `build`) ; c'est d'ailleurs la forme utilisée par les scripts npm du `package.json` racine |
 | le front affiche des erreurs réseau vers l'API | le backend n'est pas lancé, ou `VITE_API_BASE_URL` pointe ailleurs | vérifier que `http://localhost:8080/q/health` répond, vérifier le `.env` du frontend |
