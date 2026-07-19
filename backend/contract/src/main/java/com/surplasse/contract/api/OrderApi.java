@@ -3,6 +3,8 @@ package com.surplasse.contract.api;
 import com.surplasse.contract.model.Order;
 import com.surplasse.contract.model.OrderCreationRequest;
 import com.surplasse.contract.model.OrderPage;
+import com.surplasse.contract.model.OrderStatusResult;
+import com.surplasse.contract.model.OrderStatusUpdate;
 import com.surplasse.contract.model.Problem;
 import com.surplasse.contract.model.TableSession;
 import com.surplasse.contract.model.TableSessionRequest;
@@ -89,5 +91,24 @@ public interface OrderApi {
     @Path("/orders")
     @Produces({ "application/json", "application/problem+json" })
     Response listOrders(@QueryParam("establishmentId") @NotNull   UUID establishmentId,@QueryParam("cursor") @Size(min=1,max=512)   String cursor,@QueryParam("limit") @Min(1) @Max(100) @DefaultValue("50")   Integer limit);
+
+
+    /**
+     * Advances one order on behalf of an authenticated restaurateur. The target must be the next state allowed by the order state machine: `paid` to `accepted`, `accepted` to `preparing`, `preparing` to `ready`, then `ready` to `served` for an on-site order or `picked_up` for a takeaway order. Repeating the state already reached is idempotent and returns the current result without emitting another event. Refunds are deliberately excluded: they require a payment operation and cannot be represented by a status-only update.  The restaurateur session cookie is required. Unknown orders and orders outside the caller's establishment scope yield the same 404. 
+     *
+     * @param orderId Identifier of the order.
+     * @param orderStatusUpdate 
+     * @return The order status after the idempotent update.
+     * @return The order identifier or payload is syntactically invalid.
+     * @return The restaurateur session is missing or expired.
+     * @return Unknown order, or order outside the caller's establishment scope.
+     * @return The requested transition is not allowed from the current order status.
+     * @return The terminal status is incompatible with the order type.
+     */
+    @PATCH
+    @Path("/orders/{orderId}/status")
+    @Consumes({ "application/json" })
+    @Produces({ "application/json", "application/problem+json" })
+    Response updateOrderStatus(@PathParam("orderId") UUID orderId,@Valid @NotNull OrderStatusUpdate orderStatusUpdate);
 
 }

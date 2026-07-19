@@ -16,6 +16,8 @@ src/main/java/com/surplasse/contract/model/OrderLine.java
 src/main/java/com/surplasse/contract/model/OrderLineOption.java
 src/main/java/com/surplasse/contract/model/OrderLineRequest.java
 src/main/java/com/surplasse/contract/model/OrderPage.java
+src/main/java/com/surplasse/contract/model/OrderStatusResult.java
+src/main/java/com/surplasse/contract/model/OrderStatusUpdate.java
 src/main/java/com/surplasse/contract/model/PaymentCreationRequest.java
 src/main/java/com/surplasse/contract/model/PaymentSession.java
 src/main/java/com/surplasse/contract/model/Problem.java

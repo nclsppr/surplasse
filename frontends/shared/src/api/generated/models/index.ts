@@ -537,6 +537,66 @@ export interface OrderPage {
     hasMore: boolean;
 }
 /**
+ * The order identifier and its status after an idempotent operational update.
+ * @export
+ * @interface OrderStatusResult
+ */
+export interface OrderStatusResult {
+    /**
+     * Identifier of the updated order.
+     * @type {string}
+     * @memberof OrderStatusResult
+     */
+    id: string;
+    /**
+     * Status reached by the order.
+     * @type {string}
+     * @memberof OrderStatusResult
+     */
+    status: OrderStatusResultStatusEnum;
+}
+
+
+/**
+ * @export
+ */
+export const OrderStatusResultStatusEnum = {
+    Accepted: 'accepted',
+    Preparing: 'preparing',
+    Ready: 'ready',
+    Served: 'served',
+    PickedUp: 'picked_up'
+} as const;
+export type OrderStatusResultStatusEnum = typeof OrderStatusResultStatusEnum[keyof typeof OrderStatusResultStatusEnum];
+
+/**
+ * The next operational status requested by establishment staff.
+ * @export
+ * @interface OrderStatusUpdate
+ */
+export interface OrderStatusUpdate {
+    /**
+     * The next status in the order state machine.
+     * @type {string}
+     * @memberof OrderStatusUpdate
+     */
+    status: OrderStatusUpdateStatusEnum;
+}
+
+
+/**
+ * @export
+ */
+export const OrderStatusUpdateStatusEnum = {
+    Accepted: 'accepted',
+    Preparing: 'preparing',
+    Ready: 'ready',
+    Served: 'served',
+    PickedUp: 'picked_up'
+} as const;
+export type OrderStatusUpdateStatusEnum = typeof OrderStatusUpdateStatusEnum[keyof typeof OrderStatusUpdateStatusEnum];
+
+/**
  * The order to open a Stripe payment session for.
  * @export
  * @interface PaymentCreationRequest

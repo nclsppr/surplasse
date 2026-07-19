@@ -18,6 +18,8 @@ import type {
   Order,
   OrderCreationRequest,
   OrderPage,
+  OrderStatusResult,
+  OrderStatusUpdate,
   Problem,
   TableSession,
   TableSessionRequest,
@@ -41,6 +43,11 @@ export interface ListOrdersRequest {
     establishmentId: string;
     cursor?: string;
     limit?: number;
+}
+
+export interface UpdateOrderStatusRequest {
+    orderId: string;
+    orderStatusUpdate: OrderStatusUpdate;
 }
 
 /**
@@ -242,6 +249,55 @@ export class OrderApi extends runtime.BaseAPI {
      */
     async listOrders(requestParameters: ListOrdersRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<OrderPage> {
         const response = await this.listOrdersRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Advances one order on behalf of an authenticated restaurateur. The target must be the next state allowed by the order state machine: `paid` to `accepted`, `accepted` to `preparing`, `preparing` to `ready`, then `ready` to `served` for an on-site order or `picked_up` for a takeaway order. Repeating the state already reached is idempotent and returns the current result without emitting another event. Refunds are deliberately excluded: they require a payment operation and cannot be represented by a status-only update.  The restaurateur session cookie is required. Unknown orders and orders outside the caller\'s establishment scope yield the same 404. 
+     * Advance an order through the operational workflow
+     */
+    async updateOrderStatusRaw(requestParameters: UpdateOrderStatusRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<OrderStatusResult>> {
+        if (requestParameters['orderId'] == null) {
+            throw new runtime.RequiredError(
+                'orderId',
+                'Required parameter "orderId" was null or undefined when calling updateOrderStatus().'
+            );
+        }
+
+        if (requestParameters['orderStatusUpdate'] == null) {
+            throw new runtime.RequiredError(
+                'orderStatusUpdate',
+                'Required parameter "orderStatusUpdate" was null or undefined when calling updateOrderStatus().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+
+        let urlPath = `/v1/orders/{orderId}/status`;
+        urlPath = urlPath.replace(`{${"orderId"}}`, encodeURIComponent(String(requestParameters['orderId'])));
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'PATCH',
+            headers: headerParameters,
+            query: queryParameters,
+            body: requestParameters['orderStatusUpdate'],
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response);
+    }
+
+    /**
+     * Advances one order on behalf of an authenticated restaurateur. The target must be the next state allowed by the order state machine: `paid` to `accepted`, `accepted` to `preparing`, `preparing` to `ready`, then `ready` to `served` for an on-site order or `picked_up` for a takeaway order. Repeating the state already reached is idempotent and returns the current result without emitting another event. Refunds are deliberately excluded: they require a payment operation and cannot be represented by a status-only update.  The restaurateur session cookie is required. Unknown orders and orders outside the caller\'s establishment scope yield the same 404. 
+     * Advance an order through the operational workflow
+     */
+    async updateOrderStatus(requestParameters: UpdateOrderStatusRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<OrderStatusResult> {
+        const response = await this.updateOrderStatusRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

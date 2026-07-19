@@ -494,6 +494,104 @@ paths:
                 detail: No order matches this tracking token.
                 instance: /v1/orders/0d9e8c7b-6a5f-4e3d-8c2b-1a0f9e8d7c6b
 
+  /v1/orders/{orderId}/status:
+    patch:
+      tags: [order]
+      operationId: updateOrderStatus
+      summary: Advance an order through the operational workflow
+      description: |
+        Advances one order on behalf of an authenticated restaurateur. The
+        target must be the next state allowed by the order state machine:
+        `paid` to `accepted`, `accepted` to `preparing`, `preparing` to
+        `ready`, then `ready` to `served` for an on-site order or `picked_up`
+        for a takeaway order. Repeating the state already reached is
+        idempotent and returns the current result without emitting another
+        event. Refunds are deliberately excluded: they require a payment
+        operation and cannot be represented by a status-only update.
+
+        The restaurateur session cookie is required. Unknown orders and
+        orders outside the caller's establishment scope yield the same 404.
+      security:
+        - restaurateurSession: []
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderStatusUpdate"
+      responses:
+        "200":
+          description: The order status after the idempotent update.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderStatusResult"
+              example:
+                id: 0d9e8c7b-6a5f-4e3d-8c2b-1a0f9e8d7c6b
+                status: accepted
+        "400":
+          description: The order identifier or payload is syntactically invalid.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/validation-error
+                title: Validation error
+                status: 400
+                detail: "status must be one of: accepted, preparing, ready, served, picked_up."
+                instance: /v1/orders/0d9e8c7b-6a5f-4e3d-8c2b-1a0f9e8d7c6b/status
+        "401":
+          description: The restaurateur session is missing or expired.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/session-expired
+                title: Session expired
+                status: 401
+                detail: The restaurateur session is expired or missing.
+                instance: /v1/orders/0d9e8c7b-6a5f-4e3d-8c2b-1a0f9e8d7c6b/status
+        "404":
+          description: Unknown order, or order outside the caller's establishment scope.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/resource-not-found
+                title: Resource not found
+                status: 404
+                detail: No order matches this identifier.
+                instance: /v1/orders/0d9e8c7b-6a5f-4e3d-8c2b-1a0f9e8d7c6b/status
+        "409":
+          description: The requested transition is not allowed from the current order status.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/order-not-modifiable
+                title: Order not modifiable
+                status: 409
+                detail: Order status cannot move from paid to ready.
+                instance: /v1/orders/0d9e8c7b-6a5f-4e3d-8c2b-1a0f9e8d7c6b/status
+        "422":
+          description: The terminal status is incompatible with the order type.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/business-rule-violation
+                title: Business rule violation
+                status: 422
+                detail: An on-site order must finish as served.
+                instance: /v1/orders/0d9e8c7b-6a5f-4e3d-8c2b-1a0f9e8d7c6b/status
+
   /v1/orders/{orderId}/events:
     get:
       x-sse: true
@@ -1571,6 +1669,35 @@ components:
         totalCents: 1600
         currency: EUR
         createdAt: "2026-07-18T12:34:56Z"
+
+    OrderStatusUpdate:
+      type: object
+      description: The next operational status requested by establishment staff.
+      properties:
+        status:
+          type: string
+          description: The next status in the order state machine.
+          enum: [accepted, preparing, ready, served, picked_up]
+      required: [status]
+      example:
+        status: accepted
+
+    OrderStatusResult:
+      type: object
+      description: The order identifier and its status after an idempotent operational update.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identifier of the updated order.
+        status:
+          type: string
+          description: Status reached by the order.
+          enum: [accepted, preparing, ready, served, picked_up]
+      required: [id, status]
+      example:
+        id: 0d9e8c7b-6a5f-4e3d-8c2b-1a0f9e8d7c6b
+        status: accepted
 
     OrderPage:
       type: object
