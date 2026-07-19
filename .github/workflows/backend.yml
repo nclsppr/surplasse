@@ -7,6 +7,9 @@ on:
     paths:
       - "backend/**"
       - "api/**"
+      - "config/domains/**"
+      - "scripts/run-with-domain-profile.sh"
+      - "package.json"
       - ".github/workflows/backend.yml"
   workflow_dispatch:
 
@@ -15,6 +18,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -23,5 +29,4 @@ jobs:
       # verify enchaîne compilation, tests unitaires, tests d'intégration
       # (@QuarkusTest sur PostgreSQL 17 via Testcontainers, réponses
       # validées contre le contrat) et le contrôle de formatage Spotless.
-      - run: ./mvnw -B verify
-        working-directory: backend
+      - run: npm run backend:verify

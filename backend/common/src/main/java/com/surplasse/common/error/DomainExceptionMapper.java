@@ -1,5 +1,7 @@
 package com.surplasse.common.error;
 
+import com.surplasse.common.config.PlatformConfig;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
@@ -21,9 +23,13 @@ public class DomainExceptionMapper implements ExceptionMapper<DomainException> {
     @Context
     UriInfo uriInfo;
 
+    @Inject
+    PlatformConfig platformConfig;
+
     @Override
     public Response toResponse(DomainException exception) {
         ProblemPayload payload = ProblemPayload.of(
+                platformConfig.problemTypeBase().toString(),
                 exception.problemType(),
                 exception.title(),
                 exception.status(),

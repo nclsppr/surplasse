@@ -63,7 +63,8 @@ Aucune logique métier serveur n'est dupliquée dans `shared/` ni dans aucun fro
 
 | | **Commande** | **Dashboard** | **Onboarding** |
 |---|---|---|---|
-| Domaine | `{slug}.surplasse.com` | `dashboard.surplasse.com` | `surplasse.com` |
+| Production | `{slug}.surplasse.com` | `dashboard.surplasse.com` | `surplasse.com` |
+| Développement | `{slug}.surplasse.test` | `dashboard.surplasse.test` | `surplasse.test` |
 | Public | Le client à table ou en mobilité | Le restaurateur et son équipe | Le restaurateur prospect |
 | Cible d'appareil | Mobile d'abord, exclusivement pensé téléphone | Desktop et tablette d'abord | Desktop et mobile à parité |
 | Exigence de performance | Critique : budget strict, réseau mobile supposé | Confortable : réseau du restaurant, session longue | Standard : bonne première impression |
@@ -109,7 +110,7 @@ Les composants du design system consomment exclusivement ces variables. Un seul 
 
 ### Résolution du slug par sous-domaine
 
-Chaque établissement est servi sur `{slug}.surplasse.com`. Une entrée DNS wildcard (`*.surplasse.com`) dirige tous les sous-domaines vers la même instance de l'application Commande. Au démarrage, l'application lit le `hostname`, en extrait le slug et interroge l'API pour résoudre l'établissement :
+Chaque établissement est servi sur `{slug}.surplasse.com` en production et `{slug}.surplasse.test` en local. Une entrée DNS wildcard dirige tous les sous-domaines vers la même instance de Commande. Au démarrage, l'application lit le `hostname`, retire le suffixe fourni par `APP_BASE_DOMAIN`, vérifie que le label n'est pas réservé et interroge l'API pour résoudre l'établissement :
 
 ```
   client                    DNS                    Commande (SPA)
@@ -125,7 +126,7 @@ Chaque établissement est servi sur `{slug}.surplasse.com`. Une entrée DNS wild
     |                        |                          |   thème, carte
 ```
 
-Un slug inconnu affiche une page neutre Surplasse (pas d'erreur brute). Le certificat TLS wildcard et la configuration du reverse proxy sont décrits côté [infrastructure](../operations/environnements.md).
+La fonction accepte seulement un sous-domaine direct valide. Elle rejette les noms réservés, les sous-domaines imbriqués et les suffixes trompeurs. Le profil local ou de production vient de `config/domains/`, jamais d'une comparaison codée avec `.com`. Un slug inconnu affiche une page neutre Surplasse (pas d'erreur brute). Le certificat TLS wildcard et le reverse proxy local sont décrits dans [Domaines locaux](../developpement/domaines-locaux.md), la cible publique dans [Environnements](../operations/environnements.md).
 
 ### SEO du mini-site
 

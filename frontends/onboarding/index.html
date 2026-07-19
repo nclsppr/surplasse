@@ -89,7 +89,7 @@
       <a href="#restaurant" class="sp-btn sp-btn--ghost sp-btn--sm" style="text-decoration:none">Dashboard</a>
     </nav>
     <span class="spacer"></span>
-    <a href="#" class="sp-btn sp-btn--ghost sp-btn--sm cta-connect" style="text-decoration:none">Se connecter</a>
+    <a id="dashboard-login-url" href="#" class="sp-btn sp-btn--ghost sp-btn--sm cta-connect" style="text-decoration:none">Se connecter</a>
     <a href="creer.html" class="sp-btn sp-btn--primary sp-btn--sm" style="text-decoration:none">Créer mon restaurant</a>
   </div>
 </header>
@@ -200,5 +200,13 @@
   </div>
 </footer>
 
+<script src="runtime-config.js"></script>
+<script>
+  const domainConfig = window.SURPLASSE_DOMAIN_CONFIG;
+  if (!domainConfig) {
+    throw new Error('Surplasse domain configuration is unavailable.');
+  }
+  document.getElementById('dashboard-login-url').href = domainConfig.DASHBOARD_URL + '/auth/login';
+</script>
 </body>
 </html>

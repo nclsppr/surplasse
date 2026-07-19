@@ -54,22 +54,23 @@ La documentation et la préfiguration statique de l'Onboarding sont actuellement
 
 Le module Maven `identity` n'apparaît pas comme un service dans ce tableau : il est compilé dans l'image Backend. Il ne possède aucun processus, port, conteneur, volume ni health check distinct. Mailpit n'apparaît pas non plus : c'est un outil local jetable, absent de la CI et de la production. En production, le Backend remet les emails à un fournisseur SMTP transactionnel externe encore à sélectionner.
 
+dnsmasq, mkcert et le cockpit Node sont eux aussi réservés au développement. Le DNS public remplace dnsmasq, Let's Encrypt remplace mkcert et l'observabilité de production remplacera le cockpit. `infra/local/Caddyfile` ne se déploie pas sur Ubuntu : le Caddy du VPS aura sa propre configuration, son défi DNS-01 et son cycle de vie Compose. L'inventaire local exécutable est dans [Domaines locaux](../developpement/domaines-locaux.md).
+
 ### Cycle de vie de l'identité sous Ubuntu LTS
 
 L'identité suit exactement le cycle de vie du Backend. La pile `infra/` n'est pas encore provisionnée ; les commandes ci-dessous fixent le contrat opérationnel du futur service Compose `backend` :
 
 ```bash
-# Vérifier le Backend avant de construire son image
-cd backend
-./mvnw -B verify
-./mvnw -B package
+# Verify the Backend before building its image
+cd /path/to/surplasse
+npm run backend:verify
 
-# Lancer sur le VPS depuis le futur répertoire infra/
+# Start on the VPS from the future production infrastructure directory
 docker compose up -d backend
 docker compose restart backend
 curl --fail https://api.surplasse.com/q/health/ready
 
-# Arrêt de maintenance, qui coupe toute l'API
+# Stop for maintenance, which interrupts the whole API
 docker compose stop backend
 ```
 
@@ -89,10 +90,10 @@ cd ../dashboard
 npm ci
 npm run lint
 npm test
-VITE_API_BASE_URL=https://api.surplasse.com npm run build
+npm run build
 ```
 
-Cette construction produit `frontends/dashboard/dist/`. La valeur `VITE_API_BASE_URL` est intégrée aux fichiers au build : elle n'est pas lue au démarrage. Le résultat ne conserve aucune donnée et n'utilise aucun volume. React, React Router, TanStack Query et `frontends/shared` sont intégrés aux fichiers statiques. Node, Vite, Tailwind CSS, TypeScript, ESLint et Vitest restent dans l'étape de build ou de CI et sont absents du conteneur statique cible.
+Cette construction produit `frontends/dashboard/dist/`. Le mode production lit `config/domains/production.env` et intègre `https://api.surplasse.com` aux fichiers ; une variable `VITE_API_BASE_URL` peut encore fournir un override explicite de CI. Le résultat ne conserve aucune donnée et n'utilise aucun volume. React, React Router, TanStack Query et `frontends/shared` sont intégrés aux fichiers statiques. Node, Vite, Tailwind CSS, TypeScript, ESLint et Vitest restent dans l'étape de build ou de CI et sont absents du conteneur statique cible.
 
 Le futur commit `infra/` devra construire une image immuable depuis ce dossier, déclarer un service Compose `dashboard` et rendre alors les commandes suivantes réellement exécutables sur Ubuntu LTS :
 
@@ -106,7 +107,7 @@ docker compose stop dashboard
 
 Une mise à jour remplacera l'image par un nouveau SHA. Un retour arrière redéploiera le dernier SHA sain, sans restauration de données. Le Dashboard n'a ni sauvegarde, ni restauration, ni migration propre : toute donnée métier reste dans PostgreSQL derrière le Backend. Tant que l'image, le service Compose et le routage ne sont pas ajoutés, le Dashboard est explicitement non déployable et les commandes cibles ci-dessus ne doivent pas être utilisées comme preuve d'une production disponible.
 
-Sur le choix du reverse proxy : Traefik excelle dans la découverte dynamique de conteneurs et brille dans des environnements où les services vont et viennent, au prix d'une configuration par labels plus verbeuse et d'un modèle mental plus riche. Caddy fait la même chose ici avec un fichier de configuration court et lisible, et gère le certificat wildcard par défi DNS-01 via un module DNS provider (build Caddy personnalisé, à prévoir dans l'image de `infra/`). La topologie de Surplasse étant statique (les mêmes services, tout le temps), la référence retient **Caddy** pour sa simplicité ; ce choix sera consigné en ADR avec la mise en place de `infra/`.
+Sur le choix du reverse proxy : Traefik excelle dans la découverte dynamique de conteneurs et brille dans des environnements où les services vont et viennent, au prix d'une configuration par labels plus verbeuse et d'un modèle mental plus riche. Caddy fait la même chose ici avec un fichier de configuration court et lisible, et gère le certificat wildcard par défi DNS-01 via un module DNS provider (build Caddy personnalisé, à prévoir dans l'image de production). La topologie de Surplasse étant statique, la référence retient Caddy pour sa simplicité. L'[ADR-0016](../decisions/adr-0016-topologie-domaines-locaux.md) fixe déjà son rôle dans la reproduction locale ; le provisionnement VPS devra confirmer le module DNS exact.
 
 Chaque front est empaqueté dans une image minimale servant ses fichiers statiques, construite et taggée par SHA par la CI (voir [CI/CD](../developpement/ci-cd.md)). L'alternative (Caddy servant directement les fichiers depuis un volume) économiserait trois conteneurs mais casserait l'uniformité « un déploiement = un jeu d'images » ; elle reste ouverte si la première approche s'avère lourde.
 

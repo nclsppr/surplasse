@@ -11,6 +11,8 @@ build/
 .env
 .env.*
 !.env.example
+.certs/
+.venv-brand/
 
 # Système
 .DS_Store

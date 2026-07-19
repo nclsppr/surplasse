@@ -135,8 +135,10 @@ Côté Dashboard, le flux SSE du backend (nouvelles commandes, changements de st
 
 Le front Commande sert un établissement à la fois. Le slug est résolu une fois au démarrage, dans `app/` (fonction `resolveEstablishmentSlug`) :
 
-- **En production**, le slug est le sous-domaine du mini-site (`{slug}.surplasse.com`). Les sous-domaines réservés (`www`, `dashboard`, `api`, `docs`) et les hôtes hors plateforme ne sont jamais traités comme des établissements.
-- **En développement** (localhost), le slug vient de la variable d'environnement `VITE_ESTABLISHMENT_SLUG`, avec l'établissement de démonstration (`le-cormoran`, seedé par Flyway) comme valeur par défaut : cloner, lancer, la carte s'affiche.
+- **En production**, le slug est le sous-domaine direct du mini-site (`{slug}.surplasse.com`).
+- **En développement**, la même résolution s'applique sur `{slug}.surplasse.test`. Les deux suffixes viennent du profil `APP_BASE_DOMAIN`, sans hypothèse sur `.com`.
+- Les noms `www`, `api`, `dashboard`, `docs`, `app`, `admin`, `local` et `mail`, ainsi que les hôtes hors plateforme ou imbriqués, ne sont jamais traités comme des établissements.
+- `VITE_ESTABLISHMENT_SLUG` reste uniquement un repli pour le diagnostic direct du port Vite. Le parcours navigateur canonique passe toujours par Caddy et le sous-domaine HTTPS.
 
 ## Formulaires
 

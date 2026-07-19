@@ -7,7 +7,7 @@ description: "Intégration et déploiement continus : le garde-fou du workflow s
 
 # CI/CD
 
-Surplasse s'appuie sur GitHub Actions pour l'intégration continue et le déploiement. Les workflows Pages, API, Backend et Frontends existent. La construction des images Docker et le déploiement sur le VPS restent des cibles, absentes tant que `infra/` n'existe pas.
+Surplasse s'appuie sur GitHub Actions pour l'intégration continue et le déploiement. Les workflows Pages, API, Backend et Frontends existent. `infra/local/` couvre uniquement le poste de développement. La construction des images Docker, la pile Compose de production et le déploiement sur le VPS restent des cibles absentes.
 
 Pour le détail des environnements et de la topologie de production, voir [Environnements](../operations/environnements.md) et [Exploitation](../operations/index.md).
 
@@ -35,7 +35,7 @@ Le fichier `.github/workflows/pages.yml` construit le site Retype, l'assemble av
 | Concurrence | Groupe `pages`, avec annulation des exécutions en cours (`cancel-in-progress`) |
 | Jobs | `build` puis `deploy` (ce dernier conditionné à `main`) |
 
-Le job `build` enchaîne cinq étapes : checkout (`actions/checkout@v4`), installation de Node 24 (`actions/setup-node@v4`), `npm ci`, `npm run docs:build`, puis l'assemblage du site publié (landing et tunnel statiques à la racine, assets de marque sous `brand/`, documentation Retype sous `docs/`). Le script npm invoque `node node_modules/retypeapp/retype.js` directement plutôt que la commande `retype` : npm 10.9.x ne crée pas le lien `node_modules/.bin/retype` à l'installation, à cause d'une collision de noms de bin avec les paquets plateforme `retypeapp-*`. Le site assemblé est publié comme artefact Pages via `actions/upload-pages-artifact@v3`.
+Le job `build` enchaîne checkout (`actions/checkout@v4`), installation de Node 24 (`actions/setup-node@v4`), `npm ci`, vérification du fichier de domaines généré avec `npm run domains:check`, `npm run docs:build`, puis l'assemblage du site publié. Cet assemblage place la landing, le tunnel et `runtime-config.js` à la racine, les assets de marque sous `brand/` et la documentation Retype sous `docs/`. Le script npm invoque `node node_modules/retypeapp/retype.js` directement plutôt que la commande `retype` : npm 10.9.x ne crée pas le lien `node_modules/.bin/retype` à l'installation, à cause d'une collision de noms de bin avec les paquets plateforme `retypeapp-*`. Le site assemblé est publié comme artefact Pages via `actions/upload-pages-artifact@v3`.
 
 Le job `deploy` dépend de `build`, ne s'exécute que si la référence est `refs/heads/main`, cible l'environnement GitHub `github-pages` et publie l'artefact avec `actions/deploy-pages@v4`.
 
@@ -47,10 +47,10 @@ Le monorepo suit un découpage par filtres de chemins (`paths`) : un push qui ne
 
 | Workflow | Déclencheur (filtre de chemins) | Étapes |
 |---|---|---|
-| `pages.yml` | `push` sur `main` (filtre de chemins à venir) | Build Retype, assemblage du site public (docs, landing, marque), déploiement GitHub Pages (décrit ci-dessus) |
+| `pages.yml` | chaque `push` sur `main` | Build Retype, assemblage du site public (docs, landing, marque), déploiement GitHub Pages (décrit ci-dessus) |
 | `api.yml` | `push`, chemins `api/**`, `openapitools.json`, `scripts/api/**` | Lint Spectral, contrôle de compatibilité `oasdiff` contre le commit précédent (dérogation par préfixe de commit `api!:`), fraîcheur de la génération (`npm run api:generate` puis `git diff --exit-code`) |
-| `backend.yml` | `push`, chemins `backend/**`, `api/**` | Java 21 Temurin, cache Maven, `./mvnw -B verify` : compilation, tests unitaires et d'intégration (PostgreSQL 17 via Testcontainers, réponses validées contre le contrat), formatage Spotless |
-| `frontends.yml` | `push`, chemins `frontends/**`, `brand/**`, `api/**` (jobs actuels : `shared`, `commande`, `dashboard`) | Node 24, `npm ci`, ESLint, `tsc --noEmit`, tests Vitest, build Vite |
+| `backend.yml` | `push`, chemins `backend/**`, `api/**`, profils de domaines, wrapper ou `package.json` | Java 21 Temurin, cache Maven, `npm run backend:verify` : injection du profil, compilation, tests unitaires et d'intégration (PostgreSQL 17 via Testcontainers), contrat et formatage Spotless |
+| `frontends.yml` | `push`, chemins `frontends/**`, `config/domains/**`, cockpit, scripts locaux, `infra/local/**`, `brand/**`, `api/**` | Profils et QR générés, tests du cockpit, syntaxe shell, adaptation Caddy, package `shared`, lint, tests et builds de Commande et du Dashboard |
 | `images.yml` (cible) | `push` sur `main`, chemins `backend/**`, `frontends/**`, `brand/**`, `infra/**` | Build des images Docker (backend et les trois fronts), tag par SHA de commit, push vers le registre (GHCR) |
 | `deploy.yml` (cible) | Fin réussie de `images.yml` sur `main`, ou déclenchement manuel avec un SHA en paramètre | Connexion SSH au VPS, `docker compose pull`, `docker compose up -d`, healthcheck post-déploiement |
 
@@ -62,9 +62,9 @@ push sur main
      +--> filtres de chemins
      |         |
      |         +--> backend.yml     (si backend/ ou api/ touchés)
-     |         +--> frontends.yml   (si frontends/, brand/ ou api/ touchés)
+     |         +--> frontends.yml   (si frontends/, config/domains/, cockpit, brand/ ou api/ touchés)
      |         +--> api.yml         (si api/ touché)
-     |         +--> pages.yml       (si docs/ ou brand/ touchés)
+     |         +--> pages.yml       (à chaque push sur main)
      |
      +--> images.yml  (si backend/, frontends/, brand/ ou infra/ touchés)
                 |
@@ -73,7 +73,7 @@ push sur main
 
 Les workflows de vérification et la construction des images tournent en parallèle : un test rouge n'empêche pas mécaniquement la construction d'une image, mais `deploy.yml` ne part que si `images.yml` a réussi, et la discipline de correction immédiate (voir la philosophie ci-dessus) fait le reste. Rendre le déploiement dépendant de tous les workflows de vérification est une évolution possible, à trancher quand les workflows existeront.
 
-Les jobs `commande` et `dashboard` installent d'abord `frontends/shared/`, consommé en source conformément à l'ADR-0014, puis leur propre verrou npm. Le job Dashboard exécute successivement `npm run lint`, `npm test` et `npm run build`. Ce dernier inclut `tsc --noEmit` avant le build Vite. Aucun de ces outils de vérification ne devient un processus de production.
+Les jobs `domains` et `dev-cockpit` utilisent seulement Node 24 et son runner de tests natif. Les jobs `commande` et `dashboard` installent d'abord `frontends/shared/`, consommé en source conformément à l'ADR-0014, puis leur propre verrou npm. Le job Dashboard exécute successivement `npm run lint`, `npm test` et `npm run build`. Ce dernier inclut `tsc --noEmit` avant le build Vite. Aucun de ces outils de vérification ne devient un processus de production.
 
 Deux règles transversales :
 

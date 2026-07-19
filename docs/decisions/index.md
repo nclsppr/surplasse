@@ -85,7 +85,7 @@ Ne jamais « corriger » un ADR pour l'aligner sur une page plus récente. Soit 
 
 ## Registre des ADR
 
-Quinze ADR sont acceptés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'au modèle de commission.
+Seize ADR sont acceptés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'à la topologie des domaines locaux.
 
 | Numéro | Titre | Statut | Lien |
 |---|---|---|---|
@@ -104,5 +104,6 @@ Quinze ADR sont acceptés à ce jour. Ils couvrent les choix structurants du pro
 | 0013 | Générateurs OpenAPI (jaxrs-spec et typescript-fetch) | Accepté | [ADR-0013](adr-0013-generateurs-openapi.md) |
 | 0014 | Liaison de frontends/shared (file:, source TypeScript) | Accepté | [ADR-0014](adr-0014-liaison-shared.md) |
 | 0015 | Modèle de commission (0 % pendant 3 mois, puis 1 %) | Accepté | [ADR-0015](adr-0015-modele-commission.md) |
+| 0016 | Topologie des domaines locaux | Accepté | [ADR-0016](adr-0016-topologie-domaines-locaux.md) |
 
 Les décisions encore ouvertes (par exemple le choix de la solution d'impression thermique ESC/POS mentionné dans la stack de référence) donneront lieu à de futurs ADR au fil de la [roadmap](../roadmap.md).

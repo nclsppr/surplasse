@@ -33,10 +33,10 @@ Le parcours local protège déjà le jeton de magic link, les cookies et l'autor
 
 | Point | Risque actuel | Critère de fermeture |
 |---|---|---|
-| CORS avec cookies | La configuration de production autorise encore les credentials pour le motif des mini-sites `*.surplasse.com`. Une faille XSS sur un mini-site pourrait alors tenter de lire des endpoints restaurateur avec les cookies de l'API. | Les routes restaurateur n'acceptent les credentials que depuis les origines Dashboard et Onboarding explicitement listées. Les mini-sites utilisent uniquement les routes publiques, sans credentials. Le découpage est couvert par des tests CORS positifs et négatifs. |
+| CORS avec cookies | Le Backend de production conserve les credentials pour l'apex et tout sous-domaine direct autorisé par le profil. Le Dashboard fonctionne, mais un mini-site compromis pourrait donc lire une réponse authentifiée. | Le Caddy de production ajoute les credentials uniquement pour les origines Dashboard et Onboarding explicitement listées. Les mini-sites gardent les routes publiques sans credentials. Le découpage est couvert par des tests CORS positifs et négatifs. |
 | Rotation entre onglets | Le Dashboard mutualise un renouvellement concurrent dans un onglet, mais pas entre plusieurs onglets. Deux renouvellements simultanés peuvent réutiliser le même refresh token et provoquer la révocation de toute sa famille. | Une coordination inter-onglets, par exemple Web Locks et BroadcastChannel avec repli documenté, ou une tolérance serveur bornée et idempotente, garantit un seul renouvellement effectif. Un test navigateur ouvre deux onglets et vérifie que la session reste valide. |
 
-Le choix précis du découpage CORS et de la coordination de session sera consigné dans un ADR si son impact dépasse le Dashboard. Tant que ces critères ne sont pas satisfaits, la configuration `%prod` ne vaut pas autorisation de déployer.
+La configuration actuelle conserve le comportement de production antérieur afin que l'outillage local ne le modifie pas, mais elle n'est pas le niveau de cloisonnement final. Le choix précis du découpage CORS au proxy et de la coordination de session sera consigné dans un ADR si son impact dépasse le Dashboard. Tant que ces critères ne sont pas satisfaits, la configuration `%prod` ne vaut pas autorisation de déployer.
 
 ## Modèle de menaces
 
@@ -110,7 +110,7 @@ Points d'implémentation imposés :
 - Le JWT ne contient aucune donnée personnelle : uniquement l'identifiant du restaurateur, l'identifiant de famille de session et les claims techniques de validité.
 - Le JWT est signé en RS256. Son en-tête porte le `kid` de la clé courante ; le Backend signe avec une clé privée et vérifie avec un JWKS public contenant la clé courante et, pendant une rotation, la précédente.
 - Le refresh token est opaque et seule son empreinte est stockée. Chaque rotation conserve l'ancien enregistrement jusqu'à expiration ; sa réutilisation révoque toute la famille.
-- Les cookies `surplasse_session` et `surplasse_refresh` sont hôte uniquement pour l'API, sans attribut `Domain`. Ils sont `HttpOnly`, `SameSite=Lax` et `Secure` en production. Le JWT utilise `Path=/` et le refresh token `Path=/v1/auth/sessions`.
+- Les cookies `surplasse_session` et `surplasse_refresh` sont hôte uniquement pour l'API, sans attribut `Domain`. Ils sont `HttpOnly`, `SameSite=Lax` et `Secure` dans les deux environnements HTTPS. Le JWT utilise `Path=/` et le refresh token `Path=/v1/auth/sessions`.
 - Le Dashboard envoie les cookies avec `credentials: "include"` ; son `EventSource` utilise `withCredentials: true`.
 
 La remise du magic link est asynchrone mais non durable au MVP. Le Backend répond 202 après avoir persisté le jeton, sans attendre le SMTP. Un arrêt du processus ou un échec SMTP à cet instant peut perdre l'email. Le restaurateur peut alors demander un nouveau lien, ce qui invalide le précédent. Aucun jeton ni aucune adresse email n'est journalisé.
@@ -168,7 +168,7 @@ L'endpoint de webhook est le seul endpoint public non couvert par le CORS applic
 
 L'outillage exact de gestion des secrets sur le VPS (fichier d'environnement protégé, coffre dédié) reste à trancher et sera consigné dans un ADR.
 
-Sous Ubuntu LTS, qui fait foi pour la production, `AUTH_JWT_PRIVATE_KEY_PATH` pointe vers la clé privée RS256 courante, `AUTH_JWT_KEY_ID` vers son `kid`, et `AUTH_JWT_JWKS_PATH` vers le jeu de clés publiques de vérification. `AUTH_JWT_ISSUER` et `AUTH_JWT_AUDIENCE` verrouillent respectivement l'émetteur et l'audience. Les fichiers de clés sont montés en lecture seule hors de l'image. La procédure de rotation et l'inventaire complet des variables vivent dans [Environnements](../operations/environnements.md#backend-quarkus).
+Sous Ubuntu LTS, qui fait foi pour la production, `AUTH_JWT_PRIVATE_KEY_PATH` pointe vers la clé privée RS256 courante, `AUTH_JWT_KEY_ID` vers son `kid`, et `AUTH_JWT_JWKS_PATH` vers le jeu de clés publiques de vérification. L'émetteur suit obligatoirement `API_URL` et `AUTH_JWT_AUDIENCE` verrouille l'audience. Les fichiers de clés sont montés en lecture seule hors de l'image. La procédure de rotation et l'inventaire complet des variables vivent dans [Environnements](../operations/environnements.md#backend-quarkus).
 
 ## Transport et en-têtes HTTP
 
@@ -177,8 +177,8 @@ Tout le trafic est chiffré, sans exception ni période de transition :
 - HTTPS partout, avec un certificat wildcard couvrant `*.surplasse.com` (nécessaire pour les mini-sites en `{slug}.surplasse.com`) et le domaine apex.
 - HSTS activé sur tous les domaines (avec `includeSubDomains`), pour interdire tout repli en clair.
 - CSP stricte sur les trois fronts (Onboarding, Commande, Dashboard) : scripts et styles limités à l'origine et aux domaines Stripe requis par Elements, aucune source `unsafe-inline` pour les scripts.
-- CORS séparé selon la sensibilité : les endpoints restaurateur avec cookies n'acceptent que les origines Dashboard et Onboarding explicitement listées ; les mini-sites sous `{slug}.surplasse.com` n'accèdent qu'aux endpoints publics sans credentials. Ce découpage est la cible obligatoire avant production, pas encore l'état de la configuration locale.
-- Cookies de session hôte uniquement pour `api.surplasse.com`, sans attribut `Domain`, en `Secure`, `HttpOnly`, `SameSite=Lax`.
+- CORS séparé selon la sensibilité : le profil injecte seulement l'apex et un sous-domaine direct HTTPS du domaine courant. En local, Quarkus refuse les credentials et Caddy les ajoute uniquement pour l'origine exacte `dashboard.surplasse.test`. La production conserve temporairement les credentials sur sa liste d'origines `.com`; son Caddy devra reproduire la branche exacte du Dashboard avant tout déploiement, conformément au bloqueur ci-dessus.
+- Cookies de session hôte uniquement pour `api.surplasse.test` en local et `api.surplasse.com` en production, sans attribut `Domain`, en `Secure`, `HttpOnly`, `SameSite=Lax`.
 
 ## Téléversements {#televersements}
 

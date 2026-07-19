@@ -11,6 +11,8 @@ const session: RestaurateurSession = {
   establishments: [],
 };
 
+const DASHBOARD_URL = "https://dashboard.surplasse.test";
+
 function createIdentityClient(exchangeMagicLink: IdentityClient["exchangeMagicLink"]): IdentityClient {
   return {
     requestMagicLink: vi.fn(async () => undefined),
@@ -32,14 +34,14 @@ describe("MagicLinkExchangeCoordinator", () => {
     let cleanUrl = "";
 
     const first = coordinator.begin(
-      "https://dashboard.surplasse.com/auth/magic-link?source=email&token=legacy#token=fragment-token",
+      `${DASHBOARD_URL}/auth/magic-link?source=email&token=legacy#token=fragment-token`,
       (url) => {
         cleanUrl = url;
         events.push(`clean:${url}`);
       },
     );
     const second = coordinator.begin(
-      "https://dashboard.surplasse.com/auth/magic-link?source=email",
+      `${DASHBOARD_URL}/auth/magic-link?source=email`,
       vi.fn(),
     );
 
@@ -57,7 +59,7 @@ describe("MagicLinkExchangeCoordinator", () => {
     const replaceUrl = vi.fn();
 
     const exchange = coordinator.begin(
-      "https://dashboard.surplasse.com/auth/magic-link?token=legacy-token",
+      `${DASHBOARD_URL}/auth/magic-link?token=legacy-token`,
       replaceUrl,
     );
 
@@ -71,13 +73,13 @@ describe("MagicLinkExchangeCoordinator", () => {
     const coordinator = new MagicLinkExchangeCoordinator(createIdentityClient(exchangeMagicLink));
 
     const first = coordinator.begin(
-      "https://dashboard.surplasse.com/auth/magic-link#token=first-token",
+      `${DASHBOARD_URL}/auth/magic-link#token=first-token`,
       vi.fn(),
     );
     await expect(first).resolves.toBe(session);
 
     const second = coordinator.begin(
-      "https://dashboard.surplasse.com/auth/magic-link#token=second-token",
+      `${DASHBOARD_URL}/auth/magic-link#token=second-token`,
       vi.fn(),
     );
     await expect(second).resolves.toBe(session);
@@ -91,8 +93,16 @@ describe("MagicLinkExchangeCoordinator", () => {
     const coordinator = new MagicLinkExchangeCoordinator(createIdentityClient(exchangeMagicLink));
 
     expect(
-      coordinator.begin("https://dashboard.surplasse.com/auth/magic-link", vi.fn()),
+      coordinator.begin(`${DASHBOARD_URL}/auth/magic-link`, vi.fn()),
     ).toBeNull();
     expect(exchangeMagicLink).not.toHaveBeenCalled();
+  });
+
+  it("rejects relative URLs instead of guessing a dashboard host", () => {
+    const coordinator = new MagicLinkExchangeCoordinator(
+      createIdentityClient(vi.fn(async () => session)),
+    );
+
+    expect(() => coordinator.begin("/auth/magic-link#token=opaque", vi.fn())).toThrow(TypeError);
   });
 });

@@ -122,7 +122,7 @@ La génération des clients et des interfaces passe par un script unique à la r
 npm run api:generate
 ```
 
-Le script enchaîne trois étapes : filtrage des blocs `x-draft`, génération du client TypeScript, génération des interfaces Java.
+Le script enchaîne quatre étapes : filtrage des blocs `x-draft`, génération des interfaces Java, génération du client TypeScript, puis suppression de son origine de repli. Le contrat déclare un serveur relatif `/`. Chaque frontend doit donc injecter `API_URL` depuis le profil de domaines actif lors de la création du client. Aucun client généré ne peut choisir silencieusement `localhost`, `.test` ou `.com`.
 
 ```
               api/openapi.yaml  (le contrat)
@@ -147,7 +147,7 @@ Le script enchaîne trois étapes : filtrage des blocs `x-draft`, génération d
 Deux règles non négociables :
 
 - **Versions figées.** Les versions des générateurs sont épinglées dans la configuration du script. Une montée de version de générateur est un commit dédié, avec régénération complète et vérification que le diff généré est compris.
-- **Le code généré ne s'édite jamais à la main.** Toute divergence souhaitée passe par le contrat ou par la configuration du générateur. Le code généré n'est pas testé non plus : voir [la stratégie de tests](./tests.md).
+- **Le code généré ne s'édite jamais à la main.** Toute divergence souhaitée passe par le contrat ou par la configuration du générateur. La CI contrôle sa fraîcheur et l'absence d'une origine de repli. Les tests fonctionnels portent sur les fabriques de clients, pas sur les détails internes du générateur. Voir [la stratégie de tests](./tests.md).
 
 Les outils de génération sont figés par l'[ADR-0013](../decisions/adr-0013-generateurs-openapi.md) : OpenAPI Generator seul (`jaxrs-spec` vers `backend/contract/`, `typescript-fetch` vers `frontends/shared/src/api/generated/`), version épinglée dans `openapitools.json`. Le contrat, lui, reste écrit pour être générateur-agnostique.
 

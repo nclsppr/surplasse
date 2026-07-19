@@ -97,9 +97,9 @@ La page [Sécurité](../architecture/securite.md) et le contrat fixent les duré
 
 ### Portée des cookies
 
-Les deux cookies restaurateur sont **hôte uniquement pour `api.surplasse.com`**. Aucun attribut `Domain` n'est posé. Le Dashboard et l'Onboarding peuvent néanmoins les utiliser : les requêtes visent l'API, qui est précisément l'hôte du cookie, et le navigateur les envoie avec les credentials. Le flux `EventSource` du Dashboard suit la même règle avec `withCredentials: true`.
+Les deux cookies restaurateur sont **hôte uniquement pour l'API**, soit `api.surplasse.com` en production et `api.surplasse.test` en développement. Aucun attribut `Domain` n'est posé. Le Dashboard et l'Onboarding peuvent néanmoins les utiliser : les requêtes visent l'API, qui est précisément l'hôte du cookie, et le navigateur les envoie avec les credentials. Le flux `EventSource` du Dashboard suit la même règle avec `withCredentials: true`.
 
-Le choix écarte volontairement `Domain=.surplasse.com`. Cette portée élargie n'apporte rien au parcours et rendrait les cookies disponibles lors des requêtes vers chaque mini-site `{slug}.surplasse.com`. Les cookies restent `HttpOnly`, `SameSite=Lax`, `Path=/` pour le JWT et `Path=/v1/auth/sessions` pour le refresh token. Ils sont `Secure` en production ; le développement local en HTTP désactive uniquement cet attribut.
+Le choix écarte volontairement `Domain=.surplasse.com` et `Domain=.surplasse.test`. Cette portée élargie n'apporte rien au parcours et rendrait les cookies disponibles lors des requêtes vers chaque mini-site. Les cookies restent `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/` pour le JWT et `Path=/v1/auth/sessions` pour le refresh token. Le développement local utilise HTTPS avec mkcert afin de tester exactement cet invariant.
 
 !!! warning Le fournisseur d'email devient critique
 Avec le magic link, l'envoi d'email n'est plus une commodité : c'est le chemin de connexion. Le choix du fournisseur d'email transactionnel (délivrabilité, SPF, DKIM, DMARC, supervision des rebonds) reste à trancher et sera traité dans la page [Intégrations](../architecture/integrations.md).

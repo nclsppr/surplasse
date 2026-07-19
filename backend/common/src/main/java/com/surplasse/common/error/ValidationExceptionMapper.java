@@ -1,6 +1,8 @@
 package com.surplasse.common.error;
 
+import com.surplasse.common.config.PlatformConfig;
 import jakarta.annotation.Priority;
+import jakarta.inject.Inject;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.ws.rs.Priorities;
 import jakarta.ws.rs.core.Context;
@@ -21,6 +23,9 @@ public class ValidationExceptionMapper implements ExceptionMapper<ConstraintViol
     @Context
     UriInfo uriInfo;
 
+    @Inject
+    PlatformConfig platformConfig;
+
     @Override
     public Response toResponse(ConstraintViolationException exception) {
         String detail = exception.getConstraintViolations().stream()
@@ -28,7 +33,12 @@ public class ValidationExceptionMapper implements ExceptionMapper<ConstraintViol
                 .sorted()
                 .collect(Collectors.joining("; "));
         ProblemPayload payload = ProblemPayload.of(
-                "validation-error", "Validation error", 400, detail, DomainExceptionMapper.instancePath(uriInfo));
+                platformConfig.problemTypeBase().toString(),
+                "validation-error",
+                "Validation error",
+                400,
+                detail,
+                DomainExceptionMapper.instancePath(uriInfo));
         return Response.status(400)
                 .type(DomainExceptionMapper.PROBLEM_JSON)
                 .entity(payload)

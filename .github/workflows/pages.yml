@@ -24,6 +24,7 @@ jobs:
         with:
           node-version: 24
       - run: npm ci
+      - run: npm run domains:check
       # docs:build invoque le wrapper retype.js via node directement :
       # npm 10.9.x ne crée pas le lien node_modules/.bin/retype à
       # l'installation (collision de noms de bin avec les paquets
@@ -37,6 +38,7 @@ jobs:
           for f in frontends/onboarding/index.html frontends/onboarding/creer.html; do
             sed 's|\.\./\.\./brand/|brand/|g' "$f" > "site/$(basename "$f")"
           done
+          cp frontends/onboarding/runtime-config.js site/runtime-config.js
           # Assets de marque (polices, tokens, styles, composants, QR)
           cp -R brand/. site/brand/
           # Documentation Retype sous /docs

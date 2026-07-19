@@ -103,8 +103,23 @@ Deux règles de marque non négociables pour les QR codes de Surplasse :
 - **bords arrondis** (modules arrondis) ;
 - **logo Surplasse au centre**.
 
-Le wordmark étant large, le centre du QR porte une marque compacte : le **« S » de Parisienne en orange** dans un rond ivoire ; le wordmark « Surplasse » et l'URL se placent sous le QR sur les supports (stickers, sous-verres). Chaque QR encode `https://{slug}.surplasse.com/?table={jeton}`.
+Le wordmark étant large, le centre du QR porte une marque compacte : le **« S » de Parisienne en orange** dans un rond ivoire ; le wordmark « Surplasse » et l'URL se placent sous le QR sur les supports (stickers, sous-verres). Chaque QR encode `{APP_SCHEME}://{slug}.{APP_BASE_DOMAIN}/?table={jeton}`. Le profil de production donne `.com`, celui de développement `.test`.
 
-Génération : `python3 scripts/generate_brand_assets.py` produit les QR (modules arrondis espresso sur ivoire, correction d'erreur haute pour tolérer la marque centrale) dans `brand/qr/`. Un exemple de sticker de table est dans `brand/qr/sticker.html`.
+Le générateur est un outil de build et de développement, absent de la production. Son installation et son exécution sont identiques sur macOS, Linux et Ubuntu sous WSL2 :
+
+```bash
+# Create and populate an isolated Python environment
+python3 -m venv .venv-brand
+. .venv-brand/bin/activate
+python3 -m pip install --upgrade pip
+python3 -m pip install -r scripts/requirements.txt
+
+# Generate and verify both public domain profiles
+python3 scripts/generate_brand_assets.py
+test -s brand/qr/qr-demo.png
+test -s brand/qr/qr-demo-development.png
+```
+
+`deactivate` quitte l'environnement et `rm -rf .venv-brand` le supprime si aucune autre tâche ne l'utilise. Le script lit `config/domains/development.env` et `config/domains/production.env`, puis produit les QR `.test` et `.com` (modules arrondis espresso sur ivoire, correction d'erreur haute pour tolérer la marque centrale) dans `brand/qr/`. Le fichier `qr-demo-development.png` sert en local et `qr-demo.png` reste l'exemple de production. Un exemple de sticker de table est dans `brand/qr/sticker.html`.
 
 Le logo (`brand/logo.svg`) est la **source** ; les QR et supports en sont dérivés. Un hook `PostToolUse` (`scripts/check_brand_assets.py`, branché dans `.claude/settings.json`) rappelle de régénérer ces assets dès que `brand/logo.svg` change, pour qu'ils ne se désynchronisent jamais du logo.

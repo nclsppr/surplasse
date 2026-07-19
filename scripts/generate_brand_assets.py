@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""Generate Surplasse brand-derived assets (QR codes) from the logo font.
+"""Generate Surplasse brand-derived assets (QR codes) from domain profiles.
 
 Surplasse QR rules: rounded modules and the Surplasse mark centered.
 Re-run whenever the logo or brand changes. Requires `qrcode[pil]`.
 
-Usage: python3 scripts/generate_brand_assets.py
+Usage: python3 scripts/generate_brand_assets.py [--check]
 """
+import argparse
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import qrcode
 from qrcode.constants import ERROR_CORRECT_H
@@ -24,11 +26,42 @@ IVORY = (246, 239, 224)  # --bg-1
 ACCENT = (232, 72, 28)   # --accent orange
 PAPER = (255, 254, 248)  # --bg-3
 
-# Example destinations. In production the URL carries the establishment slug
-# and an opaque table token: https://{slug}.surplasse.com/?table={token}
-EXAMPLES = [
-    ("qr-demo.png", "https://fiorella.surplasse.com/?table=demo"),
-]
+DOMAIN_PROFILES = {
+    "production": "qr-demo.png",
+    "development": "qr-demo-development.png",
+}
+
+
+def load_domain_config(profile: str) -> dict[str, str]:
+    """Read the versioned public domain profile without executing it."""
+    path = ROOT / "config" / "domains" / f"{profile}.env"
+    values: dict[str, str] = {}
+    for line_number, raw_line in enumerate(path.read_text().splitlines(), start=1):
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" not in line:
+            raise ValueError(f"Invalid line {line_number} in {path}")
+        key, value = line.split("=", 1)
+        values[key.strip()] = value.strip()
+
+    scheme = values.get("APP_SCHEME")
+    base_domain = values.get("APP_BASE_DOMAIN")
+    base_url = values.get("APP_BASE_URL")
+    if scheme != "https" or not base_domain:
+        raise ValueError(f"Invalid domain profile: {path}")
+    if base_url != f"{scheme}://{base_domain}":
+        raise ValueError(f"APP_BASE_URL is inconsistent in {path}")
+    return values
+
+
+def example_url(profile: str) -> str:
+    """Build the sample restaurant URL from the selected public profile."""
+    config = load_domain_config(profile)
+    return (
+        f"{config['APP_SCHEME']}://fiorella.{config['APP_BASE_DOMAIN']}"
+        "/?table=demo"
+    )
 
 
 def make_center_mark(size: int = 280) -> Image.Image:
@@ -58,14 +91,47 @@ def make_qr(url: str, center: Image.Image) -> Image.Image:
     ).get_image()
 
 
-def main() -> None:
-    OUT.mkdir(parents=True, exist_ok=True)
+def generate(output_directory: Path, *, quiet: bool = False) -> None:
+    output_directory.mkdir(parents=True, exist_ok=True)
     center = make_center_mark()
-    center.save(OUT / "center-mark.png")
-    for name, url in EXAMPLES:
-        make_qr(url, center).save(OUT / name)
-        print(f"wrote brand/qr/{name}  ({url})")
-    print("wrote brand/qr/center-mark.png")
+    center.save(output_directory / "center-mark.png")
+    for profile, name in DOMAIN_PROFILES.items():
+        url = example_url(profile)
+        make_qr(url, center).save(output_directory / name)
+        if not quiet:
+            print(f"wrote brand/qr/{name}  ({url})")
+    if not quiet:
+        print("wrote brand/qr/center-mark.png")
+
+
+def check_assets() -> None:
+    expected_names = ["center-mark.png", *DOMAIN_PROFILES.values()]
+    with TemporaryDirectory(prefix="surplasse-brand-") as temporary_directory:
+        generated_directory = Path(temporary_directory)
+        generate(generated_directory, quiet=True)
+        stale = [
+            name
+            for name in expected_names
+            if not (OUT / name).is_file()
+            or (OUT / name).read_bytes() != (generated_directory / name).read_bytes()
+        ]
+    if stale:
+        raise SystemExit(
+            "Stale brand assets: "
+            + ", ".join(stale)
+            + ". Run python3 scripts/generate_brand_assets.py."
+        )
+    print("Brand QR assets match both domain profiles.")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--check", action="store_true")
+    args = parser.parse_args()
+    if args.check:
+        check_assets()
+    else:
+        generate(OUT)
 
 
 if __name__ == "__main__":

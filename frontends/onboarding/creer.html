@@ -133,16 +133,40 @@
       <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg>
       <h1 style="color:var(--accent)">C'est en ligne.</h1>
       <p class="sub" style="margin:12px auto 0;text-align:center">Votre mini-site est prêt à recevoir des commandes. Placez le QR code sur vos tables et c'est parti.</p>
-      <img class="miniqr" src="../../brand/qr/qr-demo.png" alt="QR code de votre table">
-      <p style="font:400 12px var(--font-mono);color:var(--fg-3);margin-top:8px" id="preview-url">fiorella.surplasse.com</p>
+      <img id="preview-qr" class="miniqr" src="../../brand/qr/qr-demo.png" alt="QR code de votre table">
+      <p style="font:400 12px var(--font-mono);color:var(--fg-3);margin-top:8px" id="preview-url"></p>
       <div class="actions" style="justify-content:center">
-        <a href="index.html" class="sp-btn sp-btn--primary sp-btn--lg" style="text-decoration:none">Ouvrir mon dashboard</a>
+        <a id="dashboard-url" href="index.html" class="sp-btn sp-btn--primary sp-btn--lg" style="text-decoration:none">Ouvrir mon dashboard</a>
       </div>
     </div>
   </section>
 </main>
 
+<script src="runtime-config.js"></script>
 <script>
+  const domainConfig = window.SURPLASSE_DOMAIN_CONFIG;
+  if (!domainConfig) {
+    throw new Error('Surplasse domain configuration is unavailable.');
+  }
+
+  function miniSiteUrl(slug){
+    return domainConfig.APP_SCHEME + '://' + slug + '.' + domainConfig.APP_BASE_DOMAIN;
+  }
+
+  function establishmentSlug(name){
+    const reserved = new Set(domainConfig.RESERVED_SUBDOMAINS.split(','));
+    let slug = name.toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g,'')
+      .replace(/[^a-z0-9]+/g,'-')
+      .replace(/^-|-$/g,'')
+      .slice(0,63)
+      .replace(/-$/g,'');
+    if (!slug) slug = 'restaurant-demo';
+    if (reserved.has(slug)) slug = ('restaurant-' + slug).slice(0,63).replace(/-$/g,'');
+    return slug;
+  }
+
   let step = 1;
   const total = 5;
   function render(){
@@ -168,17 +192,22 @@
 
   const MSGS = ["Lecture de votre carte...","Reconnaissance des plats...","Structuration des catégories...","Identification des prix...","Mise en forme de votre menu..."];
   function startExtract(){
-    // Applique le nom saisi à l'aperçu
+    // Apply the entered name to the preview.
     const name = (document.getElementById('name').value || 'Fiorella').trim();
     document.getElementById('preview-name').textContent = name;
-    const slug = name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'fiorella';
-    document.getElementById('preview-url').textContent = slug + '.surplasse.com';
+    const slug = establishmentSlug(name);
+    document.getElementById('preview-url').textContent = miniSiteUrl(slug);
     step = 3; render();
     let i = 0; const el = document.getElementById('procmsg');
     const iv = setInterval(()=>{ i++; if(i<MSGS.length){ el.textContent = MSGS[i]; } }, 620);
     setTimeout(()=>{ clearInterval(iv); step = 4; render(); }, 3200);
   }
   function activate(){ step = 5; render(); }
+  document.getElementById('preview-url').textContent = miniSiteUrl('fiorella');
+  document.getElementById('dashboard-url').href = domainConfig.DASHBOARD_URL;
+  document.getElementById('preview-qr').src = domainConfig.PROFILE === 'development'
+    ? '../../brand/qr/qr-demo-development.png'
+    : '../../brand/qr/qr-demo.png';
   render();
 </script>
 </body>

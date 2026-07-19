@@ -13,7 +13,7 @@
  */
 
 
-export const BASE_PATH = "https://api.surplasse.com".replace(/\/+$/, "");
+export const BASE_PATH = "";
 
 export interface ConfigurationParameters {
     basePath?: string; // override base path

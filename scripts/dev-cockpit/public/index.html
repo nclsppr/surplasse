@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+    <meta name="dev-cockpit-csrf" content="__COCKPIT_CSRF_TOKEN__" />
+    <title>Cockpit local · Surplasse</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <div class="shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Surplasse · développement local</p>
+          <h1>Tout le projet, au même endroit.</h1>
+          <p class="intro">
+            Démarrez les applications utiles, ouvrez leurs bonnes adresses et gardez la propriété des processus visible.
+          </p>
+        </div>
+        <div class="local-badge" aria-label="Outil réservé au développement">
+          <span class="pulse"></span>
+          Local uniquement
+        </div>
+      </header>
+
+      <section class="toolbar" aria-label="Actions globales">
+        <div class="toolbar-actions">
+          <button class="button button-primary" data-preset="core" data-action="start">Démarrer le parcours principal</button>
+          <button class="button button-secondary" data-preset="all" data-action="start">Tout démarrer</button>
+          <button class="button button-quiet" data-preset="all" data-action="stop">Tout arrêter</button>
+        </div>
+        <p id="configuration" class="configuration">Chargement de la configuration...</p>
+      </section>
+
+      <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+      <main id="groups" aria-busy="true"></main>
+
+      <footer>
+        <p>Caddy, dnsmasq et mkcert ne sont jamais démarrés ni arrêtés ici.</p>
+        <button id="refresh" class="text-button" type="button">Actualiser maintenant</button>
+      </footer>
+    </div>
+  </body>
+</html>

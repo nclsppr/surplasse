@@ -10,7 +10,7 @@ description: "Deux environnements seulement (local et production) : domaines, DN
 Surplasse ne connaît que deux environnements : le poste de développement local et la production. Cette page décrit ce que chacun contient, les domaines et certificats de la production, et les variables d'environnement attendues par chaque service. Le pourquoi de l'absence de staging est argumenté dans [CI/CD](../developpement/ci-cd.md) ; la topologie des services est décrite dans [Exploitation](index.md).
 
 !!! warning État réel au 2026-07-19
-Le Backend, y compris le module `identity`, Commande et le premier Dashboard sont exécutables localement. Le Dashboard est encore en lecture seule par REST. La documentation et la préfiguration statique de l'Onboarding sont publiées sur GitHub Pages. La pile VPS, `infra/`, l'image de production du Dashboard, l'Onboarding React, l'IA, MinIO, Caddy et le fournisseur SMTP de production ne sont pas encore implémentés ou sélectionnés. Toutes les mentions de production ci-dessous décrivent donc la cible à rendre exécutable dans le commit qui introduira `infra/`.
+Le Backend, y compris le module `identity`, Commande et le premier Dashboard sont exécutables localement. La topologie `surplasse.test`, Caddy local et le cockpit de modules sont implémentés sous `infra/local/` et `scripts/`. Le Dashboard est encore en lecture seule par REST. La documentation et la préfiguration statique de l'Onboarding sont publiées sur GitHub Pages. La pile VPS, les images de production, l'Onboarding React, l'IA, MinIO, le Caddy de production et le fournisseur SMTP de production ne sont pas encore implémentés ou sélectionnés. Toutes les mentions de production ci-dessous décrivent donc une cible, pas un déploiement disponible.
 !!!
 
 ## Deux environnements, pas un de plus
@@ -30,35 +30,40 @@ La règle d'étanchéité est absolue : aucune clé live, aucune donnée réelle
 
 Deux environnements seulement, cela signifie aussi qu'il n'existe aucun endroit intermédiaire où « essayer en vrai » : ce qui doit être vérifié l'est en local (Stripe test, IA simulée, données de seed), puis part en production derrière un feature flag si le risque le justifie. Les raisons de ce choix, et le seuil au-delà duquel il serait revu, sont détaillés dans [CI/CD](../developpement/ci-cd.md).
 
-En local, les applications tournent sur des ports distincts plutôt que sur des domaines :
+En local, Caddy reproduit les domaines de production avec la racine `surplasse.test`. Les ports distincts restent internes :
 
 | Application | Statut | Local | Production cible |
 |---|---|---|---|
-| Onboarding | Préfiguration statique seulement | `localhost:4173/frontends/onboarding/` | `surplasse.com` |
-| Commande | Exécutable localement | `localhost:5173` | `{slug}.surplasse.com` |
-| Dashboard | Exécutable localement, lecture REST | `localhost:5174` | `dashboard.surplasse.com`, non déployé |
-| Backend | Exécutable localement | `localhost:8080` | `api.surplasse.com` |
+| Onboarding | Préfiguration statique seulement | `https://surplasse.test` vers 4173 | `surplasse.com` |
+| Commande | Exécutable localement | `https://{slug}.surplasse.test` vers 5173 | `{slug}.surplasse.com` |
+| Dashboard | Exécutable localement, lecture REST | `https://dashboard.surplasse.test` vers 5174 | `dashboard.surplasse.com`, non déployé |
+| Backend | Exécutable localement | `https://api.surplasse.test` vers 8080 | `api.surplasse.com` |
 
-Ces ports sont la convention fixée dans le [setup](../developpement/index.md) (section « Ports conventionnels »). Vite refuse de déplacer silencieusement le Dashboard vers un autre port si 5174 est occupé.
+Ces ports sont la convention fixée dans le [setup](../developpement/index.md) (section « Ports conventionnels »). Vite refuse de déplacer silencieusement le Dashboard vers un autre port si 5174 est occupé. Le navigateur ne doit pas utiliser ces ports HTTP : les cookies restaurateur sont `Secure` en local comme en production.
 
-En local, le Dashboard et l'API doivent utiliser le même nom d'hôte. La configuration de référence associe `http://localhost:5174` à `http://localhost:8080`. Ouvrir le Dashboard sur `127.0.0.1` tout en gardant l'API sur `localhost` change le site vu par le navigateur et peut empêcher l'envoi des cookies `SameSite`. Le magic link local place par ailleurs son jeton dans `#token=...` : le fragment n'atteint ni Vite ni ses journaux d'accès et le Dashboard le retire avant son POST d'échange.
+Le Dashboard utilise `dashboard.surplasse.test` et l'API `api.surplasse.test`. Ce sont deux origines du même site HTTPS, avec une politique CORS explicite. Le magic link place son jeton dans `#token=...` : le fragment n'atteint ni Vite ni ses journaux d'accès et le Dashboard le retire avant son POST d'échange.
 
 ## Les domaines
 
-| Domaine | Application | Certificat |
-|---|---|---|
-| `surplasse.com` | Onboarding (vitrine et embarquement) | Certificat Let's Encrypt couvrant l'apex et le wildcard (deux SAN sur le même certificat) |
-| `{slug}.surplasse.com` | Commande (un sous-domaine par établissement) | Wildcard `*.surplasse.com` |
-| `dashboard.surplasse.com` | Dashboard | Wildcard `*.surplasse.com` |
-| `api.surplasse.com` | Backend | Wildcard `*.surplasse.com` |
-| Documentation | Ce site, sur GitHub Pages | Géré par GitHub |
+| Production cible | Développement local | Application | Certificat |
+|---|---|---|---|
+| `surplasse.com` | `surplasse.test` | Onboarding (vitrine et embarquement) | apex et wildcard |
+| `www.surplasse.com`, redirection cible vers l'apex | `www.surplasse.test`, redirection 308 vers l'apex | Alias du site public | wildcard |
+| `{slug}.surplasse.com` | `{slug}.surplasse.test` | Commande (un sous-domaine par établissement) | wildcard |
+| `dashboard.surplasse.com` | `dashboard.surplasse.test` | Dashboard | wildcard |
+| `api.surplasse.com` | `api.surplasse.test` | Backend | wildcard |
+| GitHub Pages, cible `docs.surplasse.com` non provisionnée | `docs.surplasse.test` | Documentation | géré par GitHub en production, mkcert en local |
+| absent | `local.surplasse.test` | Cockpit de développement | mkcert |
+| fournisseur SMTP externe | `mail.surplasse.test` | Mailpit | mkcert |
 
 Quatre points d'attention :
 
 - Le wildcard est ce qui rend le produit possible : chaque établissement reçoit son sous-domaine (`{slug}.surplasse.com`) à la création de son espace, sans aucune opération DNS par établissement. C'est le mini-site que le QR code à table pointe.
 - `dashboard` et `api` sont couverts par le même wildcard ; ce sont des sous-domaines réservés, exclus des slugs attribuables aux établissements (la liste des sous-domaines réservés est définie avec les règles de slug, voir [Frontends](../architecture/frontends.md)).
-- La documentation reste sur GitHub Pages, hors du VPS. Un domaine dédié (`docs.surplasse.com` en CNAME vers GitHub Pages) est envisageable : un enregistrement DNS explicite prime sur le wildcard, il n'y a donc pas de conflit. Le choix reste à trancher.
-- Tout le trafic HTTP est redirigé vers HTTPS par Caddy ; aucun service ne répond en clair.
+- La documentation reste sur GitHub Pages, hors du VPS. `docs.surplasse.com` est son URL cible canonique, déjà réservée dans le profil de domaines, mais le CNAME et le domaine personnalisé Pages ne sont pas encore provisionnés. Un enregistrement DNS explicite primera sur le wildcard, sans conflit.
+- En production cible, Caddy redirige tout trafic HTTP vers HTTPS. En local, Caddy n'expose que HTTPS sur 443 ; les ports HTTP internes restent liés à la boucle locale.
+
+Les noms `www`, `api`, `dashboard`, `docs`, `app`, `admin`, `local` et `mail` sont réservés. `app` et `admin` ne correspondent encore à aucun module. Le détail exécutable de la topologie locale vit dans [Domaines locaux](../developpement/domaines-locaux.md).
 
 ## DNS et certificats
 
@@ -81,7 +86,7 @@ Le renouvellement est entièrement automatique : Caddy renouvelle le certificat 
 
 ## Variables d'environnement de la production cible
 
-Lorsque `infra/` existera, les secrets de production vivront dans un fichier d'environnement sur le VPS, hors git, référencé par la pile Compose. Ils seront provisionnés à la main et ne transiteront jamais par la CI : celle-ci ne détiendra que ses propres secrets de déploiement, listés dans [CI/CD](../developpement/ci-cd.md).
+Lorsque la pile de production sera ajoutée sous `infra/`, ses secrets vivront dans un fichier d'environnement sur le VPS, hors git, référencé par Compose. Ils seront provisionnés à la main et ne transiteront jamais par la CI : celle-ci ne détiendra que ses propres secrets de déploiement, listés dans [CI/CD](../developpement/ci-cd.md). `infra/local/` ne contient aucun secret de production.
 
 Les noms d'identité et de SMTP ci-dessous sont stabilisés par le module `identity`. Les autres lignes restent l'inventaire cible de leur intégration. Le commit qui introduira chaque composant devra confirmer ses noms dans un `.env.example` et documenter ceux qui sont obligatoires. Les valeurs réelles ne figurent évidemment nulle part dans la documentation.
 
@@ -89,6 +94,14 @@ Les noms d'identité et de SMTP ci-dessous sont stabilisés par le module `ident
 
 | Variable | Rôle |
 |---|---|
+| `APP_SCHEME` | `https` dans les deux environnements |
+| `APP_BASE_DOMAIN` | domaine racine, `surplasse.com` en production |
+| `APP_BASE_URL` | URL de l'Onboarding et base des URL publiques |
+| `DASHBOARD_URL` | origine publique du Dashboard |
+| `API_URL` | origine publique du Backend et émetteur JWT obligatoire |
+| `RESERVED_SUBDOMAINS` | noms exclus des slugs d'établissement |
+| `COOKIE_DOMAIN` | vide par décision de sécurité ; les cookies restent hôte uniquement |
+| `CORS_ORIGINS` | apex et motif du sous-domaine direct, dérivés de `APP_BASE_DOMAIN` par le wrapper de profil |
 | `QUARKUS_DATASOURCE_JDBC_URL` | URL JDBC de PostgreSQL (réseau interne Compose) |
 | `QUARKUS_DATASOURCE_USERNAME` | Utilisateur applicatif de la base |
 | `QUARKUS_DATASOURCE_PASSWORD` | Mot de passe associé |
@@ -98,12 +111,9 @@ Les noms d'identité et de SMTP ci-dessous sont stabilisés par le module `ident
 | `S3_ENDPOINT_URL` | Endpoint MinIO (réseau interne Compose) |
 | `S3_ACCESS_KEY` | Identifiant d'accès MinIO du backend |
 | `S3_SECRET_KEY` | Secret d'accès associé |
-| `AUTH_MAGIC_LINK_LANDING_URL` | URL HTTPS du Dashboard qui reçoit le magic link et l'échange par POST |
-| `AUTH_SECURE_COOKIES` | Obligatoirement `true` en production, active `Secure` sur les cookies restaurateur |
 | `AUTH_JWT_PRIVATE_KEY_PATH` | Chemin du fichier PEM de la clé privée RS256 courante, monté en lecture seule hors image |
 | `AUTH_JWT_KEY_ID` | Identifiant `kid` de la clé de signature courante |
 | `AUTH_JWT_JWKS_PATH` | Chemin du JWKS public de vérification, avec les clés courante et précédente pendant une rotation |
-| `AUTH_JWT_ISSUER` | Émetteur exigé pour les JWT, normalement `https://api.surplasse.com` |
 | `AUTH_JWT_AUDIENCE` | Audience exigée pour les JWT du Dashboard |
 | `SMTP_HOST` | Hôte du fournisseur SMTP transactionnel |
 | `SMTP_PORT` | Port SMTP du fournisseur |
@@ -114,6 +124,8 @@ Les noms d'identité et de SMTP ci-dessous sont stabilisés par le module `ident
 | `SMTP_START_TLS` | Politique STARTTLS exigée par le fournisseur ; aucun SMTP en clair en production |
 
 Les variables JWT de chemin, de `kid` et de JWKS ainsi que les variables SMTP sont obligatoires en production. Les fichiers de clés et les secrets SMTP sont provisionnés sur Ubuntu LTS hors de l'image Backend. Ils sont montés en lecture seule ou injectés par le fichier d'environnement protégé du VPS. Ubuntu LTS fait foi en cas de divergence de chemins ou de permissions.
+
+Le futur conteneur Backend utilisera `scripts/run-with-domain-profile.sh production` comme point d'entrée avant la commande Java. Le wrapper source uniquement `config/domains/production.env`, puis dérive `CORS_ORIGINS` et la valeur de repli de `SMTP_FROM`. Quarkus construit le magic link depuis `DASHBOARD_URL`, l'émetteur JWT depuis `API_URL` et impose les cookies `Secure` hors tests. Les secrets du VPS peuvent remplacer uniquement les variables prévues. Sans profil, le Backend échoue au démarrage au lieu de choisir silencieusement `.test` ou `.com`.
 
 ### Rotation des clés JWT
 
@@ -149,7 +161,7 @@ Avant et après chaque redémarrage, `curl --fail https://api.surplasse.com/q/he
 
 ### Les trois fronts
 
-Aucune variable à l'exécution : Onboarding, Commande et Dashboard sont ou seront des fichiers statiques. Leur configuration est injectée au moment du build par la CI via des variables `VITE_*`, et fait donc partie de l'image taggée par SHA. Changer une de ces valeurs impose une reconstruction.
+Aucune variable secrète à l'exécution : Onboarding, Commande et Dashboard sont ou seront des fichiers statiques. Les valeurs publiques communes viennent de `config/domains/production.env` au build. Des variables `VITE_*` peuvent les remplacer explicitement dans la CI. Changer une de ces valeurs impose une reconstruction.
 
 | Application | Variable de build | État et valeur de production cible |
 |---|---|---|
@@ -159,16 +171,12 @@ Aucune variable à l'exécution : Onboarding, Commande et Dashboard sont ou sero
 | Commande | `VITE_ESTABLISHMENT_SLUG` | Développement local seulement ; le sous-domaine fournit le slug en production |
 | Onboarding | À confirmer avec le module React | Cible non implémentée |
 
-Le fichier `frontends/dashboard/.env.example` fait foi pour le développement et ne contient que `VITE_API_BASE_URL=http://localhost:8080`. Cette valeur n'est pas un secret. Le Dashboard n'a aucune donnée ni aucun volume propre : ses données viennent du Backend avec les cookies hôte uniquement de l'API.
+Le fichier `config/domains/development.env` fait foi pour le développement et fournit `VITE_API_BASE_URL=https://api.surplasse.test` au build Vite. Les fichiers `.env.example` documentent les overrides propres à chaque frontend. Ces valeurs ne sont pas des secrets. Le Dashboard n'a aucune donnée ni aucun volume propre : ses données viennent du Backend avec les cookies hôte uniquement de l'API.
 
 ## Reproduire la topologie de production en local
 
-Le développement quotidien n'a pas besoin de la topologie complète : Quarkus en mode dev, les Dev Services et les serveurs Vite suffisent, et c'est voulu (voir le [setup](../developpement/index.md)).
+La reproduction par domaines est maintenant l'environnement de développement canonique. dnsmasq fournit l'apex et le wildcard `surplasse.test`, mkcert fournit un certificat approuvé et `infra/local/Caddyfile` route chaque hostname vers le processus local. Le cockpit rend les URL et les états visibles.
 
-Quand le besoin s'en fera sentir (mise au point du routage Caddy, débogage d'un comportement propre à Compose, répétition d'une restauration de sauvegarde), la pile Compose de `infra/` doit pouvoir se lancer telle quelle sur un poste local, avec trois adaptations :
+La procédure complète, y compris macOS, Linux et WSL2, vit dans [Domaines locaux](../developpement/domaines-locaux.md). Elle n'ajoute aucune entrée par établissement à `/etc/hosts` et n'utilise pas `tls internal` : le certificat est généré explicitement par mkcert pour l'apex et le wildcard.
 
-- **Le DNS wildcard** : des entrées locales (`/etc/hosts` pour quelques slugs de test, ou un résolveur local pour un vrai wildcard) remplacent la zone publique.
-- **Le TLS** : Caddy émet des certificats auto-signés locaux (`tls internal`) à la place du wildcard Let's Encrypt, le défi DNS-01 n'ayant pas de sens en local.
-- **Les secrets** : un fichier d'environnement local reprend les mêmes noms de variables que la production, avec des valeurs de test (Stripe en mode test, IA simulée), conformément à la règle d'étanchéité ci-dessus.
-
-Cette reproduction locale n'est pas un troisième environnement : c'est le même `infra/` que la production, lancé ailleurs. Si les deux divergent, c'est un bug de `infra/`.
+Cette topologie reste l'environnement local, pas un staging. Elle partage la forme des domaines et les noms de variables avec la production, mais pas son DNS, son autorité de certification, ses secrets, ses images ou son cycle de vie. `infra/local/` ne doit jamais être copié tel quel sur le VPS.

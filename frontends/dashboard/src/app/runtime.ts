@@ -4,7 +4,7 @@ import { SessionCoordinator } from "../features/auth/sessionCoordinator";
 import { MagicLinkExchangeCoordinator } from "../features/auth/magicLinkExchange";
 import { createDashboardClients } from "./clients";
 
-export const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
+export const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 export const dashboardClients = createDashboardClients(apiBaseUrl);
 export const queryClient = createQueryClient();
 

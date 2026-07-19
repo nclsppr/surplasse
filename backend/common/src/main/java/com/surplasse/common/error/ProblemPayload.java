@@ -6,9 +6,9 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ProblemPayload(String type, String title, int status, String detail, String instance) {
 
-    private static final String TYPE_BASE = "https://surplasse.com/problems/";
-
-    public static ProblemPayload of(String problemType, String title, int status, String detail, String instance) {
-        return new ProblemPayload(TYPE_BASE + problemType, title, status, detail, instance);
+    public static ProblemPayload of(
+            String typeBase, String problemType, String title, int status, String detail, String instance) {
+        String normalizedBase = typeBase.endsWith("/") ? typeBase : typeBase + "/";
+        return new ProblemPayload(normalizedBase + problemType, title, status, detail, instance);
     }
 }

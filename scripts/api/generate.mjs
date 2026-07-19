@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 /**
  * Generation chain of the contract (docs/developpement/conventions-api.md,
- * ADR-0013). Three steps: filter x-draft blocks out of api/openapi.yaml,
+ * ADR-0013). Four steps: filter x-draft blocks out of api/openapi.yaml,
  * generate the Java interfaces (jaxrs-spec) into backend/contract/, generate
  * the TypeScript client (typescript-fetch) into
- * frontends/shared/src/api/generated/. Outputs are committed; this script is
- * the only way to regenerate them.
+ * frontends/shared/src/api/generated/, then remove the generator's fallback
+ * origin. Outputs are committed; this script is the only way to regenerate
+ * them.
  */
 import { execFileSync, spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -76,6 +77,22 @@ rmSync(join(root, "frontends", "shared", "src", "api", "generated"), { recursive
 generate("typescript-fetch", "frontends/shared/src/api/generated", [
   "--additional-properties", "supportsES6=true,withoutRuntimeChecks=true",
 ]);
+
+// OpenAPI Generator turns a relative server into http://localhost. Surplasse
+// clients must instead receive their base URL from the selected domain profile
+// through the explicit client factories. Keep the generated fallback empty so
+// a future direct instantiation cannot silently target another environment.
+const generatedRuntimePath = join(
+  root, "frontends", "shared", "src", "api", "generated", "runtime.ts");
+const generatedRuntime = readFileSync(generatedRuntimePath, "utf8");
+const basePathDeclaration = /^export const BASE_PATH = .*;$/mu;
+if (!basePathDeclaration.test(generatedRuntime)) {
+  throw new Error("Generated TypeScript runtime no longer exposes the expected BASE_PATH declaration");
+}
+writeFileSync(
+  generatedRuntimePath,
+  generatedRuntime.replace(basePathDeclaration, 'export const BASE_PATH = "";'),
+);
 
 // The full contract (drafts included, marked as such) is served by Swagger
 // UI at /q/swagger-ui; this copy is generated, never edited by hand.

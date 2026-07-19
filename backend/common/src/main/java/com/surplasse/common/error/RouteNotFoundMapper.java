@@ -1,5 +1,7 @@
 package com.surplasse.common.error;
 
+import com.surplasse.common.config.PlatformConfig;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
@@ -17,9 +19,13 @@ public class RouteNotFoundMapper implements ExceptionMapper<NotFoundException> {
     @Context
     UriInfo uriInfo;
 
+    @Inject
+    PlatformConfig platformConfig;
+
     @Override
     public Response toResponse(NotFoundException exception) {
         ProblemPayload payload = ProblemPayload.of(
+                platformConfig.problemTypeBase().toString(),
                 "resource-not-found",
                 "Resource not found",
                 404,

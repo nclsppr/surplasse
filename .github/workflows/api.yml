@@ -39,4 +39,7 @@ jobs:
       - name: Fraîcheur de la génération
         run: |
           npm run api:generate
-          git diff --exit-code -- backend/contract frontends/shared/src/api/generated
+          git diff --exit-code -- \
+            backend/contract \
+            backend/application/src/main/resources/META-INF/openapi.yaml \
+            frontends/shared/src/api/generated

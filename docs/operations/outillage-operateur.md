@@ -24,7 +24,7 @@ Pour l'interface humaine en local, tout client PostgreSQL convient : **TablePlus
 | Contexte | Où |
 |---|---|
 | Backend en dev | Le terminal `quarkus:dev` (format texte lisible) ; la Dev UI (`/q/dev-ui`) pour le détail |
-| Emails en dev | Mailpit sur `http://localhost:8025`, santé sur `/readyz` ; uniquement des comptes de démonstration, aucun volume persistant |
+| Emails en dev | Mailpit sur `https://mail.surplasse.test`, santé sur `/readyz` ; `localhost:8025` reste un diagnostic interne ; uniquement des comptes de démonstration, aucun volume persistant |
 | Frontends en dev | Le terminal Vite, et la console du navigateur |
 | Production | `docker compose logs -f <service>` sur le VPS (backend, caddy, postgres...) ; agrégateur à poser plus tard, voir [observabilité](observabilite.md) |
 
@@ -34,9 +34,9 @@ Mailpit est absent de la CI et de la production. Les rejets, rebonds et délais 
 
 | Où | Contenu |
 |---|---|
-| `./mvnw verify` en local | La vérité avant tout push ; rapports détaillés dans `backend/*/target/surefire-reports/` |
-| Onglet Actions du dépôt GitHub | Les workflows `api`, `backend`, `frontends` sur chaque push ; un rouge se corrige avant toute autre tâche ([CI/CD](../developpement/ci-cd.md)) |
-| `npm test` dans `frontends/shared` ou `frontends/commande` | Vitest en local ; les autres frontends n'existent pas encore |
+| `npm run backend:verify` en local | La vérité avant tout push, avec profil central injecté ; rapports détaillés dans `backend/*/target/surefire-reports/` |
+| Onglet Actions du dépôt GitHub | Les workflows `api`, `backend` et `frontends` selon leurs filtres de chemins ; un rouge se corrige avant toute autre tâche ([CI/CD](../developpement/ci-cd.md)) |
+| `npm test` dans `frontends/shared`, `frontends/commande` ou `frontends/dashboard` | Vitest en local pour la bibliothèque partagée et les deux applications React existantes |
 
 ## Explorer et requêter l'API
 

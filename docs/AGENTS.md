@@ -29,14 +29,16 @@ Positionnement : Surplasse n'est pas une marketplace. Le restaurant garde son id
 
 Quatre applications, un backend, un contrat :
 
-| Nom canonique | Répertoire cible | Domaine | Rôle |
-|---|---|---|---|
-| **Onboarding** | `frontends/onboarding/` | `surplasse.com` | Vitrine produit et tunnel d'embarquement des restaurateurs |
-| **Commande** | `frontends/commande/` | `{slug}.surplasse.com` | Mini-site de l'établissement, carte numérique, commande et paiement client |
-| **Dashboard** | `frontends/dashboard/` | `dashboard.surplasse.com` | Suivi des commandes en temps réel, gestion de la carte, métriques et analyse |
-| **Backend** | `backend/` | `api.surplasse.com` | API REST Quarkus, logique métier, persistance, intégrations |
+| Nom canonique | Répertoire cible | Production | Développement local | Rôle |
+|---|---|---|---|---|
+| **Onboarding** | `frontends/onboarding/` | `surplasse.com` | `surplasse.test` | Vitrine produit et tunnel d'embarquement des restaurateurs |
+| **Commande** | `frontends/commande/` | `{slug}.surplasse.com` | `{slug}.surplasse.test` | Mini-site de l'établissement, carte numérique, commande et paiement client |
+| **Dashboard** | `frontends/dashboard/` | `dashboard.surplasse.com` | `dashboard.surplasse.test` | Suivi des commandes en temps réel, gestion de la carte, métriques et analyse |
+| **Backend** | `backend/` | `api.surplasse.com` | `api.surplasse.test` | API REST Quarkus, logique métier, persistance, intégrations |
 
 Le contrat OpenAPI vit dans `api/openapi.yaml`. Il est la source de vérité : le backend l'implémente, les frontends consomment des clients TypeScript générés depuis lui.
+
+Les domaines sont des données de configuration. `config/domains/production.env` et `config/domains/development.env` portent les valeurs publiques canoniques. La logique applicative ne code jamais le suffixe `.com` ou `.test`. Les sous-domaines `www`, `api`, `dashboard`, `docs`, `app`, `admin`, `local` et `mail` sont réservés et ne peuvent pas devenir un `slug` d'établissement. `app` et `admin` restent réservés sans désigner une application actuelle. Les cookies restaurateur sont toujours hôte uniquement sur l'API : `COOKIE_DOMAIN` reste vide, jamais `.surplasse.com` ni `.surplasse.test`.
 
 ## Stack de référence
 
@@ -56,7 +58,7 @@ Le contrat OpenAPI vit dans `api/openapi.yaml`. Il est la source de vérité : l
 | IA | API OpenAI (derrière interface) | modèles courants | Extraction de carte et données publiques (vision) ; génération de visuels de plats à l'embarquement |
 | Impression | Imprimante thermique ESC/POS | à trancher (ADR) | Tickets cuisine optionnels |
 | Docs | Retype | 4.6+ | Ce site ; déployé sur GitHub Pages |
-| Reverse proxy | Caddy | 2.x | TLS wildcard par défi DNS-01, routage par nom d'hôte ; ADR à consigner avec `infra/` |
+| Reverse proxy | Caddy | 2.x | Local avec mkcert ; production cible avec TLS wildcard par défi DNS-01 ; routage par nom d'hôte |
 | OS de production | Ubuntu | dernière LTS | Le VPS ; en cas de divergence de comportement entre systèmes, Ubuntu fait foi |
 | CI/CD | GitHub Actions | | Déploiement cible : VPS avec Docker Compose |
 | Node | 24 | via nvm | Pour l'outillage frontend et docs |
@@ -209,7 +211,7 @@ surplasse/
 └── .github/workflows/       # CI/CD
 ```
 
-Aujourd'hui existent `docs/`, `brand/`, la préfiguration statique de l'Onboarding, le contrat `api/openapi.yaml` (lint Spectral, chaîne de génération, ADR-0013), le Backend (`common`, `contract`, `catalog`, `order`, `payment`, `identity`, `application`), le package `frontends/shared/`, Commande et un premier Dashboard. Ce Dashboard couvre la connexion par magic link, la restauration de session, la sélection d'un établissement autorisé et la liste REST des commandes opérationnelles. Il reste en lecture seule, sans flux SSE établissement. Le reste est créé au fil de la roadmap.
+Aujourd'hui existent `docs/`, `brand/`, la préfiguration statique de l'Onboarding, le contrat `api/openapi.yaml` (lint Spectral, chaîne de génération, ADR-0013), le Backend (`common`, `contract`, `catalog`, `order`, `payment`, `identity`, `application`), le package `frontends/shared/`, Commande, un premier Dashboard et l'infrastructure de domaines locaux sous `infra/local/`. Ce Dashboard couvre la connexion par magic link, la restauration de session, la sélection d'un établissement autorisé et la liste REST des commandes opérationnelles. Il reste en lecture seule, sans flux SSE établissement. Le cockpit local sous `scripts/dev-cockpit/` est un outil de développement seulement, absent de la production. Le reste est créé au fil de la roadmap.
 
 ## Exécution multi-plateformes
 
@@ -225,6 +227,8 @@ Le développement est supporté sur macOS, Windows et Linux. Sous Windows, la r�
 - son mode d'arrêt et, s'il conserve des données, sa sauvegarde et sa restauration.
 
 Un module bibliothèque qui ne se lance pas seul le dit explicitement et fournit sa commande de test ou de vérification. Côté développement, la référence vit dans `docs/developpement/index.md`. Côté production, l'équivalent vit dans `docs/operations/`. Une documentation au futur ne suffit plus dès que le composant entre réellement dans le dépôt.
+
+Tout nouveau processus local de longue durée est ajouté au registre du cockpit de développement dans le même commit, avec son URL, son port, sa sonde, sa commande fixe et sa politique d'arrêt. Un module bibliothèque ou un outil interactif qui ne peut pas être piloté de façon sûre est affiché comme dépendance ou documenté comme manuel, jamais transformé en commande arbitraire depuis le navigateur.
 
 ## Arborescence de la documentation
 

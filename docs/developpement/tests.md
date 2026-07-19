@@ -50,6 +50,20 @@ Une classe de logique métier qui exige un conteneur pour être testée est un s
 
 Côté React, Vitest teste les hooks et les fonctions pures : logique de panier de l'application Commande, formatage des prix et des dates, sélecteurs et transformations de données du Dashboard, validation des formulaires de l'Onboarding. Le rendu complet des écrans n'est pas un objectif unitaire : il est couvert plus haut, par les tests de contrat avec MSW et par les E2E.
 
+### Domaines et cockpit : Node natif
+
+La configuration publique et le cockpit utilisent le runner `node:test` de Node.js 24, sans dépendance supplémentaire :
+
+```bash
+npm run domains:test
+npm run domains:check
+npm run local:cockpit:test
+```
+
+Les tests de domaines valident les profils `.test` et `.com`, les URL, les overrides Vite, les sous-domaines réservés et l'obligation d'un `COOKIE_DOMAIN` vide. Les tests du cockpit couvrent le registre fixe, les sondes, les transitions d'état, la propriété des processus, le conteneur Mailpit et la protection des mutations HTTP. Ils ne démarrent ni Java, ni Docker, ni Caddy.
+
+Les scripts système sont vérifiés séparément avec `bash -n`. Leur smoke test macOS réel reste manuel car il demande le trousseau, `/etc/resolver` et le port 443.
+
 ## Tests d'intégration backend
 
 Chaque module Maven du backend teste ses propres endpoints avec `@QuarkusTest`, contre une vraie base PostgreSQL démarrée par Testcontainers. Pas de base en mémoire, pas de H2 : la version de PostgreSQL testée est celle de la production (17), et les migrations Flyway s'appliquent au démarrage du conteneur, ce qui teste les migrations elles-mêmes au passage.
@@ -137,8 +151,8 @@ La règle locale est simple : une unité de travail vérifiée est un commit pou
 | Étage | Déclencheur en CI |
 |---|---|
 | Unitaires et intégration backend | Chaque push touchant `backend/` ou `api/` |
-| Unitaires et contrat frontends | Chaque push touchant `frontends/` ou `api/` |
-| E2E | Chaque push touchant une application concernée ; la pile complète est montée en CI |
+| Unitaires et contrat frontends | Chaque push touchant `frontends/`, `config/domains/` ou `api/` |
+| E2E | Cible non implémentée : aucun package ni workflow Playwright n'existe encore. Leur ajout activera les seuls parcours critiques décrits plus haut. |
 
 Un push touchant `api/` déclenche les deux côtés : c'est le prix du double verrou de contrat, et il est voulu. Le détail des workflows GitHub Actions appartient à la page CI/CD de cette section.
 

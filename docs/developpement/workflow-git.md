@@ -20,7 +20,7 @@ La règle centrale : **une unité de travail vérifiée = un commit poussé**. U
 | Type de changement | État sain signifie |
 |---|---|
 | Documentation | `npm run docs:build` passe sans erreur |
-| Backend | les tests du module touché passent (`./mvnw test`) |
+| Backend | `npm run backend:verify` passe, ou le test ciblé passe à travers `scripts/run-with-domain-profile.sh development` |
 | Frontend | typecheck et tests du package touché passent |
 | Le contrat (`api/openapi.yaml`) | le contrat est valide et les artefacts générés restent cohérents |
 | Infra, CI | la configuration est syntaxiquement valide et cohérente avec les workflows existants |
@@ -93,20 +93,14 @@ Le corps explique le pourquoi. Le comment est dans le diff, inutile de le paraph
 | Fichiers d'environnement | `.env`, `.env.local` | Contiennent des secrets ou des valeurs propres à une machine |
 | Dépendances | `node_modules/`, artefacts Maven dans `target/` | Reconstructibles depuis `package-lock.json` et `pom.xml` |
 | Sortie de build docs | `docs-site/` | Régénérée par `npm run docs:build`, déployée par la CI |
-| Fichiers générés | clients API générés, artefacts de build, caches | Reconstructibles depuis leur source |
+| Artefacts de build et caches | `dist/`, `target/`, caches d'outils | Reconstructibles depuis leur source |
 | Fichiers locaux d'IDE ou d'OS | `.idea/`, `.DS_Store` | Propres à une machine |
 
 Tout ce tableau est couvert par le `.gitignore` racine. Un fichier qui devrait y figurer et n'y figure pas se corrige par un commit `infra:` ou `docs:` selon le cas.
 
-### Le cas du client API généré
+### Le cas des sources générées depuis le contrat
 
-Le client TypeScript généré depuis le contrat est le seul fichier généré pour lequel la question se pose : le committer simplifierait le setup (pas de génération à cloner), mais créerait une source de dérive entre le contrat et le client committé.
-
-Décision de référence : **le client généré n'est pas committé**. Il est régénéré localement par le script de génération et régénéré en CI, qui vérifie sa fraîcheur : si la génération depuis `api/openapi.yaml` produit un résultat différent de ce que le build utilise, la CI échoue. Le contrat reste ainsi l'unique source de vérité, sans risque de client obsolète poussé par oubli.
-
-!!! warning À confirmer par ADR
-Ce choix (client non committé, vérification de fraîcheur en CI) est la recommandation de référence, mais il touche l'outillage de tous les frontends. Il sera confirmé ou amendé par un ADR dans [decisions](../decisions/index.md) au moment de la mise en place effective de la génération.
-!!!
+Le client TypeScript, les interfaces Java et les DTO générés depuis `api/openapi.yaml` sont committés. Cette exception aux artefacts reconstructibles est actée par l'[ADR-0013](../decisions/adr-0013-generateurs-openapi.md) : un clone peut compiler sans génération préalable, tandis que la CI exécute `npm run api:generate` puis refuse tout diff. Les sorties ne s'éditent jamais à la main. Toute modification passe par le contrat ou par `scripts/api/generate.mjs`.
 
 ## La discipline avant push
 
@@ -116,7 +110,7 @@ Puisque `main` est la seule branche et qu'elle déploie (la doc aujourd'hui, les
 |---|---|
 | `docs/` | `npm run docs:build` passe sans erreur ni warning bloquant |
 | `api/openapi.yaml` | validation du contrat, régénération des clients, build des consommateurs |
-| `backend/` | tests du module touché (`./mvnw test` sur le module, ou complet si doute) |
+| `backend/` | `npm run backend:verify`, ou test ciblé lancé avec `scripts/run-with-domain-profile.sh development` |
 | `frontends/*` | typecheck et tests du package touché |
 | `infra/`, `.github/workflows/` | validation syntaxique, relecture du diff |
 

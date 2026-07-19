@@ -24,8 +24,8 @@ info:
     url: https://surplasse.com
 
 servers:
-  - url: https://api.surplasse.com
-    description: Production.
+  - url: /
+    description: Current API origin, injected by the environment at runtime.
 
 tags:
   - name: catalog

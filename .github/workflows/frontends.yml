@@ -6,12 +6,88 @@ on:
       - main
     paths:
       - "frontends/**"
+      - "config/domains/**"
+      - "scripts/dev-cockpit/**"
+      - "scripts/generate_brand_assets.py"
+      - "scripts/requirements.txt"
+      - "scripts/lib/**"
+      - "scripts/*local-*.sh"
+      - "scripts/run-with-domain-profile.sh"
+      - "infra/local/**"
       - "brand/**"
       - "api/**"
+      - "package.json"
       - ".github/workflows/frontends.yml"
   workflow_dispatch:
 
 jobs:
+  domains:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm run domains:test
+      - run: npm run domains:check
+
+  dev-cockpit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm --prefix scripts/dev-cockpit test
+
+  brand-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: scripts/requirements.txt
+      - run: python -m pip install -r scripts/requirements.txt
+      - run: python scripts/generate_brand_assets.py --check
+
+  local-infrastructure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check shell syntax
+        run: >-
+          bash -n
+          scripts/lib/local-domain.sh
+          scripts/setup-local-domain.sh
+          scripts/start-local-proxy.sh
+          scripts/stop-local-proxy.sh
+          scripts/remove-local-domain.sh
+          scripts/run-with-domain-profile.sh
+      - name: Validate the local Caddyfile
+        run: |
+          mkdir -p "$RUNNER_TEMP/surplasse-caddy"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 30 \
+            -subj "/CN=surplasse.test" \
+            -keyout "$RUNNER_TEMP/surplasse-caddy/key.pem" \
+            -out "$RUNNER_TEMP/surplasse-caddy/cert.pem"
+          docker run --rm \
+            -e APP_BASE_DOMAIN=surplasse.test \
+            -e APP_BASE_URL=https://surplasse.test \
+            -e DASHBOARD_URL=https://dashboard.surplasse.test \
+            -e SURPLASSE_LOCAL_CERT_FILE=/certs/cert.pem \
+            -e SURPLASSE_LOCAL_KEY_FILE=/certs/key.pem \
+            -e SURPLASSE_DASHBOARD_HOST=dashboard.surplasse.test \
+            -e SURPLASSE_API_HOST=api.surplasse.test \
+            -e SURPLASSE_LOCAL_CONTROL_HOST=local.surplasse.test \
+            -e SURPLASSE_DOCS_HOST=docs.surplasse.test \
+            -e SURPLASSE_MAILPIT_HOST=mail.surplasse.test \
+            -v "$PWD/infra/local/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            -v "$RUNNER_TEMP/surplasse-caddy:/certs:ro" \
+            caddy:2.10.2 \
+            caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+
   shared:
     runs-on: ubuntu-latest
     defaults:

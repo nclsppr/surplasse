@@ -17,13 +17,11 @@ public interface IdentityConfig {
     @WithDefault("P30D")
     Duration refreshTokenTtl();
 
-    @WithDefault("http://localhost:5174/auth/magic-link")
     URI magicLinkLandingUrl();
 
-    @WithDefault("false")
+    @WithDefault("true")
     boolean secureCookies();
 
-    @WithDefault("https://api.surplasse.com")
     String jwtIssuer();
 
     @WithDefault("surplasse-dashboard")

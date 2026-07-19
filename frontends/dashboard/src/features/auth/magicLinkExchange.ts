@@ -8,7 +8,7 @@ export class MagicLinkExchangeCoordinator {
   constructor(private readonly identityClient: IdentityClient) {}
 
   begin(currentUrl: string, replaceUrl: (cleanUrl: string) => void): Promise<RestaurateurSession> | null {
-    const url = new URL(currentUrl, "http://dashboard.surplasse.local");
+    const url = new URL(currentUrl);
     const fragment = new URLSearchParams(url.hash.startsWith("#") ? url.hash.slice(1) : url.hash);
     const token = fragment.get("token");
     const carriesToken = token !== null || url.searchParams.has("token");
