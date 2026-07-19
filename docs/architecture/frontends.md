@@ -7,7 +7,7 @@ description: Le socle React commun, le package partagé et les spécificités de
 
 # Frontends
 
-Surplasse expose trois applications web distinctes : **Onboarding** (vitrine et embarquement des restaurateurs), **Commande** (mini-site et commande client) et **Dashboard** (pilotage temps réel côté restaurant). Elles partagent un socle technique unique et un package commun, mais restent trois applications séparées, déployées indépendamment, chacune optimisée pour son public et son contexte d'usage. Cette page décrit la cible de référence : aucun code applicatif n'existe encore.
+Surplasse expose trois applications web distinctes : **Onboarding** (vitrine et embarquement des restaurateurs), **Commande** (mini-site et commande client) et **Dashboard** (pilotage temps réel côté restaurant). Elles partagent un socle technique unique et un package commun, mais restent trois applications séparées, déployées indépendamment, chacune optimisée pour son public et son contexte d'usage. Commande et `frontends/shared/` sont implémentés ; l'Onboarding React et le Dashboard restent à créer. Cette page décrit la cible commune et signale l'état de chaque application.
 
 Le choix de trois applications React distinctes plutôt qu'une application unique ou qu'un framework SSR est motivé dans [l'ADR 0004](../decisions/adr-0004-trois-frontends-react.md).
 

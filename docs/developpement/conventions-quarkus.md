@@ -10,7 +10,7 @@ description: Nommage des packages, couches et règles d'import, DTO et mapping, 
 Cette page fixe les conventions de code du Backend : comment nommer, découper et écrire le Java qui vit dans `backend/`. Elle prolonge [le backend](../architecture/backend.md), qui décrit la structure d'ensemble (modules Maven, couches, SSE, événements de domaine, jobs asynchrones) : ici, on descend au niveau du package, de la classe et de la méthode. La stratégie de test associée est décrite dans [les tests](tests.md).
 
 !!! info Documentation de référence
-Ces conventions s'appliquent au code du backend depuis la phase 1 (modules `common`, `contract`, `catalog`, `application`). Les points encore ouverts sont signalés explicitement. Le formatage est imposé par Spotless (palantir-java-format) : `./mvnw spotless:apply` avant de committer, la CI vérifie.
+Ces conventions s'appliquent au code du backend (modules `common`, `contract`, `catalog`, `order`, `payment`, `identity`, `application`). Les points encore ouverts sont signalés explicitement. Le formatage est imposé par Spotless (palantir-java-format) : `./mvnw spotless:apply` avant de committer, la CI vérifie.
 !!!
 
 ## Nommage des packages
@@ -127,7 +127,7 @@ enregistrer l'intention ──► Stripe, API OpenAI, email ──► enregistre
 (job « en attente »)        (hors transaction)           (succès ou échec, retentative)
 ```
 
-C'est exactement le fonctionnement du worker de jobs décrit dans [le backend](../architecture/backend.md#les-traitements-asynchrones) : l'insertion du job est transactionnelle, son exécution ne l'est pas, l'enregistrement de son résultat l'est de nouveau.
+C'est le fonctionnement du worker de jobs décrit dans [le backend](../architecture/backend.md#les-traitements-asynchrones) : l'insertion du job est transactionnelle, son exécution ne l'est pas, l'enregistrement de son résultat l'est de nouveau. Le magic link constitue une limite MVP documentée : son jeton est persisté dans une transaction courte, puis l'email part de façon asynchrone sans job durable. Un échec de remise n'annule pas le jeton et le restaurateur peut demander un nouveau lien.
 
 !!! warning Le webhook Stripe n'échappe pas à la règle
 Le traitement d'un webhook vérifie la signature et enregistre le fait métier dans une transaction courte ; toute conséquence lente (diffusion, ticket cuisine, email) passe par les événements post-commit ou par un job. Un webhook qui dépasse le délai de réponse de Stripe est retenté par Stripe, d'où l'exigence d'idempotence côté service.
@@ -145,6 +145,7 @@ Chaque domaine lève des **exceptions métier** explicites, qui étendent une pe
 | `ConflictException` | espace déjà revendiqué, modification concurrente | 409 |
 | `BusinessRuleException` | panier contenant un produit en rupture, montant incohérent | 422 |
 | `PaymentFailedException` | paiement refusé par Stripe | 422 |
+| `RateLimitedException` | seuil de demande de magic link dépassé | 429 avec `Retry-After` |
 | `DependencyUnavailableException` | Stripe ou l'API OpenAI injoignable après retentatives | 503 |
 | toute exception non mappée | bug | 500, sans détail interne dans la réponse |
 
@@ -210,7 +211,7 @@ Le condensé de ce que la revue refuse systématiquement :
 | Logique métier dans une resource | la logique devient intestable sans HTTP et échappe aux transactions | tout déplacer dans le service, la resource convertit et délègue |
 | Entité JPA exposée dans l'API | couple le schéma de base au contrat public | DTO du contrat et mapper dédié |
 | Requête SQL native sans justification | contourne l'ORM, fragilise migrations et portabilité | requête Panache nommée ; une native se justifie en revue et se commente |
-| État mutable partagé dans un bean | les beans CDI sont des singletons concurrents | état en base de données, structures immuables |
+| État métier mutable partagé dans un bean | les beans CDI sont des singletons concurrents et l'état serait perdu au redémarrage | état en base de données, structures immuables ; un compteur technique en mémoire, comme la limite de débit MVP, reste explicitement documenté, borné et thread-safe |
 | Appel bloquant dans un flux réactif SSE | bloque l'event loop et gèle tous les canaux | composition Mutiny sur le `Multi`, travail bloquant déporté hors du flux |
 | Injection de champ `@Inject` | dépendances cachées, testabilité dégradée | injection par constructeur, champs `final` |
 | `@Transactional` sur une resource ou un repository | frontière transactionnelle au mauvais niveau | `@Transactional` sur la méthode de service |

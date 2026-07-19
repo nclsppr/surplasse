@@ -51,7 +51,7 @@ Les fonctionnalités visées par chaque phase sont détaillées dans [le catalog
 
 ### Exclusions explicites
 
-- Aucun code applicatif : ni backend, ni frontends, ni contrat OpenAPI.
+- Durant cette phase terminée, le backend, les frontends et le contrat OpenAPI restaient hors périmètre.
 - Aucune maquette graphique ni charte visuelle définitive.
 
 ### Critère de sortie

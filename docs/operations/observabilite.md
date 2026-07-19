@@ -25,12 +25,13 @@ Les réponses ordonnent tout le reste :
 | La carte ne se charge pas ou trop lentement | Le client scanne, attend, renonce : la commande n'existe jamais | Latence p95 de l'API carte, sonde de disponibilité |
 | Le flux SSE est mort | Les commandes payées n'arrivent plus en salle : clients servis en retard ou pas du tout | Compteur de connexions SSE actives, fraîcheur des événements |
 | Les jobs d'extraction échouent en boucle | Les embarquements se bloquent, les restaurateurs abandonnent le tunnel | Compteur de jobs d'extraction en échec |
+| Les emails de magic link ne sont plus remis | Les restaurateurs ne peuvent plus se connecter alors que l'API répond 202 | Échecs SMTP côté Backend, rejets et rebonds côté fournisseur, test de remise périodique |
 
 La règle de priorisation qui en découle : une mesure qui protège une commande ou un paiement se pose au premier déploiement ; une mesure de confort (dashboards détaillés, traces distribuées) se pose quand un problème réel la réclame. L'empilement d'outils d'observation est un coût d'exploitation comme un autre, et la [posture générale du projet](../architecture/index.md) est la simplicité opérationnelle.
 
 ## Les health checks
 
-Le Backend expose les endpoints de santé standards de Quarkus via l'extension `quarkus-smallrye-health` (voir [les extensions prévues](../architecture/backend.md#les-extensions-quarkus-prévues)) :
+Le Backend expose les endpoints de santé standards de Quarkus via l'extension `quarkus-smallrye-health` (voir [les extensions Quarkus](../architecture/backend.md#les-extensions-quarkus)) :
 
 | Endpoint | Question posée | Répond « UP » quand |
 |---|---|---|
@@ -106,6 +107,7 @@ Micrometer fournit gratuitement les métriques techniques standards (latence par
 | Latence p95 de l'API carte | Histogramme sur les endpoints de lecture de la carte | La carte est la première page vue après le scan : sa lenteur tue la commande avant qu'elle n'existe |
 | Connexions SSE actives | Jauge, par type de canal (établissement, commande) | Une jauge à zéro en plein service signifie que les Dashboards sont aveugles (voir [le temps réel](../architecture/backend.md#le-temps-réel--sse-via-mutiny)) |
 | Jobs d'extraction en échec | Compteur, avec la jauge des jobs en attente | Des embarquements bloqués et un budget d'API OpenAI qui brûle pour rien |
+| Échecs de remise SMTP | Compteur par classe d'erreur, sans adresse ni contenu | Une panne de connexion au fournisseur ou une configuration TLS invalide |
 
 Ces six mesures couvrent les quatre pannes silencieuses du tableau d'ouverture. Toute métrique métier supplémentaire se justifie par le même critère : quelle perte détecte-t-elle ?
 
@@ -123,6 +125,8 @@ Au MVP, l'alerting repose sur Uptime Kuma, un outil de supervision auto-héberg�
 Les notifications partent par email et par notification mobile (Uptime Kuma sait pousser vers la plupart des canaux courants ; le canal exact reste à trancher). Il n'y a pas d'astreinte formelle à ce stade : l'objectif est qu'aucune indisponibilité ne dure des heures faute d'avoir été vue.
 
 Les alertes sur seuils de métriques (taux d'échec de paiement, jobs en échec) arriveront avec Prometheus, qui sait les évaluer nativement ; d'ici là, ces compteurs sont consultés manuellement sur `/q/metrics` lors des diagnostics.
+
+L'email d'authentification demande en plus une supervision chez le fournisseur SMTP. Avant le pilote, l'opérateur active les alertes sur les rejets, les rebonds, les plaintes, la dégradation du délai de remise et les incidents du fournisseur. SPF, DKIM et DMARC sont contrôlés après chaque changement DNS. Un test périodique envoie un magic link à une boîte de contrôle et vérifie sa réception. Mailpit ne participe à aucune de ces sondes : il est limité au développement et n'existe ni en CI ni en production.
 
 ## SLI et objectifs pragmatiques
 

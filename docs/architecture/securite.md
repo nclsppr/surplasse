@@ -24,7 +24,7 @@ Trois choix structurants minimisent le risque à la source :
 Le reste de la posture découle de ce socle : sessions courtes, autorisations filtrées par établissement, validation stricte des entrées, chiffrement en transit partout.
 
 !!! info État actuel au 2026-07-19
-Le catalogue, la commande et le paiement sont implémentés localement. Le contrat d'identité décrit ci-dessous est stabilisé ; son module Backend et le Dashboard restent à implémenter. Rien n'est encore déployé en production.
+Le catalogue, la commande, le paiement et le module Backend `identity` sont implémentés localement. Le Dashboard reste à implémenter et rien n'est encore déployé en production. L'identité s'exécute dans l'unique processus Backend, sans service autonome.
 !!!
 
 ## Modèle de menaces
@@ -96,9 +96,12 @@ Points d'implémentation imposés :
 - La demande de magic link est limitée en débit : par email cible et par IP (voir [Limitation de débit](#limitation-de-debit)).
 - L'échange du jeton (étape 5) passe par une page intermédiaire qui déclenche un POST, pour éviter la consommation du jeton par les outils de prévisualisation de liens des clients email.
 - Le JWT ne contient aucune donnée personnelle : uniquement l'identifiant du restaurateur, l'identifiant de famille de session et les claims techniques de validité.
+- Le JWT est signé en RS256. Son en-tête porte le `kid` de la clé courante ; le Backend signe avec une clé privée et vérifie avec un JWKS public contenant la clé courante et, pendant une rotation, la précédente.
 - Le refresh token est opaque et seule son empreinte est stockée. Chaque rotation conserve l'ancien enregistrement jusqu'à expiration ; sa réutilisation révoque toute la famille.
-- Les cookies sont hôte uniquement pour l'API, sans attribut `Domain`. Le JWT utilise `Path=/` et le refresh token `Path=/v1/auth/sessions`.
+- Les cookies `surplasse_session` et `surplasse_refresh` sont hôte uniquement pour l'API, sans attribut `Domain`. Ils sont `HttpOnly`, `SameSite=Lax` et `Secure` en production. Le JWT utilise `Path=/` et le refresh token `Path=/v1/auth/sessions`.
 - Le Dashboard envoie les cookies avec `credentials: "include"` ; son `EventSource` utilise `withCredentials: true`.
+
+La remise du magic link est asynchrone mais non durable au MVP. Le Backend répond 202 après avoir persisté le jeton, sans attendre le SMTP. Un arrêt du processus ou un échec SMTP à cet instant peut perdre l'email. Le restaurateur peut alors demander un nouveau lien, ce qui invalide le précédent. Aucun jeton ni aucune adresse email n'est journalisé.
 
 ## Session client anonyme
 
@@ -146,12 +149,14 @@ L'endpoint de webhook est le seul endpoint public non couvert par le CORS applic
 
 | Règle | Détail |
 |---|---|
-| Variables d'environnement uniquement | Tous les secrets (clés Stripe, clé API OpenAI, secret de signature JWT, identifiants SMTP, mot de passe PostgreSQL) sont injectés par l'environnement, jamais codés en dur |
+| Variables d'environnement uniquement | Tous les secrets (clés Stripe, clé API OpenAI, clé privée de signature JWT, identifiants SMTP, mot de passe PostgreSQL) sont injectés par l'environnement ou montés hors image, jamais codés en dur |
 | Jamais dans git | Aucun secret dans l'historique, y compris dans les fichiers de configuration Docker Compose : les valeurs sensibles sont référencées, pas inscrites |
 | `.env.example` committé | Un fichier d'exemple liste toutes les variables attendues, avec des valeurs vides ou factices, pour documenter la configuration sans rien exposer |
-| Rotation | Les secrets sont rotables sans redéploiement de code : rotation planifiée au moins annuelle, rotation immédiate en cas de suspicion de fuite (le secret JWT supporte une double validité temporaire pour ne pas invalider brutalement les sessions) |
+| Rotation | Les secrets sont rotables sans modification de code : rotation planifiée au moins annuelle, immédiate en cas de suspicion de fuite. Pour le JWT, le JWKS conserve temporairement les clés publiques courante et précédente afin de laisser expirer les sessions signées avant la bascule |
 
 L'outillage exact de gestion des secrets sur le VPS (fichier d'environnement protégé, coffre dédié) reste à trancher et sera consigné dans un ADR.
+
+Sous Ubuntu LTS, qui fait foi pour la production, `AUTH_JWT_PRIVATE_KEY_PATH` pointe vers la clé privée RS256 courante, `AUTH_JWT_KEY_ID` vers son `kid`, et `AUTH_JWT_JWKS_PATH` vers le jeu de clés publiques de vérification. `AUTH_JWT_ISSUER` et `AUTH_JWT_AUDIENCE` verrouillent respectivement l'émetteur et l'audience. Les fichiers de clés sont montés en lecture seule hors de l'image. La procédure de rotation et l'inventaire complet des variables vivent dans [Environnements](../operations/environnements.md#backend-quarkus).
 
 ## Transport et en-têtes HTTP
 
@@ -176,17 +181,17 @@ Les photos de carte transmises à l'API OpenAI pour extraction suivent le même 
 
 ## Limitation de débit {#limitation-de-debit}
 
-Une limitation de débit s'applique par IP et par session sur les endpoints sensibles :
+Une limitation de débit s'applique par IP et par session sur les endpoints sensibles. La première protection effectivement livrée concerne la demande de magic link : 5 demandes par email cible et 20 par IP sur une fenêtre de 15 minutes.
 
 | Endpoint | Clé de limitation | Objectif |
 |---|---|---|
-| Demande de magic link | IP et email cible | Empêcher le spam d'emails et l'énumération de comptes |
-| Échange de jeton de magic link | IP | Empêcher la recherche exhaustive de jetons |
-| Création de Commande | Session client et IP | Limiter les commandes en rafale et la nuisance en salle |
-| Lecture de la carte | IP | Freiner le scraping massif sans gêner l'usage normal |
-| Endpoints d'embarquement (génération IA) | IP | Protéger le budget d'appels à l'API OpenAI |
+| Demande de magic link | IP et email cible | Implémenté : empêcher le spam d'emails et l'énumération de comptes |
+| Échange de jeton de magic link | IP | Cible : empêcher la recherche exhaustive de jetons |
+| Création de Commande | Session client et IP | Cible : limiter les commandes en rafale et la nuisance en salle |
+| Lecture de la carte | IP | Cible : freiner le scraping massif sans gêner l'usage normal |
+| Endpoints d'embarquement (génération IA) | IP | Cible : protéger le budget d'appels à l'API OpenAI |
 
-Les seuils exacts restent à trancher et seront calibrés en pré-production. Les dépassements répondent en 429 avec `Retry-After`.
+Les compteurs de magic link sont locaux au processus et conservés en mémoire. Ils sont remis à zéro à chaque redémarrage et ne seraient pas partagés entre plusieurs instances. Cette limite est acceptable sur le VPS unique du MVP. Une persistance ou un magasin partagé devra précéder tout passage à plusieurs instances. Les dépassements répondent en 429 avec `Retry-After`. Les seuils des protections encore cibles restent à calibrer.
 
 ## Sauvegardes
 
@@ -205,5 +210,5 @@ PostgreSQL est sauvegardé de façon chiffrée, avec des copies hors du VPS de p
 | Durée exacte de la session client anonyme | 2 heures glissantes | Le contrat et un ADR si le sujet s'avère structurant |
 | Rôles restaurateur différenciés (gérant, salle) | Hors MVP | ADR dédié le moment venu |
 | Outillage de gestion des secrets sur le VPS | Orientation : fichier d'environnement protégé (chmod 600) sur le VPS, copies maîtresses dans un gestionnaire de mots de passe (le coffre des humains), rotation documentée. Un coffre serveur dédié (Vault, Infisical) ne se justifiera que si les secrets se multiplient réellement (notifications, API tierces) ou si plusieurs opérateurs partagent l'exploitation | ADR dédié, avec `infra/` |
-| Seuils de limitation de débit | Calibrage en pré-production | Documentation d'exploitation |
+| Seuils de limitation hors demande de magic link et futur stockage partagé des compteurs | Calibrage avant activation de chaque endpoint, stockage partagé avant toute seconde instance | Documentation d'exploitation |
 | Plafond de taille des téléversements | De l'ordre de 10 Mo par image | Le contrat |

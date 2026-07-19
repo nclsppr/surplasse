@@ -4,9 +4,9 @@
 -- The contract examples in api/openapi.yaml align on this data; keep them
 -- in sync when editing.
 
--- Order-domain rows first: they reference products and tables. Guarded on
--- table existence: the catalog module tests run without the order and
--- payment migrations on their classpath.
+-- Cross-domain rows first: they reference catalog and identity data. Guarded
+-- on table existence because isolated catalog tests do not load the order,
+-- payment or identity migrations.
 do $$
 begin
     if to_regclass('public.payment') is not null then delete from payment; end if;
@@ -14,6 +14,8 @@ begin
     if to_regclass('public.order_line') is not null then delete from order_line; end if;
     if to_regclass('public."order"') is not null then delete from "order"; end if;
     if to_regclass('public.table_session') is not null then delete from table_session; end if;
+    if to_regclass('public.magic_link_session') is not null then delete from magic_link_session; end if;
+    if to_regclass('public.restaurateur_session') is not null then delete from restaurateur_session; end if;
 end $$;
 
 delete from option;
@@ -24,8 +26,30 @@ delete from table_qr;
 delete from menu;
 delete from establishment;
 
-insert into establishment (id, name, slug, address, status) values
-    ('7c9e6679-7425-40de-944b-e07fc1f90ae7', 'Le Cormoran', 'le-cormoran', '12 quai des Belges, 13001 Marseille', 'active');
+-- The identity migration is absent from isolated catalog tests. Seed the
+-- pilot account only when its table is on the classpath, and leave the
+-- catalog-only establishment unowned otherwise.
+do $$
+begin
+    if to_regclass('public.restaurateur') is not null then
+        delete from restaurateur;
+        insert into restaurateur (id, email, full_name) values
+            ('a1b2c3d4-e5f6-4789-8abc-def012345678', 'pilote@le-cormoran.example', 'Camille Martin');
+    end if;
+end $$;
+
+insert into establishment (id, restaurateur_id, name, slug, address, status) values
+    (
+        '7c9e6679-7425-40de-944b-e07fc1f90ae7',
+        case when to_regclass('public.restaurateur') is null
+            then null
+            else 'a1b2c3d4-e5f6-4789-8abc-def012345678'::uuid
+        end,
+        'Le Cormoran',
+        'le-cormoran',
+        '12 quai des Belges, 13001 Marseille',
+        'active'
+    );
 
 insert into menu (id, establishment_id, name, status) values
     ('9b2f5c1a-6d3e-4b7f-8a2c-1e9d8c7b6a5f', '7c9e6679-7425-40de-944b-e07fc1f90ae7', 'Carte principale', 'published');

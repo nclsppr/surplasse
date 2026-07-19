@@ -92,7 +92,7 @@ Chaque application est compilée en fichiers statiques et servie par le reverse 
 Le SEO du mini-site (le seul front où il compte : un établissement doit être trouvable par son nom) sera traité par un pré-rendu léger des pages publiques au build ou à la génération de l'Espace. Le mécanisme exact reste à trancher : il fera l'objet d'un ADR dédié quand le besoin sera réel, c'est-à-dire quand les premiers mini-sites seront en ligne. Cette décision-ci n'exclut aucune des pistes (pré-rendu statique, rendu à la volée en périphérie), elle exclut seulement d'adopter un framework SSR complet pour ce seul besoin.
 
 !!! info Cible de référence
-Le monorepo ne contient aujourd'hui aucun code applicatif. Cet ADR fixe la structure que la première itération de la [roadmap](../roadmap.md) devra respecter, en cohérence avec [l'architecture des frontends](../architecture/frontends.md).
+Au moment de la décision, le monorepo précédait encore l'introduction du code applicatif. Cet ADR a fixé la structure respectée depuis par la première itération de la [roadmap](../roadmap.md), en cohérence avec [l'architecture des frontends](../architecture/frontends.md).
 !!!
 
 ## Conséquences

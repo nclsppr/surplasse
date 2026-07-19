@@ -7,7 +7,7 @@ description: Le modèle de données de référence de Surplasse, entités par do
 
 # Modèle de données
 
-Cette page décrit le modèle de données de référence de Surplasse. Le [backend](./backend.md) est le seul à accéder à la base : les frontends passent exclusivement par [le contrat OpenAPI](./api.md). Le domaine catalogue est implémenté par la première migration Flyway (`backend/catalog/`, phase 1) ; les autres domaines restent la cible à implémenter.
+Cette page décrit le modèle de données de référence de Surplasse. Le [backend](./backend.md) est le seul à accéder à la base : les frontends passent exclusivement par [le contrat OpenAPI](./api.md). Les domaines catalogue, commande, paiement et identité sont matérialisés par les migrations Flyway V1 à V5 ; les autres domaines restent la cible à implémenter.
 
 ## Principes
 
@@ -35,22 +35,22 @@ Les montants sont stockés en entiers (`price_cents`, `total_cents`) pour élimi
 Le modèle s'organise en six domaines, alignés sur les modules Maven du [backend](./backend.md) : Identité, Catalogue, Commande, Paiement, Engagement, Génération.
 
 ```
-IDENTITÉ                          CATALOGUE
-+--------------+ 1            n  +---------------+ 1        1 +-------+
-| Restaurateur |---------------->| Establishment |<-----------| Space |
-+--------------+                 +---------------+            +-------+
-      | 1                          | 1    | 1
-      |                            |      +--------n--> +---------+
-      | n                          |                    | TableQr |
-+------------------+               | n                  +---------+
-| MagicLinkSession |            +------+
-+------------------+            | Menu |
-                                +------+
-                                   | 1
-                                   | n
-                             +----------+ 1      n +---------+
-                             | Category |--------->| Product |
-                             +----------+          +---------+
+IDENTITÉ                                      CATALOGUE
++--------------+ 1                          n   +---------------+ 1        1 +-------+
+| Restaurateur |------------------------------->| Establishment |<-----------| Space |
++------+-------+                                +---------------+            +-------+
+       | 1                                        | 1    | 1
+       +----------n--> +------------------+        |      +--------n--> +---------+
+       |               | MagicLinkSession |        |                    | TableQr |
+       |               +------------------+        | n                  +---------+
+       +----------n--> +----------------------+  +------+
+                       | RestaurateurSession |  | Menu |
+                       +----------------------+  +------+
+                                                  | 1
+                                                  | n
+                                            +----------+ 1      n +---------+
+                                            | Category |--------->| Product |
+                                            +----------+          +---------+
                                                        | 1
                                                        | n
                                              +-------------+ 1     n +--------+
@@ -105,6 +105,7 @@ GÉNÉRATION                                    MÉDIAS
 | `token_hash` | text | unique, non nul | Hachage du jeton envoyé par email |
 | `expires_at` | timestamptz | non nul | Validité de 15 minutes |
 | `consumed_at` | timestamptz | nullable | Non nul dès la première utilisation |
+| `invalidated_at` | timestamptz | nullable | Non nul quand une nouvelle demande invalide ce lien inutilisé |
 | `created_at` | timestamptz | non nul | Lignes expirées purgées automatiquement |
 
 **RestaurateurSession** : un refresh token rotatif d'une session Dashboard. Chaque jeton forme une ligne afin de détecter le rejeu d'un ancien refresh token. Le JWT court n'est pas persisté.
@@ -438,6 +439,20 @@ pregenerated (espace pré-généré) --> claimed (revendiqué) --> configuring (
 
 Un établissement créé directement par l'embarquement (sans pré-génération) entre dans le cycle au statut `configuring` : son espace est créé déjà revendiqué. `suspended` est réversible vers `active`. La suppression définitive d'un établissement est un processus RGPD à part, décrit dans [Opérations : RGPD](../operations/rgpd.md).
 
+## Migrations Flyway effectivement livrées
+
+| Version | Module | Contenu principal |
+|---|---|---|
+| V1 | `catalog` | établissements et carte |
+| V2 | `catalog` | tables et supports QR |
+| V3 | `order` | commandes et suivi |
+| V4 | `payment` | paiements et webhooks Stripe |
+| V5 | `identity` | restaurateurs, magic links, familles de refresh tokens, rattachement des établissements |
+
+V5 vit dans `backend/identity/src/main/resources/db/migration/V5__identity_schema.sql`. Flyway l'applique au démarrage de l'assemblage Backend, comme les quatre versions précédentes. Le seed local associe le compte de démonstration à l'établissement pilote ; il n'est jamais chargé en production.
+
+Les tables V5 appartiennent à l'unique base PostgreSQL. Elles sont donc incluses dans chaque `pg_dump`, dans la copie chiffrée hors VPS et dans l'exercice trimestriel de restauration. Elles n'ajoutent ni volume ni sauvegarde séparés. Une restauration doit vérifier que Flyway voit V5 comme appliquée et que les liens entre `restaurateur`, `restaurateur_session`, `magic_link_session` et `establishment` sont cohérents.
+
 ## Invariants métier
 
 | Invariant | Garantie |
@@ -463,6 +478,7 @@ Le tableau ci-dessous résume la politique par entité. Les procédures détaill
 |---|---|---|
 | Restaurateur | Oui (email, nom, téléphone) | Vie du compte, puis purge à la clôture hors obligations légales |
 | MagicLinkSession | Oui (jeton lié à un email) | Purge automatique après expiration |
+| RestaurateurSession | Oui (rattachement au restaurateur, jeton haché) | Conservation jusqu'à expiration de la famille, puis purge automatique |
 | Establishment | Données professionnelles publiques | Vie du compte |
 | Space | Données publiques collectées | Jusqu'à revendication, puis suppression sur demande du propriétaire |
 | Menu, Category, Product, OptionGroup, Option | Non | Vie du compte |

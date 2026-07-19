@@ -34,7 +34,7 @@ Surplasse est développé et exploité par une seule personne. Ce fait dicte tou
 - **Tout dans Docker Compose, sur un VPS unique.** Pas d'orchestrateur, pas de cluster, pas de cloud managé au lancement. Un seul VPS, une seule pile Compose versionnée dans `infra/`, un seul endroit où regarder. Kubernetes résout des problèmes que Surplasse n'a pas.
 - **Tout redéployable depuis git.** Le VPS ne contient aucun état de configuration qui ne soit pas reconstructible : les fichiers Compose et la configuration du reverse proxy vivent dans `infra/`, les images sont taggées par SHA dans le registre, les secrets sont les seuls éléments provisionnés à la main (et documentés dans [Environnements](environnements.md)). Perdre le VPS doit coûter une restauration de sauvegarde et un déploiement, pas une archéologie.
 
-Les seules dépendances externes sont des services SaaS qui portent leur propre exploitation : Stripe pour le paiement, l'API OpenAI pour l'extraction de carte, GitHub pour le code, la CI et la documentation.
+Les seules dépendances externes sont des services SaaS qui portent leur propre exploitation : Stripe pour le paiement, l'API OpenAI pour l'extraction de carte, le futur fournisseur SMTP transactionnel pour les emails, GitHub pour le code, la CI et la documentation.
 
 ## Inventaire des services en production
 
@@ -51,6 +51,29 @@ La documentation et la préfiguration statique de l'Onboarding sont actuellement
 | PostgreSQL | PostgreSQL 17 | Dev Services local, cible Compose absente | Base de données unique | Réseau interne Compose uniquement |
 | MinIO | MinIO | Module absent | Stockage objet des images | Réseau interne Compose uniquement |
 | Supervision | À trancher | Cible non provisionnée | Sondes, logs, métriques et alertes | Interface d'administration privée |
+
+Le module Maven `identity` n'apparaît pas comme un service dans ce tableau : il est compilé dans l'image Backend. Il ne possède aucun processus, port, conteneur, volume ni health check distinct. Mailpit n'apparaît pas non plus : c'est un outil local jetable, absent de la CI et de la production. En production, le Backend remet les emails à un fournisseur SMTP transactionnel externe encore à sélectionner.
+
+### Cycle de vie de l'identité sous Ubuntu LTS
+
+L'identité suit exactement le cycle de vie du Backend. La pile `infra/` n'est pas encore provisionnée ; les commandes ci-dessous fixent le contrat opérationnel du futur service Compose `backend` :
+
+```bash
+# Vérifier le Backend avant de construire son image
+cd backend
+./mvnw -B verify
+./mvnw -B package
+
+# Lancer sur le VPS depuis le futur répertoire infra/
+docker compose up -d backend
+docker compose restart backend
+curl --fail https://api.surplasse.com/q/health/ready
+
+# Arrêt de maintenance, qui coupe toute l'API
+docker compose stop backend
+```
+
+Le démarrage exige PostgreSQL, les migrations Flyway, les clés JWT RS256 montées hors image et la configuration SMTP décrite dans [Environnements](environnements.md#backend-quarkus). Flyway applique V5 avec le reste du schéma avant que la readiness passe à `UP`. Une mise à jour ou un retour arrière redéploie l'image Backend entière : il n'existe aucune opération propre à `identity`. Ubuntu LTS fait foi.
 
 Sur le choix du reverse proxy : Traefik excelle dans la découverte dynamique de conteneurs et brille dans des environnements où les services vont et viennent, au prix d'une configuration par labels plus verbeuse et d'un modèle mental plus riche. Caddy fait la même chose ici avec un fichier de configuration court et lisible, et gère le certificat wildcard par défi DNS-01 via un module DNS provider (build Caddy personnalisé, à prévoir dans l'image de `infra/`). La topologie de Surplasse étant statique (les mêmes services, tout le temps), la référence retient **Caddy** pour sa simplicité ; ce choix sera consigné en ADR avec la mise en place de `infra/`.
 
@@ -114,6 +137,8 @@ La base de données est le seul état qui ne se reconstruit pas. Le régime de s
 | Copie hors VPS | Quotidienne, après le dump | Transfert du dump chiffré vers un stockage tiers, hors du VPS et hors du même hébergeur |
 | Contenu MinIO | Hebdomadaire | Synchronisation des buckets vers le même stockage tiers |
 | Exercice de restauration | Trimestriel | Restauration complète du dernier dump sur un environnement local, vérification que l'application démarre et que les données sont cohérentes |
+
+Le dump PostgreSQL inclut les tables d'identité ajoutées par V5 : restaurateurs, magic links et refresh tokens hachés. Aucune sauvegarde ni aucun volume distinct ne leur est nécessaire. L'exercice de restauration vérifie aussi le rattachement entre restaurateurs et établissements ainsi que l'état Flyway de V5.
 
 Le contenu MinIO est moins critique que la base : les images de produits sont re-téléversables et la carte extraite vit en base, seule la photo originale de la carte serait perdue. La rétention exacte des dumps (nombre de jours, paliers hebdomadaires et mensuels) reste à trancher, en cohérence avec les durées de [RGPD](rgpd.md).
 

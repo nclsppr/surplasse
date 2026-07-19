@@ -15,13 +15,13 @@ Surplasse n'est pas une marketplace : le restaurant garde son identité, ses pri
 
 | Aspect | État en juillet 2026 |
 |---|---|
-| Phase | Documentation et planification |
-| Code applicatif | Aucun : ni backend, ni frontends, ni contrat OpenAPI |
-| Existant dans le dépôt | `docs/` (ce site) et la configuration racine |
-| Prochaines étapes | Décrites dans la [roadmap](roadmap.md) |
+| Phase | Phase 2, commander et payer, en cours |
+| Code applicatif | Contrat OpenAPI, Backend Quarkus jusqu'à l'identité restaurateur, package TypeScript partagé et front Commande |
+| Existant dans le dépôt | `docs/`, `brand/`, `api/`, `backend/`, `frontends/shared/`, `frontends/commande/` et préfiguration statique de l'Onboarding |
+| Prochaines étapes | Dashboard minimal, consommation de l'identité et flux opérationnel des commandes, selon la [roadmap](roadmap.md) |
 
-!!! info Présent de spécification
-Ces pages décrivent la cible de référence, pas un existant. Quand une page écrit « le backend expose » ou « la commande passe par », elle spécifie le comportement attendu du futur système. Les points encore ouverts sont signalés explicitement dans les pages concernées, et chaque décision structurante est consignée dans un [ADR](decisions/index.md).
+!!! info Existant et cible
+Les pages distinguent l'état implémenté de la cible de référence. Les points encore ouverts sont signalés explicitement dans les pages concernées, et chaque décision structurante est consignée dans un [ADR](decisions/index.md).
 !!!
 
 ## Le système en un coup d'œil

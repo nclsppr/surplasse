@@ -10,7 +10,7 @@ description: Principes directeurs, diagrammes de contexte et de conteneurs, flux
 Cette page donne la carte générale du système : les principes qui guident chaque décision, les acteurs et les systèmes externes, les conteneurs déployés, les deux flux critiques du produit et le découpage en domaines métier. Les pages suivantes de cette section détaillent chaque bloc.
 
 !!! info Documentation de référence
-Le projet n'a pas encore de code applicatif. Cette page décrit la cible de référence, au présent de spécification. Les points non tranchés sont signalés explicitement et donneront lieu à des ADR dans [decisions](../decisions/).
+Le contrat, le Backend modulaire, le package partagé et Commande sont implémentés localement. Cette page présente à la fois cet existant et la cible complète. Les composants absents et les points non tranchés sont signalés explicitement et donneront lieu à des ADR dans [decisions](../decisions/).
 !!!
 
 ## Principes directeurs

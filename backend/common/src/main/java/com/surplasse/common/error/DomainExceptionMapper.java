@@ -29,9 +29,11 @@ public class DomainExceptionMapper implements ExceptionMapper<DomainException> {
                 exception.status(),
                 exception.getMessage(),
                 instancePath(uriInfo));
-        return Response.status(exception.status())
-                .type(PROBLEM_JSON)
-                .entity(payload)
-                .build();
+        Response.ResponseBuilder response =
+                Response.status(exception.status()).type(PROBLEM_JSON).entity(payload);
+        if (exception instanceof RateLimitedException rateLimited) {
+            response.header("Retry-After", rateLimited.retryAfterSeconds());
+        }
+        return response.build();
     }
 }

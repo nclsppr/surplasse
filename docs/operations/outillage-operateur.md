@@ -24,8 +24,11 @@ Pour l'interface humaine en local, tout client PostgreSQL convient : **TablePlus
 | Contexte | Où |
 |---|---|
 | Backend en dev | Le terminal `quarkus:dev` (format texte lisible) ; la Dev UI (`/q/dev-ui`) pour le détail |
+| Emails en dev | Mailpit sur `http://localhost:8025`, santé sur `/readyz` ; uniquement des comptes de démonstration, aucun volume persistant |
 | Frontends en dev | Le terminal Vite, et la console du navigateur |
 | Production | `docker compose logs -f <service>` sur le VPS (backend, caddy, postgres...) ; agrégateur à poser plus tard, voir [observabilité](observabilite.md) |
+
+Mailpit est absent de la CI et de la production. Les rejets, rebonds et délais de remise des magic links se consultent dans l'interface du futur fournisseur SMTP transactionnel, qui reste à sélectionner. Les logs du Backend ne contiennent ni adresse email ni jeton.
 
 ## Résultats de tests
 
@@ -37,7 +40,7 @@ Pour l'interface humaine en local, tout client PostgreSQL convient : **TablePlus
 
 ## Explorer et requêter l'API
 
-Le backend sert **Swagger UI sur `/q/swagger-ui`** (en dev), alimenté par le contrat lui-même : `npm run api:generate` copie `api/openapi.yaml` tel quel (brouillons visibles, marqués `x-draft`) dans les ressources de l'application, et le scan d'annotations est désactivé pour que le contrat reste l'unique source. On peut y lire chaque endpoint et l'appeler directement (penser à l'en-tête `X-Table-Session` pour les endpoints de commande).
+Le backend sert **Swagger UI sur `/q/swagger-ui`** (en dev), alimenté par le contrat lui-même : `npm run api:generate` copie `api/openapi.yaml` tel quel (brouillons visibles, marqués `x-draft`) dans les ressources de l'application, et le scan d'annotations est désactivé pour que le contrat reste l'unique source. On peut y lire chaque endpoint et l'appeler directement. Penser à l'en-tête `X-Table-Session` pour les endpoints de commande. Pour l'identité restaurateur, le navigateur conserve les cookies hôte uniquement ; les appels Dashboard utilisent les credentials plutôt qu'un en-tête `Authorization`.
 
 En complément : `/q/health` (santé) et `/q/dev-ui` (développement uniquement). L'endpoint `/q/metrics` arrivera avec l'extension Micrometer lors du chantier d'observabilité ; il n'existe pas encore. L'exposition de Swagger UI en production reste fermée par défaut ; l'ouvrir serait une décision explicite.
 

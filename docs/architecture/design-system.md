@@ -10,7 +10,7 @@ description: "L'identité visuelle de Surplasse (Bistro premium) : logo, typogra
 Cette page fixe l'identité visuelle de Surplasse. La **source de vérité** est le design system Claude Design « Restaurant management system design » (direction **« Bistro premium »**). Ses tokens sont mirrorés dans `brand/` (avec les polices auto-hébergées) et alimenteront le package partagé `frontends/shared/` ; les composants et UI kits seront synchronisés en phase 1.
 
 !!! info Documentation de référence
-Le projet n'a pas encore de code applicatif. La marque est définie ; son intégration dans les frontends viendra avec la phase 1 de la [roadmap](../roadmap.md).
+La marque est définie dans `brand/` et ses premières briques sont consommées par `frontends/shared/` et Commande. L'Onboarding React et le Dashboard l'intégreront à leur création selon la [roadmap](../roadmap.md).
 !!!
 
 ## Direction : Bistro premium

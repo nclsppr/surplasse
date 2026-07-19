@@ -11,4 +11,14 @@ public class UnauthenticatedException extends DomainException {
         return new UnauthenticatedException(
                 "table-session-expired", "Table session expired", "The table session token is expired or unknown.");
     }
+
+    public static UnauthenticatedException magicLinkExpired() {
+        return new UnauthenticatedException(
+                "magic-link-expired", "Magic link expired", "This magic link is expired, unknown or already used.");
+    }
+
+    public static UnauthenticatedException restaurateurSessionExpired() {
+        return new UnauthenticatedException(
+                "session-expired", "Session expired", "The restaurateur session is expired or missing.");
+    }
 }

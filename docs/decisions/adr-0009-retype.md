@@ -13,7 +13,7 @@ description: Choix de Retype comme générateur du site de documentation, déplo
 
 ## Contexte
 
-Surplasse démarre par sa documentation : le projet n'a aucun code applicatif à ce jour, et ces pages constituent la référence à partir de laquelle le produit sera construit. L'outil de documentation n'est donc pas un accessoire choisi en fin de projet ; c'est le premier composant de la chaîne de production, et il doit être en place avant tout le reste.
+Au moment de cette décision, le 2026-07-18, Surplasse démarrait par sa documentation avant l'introduction du code applicatif. Ces pages constituaient la référence à partir de laquelle le produit allait être construit. L'outil de documentation n'était donc pas un accessoire choisi en fin de projet ; c'était le premier composant de la chaîne de production, à mettre en place avant le reste.
 
 ### Besoins
 

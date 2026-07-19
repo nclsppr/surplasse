@@ -9,8 +9,9 @@ import java.nio.file.Paths;
 /**
  * Shared contract validation filter of the end-to-end tests. Same OpenAPI
  * 3.1 accommodation as the catalog module: the validator mishandles
- * plain-string path parameters (it parses them as JSON documents), that
- * single check is ignored, response validation stays complete.
+ * plain-string path parameters and Set-Cookie header values (it parses them
+ * as JSON documents). Those parser checks are ignored; status, body and the
+ * presence of every declared response header stay validated.
  */
 final class ContractValidation {
 
@@ -22,6 +23,7 @@ final class ContractValidation {
                             .toString())
                     .withLevelResolver(LevelResolver.create()
                             .withLevel("validation.request.parameter.schema.invalidJson", ValidationReport.Level.IGNORE)
+                            .withLevel("validation.response.header.schema.invalidJson", ValidationReport.Level.IGNORE)
                             .build())
                     .build());
 

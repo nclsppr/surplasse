@@ -10,7 +10,7 @@ description: "Deux environnements seulement (local et production) : domaines, DN
 Surplasse ne connaît que deux environnements : le poste de développement local et la production. Cette page décrit ce que chacun contient, les domaines et certificats de la production, et les variables d'environnement attendues par chaque service. Le pourquoi de l'absence de staging est argumenté dans [CI/CD](../developpement/ci-cd.md) ; la topologie des services est décrite dans [Exploitation](index.md).
 
 !!! warning État réel au 2026-07-19
-Le local Backend et Commande est exécutable. La documentation et la préfiguration statique de l'Onboarding sont publiées sur GitHub Pages. La pile VPS, `infra/`, le Dashboard, l'Onboarding React, l'IA, les magic links, MinIO et Caddy ne sont pas encore implémentés. Toutes les mentions de production ci-dessous décrivent donc la cible à rendre exécutable dans le commit qui introduira `infra/`.
+Le Backend, y compris le module `identity`, et Commande sont exécutables localement. La documentation et la préfiguration statique de l'Onboarding sont publiées sur GitHub Pages. La pile VPS, `infra/`, le Dashboard, l'Onboarding React, l'IA, MinIO, Caddy et le fournisseur SMTP de production ne sont pas encore implémentés ou sélectionnés. Toutes les mentions de production ci-dessous décrivent donc la cible à rendre exécutable dans le commit qui introduira `infra/`.
 !!!
 
 ## Deux environnements, pas un de plus
@@ -23,7 +23,7 @@ Le local Backend et Commande est exécutable. La documentation et la préfigurat
 | Base de données | PostgreSQL éphémère via Dev Services, ou conteneur local | PostgreSQL 17, sauvegardé quotidiennement |
 | Stripe | **Mode test** exclusivement (cartes de test, webhooks relayés par la CLI Stripe) | **Mode live** |
 | IA (extraction de carte) | Cible future : réponses enregistrées par défaut et appel réel activable | Cible future : API OpenAI réelle |
-| Magic links | Cible future : capturés par Mailpit, sans email réel | Cible future : fournisseur SMTP transactionnel |
+| Magic links | Implémentés : capturés par Mailpit, sans email réel | Fournisseur SMTP transactionnel à sélectionner avant le pilote |
 | Déployé par | Personne : lancé à la main | Cible future : CI à chaque push sur `main` (voir [CI/CD](../developpement/ci-cd.md)) |
 
 La règle d'étanchéité est absolue : aucune clé live, aucune donnée réelle et aucun secret de production ne se trouve jamais sur un poste local. Le mode simulé de l'IA sert aussi les tests : il rend les parcours d'embarquement rejouables sans coût ni latence d'appel.
@@ -81,7 +81,7 @@ Le renouvellement est entièrement automatique : Caddy renouvelle le certificat 
 
 Lorsque `infra/` existera, les secrets de production vivront dans un fichier d'environnement sur le VPS, hors git, référencé par la pile Compose. Ils seront provisionnés à la main et ne transiteront jamais par la CI : celle-ci ne détiendra que ses propres secrets de déploiement, listés dans [CI/CD](../developpement/ci-cd.md).
 
-Les noms ci-dessous sont l'inventaire cible. Le commit qui introduira chaque intégration devra confirmer ces noms dans un `.env.example`, documenter ceux qui sont obligatoires et retirer la mention de cible. Les valeurs réelles ne figurent évidemment nulle part dans la documentation.
+Les noms d'identité et de SMTP ci-dessous sont stabilisés par le module `identity`. Les autres lignes restent l'inventaire cible de leur intégration. Le commit qui introduira chaque composant devra confirmer ses noms dans un `.env.example` et documenter ceux qui sont obligatoires. Les valeurs réelles ne figurent évidemment nulle part dans la documentation.
 
 ### Backend (Quarkus)
 
@@ -96,10 +96,33 @@ Les noms ci-dessous sont l'inventaire cible. Le commit qui introduira chaque int
 | `S3_ENDPOINT_URL` | Endpoint MinIO (réseau interne Compose) |
 | `S3_ACCESS_KEY` | Identifiant d'accès MinIO du backend |
 | `S3_SECRET_KEY` | Secret d'accès associé |
-| `QUARKUS_MAILER_HOST` | Hôte SMTP pour l'envoi des magic links |
-| `QUARKUS_MAILER_USERNAME` | Identifiant SMTP |
-| `QUARKUS_MAILER_PASSWORD` | Mot de passe SMTP |
-| `AUTH_JWT_SECRET` | Clé de signature des jetons de session restaurateur |
+| `AUTH_MAGIC_LINK_LANDING_URL` | URL HTTPS du Dashboard qui reçoit le magic link et l'échange par POST |
+| `AUTH_SECURE_COOKIES` | Obligatoirement `true` en production, active `Secure` sur les cookies restaurateur |
+| `AUTH_JWT_PRIVATE_KEY_PATH` | Chemin du fichier PEM de la clé privée RS256 courante, monté en lecture seule hors image |
+| `AUTH_JWT_KEY_ID` | Identifiant `kid` de la clé de signature courante |
+| `AUTH_JWT_JWKS_PATH` | Chemin du JWKS public de vérification, avec les clés courante et précédente pendant une rotation |
+| `AUTH_JWT_ISSUER` | Émetteur exigé pour les JWT, normalement `https://api.surplasse.com` |
+| `AUTH_JWT_AUDIENCE` | Audience exigée pour les JWT du Dashboard |
+| `SMTP_HOST` | Hôte du fournisseur SMTP transactionnel |
+| `SMTP_PORT` | Port SMTP du fournisseur |
+| `SMTP_USERNAME` | Identifiant SMTP |
+| `SMTP_PASSWORD` | Mot de passe SMTP |
+| `SMTP_FROM` | Adresse expéditrice validée sur `surplasse.com` |
+| `SMTP_TLS` | Activation du TLS direct, selon le port retenu par le fournisseur |
+| `SMTP_START_TLS` | Politique STARTTLS exigée par le fournisseur ; aucun SMTP en clair en production |
+
+Les variables JWT de chemin, de `kid` et de JWKS ainsi que les variables SMTP sont obligatoires en production. Les fichiers de clés et les secrets SMTP sont provisionnés sur Ubuntu LTS hors de l'image Backend. Ils sont montés en lecture seule ou injectés par le fichier d'environnement protégé du VPS. Ubuntu LTS fait foi en cas de divergence de chemins ou de permissions.
+
+### Rotation des clés JWT
+
+La rotation RS256 conserve une double vérification temporaire, jamais deux clés de signature actives :
+
+1. Générer une nouvelle paire hors du conteneur et attribuer un nouveau `kid`.
+2. Construire le JWKS avec la nouvelle clé publique courante et la clé publique précédente.
+3. Remplacer le montage privé pointé par `AUTH_JWT_PRIVATE_KEY_PATH`, mettre à jour `AUTH_JWT_KEY_ID` et le fichier pointé par `AUTH_JWT_JWKS_PATH`, puis redémarrer le Backend.
+4. Attendre plus de 15 minutes, durée maximale d'un JWT d'accès, puis retirer l'ancienne clé publique du JWKS et redémarrer le Backend.
+
+Avant et après chaque redémarrage, `curl --fail https://api.surplasse.com/q/health/ready` doit répondre avec un état `UP`. La clé privée précédente est retirée du VPS après validation, mais sa copie maîtresse reste protégée selon la politique de gestion des secrets. Une suspicion de fuite déclenche la même procédure immédiatement.
 
 ### PostgreSQL
 

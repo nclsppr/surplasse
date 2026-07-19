@@ -10,7 +10,7 @@ description: Prérequis, installation, commandes, ports et premier lancement de 
 Cette page est le point d'entrée de la section développement : ce qu'il faut installer sur sa machine, comment cloner et lancer le monorepo, quelles commandes exécuter dans chaque répertoire et comment diagnostiquer les problèmes les plus fréquents. Pour comprendre ce que l'on fait tourner avant de le lancer, lire d'abord la [vue d'ensemble de l'architecture](../architecture/index.md).
 
 !!! info État actuel
-Au 2026-07-19, existent : la documentation (`docs/`), la charte graphique (`brand/`), la préfiguration statique de l'Onboarding, le contrat (`api/openapi.yaml`) avec son lint et sa chaîne de génération, le Backend (`backend/` : modules `common`, `contract`, `catalog`, `order`, `payment`, `application`), le package partagé (`frontends/shared/`) et Commande (`frontends/commande/`) avec carte, panier, paiement et suivi. Le Dashboard et l'Onboarding React restent à créer. La page distingue toujours ce qui est exécutable de ce qui est seulement prévu.
+Au 2026-07-19, existent : la documentation (`docs/`), la charte graphique (`brand/`), la préfiguration statique de l'Onboarding, le contrat (`api/openapi.yaml`) avec son lint et sa chaîne de génération, le Backend (`backend/` : modules `common`, `contract`, `catalog`, `order`, `payment`, `identity`, `application`), le package partagé (`frontends/shared/`) et Commande (`frontends/commande/`) avec carte, panier, paiement et suivi. Le Dashboard et l'Onboarding React restent à créer. La page distingue toujours ce qui est exécutable de ce qui est seulement prévu.
 !!!
 
 ## Prérequis
@@ -85,6 +85,7 @@ Le `npm ci` racine installe Retype, Spectral et OpenAPI Generator. Les frontends
 | `backend/common` | Bibliothèque Maven ; `./mvnw -pl common -am test` | Embarquée dans le Backend, aucun conteneur distinct |
 | `backend/contract` | Sources générées ; `npm run api:generate`, puis build Maven | Embarqué dans le Backend et consommé au build, aucun conteneur distinct |
 | `backend/catalog`, `backend/order`, `backend/payment` | Modules métier ; `./mvnw -pl <module> -am test` | Embarqués dans le Backend, aucun conteneur distinct |
+| `backend/identity` | Module métier des restaurateurs, magic links et sessions ; `./mvnw -pl identity -am test` | Embarqué dans le Backend, sans processus, port ni conteneur distinct |
 | `backend/application` | Assemblage exécutable ; `./mvnw quarkus:dev` depuis `backend/` | Service Backend Quarkus en production |
 | `frontends/shared` | Bibliothèque TypeScript ; `npm run check` et `npm test`, aucun serveur | Compilée dans les frontends, aucun conteneur distinct |
 | `frontends/commande` | Application Vite ; `npm run dev` | Front statique Commande en production |
@@ -96,7 +97,7 @@ Le `npm ci` racine installe Retype, Spectral et OpenAPI Generator. Les frontends
 | Logiciel | Développement et tests | Production |
 |---|---|---|
 | PostgreSQL 17 | Requis. Démarré automatiquement par les Dev Services et Testcontainers, aucune installation serveur locale | Requis. Service persistant de la future pile Docker Compose, sauvegardé quotidiennement |
-| Mailpit | Futur outil de développement du module `identity`, non requis actuellement | Absent. Un fournisseur SMTP transactionnel prendra le relais |
+| Mailpit `axllent/mailpit:v1.30.4` | Développement seulement. Capture les emails du module `identity` sur les ports loopback 1025 et 8025, sans volume persistant | Absent de la CI et de la production. Un fournisseur SMTP transactionnel prendra le relais |
 | Stripe CLI | Développement seulement, pour relayer et rejouer les webhooks | Absente. Stripe appelle directement le webhook public du Backend |
 | Stripe | Compte et clés de test | Service SaaS requis avec comptes Connect et clés live |
 | Retype | Prévisualisation locale et build CI | Aucun processus Retype. Le résultat statique est publié sur GitHub Pages |
@@ -118,6 +119,7 @@ Chaque composant expose un petit jeu de commandes stables. Une ligne « vérific
 | `backend/` | `./mvnw test` | tests unitaires et d'intégration du backend |
 | `backend/` | `./mvnw package` | build du déployable |
 | `backend/` | `./mvnw -pl order -am test` | exemple de vérification d'un module et de ses dépendances, sans le lancer seul |
+| `backend/` | `./mvnw -pl identity -am test` | tests du module `identity` et de ses dépendances, sans processus autonome |
 | `frontends/shared/` | `npm run check && npm test` | typecheck et tests de la bibliothèque, sans serveur |
 | `frontends/commande/` | `npm run dev` | serveur Vite de Commande avec rechargement à chaud |
 | `frontends/commande/` | `npm run lint && npm test && npm run build` | vérification complète de Commande |
@@ -126,6 +128,33 @@ Chaque composant expose un petit jeu de commandes stables. Une ligne « vérific
 Pour la prévisualisation statique, ouvrir `http://localhost:4173/frontends/onboarding/` ou `http://localhost:4173/brand/board.html`. La commande est identique sous macOS, Linux et Windows via WSL2. L'arrêter avec `Ctrl+C`.
 
 Le détail des conventions par pile est dans les pages dédiées : [conventions React](conventions-react.md), [conventions Quarkus](conventions-quarkus.md), [conventions API et contrat](conventions-api.md). La stratégie de test complète est décrite dans [tests](tests.md).
+
+### Cycle de vie du module `identity`
+
+`identity` est une bibliothèque Maven embarquée dans `application`. Elle n'a aucun exécutable, processus, port ou conteneur propre. Sur macOS, Linux et Windows via WSL2, les commandes sont identiques et se lancent depuis `backend/` :
+
+```bash
+# Résoudre le module et ses dépendances
+./mvnw -pl identity -am dependency:resolve
+
+# Tester le module et ses dépendances
+./mvnw -pl identity -am test
+
+# Lancer l'assemblage Backend qui embarque identity
+./mvnw quarkus:dev
+```
+
+Le Backend répond alors sur le port 8080. Avec Mailpit démarré, la vérification fonctionnelle minimale demande un lien au compte de démonstration et contrôle la réponse 202 :
+
+```bash
+curl --include \
+  --request POST \
+  --header 'Content-Type: application/json' \
+  --data '{"email":"pilote@le-cormoran.example"}' \
+  http://localhost:8080/v1/auth/magic-links
+```
+
+Le message apparaît dans `http://localhost:8025`. `Ctrl+C` arrête le Backend et donc le module. `docker stop surplasse-mailpit` arrête séparément la capture SMTP. En cas de différence entre plateformes, le comportement sous Ubuntu LTS fait foi.
 
 ## Ports conventionnels
 
@@ -140,8 +169,8 @@ Chaque application a son port fixe en développement, pour que les URL locales s
 | 5175 | Onboarding React, à sa création | `http://localhost:5175` |
 | 5005 | Documentation (Retype) | `http://localhost:5005` |
 | 4173 | Prévisualisation statique actuelle | `http://localhost:4173` |
-| 1025 | Mailpit SMTP, futur outil de développement | `localhost:1025` |
-| 8025 | Mailpit, future interface web de développement | `http://localhost:8025` |
+| 1025 | Mailpit SMTP, publié sur l'interface loopback seulement | `localhost:1025` |
+| 8025 | Mailpit, interface web et sonde de santé, publié sur l'interface loopback seulement | `http://localhost:8025` |
 
 Les ports 5173 à 5175 suivent l'ordre alphabétique des noms d'applications (Commande, Dashboard, Onboarding). Seul Commande est actuellement configuré. Les ports 5174 et 5175 sont réservés et seront fixés avec `strictPort` dans le `vite.config.ts` de chaque frontend lors de sa création. Un port occupé doit faire échouer le lancement plutôt que de glisser silencieusement vers un port voisin.
 
@@ -162,9 +191,15 @@ En développement, la liste des variables réellement obligatoires est courte : 
 | `STRIPE_WEBHOOK_SECRET` | Backend | signature des webhooks Stripe (fournie par la CLI Stripe en local) | oui, pour les webhooks |
 | `OPENAI_API_KEY` | Backend | future clé API OpenAI pour le domaine `generation`, absent actuellement | non, future phase 3 |
 | `QUARKUS_DATASOURCE_JDBC_URL` | Backend | DSN PostgreSQL | non en dev (Dev Services), oui en production |
+| `AUTH_MAGIC_LINK_LANDING_URL` | Backend | URL de la page Dashboard qui échange le magic link | non (défaut local : `http://localhost:5174/auth/magic-link`) |
+| `AUTH_SECURE_COOKIES` | Backend | active l'attribut `Secure` sur les cookies restaurateur | non, `false` en HTTP local ; obligatoire à `true` en production |
+| `AUTH_JWT_ISSUER` | Backend | émetteur attendu du JWT restaurateur | non, valeur locale fournie |
+| `AUTH_JWT_AUDIENCE` | Backend | audience attendue du JWT restaurateur | non, valeur locale fournie |
 | `VITE_API_BASE_URL` | chaque frontend | URL de base de l'API | non (défaut : `http://localhost:8080`) |
 | `VITE_ESTABLISHMENT_SLUG` | Commande | slug utilisé sur localhost, sans sous-domaine | non (défaut : `le-cormoran`) |
 | `VITE_STRIPE_PUBLISHABLE_KEY` | Commande | clé publique Stripe pour le paiement côté client (`pk_test_...`) | oui, pour payer |
+
+En `%dev` et `%test`, Quarkus génère les clés JWT de travail : aucune clé privée n'est à créer ni à conserver. Le profil `%dev` joint Mailpit sur `localhost:1025`, sans authentification ni TLS. Les variables `AUTH_JWT_PRIVATE_KEY_PATH`, `AUTH_JWT_KEY_ID`, `AUTH_JWT_JWKS_PATH` et `SMTP_*` sont réservées à la production et détaillées dans [Environnements](../operations/environnements.md#backend-quarkus).
 
 !!! warning Jamais de secret dans git
 Les clés réelles (même les clés Stripe de test) ne sont jamais committées : ni dans un `.env`, ni dans un fichier de config, ni dans un exemple. Le `.env.example` ne contient que des valeurs factices de la forme `sk_test_xxx`. En production, les secrets sont injectés par l'environnement Docker Compose du VPS, voir [operations](../operations/).
@@ -195,7 +230,25 @@ npm run dev
 
 Vite démarre sur `http://localhost:5173` et consomme l'API locale via la valeur par défaut de `VITE_API_BASE_URL`.
 
-**Étape future, non requise actuellement : les emails en local.** Mailpit sera ajouté avec le module `identity` et les magic links. Ce commit devra épingler sa version, fournir ses commandes de démarrage, de vérification et d'arrêt sur macOS, Linux et WSL2, puis documenter la configuration Quarkus. Aucun fournisseur SMTP de production ne sera nécessaire pour lancer les modules actuels.
+**3 bis. Capturer les magic links en local, si le parcours d'identité est testé.** Démarrer Mailpit avant de demander un lien. L'image est épinglée et les deux ports ne sont publiés que sur l'interface loopback :
+
+```bash
+docker run --detach --rm \
+  --name surplasse-mailpit \
+  --publish 127.0.0.1:1025:1025 \
+  --publish 127.0.0.1:8025:8025 \
+  axllent/mailpit:v1.30.4
+
+curl --fail http://localhost:8025/readyz
+```
+
+Ouvrir ensuite `http://localhost:8025` pour lire le message. L'arrêt est explicite et supprime le conteneur jetable :
+
+```bash
+docker stop surplasse-mailpit
+```
+
+Ces commandes sont l'installation et le cycle de vie complet de Mailpit sur macOS, Linux et Windows via WSL2. Docker télécharge l'image au premier lancement. Aucun volume n'est monté : fermer le conteneur efface les messages capturés. Mailpit n'est utilisé ni en CI, où le mailer Quarkus est simulé, ni en production. Il ne faut jamais y envoyer une adresse ou un message réel.
 
 **3 ter. Les webhooks Stripe en local.** Le passage d'une commande à « payée » ne vient que du webhook signé. En local, la CLI Stripe les relaie (connexion au compte Stripe requise, une fois) :
 

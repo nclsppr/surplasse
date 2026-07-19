@@ -9,7 +9,7 @@ description: Le parcours d'embarquement du restaurateur, de la découverte de su
 
 L'embarquement est le parcours par lequel un restaurateur crée son établissement sur Surplasse : de la découverte de la promesse « une photo suffit » jusqu'à la première commande encaissée en salle. C'est le parcours le plus critique du produit. S'il échoue, rien d'autre n'existe. Il est porté par l'application Onboarding (`surplasse.com`), s'appuie sur le backend pour l'extraction et la persistance, et débouche sur les deux autres applications : le mini-site servi par Commande et le pilotage dans le Dashboard.
 
-Cette page décrit la cible de référence du tunnel, étape par étape. Le projet n'a pas encore de code applicatif : tout ce qui suit est une spécification, et les points restant à trancher sont signalés explicitement. Les fonctionnalités mobilisées à chaque étape sont détaillées dans [la page fonctionnalités](../fonctionnalites.md), et les intégrations externes (Stripe, API OpenAI) dans [la page intégrations](../../architecture/integrations.md).
+Cette page décrit la cible de référence du tunnel, étape par étape. Le module Backend d'identité et son contrat existent, mais l'application Onboarding React et le parcours complet restent à implémenter. Les points restant à trancher sont signalés explicitement. Les fonctionnalités mobilisées à chaque étape sont détaillées dans [la page fonctionnalités](../fonctionnalites.md), et les intégrations externes (Stripe, API OpenAI) dans [la page intégrations](../../architecture/integrations.md).
 
 ## Vue d'ensemble du tunnel
 

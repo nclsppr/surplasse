@@ -16,6 +16,7 @@
     <module>catalog</module>
     <module>order</module>
     <module>payment</module>
+    <module>identity</module>
     <module>application</module>
   </modules>
 
@@ -61,6 +62,11 @@
       <dependency>
         <groupId>com.surplasse</groupId>
         <artifactId>payment</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.surplasse</groupId>
+        <artifactId>identity</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>

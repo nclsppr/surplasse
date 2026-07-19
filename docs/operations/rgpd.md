@@ -10,7 +10,7 @@ description: Minimisation par conception, bases légales des traitements, durée
 Cette page décrit comment Surplasse traite les données personnelles : ce qui est collecté (le moins possible), sur quel fondement, pour combien de temps, et comment les personnes exercent leurs droits. Elle complète la page [sécurité](../architecture/securite.md) (qui protège ces données) et la page [données](../architecture/donnees.md) (qui les modélise). Le volet journalisation est traité dans la page [observabilité](observabilite.md).
 
 !!! info Documentation de référence
-Le projet n'a pas encore de code applicatif. Cette page est la spécification de conformité que le produit doit respecter dès sa première ligne de code : la conformité se conçoit, elle ne se rattrape pas. Les points nécessitant une validation juridique sont signalés explicitement.
+Le Backend, le front Commande et le package partagé sont implémentés localement. Cette page reste la référence de conformité à maintenir dans le même commit que chaque traitement : la conformité se conçoit, elle ne se rattrape pas. Les points nécessitant une validation juridique sont signalés explicitement.
 !!!
 
 ## La posture : minimiser par conception
@@ -78,10 +78,12 @@ Le modèle de données complet, entité par entité, vit dans la page [données]
 | Email marketing et fidélité (si consentement) | Client ayant opté | Jusqu'au retrait du consentement, purge après 3 ans sans interaction | Effacement |
 | Avis publié | Établissement | Durée de publication choisie par le restaurateur | Effacement à la demande de l'auteur ou à la dépublication |
 | Email et nom du compte restaurateur | Restaurateur | Durée de la relation contractuelle | Effacement 5 ans après la clôture du compte (prescription contractuelle) |
-| Jetons de magic link (hachés) | Restaurateur | 15 minutes de validité | Purge automatique quotidienne |
+| Jetons de magic link (hachés) | Restaurateur | 15 minutes de validité | Purge automatique par la tâche horaire d'identité |
+| Refresh tokens restaurateur (hachés) | Restaurateur | 30 jours au plus, anciennes rotations conservées pour détecter le rejeu | Purge automatique après expiration de la famille |
 | Session client anonyme | Session | 2 heures glissantes | Purge sous 24 heures ; ne contient aucune donnée personnelle |
 | Photos de la carte et de l'établissement | Établissement | Vie de l'établissement | Effacement à la clôture ; données professionnelles, pas personnelles |
-| Adresses IP (limitation de débit, logs) | Aucune entité métier | 30 jours au maximum | Rotation des logs (voir [observabilité](observabilite.md)) |
+| Adresses IP de limitation des magic links | Aucune entité métier | Fenêtre de 15 minutes, en mémoire | Expiration de la fenêtre ou remise à zéro au redémarrage |
+| Adresses IP des futurs journaux d'accès de production | Aucune entité métier | 30 jours au maximum | Rotation des logs (voir [observabilité](observabilite.md)) |
 
 Deux principes transverses :
 
@@ -114,6 +116,8 @@ Point pratique assumé : un client qui n'a rien fourni n'est pas identifiable, e
 
 Chaque sous-traitant fait l'objet d'un accord de traitement des données (DPA) avant toute mise en production ; la liste ci-dessus est publiée dans la politique de confidentialité du produit et tenue à jour dans cette page.
 
+Mailpit n'est pas un sous-traitant : il s'exécute uniquement en local, sans volume persistant, et ne doit recevoir que les adresses de démonstration. Il est absent de la CI et de la production. Le fournisseur SMTP transactionnel de production reste à sélectionner et doit être ajouté nominativement au registre avant le pilote.
+
 ## L'IA et les données personnelles
 
 !!! warning Aucune donnée de client final vers l'API d'extraction
@@ -129,7 +133,7 @@ La ligne est simple : **aucun cookie tiers, aucun traceur publicitaire, aucune m
 | Application | Stockage | Finalité |
 |---|---|---|
 | Commande | Jeton de session anonyme, panier en stockage local | Maintenir la session de table et le panier en cours ; aucune donnée personnelle |
-| Dashboard | Cookie de session restaurateur (`Secure`, `HttpOnly`, voir [sécurité](../architecture/securite.md#transport-et-en-têtes-http)) | Authentification de la session |
+| Dashboard | Cookies hôte uniquement `surplasse_session` et `surplasse_refresh` (`Secure` en production, `HttpOnly`, `SameSite=Lax`, sans `Domain`) | Authentification courte et renouvellement révocable de la session |
 | Onboarding | Progression du tunnel d'embarquement en stockage local | Reprendre l'embarquement où il s'était arrêté |
 
 Ces stockages relèvent de l'exemption de consentement prévue par les lignes directrices de la CNIL pour les traceurs strictement nécessaires à la fourniture du service demandé. En conséquence, **le front Commande n'affiche pas de bandeau de consentement cookies** : rien n'y requiert un consentement au sens de la doctrine CNIL. Cette lecture reste à valider juridiquement avant le lancement ; si un outil de mesure d'audience est ajouté un jour, il devra soit être configuré en mode exempté (au sens CNIL), soit déclencher un vrai recueil de consentement, et ce choix fera l'objet d'un ADR.

@@ -36,6 +36,10 @@
       <artifactId>payment</artifactId>
     </dependency>
     <dependency>
+      <groupId>com.surplasse</groupId>
+      <artifactId>identity</artifactId>
+    </dependency>
+    <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-rest-jackson</artifactId>
     </dependency>

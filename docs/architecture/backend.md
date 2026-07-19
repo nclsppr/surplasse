@@ -10,7 +10,7 @@ description: Le monolithe modulaire Quarkus, l'architecture en couches, le temps
 Le Backend est l'unique processus applicatif de Surplasse : une API REST Quarkus qui implémente [le contrat](api.md), porte la logique métier des six domaines, persiste dans PostgreSQL (voir [les données](donnees.md)) et pousse le temps réel vers le Dashboard et le mini-site Commande. Cette page décrit sa structure interne : le découpage en modules Maven, les couches à l'intérieur de chaque module, les flux SSE, les événements de domaine et les traitements asynchrones.
 
 !!! info Documentation de référence
-Les modules `common`, `contract`, `catalog` et `application` existent depuis la phase 1 ; les autres modules et mécanismes (SSE, événements, jobs) restent la cible de référence, décrite au présent de spécification. Les conventions de code détaillées (nommage, structure des packages, style) vivent dans [les conventions Quarkus](../developpement/conventions-quarkus.md).
+Les modules `common`, `contract`, `catalog`, `order`, `payment`, `identity` et `application` existent. `identity` est embarqué dans l'assemblage : il n'ajoute aucun processus, port ou conteneur. Les autres modules et certains mécanismes transverses restent la cible de référence, décrite au présent de spécification. Les conventions de code détaillées (nommage, structure des packages, style) vivent dans [les conventions Quarkus](../developpement/conventions-quarkus.md).
 !!!
 
 ## Pourquoi Quarkus
@@ -133,7 +133,7 @@ Ces événements vivent dans le processus et ne franchissent jamais la frontièr
 
 ## Les traitements asynchrones
 
-Certains traitements ne peuvent pas vivre dans le cycle requête-réponse : l'extraction IA d'une carte prend des dizaines de secondes, un envoi d'email peut échouer et doit être retenté. Le Backend les traite par un **worker interne adossé à une table de jobs en base**, sans broker externe au MVP.
+Certains traitements ne peuvent pas vivre dans le cycle requête-réponse. La cible pour les traitements durables est un **worker interne adossé à une table de jobs en base**, sans broker externe au MVP.
 
 Le fonctionnement :
 
@@ -146,12 +146,14 @@ Les jobs prévus au MVP :
 | Job | Déclencheur | Effet |
 |---|---|---|
 | **Extraction IA** | L'embarquement : le restaurateur envoie la photo de sa carte | Appel de l'API OpenAI (vision), production de la carte structurée, progression consultable par le frontend |
-| **Envoi d'email** | Magic link demandé, notification transactionnelle | Remise via l'extension `mailer`, avec retentatives |
+| **Notification transactionnelle durable** | Notification de revendication, litige ou échec de virement | Remise via l'extension `mailer`, avec retentatives, à implémenter avec le worker |
 | **Génération des QR codes** | Activation d'un établissement, ajout de tables | Production des QR codes de table et de la planche imprimable |
 
 Cette approche assume ses limites : la latence de prise en charge est celle du tick du scheduler, et le débit est celui d'un pool de workers dans le processus. C'est exactement suffisant pour la volumétrie visée, et cela n'ajoute aucune brique d'exploitation. Le passage à un broker externe sera réévalué si un besoin réel le justifie (fan-out important, jobs longs concurrents nombreux) ; ce serait alors l'objet d'un ADR.
 
-## Les extensions Quarkus prévues
+Le magic link actuel suit une voie plus simple : le jeton haché est persisté, puis l'email est remis de façon asynchrone par `quarkus-mailer`, sans job durable ni retentative automatique. Une panne du processus ou du SMTP après la réponse 202 peut donc perdre cet envoi. Le restaurateur peut demander un nouveau lien, ce qui invalide le précédent. Cette limite est acceptée pour le MVP et doit être revue avant que la volumétrie ou les attentes de support n'imposent une livraison durable.
+
+## Les extensions Quarkus
 
 | Extension | Rôle |
 |---|---|
@@ -160,6 +162,8 @@ Cette approche assume ses limites : la latence de prise en charge est celle du t
 | `quarkus-jdbc-postgresql` | Pilote JDBC PostgreSQL, seule base du système |
 | `quarkus-flyway` | Exécution des migrations versionnées au démarrage, jamais de DDL manuel |
 | `quarkus-mailer` | Envoi des emails transactionnels (magic links, notifications) |
+| `quarkus-smallrye-jwt` | Vérification des JWT restaurateur signés en RS256 |
+| `quarkus-smallrye-jwt-build` | Émission des JWT restaurateur avec la clé privée courante |
 | `quarkus-scheduler` | Planification du worker de jobs et des tâches périodiques (relances, purges) |
 | `quarkus-smallrye-health` | Endpoints de vivacité et de disponibilité (`/q/health`) pour Docker Compose et la supervision |
 | `quarkus-micrometer` | Métriques applicatives (commandes, jobs, connexions SSE) exposées pour l'observabilité |
@@ -173,9 +177,9 @@ La configuration suit les profils standards de Quarkus, dans un unique `applicat
 
 | Profil | Usage | Particularités |
 |---|---|---|
-| `%dev` | Développement local | **Dev Services PostgreSQL** : Quarkus démarre un conteneur PostgreSQL jetable, aucune installation ni configuration locale ; clés Stripe et OpenAI en mode test |
-| `%test` | Tests automatisés | Dev Services également, base éphémère par exécution ; les intégrations externes sont doublées (voir [les tests](../developpement/conventions-quarkus.md)) |
-| `%prod` | VPS de production | Toute valeur sensible ou dépendante de l'environnement vient des variables d'environnement injectées par Docker Compose, jamais du dépôt |
+| `%dev` | Développement local | Dev Services PostgreSQL, clés JWT de travail générées par Quarkus, SMTP local Mailpit sans authentification ; clés Stripe en mode test |
+| `%test` | Tests automatisés | Dev Services, base éphémère, clés JWT de travail générées et mailer simulé ; aucun Mailpit dans la CI |
+| `%prod` | VPS Ubuntu LTS | PostgreSQL persistant, clé privée RS256 et JWKS montés hors image, SMTP transactionnel ; toute valeur sensible vient de l'environnement Docker Compose, jamais du dépôt |
 
 La configuration applicative est consommée par des interfaces `@ConfigMapping` : des types Java qui portent les clés, leurs types et leurs valeurs par défaut. Ce choix rend la configuration vérifiable à la compilation et au démarrage (une clé manquante fait échouer le boot, pas une requête à minuit), et documente en un seul endroit ce que chaque module attend de son environnement. Chaque module déclare ses propres mappings ; le module `application` n'agrège que les valeurs.
 

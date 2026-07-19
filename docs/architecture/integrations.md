@@ -201,7 +201,9 @@ L'email porte trois usages, tous transactionnels (aucun emailing marketing dans 
 
 ### Mode d'intégration
 
-Le Backend envoie via **quarkus-mailer**, l'extension d'envoi SMTP de Quarkus : le fournisseur est une configuration (hôte, identifiants), pas un couplage de code. Changer de fournisseur ne demande aucune modification applicative. Les gabarits d'emails vivent dans le Backend, en français, sobres et sans pistage d'ouverture.
+Le Backend envoie via **quarkus-mailer**, l'extension d'envoi SMTP de Quarkus : le fournisseur est une configuration (hôte, port, chiffrement et identifiants), pas un couplage de code. Changer de fournisseur ne demande aucune modification applicative. Les gabarits d'emails vivent dans le Backend, en français, sobres et sans pistage d'ouverture.
+
+Au MVP, le magic link est envoyé de façon asynchrone après la persistance du jeton, sans file durable ni retentative automatique. Une réponse 202 signifie que la demande a été acceptée, pas que le fournisseur a remis l'email. En cas de perte entre ces deux étapes, le restaurateur peut demander un nouveau lien. Cette nouvelle demande invalide le lien précédent.
 
 ### Fournisseur à trancher
 
@@ -211,9 +213,9 @@ Le Backend envoie via **quarkus-mailer**, l'extension d'envoi SMTP de Quarkus : 
 | Brevo | Acteur européen, bonne délivrabilité, offre d'entrée gratuite | Interface orientée marketing, au-delà du besoin |
 | Postmark | Excellente délivrabilité transactionnelle, outillage soigné | Acteur américain, à évaluer au regard du RGPD |
 
-Le critère dominant est la délivrabilité des magic links (un magic link en spam est une panne d'authentification), suivi de la localisation des données. Si le VPS est pris chez OVH ou Infomaniak, leur offre d'email transactionnel entre dans la comparaison (facturation et support unifiés) sans être retenue d'office : la délivrabilité prime. La configuration SPF, DKIM et DMARC du domaine `surplasse.com` est requise quel que soit le fournisseur.
+Le critère dominant est la délivrabilité des magic links (un magic link en spam est une panne d'authentification), suivi de la localisation des données. Si le VPS est pris chez OVH ou Infomaniak, leur offre d'email transactionnel entre dans la comparaison (facturation et support unifiés) sans être retenue d'office : la délivrabilité prime. Le domaine `surplasse.com` doit publier SPF, signer les messages avec DKIM et appliquer une politique DMARC avant le pilote. Le fournisseur retenu doit exposer les rejets, rebonds, plaintes, délais de remise et incidents de service, avec une alerte exploitable. Sans cette supervision, une panne SMTP devient une panne d'authentification silencieuse.
 
-En développement, aucun email réel ne part : **Mailpit** capture tout (voir le [setup](../developpement/index.md)).
+En développement, aucun email réel ne part : **Mailpit** capture tout (voir le [setup](../developpement/index.md)). L'image `axllent/mailpit:v1.30.4` est épinglée, ses ports 1025 et 8025 ne sont liés qu'à `127.0.0.1`, et aucun volume n'est monté. Mailpit est absent de la CI et de la production. Les tests utilisent le mailer simulé de Quarkus ; la production utilisera le fournisseur SMTP transactionnel encore à sélectionner.
 
 ### Statut de la décision
 
