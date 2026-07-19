@@ -1,5 +1,6 @@
 .openapi-generator-ignore
 apis/CatalogApi.ts
+apis/IdentityApi.ts
 apis/OrderApi.ts
 apis/PaymentApi.ts
 apis/index.ts

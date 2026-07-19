@@ -103,9 +103,22 @@ GÉNÉRATION                                    MÉDIAS
 | `id` | uuid | PK | |
 | `restaurateur_id` | uuid | FK Restaurateur | |
 | `token_hash` | text | unique, non nul | Hachage du jeton envoyé par email |
-| `expires_at` | timestamptz | non nul | Validité courte (ordre de 15 minutes, à trancher) |
+| `expires_at` | timestamptz | non nul | Validité de 15 minutes |
 | `consumed_at` | timestamptz | nullable | Non nul dès la première utilisation |
 | `created_at` | timestamptz | non nul | Lignes expirées purgées automatiquement |
+
+**RestaurateurSession** : un refresh token rotatif d'une session Dashboard. Chaque jeton forme une ligne afin de détecter le rejeu d'un ancien refresh token. Le JWT court n'est pas persisté.
+
+| Attribut | Type | Contraintes | Commentaire |
+|---|---|---|---|
+| `id` | uuid | PK | Identifiant de cette rotation |
+| `restaurateur_id` | uuid | FK Restaurateur | |
+| `family_id` | uuid | non nul, index | Regroupe toutes les rotations d'une connexion |
+| `token_hash` | text | unique, non nul | Empreinte du refresh token opaque, jamais le jeton en clair |
+| `expires_at` | timestamptz | non nul | 30 jours après l'ouverture de la famille |
+| `rotated_at` | timestamptz | nullable | Non nul dès que ce jeton a produit sa rotation suivante |
+| `revoked_at` | timestamptz | nullable | Révocation explicite ou détection d'un rejeu dans la famille |
+| `created_at` | timestamptz | non nul | Les lignes sont conservées jusqu'à expiration pour détecter le rejeu |
 
 ### Catalogue
 

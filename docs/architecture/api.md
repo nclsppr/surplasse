@@ -134,6 +134,7 @@ Types d'erreurs applicatives prévus (liste de départ, complétée au fil du co
 | `validation-error` | 400 | Payload syntaxiquement invalide ou champ manquant |
 | `table-session-expired` | 401 | Jeton de session de table expiré ou inconnu |
 | `magic-link-expired` | 401 | Magic link consommé ou périmé |
+| `session-expired` | 401 | Session restaurateur absente, expirée, révoquée ou rejouée |
 | `establishment-not-claimed` | 403 | Espace non revendiqué, action réservée au restaurateur |
 | `establishment-not-active` | 403 | Établissement suspendu ou embarquement non terminé |
 | `resource-not-found` | 404 | Ressource inconnue ou hors du périmètre du demandeur |
@@ -141,7 +142,7 @@ Types d'erreurs applicatives prévus (liste de départ, complétée au fil du co
 | `order-not-modifiable` | 409 | Commande déjà validée ou payée |
 | `idempotency-key-conflict` | 409 | Clé d'idempotence réutilisée avec un payload différent |
 | `payment-failed` | 422 | Paiement refusé par Stripe |
-| `rate-limited` | 429 | Trop de requêtes, réessayer plus tard |
+| `rate-limited` | 429 | Trop de requêtes, réessayer après le délai `Retry-After` |
 
 ### Idempotence sur la création de commande et de paiement
 
@@ -173,12 +174,12 @@ Le contrat déclare quatre périmètres d'authentification (security schemes), q
 
 | Périmètre | Mécanisme | Qui l'utilise |
 |---|---|---|
-| Restaurateur | JWT de session court porté par un cookie `HttpOnly` (`Secure`, `SameSite=Lax`, portée `.surplasse.com`), posé après échange du magic link | Dashboard, fin de l'embarquement |
+| Restaurateur | JWT court dans un cookie hôte uniquement pour l'API (`HttpOnly`, `Secure` en production, `SameSite=Lax`), renouvelé par un refresh token opaque dans un second cookie | Dashboard, fin de l'embarquement |
 | Client anonyme | Jeton de session de table opaque, délivré au scan du QR code | Commande (panier, commande, paiement) |
 | Public | Aucune authentification | Lecture de la carte et du mini-site |
 | Webhook Stripe | Signature `Stripe-Signature` vérifiée côté backend | Stripe uniquement |
 
-Le périmètre restaurateur repose sur un cookie de session (et non un en-tête `Authorization`) délibérément : le Dashboard consomme le flux SSE via l'API navigateur `EventSource`, qui n'accepte aucun en-tête personnalisé. Le cookie, envoyé automatiquement en même site, authentifie aussi bien les appels REST que le flux temps réel. Voir [la sécurité](securite.md).
+Le périmètre restaurateur repose sur des cookies hôte uniquement pour `api.surplasse.com` et non sur un en-tête `Authorization`. Le Dashboard consomme le flux SSE via l'API navigateur `EventSource`, qui n'accepte aucun en-tête personnalisé : `credentials: "include"` pour REST et `withCredentials: true` pour SSE envoient les cookies à leur hôte. Aucun attribut `Domain=.surplasse.com` n'est nécessaire. Voir [la sécurité](securite.md).
 
 Le client final n'a jamais de compte : le jeton de session de table est opaque, limité à une table et à une durée de service, et ne porte aucune donnée personnelle.
 

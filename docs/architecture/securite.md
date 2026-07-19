@@ -23,8 +23,8 @@ Trois choix structurants minimisent le risque à la source :
 
 Le reste de la posture découle de ce socle : sessions courtes, autorisations filtrées par établissement, validation stricte des entrées, chiffrement en transit partout.
 
-!!! info Pas de code applicatif à ce jour
-Cette page est une spécification de référence. Les mécanismes décrits ici sont la cible que le backend et les frontends doivent implémenter ; rien n'est en production aujourd'hui.
+!!! info État actuel au 2026-07-19
+Le catalogue, la commande et le paiement sont implémentés localement. Le contrat d'identité décrit ci-dessous est stabilisé ; son module Backend et le Dashboard restent à implémenter. Rien n'est encore déployé en production.
 !!!
 
 ## Modèle de menaces
@@ -52,7 +52,7 @@ Le restaurateur s'authentifie sans mot de passe, par un lien à usage unique env
 ```
 Restaurateur                    Backend                       Boîte email
      |                             |                               |
-     |  1. POST /auth/magic-link   |                               |
+     |  1. POST /v1/auth/magic-links                              |
      |     { email }               |                               |
      |---------------------------->|                               |
      |                             |  2. Génère un jeton aléatoire |
@@ -69,7 +69,7 @@ Restaurateur                    Backend                       Boîte email
      |  5. GET page intermédiaire  |                               |
      |     (ne consomme rien)      |                               |
      |---------------------------->|                               |
-     |  6. POST /auth/verify       |                               |
+     |  6. POST /v1/auth/sessions  |                               |
      |     (déclenché par la page) |                               |
      |---------------------------->|  7. Vérifie le jeton :        |
      |                             |     non expiré, non utilisé,  |
@@ -95,6 +95,10 @@ Points d'implémentation imposés :
 - La réponse à la demande de magic link est identique que l'email existe ou non en base, pour ne pas permettre l'énumération des comptes.
 - La demande de magic link est limitée en débit : par email cible et par IP (voir [Limitation de débit](#limitation-de-debit)).
 - L'échange du jeton (étape 5) passe par une page intermédiaire qui déclenche un POST, pour éviter la consommation du jeton par les outils de prévisualisation de liens des clients email.
+- Le JWT ne contient aucune donnée personnelle : uniquement l'identifiant du restaurateur, l'identifiant de famille de session et les claims techniques de validité.
+- Le refresh token est opaque et seule son empreinte est stockée. Chaque rotation conserve l'ancien enregistrement jusqu'à expiration ; sa réutilisation révoque toute la famille.
+- Les cookies sont hôte uniquement pour l'API, sans attribut `Domain`. Le JWT utilise `Path=/` et le refresh token `Path=/v1/auth/sessions`.
+- Le Dashboard envoie les cookies avec `credentials: "include"` ; son `EventSource` utilise `withCredentials: true`.
 
 ## Session client anonyme
 
@@ -157,7 +161,7 @@ Tout le trafic est chiffré, sans exception ni période de transition :
 - HSTS activé sur tous les domaines (avec `includeSubDomains`), pour interdire tout repli en clair.
 - CSP stricte sur les trois fronts (Onboarding, Commande, Dashboard) : scripts et styles limités à l'origine et aux domaines Stripe requis par Elements, aucune source `unsafe-inline` pour les scripts.
 - CORS limité aux domaines connus : l'API n'accepte que les origines des trois fronts ; le sous-domaine wildcard des mini-sites est validé par motif côté backend, jamais par un `*` global.
-- Cookies de session (côté Dashboard) en `Secure`, `HttpOnly`, `SameSite=Lax` au minimum.
+- Cookies de session hôte uniquement pour `api.surplasse.com`, sans attribut `Domain`, en `Secure`, `HttpOnly`, `SameSite=Lax`.
 
 ## Téléversements {#televersements}
 

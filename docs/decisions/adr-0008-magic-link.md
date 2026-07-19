@@ -36,7 +36,7 @@ Le client scanne un QR code à table, consulte la carte, commande et paie. Le pr
 
 | Option | Avantages | Inconvénients |
 |---|---|---|
-| **Magic link par email** | Aucun mot de passe à créer ni à retenir : les restaurateurs n'en veulent pas un de plus. Aucune base de mots de passe à protéger. S'appuie sur l'email, qui est de toute façon le canal de la relation. Connexion et revendication unifiées (même mécanique de lien signé). | Dépendance à la délivrabilité email : un lien en spam est une connexion échouée. Sessions à concevoir et gérer nous-mêmes. Légère latence à la connexion (aller-retour boîte mail). |
+| **Magic link par email** | Aucun mot de passe à créer ni à retenir : les restaurateurs n'en veulent pas un de plus. Aucune base de mots de passe à protéger. S'appuie sur l'email, qui est de toute façon le canal de la relation. Connexion et revendication unifiées par un jeton opaque à usage unique. | Dépendance à la délivrabilité email : un lien en spam est une connexion échouée. Sessions à concevoir et gérer nous-mêmes. Légère latence à la connexion (aller-retour boîte mail). |
 | **Email et mot de passe** | Modèle universellement compris, connexion immédiate sans dépendre de la boîte mail à chaque session. | Base de mots de passe à protéger, parcours de réinitialisation à construire (qui repose in fine sur l'email, donc la dépendance demeure), mots de passe faibles ou réutilisés inévitables sur cette population, credential stuffing possible. |
 | **OIDC avec Keycloak autohébergé** | Standard ouvert, gestion fine des rôles et des équipes, SSO possible, chemin tout tracé vers des besoins d'entreprise. | Une pièce mobile lourde de plus à opérer (déploiement, sauvegardes, mises à jour de sécurité, thème de connexion) pour un seul type d'utilisateur au MVP. Complexité sans bénéfice immédiat. |
 
@@ -59,7 +59,7 @@ Restaurateur           Dashboard              Backend               Boîte mail
      |                     |                     |                      |
      |  saisit son email   |                     |                      |
      |-------------------->|  demande de lien    |                      |
-     |                     |-------------------->|  lien signé,         |
+     |                     |-------------------->|  jeton opaque,        |
      |                     |                     |  usage unique,       |
      |                     |                     |  durée courte        |
      |                     |                     |--------------------->|
@@ -68,7 +68,7 @@ Restaurateur           Dashboard              Backend               Boîte mail
      |-------------------------------------------->  session ouverte   |
 ```
 
-- Le restaurateur saisit son email sur le Dashboard ou dans le tunnel d'embarquement. Le backend émet un lien à usage unique, signé et à durée de vie courte, envoyé par email. Le clic sur le lien ouvre une session.
+- Le restaurateur saisit son email sur le Dashboard ou dans le tunnel d'embarquement. Le backend émet un jeton aléatoire opaque, à usage unique et à durée de vie courte. Seule son empreinte est conservée en base et le lien envoyé par email transporte le jeton en clair jusqu'à la page intermédiaire.
 - La [revendication](../produit/parcours/onboarding-restaurateur.md) d'un espace pré-généré repose sur la même mécanique : prouver le contrôle d'une adresse email légitime pour l'établissement suffit à prendre possession de l'espace.
 - Les sessions restaurateur suivent le modèle décrit dans la page [Sécurité](../architecture/securite.md) : jeton de session à durée courte, renouvellement révocable, cookies durcis, déconnexion de tous les appareils possible. L'émission des liens est limitée en fréquence pour empêcher l'inondation d'une boîte mail.
 
@@ -81,18 +81,25 @@ Restaurateur           Dashboard              Backend               Boîte mail
 
 Keycloak et OIDC ne sont pas rejetés définitivement : ils sont **écartés au MVP**. Si des équipes, des rôles par établissement ou une fédération d'identité apparaissent au catalogue des besoins, une migration vers un fournisseur OIDC sera réévaluée par un nouvel ADR. Le backend garde cette porte ouverte en isolant l'authentification derrière une interface unique, et le contrat décrit l'authentification en termes de sessions, pas de mécanique d'emails.
 
-### Paramètres à trancher
+### Paramètres fixés et ouverts
 
-Les valeurs précises ne relèvent pas de cet ADR ; elles seront fixées dans la page [Sécurité](../architecture/securite.md) et dans le contrat. Les ordres de grandeur cibles :
+La page [Sécurité](../architecture/securite.md) et le contrat fixent les durées du parcours restaurateur. Les paramètres qui ne conditionnent pas encore l'implémentation restent ouverts :
 
-| Paramètre | Ordre de grandeur cible | Statut |
+| Paramètre | Valeur | Statut |
 |---|---|---|
-| Durée de validité du magic link | Minutes, pas heures | À trancher |
+| Durée de validité du magic link | 15 minutes | Fixé |
 | Nombre d'utilisations d'un lien | Un seul, strictement | Fixé par cet ADR |
-| Durée de session Dashboard | Longue sur l'appareil habituel, pour rendre la connexion rare | À trancher |
-| Limitation d'émission des liens | Par email et par adresse IP | À trancher |
+| JWT de session | 15 minutes | Fixé |
+| Refresh token | 30 jours, rotation à chaque usage | Fixé |
+| Limitation d'émission des liens | Par email et par adresse IP ; seuils configurables | Principe fixé, seuils à calibrer |
 | Durée du jeton de session anonyme client | Le temps du repas, pas plus | À trancher |
 | Fournisseur d'email transactionnel | Acteur spécialisé avec suivi de délivrabilité | À trancher (voir [Intégrations](../architecture/integrations.md)) |
+
+### Portée des cookies
+
+Les deux cookies restaurateur sont **hôte uniquement pour `api.surplasse.com`**. Aucun attribut `Domain` n'est posé. Le Dashboard et l'Onboarding peuvent néanmoins les utiliser : les requêtes visent l'API, qui est précisément l'hôte du cookie, et le navigateur les envoie avec les credentials. Le flux `EventSource` du Dashboard suit la même règle avec `withCredentials: true`.
+
+Le choix écarte volontairement `Domain=.surplasse.com`. Cette portée élargie n'apporte rien au parcours et rendrait les cookies disponibles lors des requêtes vers chaque mini-site `{slug}.surplasse.com`. Les cookies restent `HttpOnly`, `SameSite=Lax`, `Path=/` pour le JWT et `Path=/v1/auth/sessions` pour le refresh token. Ils sont `Secure` en production ; le développement local en HTTP désactive uniquement cet attribut.
 
 !!! warning Le fournisseur d'email devient critique
 Avec le magic link, l'envoi d'email n'est plus une commodité : c'est le chemin de connexion. Le choix du fournisseur d'email transactionnel (délivrabilité, SPF, DKIM, DMARC, supervision des rebonds) reste à trancher et sera traité dans la page [Intégrations](../architecture/integrations.md).
@@ -104,7 +111,7 @@ Avec le magic link, l'envoi d'email n'est plus une commodité : c'est le chemin 
 
 - **Aucun secret d'authentification réutilisable en base** : la compromission de la base de données ne livre aucun mot de passe, ni côté restaurateur ni côté client (il n'y a pas de compte client).
 - **Un parcours de connexion aligné sur la population visée** : pas de mot de passe à inventer à la caisse un midi de service, pas de parcours « mot de passe oublié » à construire ni à supporter.
-- **Connexion et revendication partagent la même mécanique** de lien signé envoyé par email : moins de code, moins de surface d'attaque, une seule chose à durcir.
+- **Connexion et revendication partagent la même mécanique** de jeton opaque envoyé par email : moins de code, moins de surface d'attaque, une seule chose à durcir.
 - **Le parcours client reste sans friction** : scanner, commander, payer. La promesse « sans application ni compte » est tenue par construction.
 - **Surface opérationnelle minimale au MVP** : pas de serveur d'identité à déployer, sauvegarder et mettre à jour sur le VPS.
 - **Périmètre de données personnelles réduit** : pas de compte client, pas de profil, pas d'historique nominatif côté client final.

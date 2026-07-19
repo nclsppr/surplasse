@@ -32,6 +32,32 @@ export interface EstablishmentPublic {
     address?: string;
 }
 /**
+ * The opaque single-use token carried by the magic link.
+ * @export
+ * @interface MagicLinkExchange
+ */
+export interface MagicLinkExchange {
+    /**
+     * Opaque URL-safe token posted by the intermediate landing page.
+     * @type {string}
+     * @memberof MagicLinkExchange
+     */
+    token: string;
+}
+/**
+ * The restaurateur email that should receive a login link.
+ * @export
+ * @interface MagicLinkRequest
+ */
+export interface MagicLinkRequest {
+    /**
+     * Email normalized case-insensitively by the server.
+     * @type {string}
+     * @memberof MagicLinkRequest
+     */
+    email: string;
+}
+/**
  * A section of the menu (starters, mains, drinks).
  * @export
  * @interface MenuCategory
@@ -520,6 +546,63 @@ export interface PublicMenu {
      * @memberof PublicMenu
      */
     categories: Array<MenuCategory>;
+}
+/**
+ * An establishment accessible to the authenticated restaurateur.
+ * @export
+ * @interface RestaurateurEstablishment
+ */
+export interface RestaurateurEstablishment {
+    /**
+     * Identifier used by authenticated Dashboard operations.
+     * @type {string}
+     * @memberof RestaurateurEstablishment
+     */
+    id: string;
+    /**
+     * Display name of the establishment.
+     * @type {string}
+     * @memberof RestaurateurEstablishment
+     */
+    name: string;
+    /**
+     * Subdomain label of the establishment mini-site.
+     * @type {string}
+     * @memberof RestaurateurEstablishment
+     */
+    slug: string;
+}
+/**
+ * Minimal authenticated restaurateur view used to initialize the Dashboard. It contains no authorization token because credentials stay exclusively in HttpOnly cookies.
+ * 
+ * @export
+ * @interface RestaurateurSession
+ */
+export interface RestaurateurSession {
+    /**
+     * Identifier of the authenticated restaurateur.
+     * @type {string}
+     * @memberof RestaurateurSession
+     */
+    id: string;
+    /**
+     * Restaurateur email used for magic-link authentication.
+     * @type {string}
+     * @memberof RestaurateurSession
+     */
+    email: string;
+    /**
+     * Name displayed in the Dashboard.
+     * @type {string}
+     * @memberof RestaurateurSession
+     */
+    fullName: string;
+    /**
+     * Establishments this restaurateur can access, sorted by name then identifier.
+     * @type {Array<RestaurateurEstablishment>}
+     * @memberof RestaurateurSession
+     */
+    establishments: Array<RestaurateurEstablishment>;
 }
 /**
  * An anonymous table session. The token is opaque (a server-side reference, not a JWT) and carries no personal data.

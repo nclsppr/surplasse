@@ -1,7 +1,10 @@
 src/main/java/com/surplasse/contract/api/CatalogApi.java
+src/main/java/com/surplasse/contract/api/IdentityApi.java
 src/main/java/com/surplasse/contract/api/OrderApi.java
 src/main/java/com/surplasse/contract/api/PaymentApi.java
 src/main/java/com/surplasse/contract/model/EstablishmentPublic.java
+src/main/java/com/surplasse/contract/model/MagicLinkExchange.java
+src/main/java/com/surplasse/contract/model/MagicLinkRequest.java
 src/main/java/com/surplasse/contract/model/MenuCategory.java
 src/main/java/com/surplasse/contract/model/MenuOption.java
 src/main/java/com/surplasse/contract/model/MenuOptionGroup.java
@@ -15,5 +18,7 @@ src/main/java/com/surplasse/contract/model/PaymentCreationRequest.java
 src/main/java/com/surplasse/contract/model/PaymentSession.java
 src/main/java/com/surplasse/contract/model/Problem.java
 src/main/java/com/surplasse/contract/model/PublicMenu.java
+src/main/java/com/surplasse/contract/model/RestaurateurEstablishment.java
+src/main/java/com/surplasse/contract/model/RestaurateurSession.java
 src/main/java/com/surplasse/contract/model/TableSession.java
 src/main/java/com/surplasse/contract/model/TableSessionRequest.java

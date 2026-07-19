@@ -167,7 +167,7 @@ Six domaines, alignés sur les modules Maven : `catalogue`, `commande`, `paiemen
 
 ### Authentification et temps réel (référence : `architecture/securite.md`)
 
-La session du restaurateur est un **JWT de session court porté par un cookie `HttpOnly`, `Secure`, `SameSite=Lax`, de portée `.surplasse.com`**, posé après l'échange du magic link. Le Dashboard appelle `api.surplasse.com` en incluant les cookies (même site, sous-domaines différents) : aucun en-tête `Authorization` n'est nécessaire. C'est précisément ce qui permet au flux SSE de s'authentifier, car l'API navigateur `EventSource` n'accepte aucun en-tête personnalisé. Ne jamais décrire l'authentification restaurateur comme un `Bearer` en en-tête. Le client final, lui, reçoit un jeton de session anonyme opaque lié à l'établissement et à la table.
+La session du restaurateur est un **JWT court porté par un cookie hôte uniquement émis par `api.surplasse.com`, `HttpOnly`, `Secure` en production, `SameSite=Lax`, `Path=/`**, posé après l'échange du magic link. Un second cookie hôte uniquement porte le refresh token opaque, rotatif et haché en base. Le Dashboard appelle `api.surplasse.com` avec `credentials: "include"` et le flux SSE utilise `withCredentials: true` : aucun en-tête `Authorization` n'est nécessaire. Ne jamais définir `Domain=.surplasse.com`, qui exposerait inutilement les cookies aux mini-sites, ni décrire l'authentification restaurateur comme un `Bearer` en en-tête. Le client final, lui, reçoit un jeton de session anonyme opaque lié à l'établissement et à la table.
 
 ### Séquencement (référence : `roadmap.md`)
 

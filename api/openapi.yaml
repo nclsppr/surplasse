@@ -10,9 +10,10 @@ info:
     backend implements Java interfaces generated from it, the frontends
     consume a generated TypeScript client.
 
-    Version 0.1 covers the public catalog read model (establishment and
-    published menu) and drafts the order domain (`x-draft` blocks, excluded
-    from generation and compatibility checks).
+    Version 0.1 covers the public catalog, ordering, payment and restaurateur
+    identity flows. Dashboard reads remain drafts (`x-draft` blocks, excluded
+    from generation and compatibility checks) until their authorization is
+    implemented end to end.
 
     Conventions: paths are prefixed with `/v1`, money amounts are integers
     in cents with a `Cents` suffix, timestamps are ISO 8601 UTC, and every
@@ -41,8 +42,8 @@ tags:
       of a successful payment.
   - name: identity
     description: >
-      Restaurateur authentication: magic links and session cookies. Draft
-      domain, not implemented yet.
+      Restaurateur authentication: single-use magic links, short session JWTs
+      and rotating refresh tokens carried only by hardened cookies.
 
 paths:
   /v1/establishments/{slug}/public:
@@ -666,32 +667,221 @@ paths:
 
   /v1/auth/magic-links:
     post:
-      x-draft: true
       tags: [identity]
       operationId: requestMagicLink
       summary: Request a restaurateur magic link
       description: |
-        Draft. Sends a single-use login link to the restaurateur email. The
-        response is identical whether the email exists or not, and the
-        endpoint is rate limited by target email and by IP.
+        Requests a single-use login link valid for 15 minutes. The response is
+        deliberately identical whether the normalized email exists or not, so
+        this endpoint cannot enumerate restaurateur accounts. A new request
+        invalidates every unused link previously issued for that account.
+
+        Requests are rate limited independently by target email and source IP.
+        Email delivery happens after the request transaction and its failure is
+        never exposed through this response.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MagicLinkRequest"
       responses:
         "202":
-          description: Accepted; an email leaves if the account exists.
+          description: Accepted; an email is queued only when the account exists.
+        "400":
+          description: The email payload is syntactically invalid.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/validation-error
+                title: Validation error
+                status: 400
+                detail: email must be a well-formed email address.
+                instance: /v1/auth/magic-links
+        "429":
+          description: Too many requests for this email or source IP.
+          headers:
+            Retry-After:
+              description: Seconds before another request should be attempted.
+              schema:
+                type: integer
+                minimum: 1
+              example: 900
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/rate-limited
+                title: Rate limit exceeded
+                status: 429
+                detail: Too many magic link requests. Try again later.
+                instance: /v1/auth/magic-links
 
   /v1/auth/sessions:
     post:
-      x-draft: true
       tags: [identity]
       operationId: createRestaurateurSession
       summary: Exchange a magic link token for session cookies
       description: |
-        Draft. Consumes the magic link token (posted by the intermediate
-        landing page, never by a bare GET) and sets the session cookies:
-        short JWT plus rotating refresh token, HttpOnly, Secure,
-        SameSite=Lax, domain .surplasse.com.
+        Atomically consumes a magic link token posted by the intermediate
+        landing page, never by a bare GET. A successful exchange returns the
+        current restaurateur view and sets two host-only HttpOnly cookies: a
+        15-minute JWT and a rotating opaque refresh token valid for 30 days.
+        Production cookies are Secure and every environment uses SameSite=Lax.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MagicLinkExchange"
+      responses:
+        "200":
+          description: The session is created and both cookies are set.
+          headers:
+            Set-Cookie:
+              description: >
+                Two Set-Cookie headers carrying the host-only access and
+                refresh cookies. They are HttpOnly, SameSite=Lax and Secure in
+                production.
+              schema:
+                type: string
+              example: surplasse_session=eyJ...; Path=/; Max-Age=900; HttpOnly; Secure; SameSite=Lax
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestaurateurSession"
+              example:
+                id: a1b2c3d4-e5f6-4789-8abc-def012345678
+                email: pilote@le-cormoran.example
+                fullName: Camille Martin
+                establishments:
+                  - id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                    name: Le Cormoran
+                    slug: le-cormoran
+        "400":
+          description: The token payload is syntactically invalid.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/validation-error
+                title: Validation error
+                status: 400
+                detail: token must not be blank.
+                instance: /v1/auth/sessions
+        "401":
+          description: The magic link is unknown, expired or already consumed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/magic-link-expired
+                title: Magic link expired
+                status: 401
+                detail: This magic link is expired, unknown or already used.
+                instance: /v1/auth/sessions
+
+  /v1/auth/sessions/refresh:
+    post:
+      tags: [identity]
+      operationId: refreshRestaurateurSession
+      summary: Rotate the current restaurateur session
+      description: |
+        Exchanges the host-only refresh cookie for a new access JWT and a new
+        opaque refresh token. Rotation is atomic. Reuse of a token that has
+        already been rotated revokes its complete token family.
+      security:
+        - restaurateurRefresh: []
+      responses:
+        "200":
+          description: The refresh token is rotated and both cookies are replaced.
+          headers:
+            Set-Cookie:
+              description: >
+                Two Set-Cookie headers replacing the host-only access and
+                refresh cookies.
+              schema:
+                type: string
+              example: surplasse_session=eyJ...; Path=/; Max-Age=900; HttpOnly; Secure; SameSite=Lax
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestaurateurSession"
+              example:
+                id: a1b2c3d4-e5f6-4789-8abc-def012345678
+                email: pilote@le-cormoran.example
+                fullName: Camille Martin
+                establishments:
+                  - id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                    name: Le Cormoran
+                    slug: le-cormoran
+        "401":
+          description: The refresh cookie is missing, expired, revoked or reused.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/session-expired
+                title: Session expired
+                status: 401
+                detail: The restaurateur session is expired or missing.
+                instance: /v1/auth/sessions/refresh
+
+  /v1/auth/sessions/current:
+    get:
+      tags: [identity]
+      operationId: getCurrentRestaurateurSession
+      summary: Get the current restaurateur session
+      description: |
+        Returns the authenticated restaurateur and the establishments they can
+        access. The Dashboard uses this read model to discover establishment
+        identifiers instead of embedding one in its configuration.
+      security:
+        - restaurateurSession: []
+      responses:
+        "200":
+          description: The current restaurateur and accessible establishments.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestaurateurSession"
+              example:
+                id: a1b2c3d4-e5f6-4789-8abc-def012345678
+                email: pilote@le-cormoran.example
+                fullName: Camille Martin
+                establishments:
+                  - id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                    name: Le Cormoran
+                    slug: le-cormoran
+        "401":
+          description: The access cookie is missing, expired or invalid.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/session-expired
+                title: Session expired
+                status: 401
+                detail: The restaurateur session is expired or missing.
+                instance: /v1/auth/sessions/current
+    delete:
+      tags: [identity]
+      operationId: deleteCurrentRestaurateurSession
+      summary: Log out the current restaurateur session
+      description: |
+        Revokes the refresh-token family when the refresh cookie is valid, then
+        expires both cookies. The operation stays idempotent and returns 204
+        when cookies are absent, invalid or already revoked.
       responses:
         "204":
-          description: Session cookies are set.
+          description: The session is revoked when identifiable and both cookies are expired.
 
   /v1/establishments/{establishmentId}/order-events:
     get:
@@ -733,10 +923,17 @@ components:
       in: cookie
       name: surplasse_session
       description: >
-        Short session JWT set after the magic link exchange (HttpOnly,
-        Secure, SameSite=Lax, scoped to .surplasse.com). Used by the
-        Dashboard endpoints; the cookie also authenticates the SSE streams,
-        since EventSource cannot set headers.
+        Short session JWT set after the magic link exchange. The cookie is
+        host-only for api.surplasse.com, HttpOnly, Secure in production,
+        SameSite=Lax and scoped to Path=/. Used by Dashboard endpoints and SSE.
+    restaurateurRefresh:
+      type: apiKey
+      in: cookie
+      name: surplasse_refresh
+      description: >
+        Opaque rotating refresh token, hashed server side and valid for 30
+        days. The host-only cookie is HttpOnly, Secure in production,
+        SameSite=Lax and scoped to Path=/v1/auth/sessions.
 
   parameters:
     EstablishmentSlug:
@@ -860,6 +1057,95 @@ components:
         status: 404
         detail: No establishment matches slug 'le-cormoran'.
         instance: /v1/establishments/le-cormoran/menu
+
+    MagicLinkRequest:
+      type: object
+      additionalProperties: false
+      description: The restaurateur email that should receive a login link.
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 3
+          maxLength: 320
+          description: Email normalized case-insensitively by the server.
+      required: [email]
+      example:
+        email: pilote@le-cormoran.example
+
+    MagicLinkExchange:
+      type: object
+      additionalProperties: false
+      description: The opaque single-use token carried by the magic link.
+      properties:
+        token:
+          type: string
+          minLength: 43
+          maxLength: 128
+          pattern: "^[A-Za-z0-9_-]+$"
+          description: Opaque URL-safe token posted by the intermediate landing page.
+      required: [token]
+      example:
+        token: ml_9f2c4b7a1e6d8a3c5f0b2d4e6a8c1f3b7d9e1a3c5f7b9d1e
+
+    RestaurateurSession:
+      type: object
+      additionalProperties: false
+      description: >
+        Minimal authenticated restaurateur view used to initialize the
+        Dashboard. It contains no authorization token because credentials stay
+        exclusively in HttpOnly cookies.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identifier of the authenticated restaurateur.
+        email:
+          type: string
+          format: email
+          description: Restaurateur email used for magic-link authentication.
+        fullName:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Name displayed in the Dashboard.
+        establishments:
+          type: array
+          description: Establishments this restaurateur can access, sorted by name then identifier.
+          items:
+            $ref: "#/components/schemas/RestaurateurEstablishment"
+      required: [id, email, fullName, establishments]
+      example:
+        id: a1b2c3d4-e5f6-4789-8abc-def012345678
+        email: pilote@le-cormoran.example
+        fullName: Camille Martin
+        establishments:
+          - id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+            name: Le Cormoran
+            slug: le-cormoran
+
+    RestaurateurEstablishment:
+      type: object
+      additionalProperties: false
+      description: An establishment accessible to the authenticated restaurateur.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identifier used by authenticated Dashboard operations.
+        name:
+          type: string
+          minLength: 1
+          description: Display name of the establishment.
+        slug:
+          type: string
+          pattern: "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$"
+          description: Subdomain label of the establishment mini-site.
+      required: [id, name, slug]
+      example:
+        id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+        name: Le Cormoran
+        slug: le-cormoran
 
     EstablishmentPublic:
       type: object
