@@ -159,6 +159,8 @@ Idempotency-Key: 7f3a9c1e-4b2d-4e8a-9c5f-1d2e3f4a5b6c
 
 Cette règle protège le parcours client sur mobile : une connexion instable en salle ne doit jamais produire deux commandes ni deux paiements.
 
+Pour le paiement, le Backend conserve chaque intention dans `payment_request` et la rattache à la session de paiement rendue. Plusieurs clés peuvent désigner la même session encore en attente, par exemple après un rechargement du navigateur. Chaque clé reste néanmoins rejouable et une réutilisation pour une autre commande ou une autre session de table répond 409. Avant l'appel externe, la première création réserve aussi une clé Stripe stable. Toute requête concurrente ou reprise termine cette même réservation avec cette même clé, sans créer un second Payment Intent.
+
 ### Horodatages et montants
 
 - **Horodatages** : ISO 8601 en UTC, suffixe `Z`, précision seconde ou milliseconde. Exemple : `"createdAt": "2026-07-18T12:34:56Z"`. Jamais de fuseau local dans l'API ; l'affichage en heure locale est la responsabilité des frontends.

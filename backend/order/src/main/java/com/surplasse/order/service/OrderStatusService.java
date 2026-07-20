@@ -42,11 +42,11 @@ public class OrderStatusService {
     /**
      * Moves an order to paid after webhook confirmation. Idempotent: an order
      * already past pending_payment is left untouched. Returns the persisted
-     * event to broadcast, empty when nothing changed. REQUIRES_NEW: the
-     * caller is a post-commit observer, still associated with the completed
-     * payment transaction; this change needs its own.
+     * event to broadcast, empty when nothing changed. The caller joins the
+     * payment webhook transaction so the Stripe event, payment state, order
+     * state and persisted SSE event either commit together or all roll back.
      */
-    @Transactional(Transactional.TxType.REQUIRES_NEW)
+    @Transactional
     public Optional<PublishedOrderEvent> markPaid(UUID orderId) {
         Optional<Order> found = orderRepository.findByIdForUpdate(orderId);
         if (found.isEmpty()) {

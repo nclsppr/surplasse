@@ -155,6 +155,7 @@ Les webhooks Stripe pilotent le cycle de vie du paiement (voir [intégrations](i
 | Authenticité | Vérification de la signature `Stripe-Signature` avec le secret de webhook, via la bibliothèque officielle. Toute requête non signée ou mal signée est rejetée en 400 sans traitement. |
 | Fraîcheur | Tolérance d'horloge de 5 minutes sur l'horodatage inclus dans la signature : un événement rejoué au-delà de cette fenêtre est rejeté. |
 | Idempotence | L'identifiant d'événement Stripe est enregistré en base avec une contrainte d'unicité. Un événement déjà traité est acquitté en 200 sans effet : les livraisons dupliquées de Stripe (comportement normal de leur part) ne produisent jamais de double traitement. |
+| Atomicité | L'événement reçu, la réussite du paiement, le passage de la commande à `paid` et son événement de suivi sont validés dans la même transaction. Si une écriture échoue, l'identifiant Stripe n'est pas conservé et sa prochaine livraison peut réparer le traitement. |
 
 L'endpoint de webhook est le seul endpoint public non couvert par le CORS applicatif : il n'est appelé que serveur à serveur par Stripe.
 

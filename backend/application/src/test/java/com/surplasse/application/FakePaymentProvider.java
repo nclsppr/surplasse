@@ -15,7 +15,7 @@ import java.util.UUID;
 public class FakePaymentProvider implements PaymentProvider {
 
     @Override
-    public PaymentIntentRef createIntent(UUID orderId, int amountCents, String currency) {
+    public PaymentIntentRef createIntent(UUID orderId, int amountCents, String currency, UUID idempotencyKey) {
         return new PaymentIntentRef("pi_fake_" + orderId, "pi_fake_secret_" + orderId);
     }
 }

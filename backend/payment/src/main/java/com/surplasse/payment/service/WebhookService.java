@@ -37,9 +37,9 @@ public class WebhookService {
     }
 
     /**
-     * Verifies, deduplicates and processes one webhook delivery. Short
-     * transaction recording the fact; the slow consequences (SSE broadcast)
-     * run on the post-commit OrderPaid observation.
+     * Verifies, deduplicates and processes one webhook delivery. Durable
+     * payment, order and event-log changes share this transaction; only the
+     * in-memory SSE broadcast runs after a successful commit.
      */
     @Transactional
     public void process(String rawPayload, String signatureHeader) {
@@ -64,10 +64,12 @@ public class WebhookService {
             return;
         }
         Payment payment = found.get();
-        if (payment.getStatus() != PaymentStatus.PENDING) {
+        if (payment.getStatus() == PaymentStatus.SUCCEEDED || payment.getStatus() == PaymentStatus.REFUNDED) {
             LOG.infof("Payment %s already %s, webhook ignored", payment.getId(), payment.getStatus());
             return;
         }
+        // Versions before V7 marked payment_failed as terminal even though
+        // Stripe can later succeed the same PaymentIntent with another method.
         payment.markSucceeded();
         orderPaid.fire(new OrderPaid(payment.getOrderId(), payment.getEstablishmentId()));
     }
@@ -75,7 +77,11 @@ public class WebhookService {
     private void onIntentFailed(StripeEventVerifier.VerifiedEvent event) {
         findPayment(event).ifPresent(payment -> {
             if (payment.getStatus() == PaymentStatus.PENDING) {
-                payment.markFailed();
+                // A PaymentIntent can emit payment_failed and still accept a
+                // new payment method. Keep the session pending so the same
+                // Payment Element can retry and a later succeeded event is
+                // still authoritative.
+                LOG.infof("Payment intent %s failed and remains retryable", event.paymentIntentId());
             }
         });
     }

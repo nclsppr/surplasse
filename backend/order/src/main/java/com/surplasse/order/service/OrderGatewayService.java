@@ -26,9 +26,9 @@ public class OrderGatewayService implements OrderGateway {
     }
 
     @Override
-    public Optional<PayableOrder> payableOrder(UUID orderId, UUID establishmentId) {
+    public Optional<PayableOrder> lockPayableOrder(UUID orderId, UUID tableSessionId) {
         return orderRepository
-                .findByIdForEstablishment(orderId, establishmentId)
+                .findByIdForTableSessionForUpdate(orderId, tableSessionId)
                 .map(order -> new PayableOrder(
                         order.getId(),
                         order.getEstablishmentId(),
@@ -43,6 +43,6 @@ public class OrderGatewayService implements OrderGateway {
     @Override
     public ActiveTableSession requireTableSession(String token) {
         TableSessionService.ActiveSession session = tableSessionService.authenticate(token);
-        return new ActiveTableSession(session.establishmentId(), session.tableQrId());
+        return new ActiveTableSession(session.sessionId(), session.establishmentId(), session.tableQrId());
     }
 }

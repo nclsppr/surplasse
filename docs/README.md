@@ -18,7 +18,7 @@ Surplasse n'est pas une marketplace : le restaurant garde son identité, ses pri
 | Phase | Phase 2, commander et payer, en cours |
 | Code applicatif | Contrat OpenAPI, Backend Quarkus jusqu'à l'identité restaurateur, package TypeScript partagé, Commande et Dashboard minimal avec suivi temps réel |
 | Existant dans le dépôt | Applications locales, topologie HTTPS `surplasse.test`, cockpit de modules, documentation, marque et préfiguration statique de l'Onboarding |
-| Prochaines étapes | Durcissements navigateur, Stripe en conditions live et service à blanc, selon la [roadmap](roadmap.md) |
+| Prochaines étapes | Stripe Connect en test, production prête, paiement live fermé puis service à blanc, selon la [roadmap](roadmap.md) et le [runbook pilote](operations/pilote.md) |
 
 !!! info Existant et cible
 Les pages distinguent l'état implémenté de la cible de référence. Les points encore ouverts sont signalés explicitement dans les pages concernées, et chaque décision structurante est consignée dans un [ADR](decisions/index.md).
@@ -59,7 +59,7 @@ La [vue d'ensemble de l'architecture](architecture/index.md) détaille ce schém
 | Produit | La vision, les personas, les fonctionnalités et les trois parcours détaillés | [Vision](produit/vision.md), [Personas](produit/personas.md), [Fonctionnalités](produit/fonctionnalites.md), parcours de [commande client](produit/parcours/commande-client.md), d'[embarquement restaurateur](produit/parcours/onboarding-restaurateur.md) (dont la variante revendication) et du [quotidien avec le Dashboard](produit/parcours/dashboard-restaurateur.md) |
 | Architecture | La structure technique cible : applications, API, données, intégrations, sécurité | [Vue d'ensemble](architecture/index.md), [Frontends](architecture/frontends.md), [Backend](architecture/backend.md), [API](architecture/api.md), [Données](architecture/donnees.md), [Intégrations](architecture/integrations.md), [Sécurité](architecture/securite.md) |
 | Développement | Tout ce qu'il faut pour contribuer au code : environnement, domaines, cockpit, conventions, tests | [Setup](developpement/index.md), [Domaines locaux](developpement/domaines-locaux.md), [Conventions React](developpement/conventions-react.md), [Conventions Quarkus](developpement/conventions-quarkus.md), [Conventions API](developpement/conventions-api.md), [Git](developpement/workflow-git.md), [Tests](developpement/tests.md), [CI/CD](developpement/ci-cd.md) |
-| Opérations | L'exploitation du système en production | [Environnements](operations/environnements.md), [Observabilité](operations/observabilite.md), [RGPD](operations/rgpd.md) |
+| Opérations | L'exploitation du système en production | [Environnements](operations/environnements.md), [Observabilité](operations/observabilite.md), [Pilote de phase 2](operations/pilote.md), [RGPD](operations/rgpd.md) |
 | Décisions | Les ADR, décisions d'architecture numérotées qui font loi | [Registre des ADR](decisions/index.md) |
 | Roadmap | Les phases du projet, les jalons et la priorisation du MVP | [Roadmap](roadmap.md) |
 | Glossaire | Les termes métier et techniques du projet, avec renvois | [Glossaire](glossaire.md) |

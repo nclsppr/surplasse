@@ -48,7 +48,8 @@ public class OrderService {
         if (replayed.isPresent()) {
             Order existing = replayed.get();
             if (!existing.getRequestHash().equals(requestHash)
-                    || !existing.getEstablishmentId().equals(session.establishmentId())) {
+                    || !existing.getEstablishmentId().equals(session.establishmentId())
+                    || !session.sessionId().equals(existing.getTableSessionId())) {
                 throw ConflictException.idempotencyKeyConflict();
             }
             return view(existing);
@@ -211,6 +212,7 @@ public class OrderService {
                 UUID.randomUUID(),
                 session.establishmentId(),
                 session.tableQrId(),
+                session.sessionId(),
                 OrderType.ON_SITE,
                 String.valueOf(base + 1),
                 serviceDay,

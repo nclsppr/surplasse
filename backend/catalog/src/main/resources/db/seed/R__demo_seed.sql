@@ -9,6 +9,7 @@
 -- payment or identity migrations.
 do $$
 begin
+    if to_regclass('public.payment_request') is not null then delete from payment_request; end if;
     if to_regclass('public.payment') is not null then delete from payment; end if;
     if to_regclass('public.order_event') is not null then delete from order_event; end if;
     if to_regclass('public.order_line') is not null then delete from order_line; end if;

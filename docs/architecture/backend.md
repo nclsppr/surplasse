@@ -124,10 +124,11 @@ Les trois événements structurants du MVP :
 | **Commande acceptée** (`OrderAccepted`) | commande | Le restaurateur prend la commande en charge depuis le Dashboard | commande (diffusion sur le canal de la commande pour le suivi client), engagement (métriques) |
 | **Produit en rupture** (`ProductOutOfStock`) | catalogue | Le restaurateur marque un produit indisponible | commande (refus des paniers contenant ce produit à la validation), diffusion sur le canal de l'établissement |
 
-Deux règles d'usage :
+Trois règles d'usage :
 
 - **Un événement décrit un fait, pas une intention.** « Commande payée » constate un paiement confirmé ; il ne demande à personne de faire quoi que ce soit. Chaque consommateur décide seul de sa réaction.
-- **L'émission a lieu après le commit.** Un événement observé avant la fin de la transaction pourrait déclencher des effets (SSE, ticket cuisine) pour un état finalement annulé. L'observation se cale donc sur la phase post-commit de la transaction (`TransactionPhase.AFTER_SUCCESS` ou équivalent).
+- **Les écritures critiques partagent la transaction.** Le webhook Stripe, la réussite du paiement, le passage de la commande à `paid` et l'événement SSE persistant sont validés ensemble. Une erreur annule le tout, y compris l'identifiant de webhook, afin que Stripe puisse livrer à nouveau l'événement.
+- **Les effets volatils attendent le commit.** La diffusion en mémoire vers les connexions SSE s'observe en `TransactionPhase.AFTER_SUCCESS`. Elle ne peut donc jamais annoncer un état finalement annulé. Une diffusion perdue au redémarrage est réparée par le rejeu des événements persistés.
 
 !!! warning Événements internes, pas une API
 Ces événements vivent dans le processus et ne franchissent jamais la frontière du Backend. Ce que les frontends reçoivent (SSE) et ce que le Backend expose (REST) relève exclusivement du contrat.

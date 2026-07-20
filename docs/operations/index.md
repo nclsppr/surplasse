@@ -14,6 +14,7 @@ Les pages de la section :
 - [Environnements](environnements.md) : local et production, domaines, DNS, variables d'environnement.
 - [Outillage de l'opérateur](outillage-operateur.md) : accès à la base, logs, résultats de tests, exploration de l'API.
 - [Observabilité](observabilite.md) : logs, métriques, sondes et alertes.
+- [Pilote de phase 2](pilote.md) : portes Go ou No-Go, métriques, répétition, service réel et repli.
 - [RGPD](rgpd.md) : données personnelles, rétention, droits des personnes.
 
 Le déploiement lui-même (workflows GitHub Actions, images, rollback) est décrit dans [CI/CD](../developpement/ci-cd.md).

@@ -27,6 +27,13 @@ public class OrderRepository implements PanacheRepositoryBase<Order, UUID> {
                 .firstResultOptional();
     }
 
+    /** Serializes payment-session creation for one order. Must run inside a transaction. */
+    public Optional<Order> findByIdForTableSessionForUpdate(UUID orderId, UUID tableSessionId) {
+        return find("id = ?1 and tableSessionId = ?2", orderId, tableSessionId)
+                .withLock(LockModeType.PESSIMISTIC_WRITE)
+                .firstResultOptional();
+    }
+
     /** Serializes concurrent status updates for one order. Must run inside a transaction. */
     public Optional<Order> findByIdForUpdate(UUID orderId) {
         return find("id", orderId).withLock(LockModeType.PESSIMISTIC_WRITE).firstResultOptional();

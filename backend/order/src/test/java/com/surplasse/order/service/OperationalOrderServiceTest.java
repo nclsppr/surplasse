@@ -148,6 +148,7 @@ class OperationalOrderServiceTest {
                 UUID.fromString(id),
                 ESTABLISHMENT,
                 tableQrId,
+                tableQrId == null ? null : UUID.randomUUID(),
                 type,
                 "17",
                 LocalDate.ofInstant(createdAt.toInstant(), ZoneOffset.UTC),

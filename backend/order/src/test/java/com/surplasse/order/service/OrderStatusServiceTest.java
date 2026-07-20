@@ -133,6 +133,7 @@ class OrderStatusServiceTest {
                 UUID.randomUUID(),
                 ESTABLISHMENT,
                 type == OrderType.ON_SITE ? UUID.randomUUID() : null,
+                type == OrderType.ON_SITE ? UUID.randomUUID() : null,
                 type,
                 "17",
                 LocalDate.now(ZoneOffset.UTC),

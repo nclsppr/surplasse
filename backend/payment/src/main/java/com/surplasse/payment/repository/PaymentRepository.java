@@ -10,12 +10,26 @@ import java.util.UUID;
 @ApplicationScoped
 public class PaymentRepository implements PanacheRepositoryBase<Payment, UUID> {
 
-    public Optional<Payment> findPendingByOrder(UUID orderId) {
-        return find("orderId = ?1 and status = ?2", orderId, PaymentStatus.PENDING)
+    public Optional<Payment> findReusableByOrder(UUID orderId, UUID establishmentId) {
+        return find(
+                        "orderId = ?1 and establishmentId = ?2 and status in ?3",
+                        orderId,
+                        establishmentId,
+                        java.util.List.of(PaymentStatus.CREATING, PaymentStatus.PENDING, PaymentStatus.FAILED))
                 .firstResultOptional();
+    }
+
+    public boolean existsByOrder(UUID orderId, UUID establishmentId) {
+        return count("orderId = ?1 and establishmentId = ?2", orderId, establishmentId) > 0;
     }
 
     public Optional<Payment> findByExternalReference(String externalReference) {
         return find("externalReference = ?1", externalReference).firstResultOptional();
+    }
+
+    public Optional<Payment> findByIdForUpdate(UUID paymentId) {
+        return find("id", paymentId)
+                .withLock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+                .firstResultOptional();
     }
 }

@@ -10,7 +10,7 @@ description: "Les services externes du système Surplasse : Stripe, extraction I
 Le Backend est le seul point de contact avec les services externes : aucun frontend ne parle directement à Stripe (hors confirmation du Payment Element), à l'API OpenAI ou au fournisseur d'emails. Cette page décrit chaque intégration : son rôle, son mode d'intégration, ses risques et l'état de la décision. La gestion des secrets (clés API, signatures de webhooks) et la vérification des webhooks sont détaillées dans [la sécurité](securite.md).
 
 !!! info Documentation de référence
-Le paiement Stripe est déjà implémenté dans le Backend et Commande. Les autres intégrations décrites ici restent des cibles tant que leur module n'existe pas. Les points non tranchés sont signalés et donnent lieu à des ADR dans [decisions](../decisions/).
+Le paiement Stripe en mode test est implémenté dans le Backend et Commande : montant recalculé, Payment Element, idempotence, webhook signé et passage transactionnel de la commande à `paid`. Il crée encore le Payment Intent sur le compte plateforme. Stripe Connect, la commission et le live restent donc des cibles non livrées. Les autres intégrations décrites ici restent elles aussi des cibles tant que leur module n'existe pas. Les points non tranchés sont signalés et donnent lieu à des ADR dans [decisions](../decisions/).
 !!!
 
 ## Stripe : les paiements
@@ -21,7 +21,7 @@ Stripe porte l'intégralité de la chaîne de paiement : encaissement des client
 
 ### Stripe Connect : encaisser au nom de chaque établissement
 
-Surplasse n'encaisse pas pour son propre compte : chaque paiement est rattaché au compte Stripe Connect de l'établissement, ce qui est cohérent avec le positionnement du produit (le restaurant garde ses clients et sa relation commerciale). Le statut de vendeur légal de la transaction (merchant of record au sens de Stripe) dépend du schéma de charges Connect, charges directes ou charges avec transfert, qui reste à trancher (voir l'[ADR Stripe Connect](../decisions/adr-0007-stripe.md)) : avec des charges directes, ce statut revient à l'établissement. Deux types de comptes Connect sont pertinents :
+Surplasse n'encaisse pas pour son propre compte : chaque paiement est une [charge directe](../decisions/adr-0017-charges-directes-stripe-connect.md) créée sur le compte Stripe Connect de l'établissement. La charge apparaît dans le solde et le Dashboard Stripe du compte connecté. Ce schéma est cohérent avec le positionnement du produit : le restaurant garde ses clients et sa relation commerciale. Deux types de comptes Connect sont pertinents :
 
 | Critère | Compte Standard | Compte Express |
 |---|---|---|
@@ -78,11 +78,11 @@ Trois couches de frais sont à modéliser avant l'ouverture commerciale :
 
 | Couche | Nature | Qui la porte |
 |---|---|---|
-| Frais Stripe de transaction | Pourcentage plus montant fixe par paiement, variable selon le type de carte | À répartir entre Surplasse et l'établissement |
+| Frais Stripe de transaction | Pourcentage plus montant fixe par paiement, variable selon le type de carte | Établissement, sous réserve de la configuration et des conditions Stripe validées avant le live |
 | Frais Stripe Connect | Facturation par compte Express actif et par virement | Surplasse, à intégrer dans le modèle de prix |
 | Commission Surplasse | La rémunération de la plateforme, prélevée via `application_fee_amount` sur chaque PaymentIntent | **Actée le 2026-07-19 : 0 % pendant les 3 premiers mois de chaque établissement, puis 1 % par commande** |
 
-Le modèle de prix est acté : commission par commande, sans abonnement, avec une commission Surplasse de 0 % pendant les 3 premiers mois suivant l'activation de chaque établissement, puis 1 %. Les frais Stripe restent distincts et s'appliquent dès le premier paiement. Leur montant exact sera vérifié selon le moyen de paiement, le schéma de charges Connect et le panier moyen réel avant l'ouverture commerciale.
+Le modèle de prix est acté : commission par commande, sans abonnement, avec une commission Surplasse de 0 % pendant les 3 premiers mois suivant l'activation de chaque établissement, puis 1 %. Les frais Stripe restent distincts et s'appliquent dès le premier paiement. Leur montant exact sera vérifié selon le moyen de paiement, la configuration Connect et le panier moyen réel avant l'ouverture commerciale.
 
 Ces conditions doivent apparaître clairement sur la future homepage et dans la documentation publique destinée aux restaurateurs. La communication sépare toujours la commission Surplasse des frais Stripe : la transparence tarifaire fait partie du positionnement face aux plateformes à commission opaque. Le détail de la décision figure dans l'[ADR-0015](../decisions/adr-0015-modele-commission.md) et sa mise en visibilité dans la [roadmap](../roadmap.md).
 
@@ -90,9 +90,11 @@ Ces conditions doivent apparaître clairement sur la future homepage et dans la 
 
 Tout le développement se fait en **mode test Stripe** : clés de test, cartes de test, webhooks rejoués via la CLI Stripe. Aucune clé de production n'existe avant la phase pilote. Les environnements et la ségrégation des clés sont décrits dans [la sécurité](securite.md).
 
+La clé `Idempotency-Key` reçue du navigateur est persistée avant d'être considérée comme livrée. Une transaction courte verrouille la commande, crée une réservation `creating` et fixe la clé Stripe stable. L'appel réseau se déroule ensuite sans transaction ouverte, puis une seconde transaction active la session. Deux requêtes simultanées terminent donc la même réservation avec la même clé Stripe au lieu de créer deux débits. Le SDK peut rejouer au maximum deux erreurs réseau avec cette clé. Un échec de moyen de paiement ne clôt pas le Payment Intent : le Payment Element peut recueillir un autre moyen de paiement et un événement ultérieur `payment_intent.succeeded` reste recevable. Chaque lecture d'une session existante est filtrée par la session de table exacte avant de rendre son `client_secret`.
+
 ### Statut de la décision
 
-Stripe comme prestataire de paiement et le compte Connect Express sont actés ([ADR Stripe Connect](../decisions/adr-0007-stripe.md)). La commission Surplasse est actée dans l'[ADR-0015](../decisions/adr-0015-modele-commission.md). Restent à trancher le schéma de charges Connect, le montant exact des frais Stripe applicables et leur répartition.
+Stripe comme prestataire de paiement et le compte Connect Express sont actés dans l'[ADR-0007](../decisions/adr-0007-stripe.md). Les charges directes sont actées dans l'[ADR-0017](../decisions/adr-0017-charges-directes-stripe-connect.md). La commission Surplasse est actée dans l'[ADR-0015](../decisions/adr-0015-modele-commission.md). Restent à vérifier le montant exact des frais Stripe applicables, leur répartition contractuelle et la politique de remboursement.
 
 ## Extraction IA de la carte
 

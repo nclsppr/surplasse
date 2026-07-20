@@ -7,7 +7,7 @@ description: Le modèle de données de référence de Surplasse, entités par do
 
 # Modèle de données
 
-Cette page décrit le modèle de données de référence de Surplasse. Le [backend](./backend.md) est le seul à accéder à la base : les frontends passent exclusivement par [le contrat OpenAPI](./api.md). Les domaines catalogue, commande, paiement et identité sont matérialisés par les migrations Flyway V1 à V6 ; les autres domaines restent la cible à implémenter.
+Cette page décrit le modèle de données de référence de Surplasse. Le [backend](./backend.md) est le seul à accéder à la base : les frontends passent exclusivement par [le contrat OpenAPI](./api.md). Les domaines catalogue, commande, paiement et identité sont matérialisés par les migrations Flyway V1 à V9 ; les autres domaines restent la cible à implémenter.
 
 ## Principes
 
@@ -251,6 +251,7 @@ GÉNÉRATION                                    MÉDIAS
 | `id` | uuid | PK | |
 | `establishment_id` | uuid | FK, non nul | |
 | `table_qr_id` | uuid | FK, nullable | Nul pour une commande à emporter |
+| `table_session_id` | uuid | FK, nullable | Non nul sur place ; session anonyme exacte qui a créé la commande |
 | `type` | text | CHECK | `on_site` (sur place) ou `takeaway` (à emporter) |
 | `status` | text | CHECK | Voir la machine à états |
 | `display_number` | text | non nul | Numéro court, unique par établissement et par jour |
@@ -299,12 +300,24 @@ GÉNÉRATION                                    MÉDIAS
 | `order_id` | uuid | FK, non nul | Plusieurs tentatives possibles par commande ; une seule `pending` à la fois (index partiel unique) |
 | `establishment_id` | uuid | FK, non nul | Filtrage par établissement des requêtes restaurateur |
 | `provider` | text | CHECK | `stripe` au MVP |
-| `external_reference` | text | unique, non nul | Identifiant du Payment Intent Stripe |
-| `status` | text | CHECK | `pending` (en attente), `succeeded` (réussi), `failed` (échoué), `refunded` (remboursé) |
+| `external_reference` | text | unique, non nul | Référence interne pendant `creating`, puis identifiant du Payment Intent Stripe |
+| `status` | text | CHECK | `creating` (réservation avant Stripe), `pending` (en attente), `succeeded` (réussi), `failed` (ancien échec retentable), `refunded` (remboursé) |
+| `creation_key` | uuid | nullable, non nul si `creating` | Clé stable transmise à Stripe par toute requête concurrente qui termine la réservation |
 | `amount_cents` | integer | > 0, non nul | Commande plus pourboire éventuel |
 | `currency` | text | non nul, défaut `EUR` | EUR seul au MVP |
 | `client_secret` | text | nullable | Secret client du Payment Intent, consommé par le Payment Element |
 | `created_at`, `updated_at` | timestamptz | non nuls | |
+
+**PaymentRequest** (`payment_request`) : une intention de création de paiement identifiée par la clé d'idempotence du client. Plusieurs intentions peuvent pointer vers le même paiement encore en attente, sans créer de second débit.
+
+| Attribut | Type | Contraintes | Commentaire |
+|---|---|---|---|
+| `idempotency_key` | uuid | PK | Clé reçue dans `Idempotency-Key` et transmise à Stripe lors de la création |
+| `payment_id` | uuid | FK, non nul | Session de paiement rendue pour cette intention |
+| `order_id` | uuid | FK, non nul | Détecte la réutilisation de la clé avec une autre commande |
+| `establishment_id` | uuid | FK, non nul | Garantit le cloisonnement entre établissements |
+| `table_session_id` | uuid | FK, non nul | Empêche une autre session, même à la même table, de reprendre le paiement |
+| `created_at` | timestamptz | non nul | |
 
 **StripeWebhookEvent** (`stripe_webhook_event`) : les identifiants d'événements Stripe déjà traités, avec contrainte d'unicité. C'est la garantie d'idempotence du webhook (voir [la sécurité](securite.md)) : une livraison dupliquée est acquittée sans effet.
 
@@ -449,10 +462,15 @@ Un établissement créé directement par l'embarquement (sans pré-génération)
 | V4 | `payment` | paiements et webhooks Stripe |
 | V5 | `identity` | restaurateurs, magic links, familles de refresh tokens, rattachement des établissements |
 | V6 | `order` | index partiel de pagination des commandes opérationnelles |
+| V7 | `payment` | intentions idempotentes de création de paiement |
+| V8 | `order` | rattachement d'une commande à sa session de table exacte |
+| V9 | `payment`, `order`, `order_event` | réservation concurrente avant Stripe et rapprochement des anciens états scindés |
 
-V5 vit dans `backend/identity/src/main/resources/db/migration/V5__identity_schema.sql`. Le seed local associe le compte de démonstration à l'établissement pilote ; il n'est jamais chargé en production. V6 vit dans `backend/order/src/main/resources/db/migration/V6__operational_order_index.sql`. Son index partiel couvre `(establishment_id, created_at DESC, id DESC)` uniquement pour `paid`, `accepted`, `preparing` et `ready`, soit la file active lue par le Dashboard.
+V5 vit dans `backend/identity/src/main/resources/db/migration/V5__identity_schema.sql`. Le seed local associe le compte de démonstration à l'établissement pilote ; il n'est jamais chargé en production. V6 vit dans `backend/order/src/main/resources/db/migration/V6__operational_order_index.sql`. Son index partiel couvre `(establishment_id, created_at DESC, id DESC)` uniquement pour `paid`, `accepted`, `preparing` et `ready`, soit la file active lue par le Dashboard. V7 vit dans `backend/payment/src/main/resources/db/migration/V7__payment_idempotency.sql` et rattache chaque clé de requête à la session de paiement effectivement rendue. V8 vit dans `backend/order/src/main/resources/db/migration/V8__order_table_session_scope.sql`, reconstitue la session uniquement quand une seule session encore active au moment de la commande correspond, refuse une reprise absente ou ambiguë et conserve ensuite la session exacte. V9 vit dans `backend/payment/src/main/resources/db/migration/V9__reconcile_payment_order.sql`. Elle introduit l'état court `creating`, impose avec `payment_order_unique_idx` un seul paiement pour toute la vie d'une commande et répare une éventuelle commande restée `pending_payment` alors que son paiement était déjà `succeeded`. Si une base héritée contient un paiement `failed` ou plusieurs paiements pour une commande, la migration s'arrête afin d'imposer leur rapprochement Stripe et l'annulation des Payment Intents surnuméraires avant déploiement.
 
-Flyway applique V1 à V6 au démarrage de l'assemblage Backend. Les tables V5 appartiennent à l'unique base PostgreSQL. Elles sont donc incluses dans chaque `pg_dump`, dans la copie chiffrée hors VPS et dans l'exercice trimestriel de restauration. Elles n'ajoutent ni volume ni sauvegarde séparés. L'index V6 ne contient aucune donnée supplémentaire à sauvegarder : PostgreSQL le restaure avec le schéma. Une restauration doit vérifier que Flyway voit V6 comme appliquée, que l'index `order_operational_page_idx` existe et que les liens entre `restaurateur`, `restaurateur_session`, `magic_link_session` et `establishment` sont cohérents.
+V8 et V9 sont des migrations de fondation livrées avant la toute première production. Aucun SHA de production antérieur ne leur est compatible et aucun retour binaire vers un SHA pré-V9 n'est autorisé. Le premier SHA déclaré sain en production inclut nécessairement V9. À partir de cette base, toute évolution incompatible suit une séquence expansion, déploiement du code compatible, puis contraction dans une migration ultérieure.
+
+Flyway applique V1 à V9 au démarrage de l'assemblage Backend. Les tables et colonnes ajoutées appartiennent à l'unique base PostgreSQL. Elles sont donc incluses dans chaque `pg_dump`, dans la copie chiffrée hors VPS et dans l'exercice trimestriel de restauration. Elles n'ajoutent ni volume ni sauvegarde séparés. Les index V6 à V9 ne contiennent aucune donnée supplémentaire à sauvegarder : PostgreSQL les restaure avec le schéma. Une restauration doit vérifier que Flyway voit V9 comme appliquée, que les index `order_operational_page_idx`, `payment_request_payment_idx`, `order_table_session_idx` et `payment_order_unique_idx` existent et que les liens entre `restaurateur`, `establishment`, `table_session`, `order`, `payment` et `payment_request` sont cohérents.
 
 ## Invariants métier
 
@@ -463,6 +481,8 @@ Flyway applique V1 à V6 au démarrage de l'assemblage Backend. Les tables V5 ap
 | `total_cents` d'une commande égale la somme des `line_total_cents` | Service, vérifié avant création du Payment Intent |
 | Une table appartient à un seul établissement | FK non nulle sur `TableQr.establishment_id` |
 | Une commande sur place référence une table de son propre établissement | Service (la FK seule ne suffit pas) |
+| Seule la session de table qui a créé une commande peut en ouvrir ou reprendre le paiement | `Order.table_session_id`, `PaymentRequest.table_session_id` et filtrage du service |
+| Une commande ne possède qu'un seul paiement sur toute sa durée de vie, même avec plusieurs requêtes simultanées | verrou sur `Order`, état `Payment.creating`, index unique `payment_order_unique_idx` et `Payment.creation_key` stable |
 | Un produit référencé par une ligne de commande n'est jamais supprimé physiquement | Soft delete, FK en `ON DELETE RESTRICT` |
 | Un espace revendiqué a exactement un restaurateur associé | Service, cohérence `Space.status` et `Establishment.restaurateur_id` |
 | Un `slug` d'établissement est unique et immuable après activation | Contrainte unique, immuabilité en service |

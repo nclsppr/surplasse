@@ -194,6 +194,7 @@ class OrderServiceTest {
                 UUID.randomUUID(),
                 ESTABLISHMENT,
                 TABLE,
+                session.sessionId(),
                 OrderType.ON_SITE,
                 "7",
                 LocalDate.now(ZoneOffset.UTC),
@@ -220,6 +221,7 @@ class OrderServiceTest {
                 UUID.randomUUID(),
                 ESTABLISHMENT,
                 TABLE,
+                session.sessionId(),
                 OrderType.ON_SITE,
                 "7",
                 LocalDate.now(ZoneOffset.UTC),
@@ -235,11 +237,38 @@ class OrderServiceTest {
     }
 
     @Test
+    void create_replaySameKeyFromAnotherTableSession_yieldsIdempotencyConflict() {
+        OrderDraft draft = new OrderDraft("on_site", List.of(new LineDraft(PANISSES, 1, List.of(), null)));
+        UUID key = UUID.randomUUID();
+        Order existing = new Order(
+                UUID.randomUUID(),
+                ESTABLISHMENT,
+                TABLE,
+                session.sessionId(),
+                OrderType.ON_SITE,
+                "7",
+                LocalDate.now(ZoneOffset.UTC),
+                650,
+                "ot_1234567890abcdef1234567890abcdef",
+                key,
+                Tokens.sha256Hex(draft.canonicalForm()),
+                OffsetDateTime.now(ZoneOffset.UTC));
+        when(orderRepository.findByIdempotencyKey(key)).thenReturn(Optional.of(existing));
+        ActiveSession otherSession = new ActiveSession(UUID.randomUUID(), ESTABLISHMENT, TABLE);
+
+        ConflictException conflict =
+                assertThrows(ConflictException.class, () -> service.create(otherSession, key, draft));
+
+        assertEquals("idempotency-key-conflict", conflict.problemType());
+    }
+
+    @Test
     void getForTracking_wrongToken_yields404() {
         Order order = new Order(
                 UUID.randomUUID(),
                 ESTABLISHMENT,
                 TABLE,
+                session.sessionId(),
                 OrderType.ON_SITE,
                 "7",
                 LocalDate.now(ZoneOffset.UTC),

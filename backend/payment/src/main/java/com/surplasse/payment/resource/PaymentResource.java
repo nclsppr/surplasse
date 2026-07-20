@@ -32,7 +32,7 @@ public class PaymentResource implements PaymentApi {
                 orderGateway.requireTableSession(headers.getHeaderString(TABLE_SESSION_HEADER));
         return Response.status(201)
                 .entity(PaymentMapper.toPaymentSession(
-                        paymentService.createSession(session.establishmentId(), request.getOrderId())))
+                        paymentService.createSession(session, request.getOrderId(), idempotencyKey)))
                 .build();
     }
 }

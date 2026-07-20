@@ -10,8 +10,11 @@ import java.util.UUID;
  */
 public interface OrderGateway {
 
-    /** The payable view of an order, scoped to the given establishment. */
-    Optional<PayableOrder> payableOrder(UUID orderId, UUID establishmentId);
+    /**
+     * Locks and returns the payable view of an order scoped to the exact
+     * anonymous table session. The caller must own a transaction.
+     */
+    Optional<PayableOrder> lockPayableOrder(UUID orderId, UUID tableSessionId);
 
     /**
      * Authenticates an anonymous table session token for another domain
@@ -19,7 +22,7 @@ public interface OrderGateway {
      */
     ActiveTableSession requireTableSession(String token);
 
-    record ActiveTableSession(UUID establishmentId, UUID tableQrId) {}
+    record ActiveTableSession(UUID sessionId, UUID establishmentId, UUID tableQrId) {}
 
     record PayableOrder(
             UUID orderId,

@@ -102,31 +102,43 @@ Une carte statique de démonstration s'affiche de bout en bout : les données so
 Le vrai MVP. Un établissement pilote, une carte saisie à la main, des clients réels qui scannent le QR code à table, commandent et paient. Le restaurateur voit les commandes arriver et les accepte. Tout le reste du produit existe pour rendre ce moment possible.
 
 !!! info Pourquoi une carte saisie à la main
-L'extraction par IA arrive en phase 3. En phase 2, la carte du pilote est saisie manuellement (par l'équipe, directement en base ou via un outil interne minimal) : le sujet de cette phase est le flux de commande et de paiement, pas l'embarquement.
+L'extraction par IA arrive en phase 3. En phase 2, la carte du pilote est saisie par l'équipe via une migration, un seed contrôlé ou un outil interne répétable, jamais par une modification improvisée de la production. Le sujet de cette phase est le flux de commande et de paiement, pas l'embarquement.
 !!!
 
 ### Livrables
 
 - Carte complète de l'établissement pilote, saisie à la main.
 - Commande sur place par QR code : scan à table, panier, validation, numéro de table.
-- Paiement Stripe intégré au front Commande : en mode test d'abord, puis en live pour le service pilote.
+- Paiement Stripe intégré au front Commande : noyau sécurisé en mode test, compte Connect Express du pilote provisionné manuellement, puis live sur un périmètre fermé avant le service pilote.
 - Dashboard minimal : flux SSE des commandes entrantes, acceptation des commandes, authentification du restaurateur par magic link.
 - Boucle de retour avec le restaurateur pilote : observations de service, irritants, demandes.
 
-### État de livraison au 2026-07-19
+### État de livraison au 2026-07-20
 
 Le flux client local couvre déjà le scan du QR code, la carte, le panier, la création de commande, le paiement en environnement de test et le suivi. L'identité restaurateur couvre le magic link, les cookies de session, la rotation du refresh token et l'autorisation par établissement. Le Backend expose la file paginée des commandes opérationnelles, leur avancement authentifié et un flux SSE par établissement avec rejeu par `Last-Event-ID`. Le Dashboard consomme cette lecture REST après une connexion par magic link, permet de sélectionner un établissement autorisé, fait avancer chaque commande de `paid` à `served` ou `picked_up` selon son type et resynchronise sa file à chaque événement SSE.
 
-Le Dashboard minimal de cette phase est livré localement, y compris l'indicateur permanent de connexion temps réel. Le remboursement reste volontairement hors de la route de statut : il doit passer par le domaine paiement et déclencher une vraie opération Stripe. Les deux durcissements navigateur sont livrés. Quarkus refuse toujours les credentials CORS et Caddy les accorde seulement aux origines exactes du Dashboard et de l'Onboarding. Le Dashboard sérialise la rotation du refresh token entre onglets avec Web Locks, propage l'état par BroadcastChannel et force une nouvelle connexion si le verrou n'est pas disponible. Les tests couvrent ces branches et un scénario réel à deux onglets a confirmé une seule rotation effective. Viennent ensuite le passage Stripe en conditions live, le service à blanc, les corrections issues du pilote et enfin le service réel qui constitue le critère de sortie de la phase.
+Le Dashboard minimal de cette phase est livré localement, y compris l'indicateur permanent de connexion temps réel. Les deux durcissements navigateur sont livrés. Quarkus refuse toujours les credentials CORS et Caddy les accorde seulement aux origines exactes du Dashboard et de l'Onboarding. Le Dashboard sérialise la rotation du refresh token entre onglets avec Web Locks, propage l'état par BroadcastChannel et force une nouvelle connexion si le verrou n'est pas disponible. Les tests couvrent ces branches et un scénario réel à deux onglets a confirmé une seule rotation effective.
 
-Les deux durcissements navigateur préalables à la production sont donc fermés localement. Le futur Caddy de production devra reprendre la règle CORS déjà fermée par défaut et exercée localement. La prochaine étape de la phase est le passage Stripe en conditions live, avant le service à blanc. Les critères sont détaillés dans la page [sécurité](architecture/securite.md#durcissements-dashboard-avant-production).
+Le noyau paiement local refuse désormais de rendre une session à une autre session de table, persiste et rejoue les clés d'idempotence, transmet la même clé au SDK Stripe, conserve un Payment Intent retentable après un moyen de paiement refusé et rend atomiques la confirmation du paiement, le passage de la commande à `paid` et son événement persistant. Les migrations et les tests d'intégration PostgreSQL couvrent ces garanties. Le Payment Intent reste toutefois créé sur le compte plateforme en mode test : Stripe Connect, la commission, le remboursement et le live ne sont pas livrés.
+
+La phase suit désormais des portes explicites, détaillées dans le [runbook pilote](operations/pilote.md) :
+
+| Ordre | Porte | Résultat attendu |
+|---|---|---|
+| 1 | Stripe Connect en test | Compte Express pilote manuel, charges directes, commission correcte, remboursement et suspension des commandes |
+| 2 | Production prête | Pile Ubuntu LTS déployable, restaurable, supervisée et fermée par défaut |
+| 3 | Live fermé | Une transaction réelle de faible montant, rapprochée puis remboursée hors service |
+| 4 | Service à blanc | Répétition complète sur matériel, QR et réseau du restaurant, sans public |
+| 5 | Service réel contrôlé | Service mesuré, rapproché à 100 % et sans incident bloquant ni repli |
+
+Le provisionnement manuel du compte Connect du seul pilote appartient donc à la phase 2. L'automatisation de la création des comptes Express et du KYC reste en phase 3. La prochaine porte est Stripe Connect en mode test, pas le live direct.
 
 ### Risques et parades
 
 | Risque | Parade |
 |---|---|
-| Le produit casse en plein service et brûle la confiance du pilote | Répéter le service à blanc en conditions réelles avant le premier service payant ; prévoir un repli papier assumé |
-| Le paiement en live expose à des obligations réglementaires mal anticipées | Rester en mode test jusqu'à validation du parcours ; passer en live sur un périmètre minimal avec Stripe comme garde-fou |
+| Le produit casse en plein service et brûle la confiance du pilote | Franchir chaque porte Go ou No-Go, répéter le service à blanc en conditions réelles et garder le parcours habituel disponible |
+| Le paiement en live expose à des obligations réglementaires mal anticipées | Valider le compte plateforme, le compte Express pilote, les responsabilités et la tarification Stripe avant une transaction live fermée |
 | Le réseau du restaurant est mauvais et le temps réel ne suit pas | Tester le SSE en conditions dégradées ; le Dashboard doit survivre à une reconnexion sans perdre de commande |
 | Un mini-site compromis appelle l'API avec les cookies du restaurateur | Réserver les requêtes CORS avec credentials aux origines Dashboard et Onboarding explicitement autorisées ; traiter les mini-sites comme des origines publiques sans credentials |
 | Deux onglets renouvellent la même session en même temps | Livré : sérialiser la rotation par Web Locks, relire la session sous verrou, diffuser son état par BroadcastChannel et échouer de manière sûre sans Web Locks ; tests unitaires et scénario réel à deux onglets |
@@ -141,7 +153,7 @@ Les deux durcissements navigateur préalables à la production sont donc fermés
 
 ### Critère de sortie
 
-Un service du midi réel est géré via Surplasse dans un restaurant pilote : de vrais clients commandent et paient depuis leur téléphone, le restaurateur travaille avec le Dashboard, et le service se termine sans repli sur le papier.
+Un service du midi réel est géré via Surplasse dans un restaurant pilote : de vrais clients commandent et paient depuis leur téléphone, le restaurateur travaille avec le Dashboard, toutes les commandes payées sont servies ou remboursées, le rapprochement Stripe, Paiement et Commande atteint 100 %, aucun double débit, mauvais montant, mauvais établissement, mauvaise table ou commande payée perdue n'est constaté, aucun incident P0 ou P1 ne reste ouvert et le service se termine sans repli sur le papier ou le terminal habituel.
 
 ## Phase 3 : L'embarquement magique
 
@@ -153,7 +165,7 @@ Faire disparaître le coût d'entrée. Un restaurateur photographie sa carte, Su
 
 - Extraction IA de la carte depuis une photo (API OpenAI, vision) : catégories, produits, options, prix, avec écran de relecture et correction avant publication.
 - Génération du mini-site de l'établissement avec choix d'un thème, **SEO compris** : chaque mini-site généré embarque son référencement (balises, données structurées schema.org du menu, sitemap) pour que chaque nouveau restaurant et sa carte soient indexables dès l'activation.
-- Stripe Connect Express en production : chaque établissement encaisse sur son propre compte.
+- Automatisation de Stripe Connect Express dans l'Onboarding : création du compte, KYC, activation et reprise du parcours. Le schéma de charges directes a déjà été validé manuellement avec le pilote en phase 2.
 - Tunnel d'embarquement complet dans le front Onboarding : de la photo de la carte à la première commande encaissable.
 
 ### Risques et parades

@@ -4,6 +4,7 @@ import java.util.Locale;
 
 /** Lifecycle of a payment attempt. Stored lowercase, matching the CHECK constraint. */
 public enum PaymentStatus {
+    CREATING,
     PENDING,
     SUCCEEDED,
     FAILED,

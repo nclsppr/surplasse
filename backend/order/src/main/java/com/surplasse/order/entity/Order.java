@@ -16,6 +16,7 @@ public class Order {
 
     private UUID establishmentId;
     private UUID tableQrId;
+    private UUID tableSessionId;
     private OrderType type;
     private OrderStatus status;
     private String displayNumber;
@@ -32,6 +33,7 @@ public class Order {
             UUID id,
             UUID establishmentId,
             UUID tableQrId,
+            UUID tableSessionId,
             OrderType type,
             String displayNumber,
             LocalDate serviceDay,
@@ -43,6 +45,7 @@ public class Order {
         this.id = id;
         this.establishmentId = establishmentId;
         this.tableQrId = tableQrId;
+        this.tableSessionId = tableSessionId;
         this.type = type;
         this.status = OrderStatus.PENDING_PAYMENT;
         this.displayNumber = displayNumber;
@@ -72,6 +75,10 @@ public class Order {
 
     public UUID getTableQrId() {
         return tableQrId;
+    }
+
+    public UUID getTableSessionId() {
+        return tableSessionId;
     }
 
     public OrderType getType() {

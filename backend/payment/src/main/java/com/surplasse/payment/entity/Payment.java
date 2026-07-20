@@ -17,6 +17,7 @@ public class Payment {
     private UUID establishmentId;
     private String provider;
     private String externalReference;
+    private UUID creationKey;
     private PaymentStatus status;
     private int amountCents;
     private String currency;
@@ -41,6 +42,23 @@ public class Payment {
         this.amountCents = amountCents;
         this.currency = currency;
         this.clientSecret = clientSecret;
+    }
+
+    public static Payment reserve(
+            UUID id, UUID orderId, UUID establishmentId, int amountCents, String currency, UUID creationKey) {
+        Payment payment = new Payment(id, orderId, establishmentId, "creating_" + id, amountCents, currency, null);
+        payment.status = PaymentStatus.CREATING;
+        payment.creationKey = creationKey;
+        return payment;
+    }
+
+    public void activate(String externalReference, String clientSecret) {
+        if (status != PaymentStatus.CREATING) {
+            return;
+        }
+        this.externalReference = externalReference;
+        this.clientSecret = clientSecret;
+        this.status = PaymentStatus.PENDING;
     }
 
     public void markSucceeded() {
@@ -69,6 +87,10 @@ public class Payment {
 
     public String getExternalReference() {
         return externalReference;
+    }
+
+    public UUID getCreationKey() {
+        return creationKey;
     }
 
     public PaymentStatus getStatus() {

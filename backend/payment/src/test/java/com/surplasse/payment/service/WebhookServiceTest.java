@@ -84,6 +84,20 @@ class WebhookServiceTest {
     }
 
     @Test
+    void process_succeededIntent_repairsLegacyFailedPayment() {
+        Payment payment = pendingPayment();
+        payment.markFailed();
+        when(verifier.verify(any(), any()))
+                .thenReturn(new StripeEventVerifier.VerifiedEvent("evt_legacy", "payment_intent.succeeded", "pi_1"));
+        when(paymentRepository.findByExternalReference("pi_1")).thenReturn(Optional.of(payment));
+
+        service.process("{}", "sig");
+
+        assertEquals(PaymentStatus.SUCCEEDED, payment.getStatus());
+        verify(orderPaid).fire(new OrderPaid(payment.getOrderId(), payment.getEstablishmentId()));
+    }
+
+    @Test
     void process_succeededIntentOnSettledPayment_firesNothing() {
         Payment payment = pendingPayment();
         payment.markSucceeded();
@@ -97,7 +111,7 @@ class WebhookServiceTest {
     }
 
     @Test
-    void process_failedIntent_marksPaymentFailed() {
+    void process_failedIntent_keepsThePaymentRetryable() {
         Payment payment = pendingPayment();
         when(verifier.verify(any(), any()))
                 .thenReturn(new StripeEventVerifier.VerifiedEvent("evt_3", "payment_intent.payment_failed", "pi_1"));
@@ -105,7 +119,7 @@ class WebhookServiceTest {
 
         service.process("{}", "sig");
 
-        assertEquals(PaymentStatus.FAILED, payment.getStatus());
+        assertEquals(PaymentStatus.PENDING, payment.getStatus());
         verify(orderPaid, never()).fire(any());
     }
 

@@ -9,7 +9,7 @@ import java.util.UUID;
 public interface PaymentProvider {
 
     /** Creates a payment intent and returns its reference and client secret. */
-    PaymentIntentRef createIntent(UUID orderId, int amountCents, String currency);
+    PaymentIntentRef createIntent(UUID orderId, int amountCents, String currency, UUID idempotencyKey);
 
     record PaymentIntentRef(String externalReference, String clientSecret) {}
 }
