@@ -39,7 +39,18 @@ begin
     end if;
 end $$;
 
-insert into establishment (id, restaurateur_id, name, slug, address, status) values
+insert into establishment (
+    id,
+    restaurateur_id,
+    name,
+    slug,
+    address,
+    status,
+    stripe_account_id,
+    stripe_charges_enabled,
+    stripe_payouts_enabled,
+    activated_at
+) values
     (
         '7c9e6679-7425-40de-944b-e07fc1f90ae7',
         case when to_regclass('public.restaurateur') is null
@@ -49,7 +60,11 @@ insert into establishment (id, restaurateur_id, name, slug, address, status) val
         'Le Cormoran',
         'le-cormoran',
         '12 quai des Belges, 13001 Marseille',
-        'active'
+        'active',
+        'acct_test_le_cormoran',
+        true,
+        true,
+        now()
     );
 
 insert into menu (id, establishment_id, name, status) values

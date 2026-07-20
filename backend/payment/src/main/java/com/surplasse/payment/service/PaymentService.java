@@ -1,6 +1,7 @@
 package com.surplasse.payment.service;
 
 import com.surplasse.common.catalog.CatalogGateway;
+import com.surplasse.common.error.BusinessRuleException;
 import com.surplasse.common.error.ConflictException;
 import com.surplasse.common.error.NotFoundException;
 import com.surplasse.common.order.OrderGateway;
@@ -12,6 +13,8 @@ import com.surplasse.payment.repository.PaymentRepository;
 import com.surplasse.payment.repository.PaymentRequestRepository;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import jakarta.enterprise.context.ApplicationScoped;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -49,8 +52,15 @@ public class PaymentService {
             return payment;
         }
 
-        PaymentProvider.PaymentIntentRef intent = paymentProvider.createIntent(
-                orderId, payment.getAmountCents(), payment.getCurrency(), payment.getCreationKey());
+        PaymentProvider.PaymentIntentRef intent = paymentProvider.createIntent(new PaymentProvider.PaymentIntentRequest(
+                payment.getId(),
+                orderId,
+                payment.getEstablishmentId(),
+                payment.getAmountCents(),
+                payment.getCurrency(),
+                payment.getConnectedAccountId(),
+                payment.getApplicationFeeAmount(),
+                payment.getCreationKey()));
         return QuarkusTransaction.requiringNew().call(() -> activate(payment.getId(), intent));
     }
 
@@ -58,6 +68,7 @@ public class PaymentService {
         paymentRequestRepository.lockIdempotencyKey(idempotencyKey);
         Optional<Payment> replayed = replay(tableSession, orderId, idempotencyKey);
         if (replayed.isPresent() && replayed.get().getStatus() != PaymentStatus.CREATING) {
+            requireCurrentRoutingForOpenSession(replayed.get());
             return replayed.get();
         }
 
@@ -68,6 +79,7 @@ public class PaymentService {
         // The row lock may have waited for another reservation to commit.
         replayed = replay(tableSession, orderId, idempotencyKey);
         if (replayed.isPresent() && replayed.get().getStatus() != PaymentStatus.CREATING) {
+            requireCurrentRoutingForOpenSession(replayed.get());
             return replayed.get();
         }
         if (!"pending_payment".equals(order.status())) {
@@ -75,6 +87,7 @@ public class PaymentService {
         }
         if (replayed.isPresent()) {
             requireAvailability(order);
+            requireSameActiveRouting(replayed.get());
             return replayed.get();
         }
 
@@ -83,12 +96,16 @@ public class PaymentService {
             if (reusable.get().getStatus() == PaymentStatus.CREATING) {
                 requireAvailability(order);
             }
+            requireSameActiveRouting(reusable.get());
             return linkRequest(tableSession, orderId, idempotencyKey, reusable.get());
         }
         if (paymentRepository.existsByOrder(orderId, tableSession.establishmentId())) {
             throw ConflictException.orderNotModifiable("Order %s already has a settled payment.".formatted(orderId));
         }
         requireAvailability(order);
+        CatalogGateway.PaymentRouting routing = requireActiveRouting(order.establishmentId());
+        int applicationFeeAmount = CommissionPolicy.applicationFeeAmount(
+                order.totalCents(), routing.activatedAt(), OffsetDateTime.now(ZoneOffset.UTC));
 
         Payment payment = Payment.reserve(
                 UUID.randomUUID(),
@@ -96,7 +113,9 @@ public class PaymentService {
                 tableSession.establishmentId(),
                 order.totalCents(),
                 order.currency(),
-                idempotencyKey);
+                idempotencyKey,
+                routing.stripeAccountId(),
+                applicationFeeAmount);
         paymentRepository.persist(payment);
         paymentRepository.flush();
         paymentRequestRepository.persist(new PaymentRequest(
@@ -144,5 +163,36 @@ public class PaymentService {
                         "A product of this order became unavailable; adjust the cart before paying.");
             }
         }
+    }
+
+    private CatalogGateway.PaymentRouting requireActiveRouting(UUID establishmentId) {
+        CatalogGateway.PaymentRouting routing =
+                catalogGateway.findPaymentRouting(establishmentId).orElseThrow(PaymentService::paymentUnavailable);
+        if (routing.stripeAccountId() == null
+                || routing.stripeAccountId().isBlank()
+                || !routing.chargesEnabled()
+                || routing.activatedAt() == null) {
+            throw paymentUnavailable();
+        }
+        return routing;
+    }
+
+    private void requireSameActiveRouting(Payment payment) {
+        CatalogGateway.PaymentRouting routing = requireActiveRouting(payment.getEstablishmentId());
+        if (!routing.stripeAccountId().equals(payment.getConnectedAccountId())) {
+            throw paymentUnavailable();
+        }
+    }
+
+    private void requireCurrentRoutingForOpenSession(Payment payment) {
+        if (payment.getStatus() == PaymentStatus.PENDING
+                || payment.getStatus() == PaymentStatus.FAILED
+                || payment.getStatus() == PaymentStatus.CREATING) {
+            requireSameActiveRouting(payment);
+        }
+    }
+
+    private static BusinessRuleException paymentUnavailable() {
+        return new BusinessRuleException("This establishment is not ready to accept payments.");
     }
 }

@@ -1,6 +1,7 @@
 package com.surplasse.catalog.service;
 
 import com.surplasse.catalog.entity.Category;
+import com.surplasse.catalog.entity.EstablishmentStatus;
 import com.surplasse.catalog.entity.Menu;
 import com.surplasse.catalog.entity.Option;
 import com.surplasse.catalog.entity.OptionGroup;
@@ -117,5 +118,17 @@ public class CatalogGatewayService implements CatalogGateway {
                                                 .toList()))
                                 .toList()))
                 .collect(Collectors.toMap(ProductPricing::productId, Function.identity()));
+    }
+
+    @Override
+    public Optional<PaymentRouting> findPaymentRouting(UUID establishmentId) {
+        return establishmentRepository
+                .findByIdOptional(establishmentId)
+                .filter(establishment -> establishment.getStatus() == EstablishmentStatus.ACTIVE)
+                .map(establishment -> new PaymentRouting(
+                        establishment.getStripeAccountId(),
+                        establishment.isStripeChargesEnabled(),
+                        establishment.isStripePayoutsEnabled(),
+                        establishment.getActivatedAt()));
     }
 }

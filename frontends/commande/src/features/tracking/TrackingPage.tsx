@@ -106,7 +106,7 @@ export function TrackingPage() {
         <span className="text-[var(--structure)]">{formatPriceCents(data.totalCents, data.currency)}</span>
       </div>
 
-      {data.status === "pending_payment" && wantsPayment && <PaymentSection order={data} />}
+      {data.status === "pending_payment" && wantsPayment && <PaymentSection key={data.id} order={data} />}
 
       <p className="mt-10">
         <Link to="/" className="text-sm text-[var(--structure)] underline">

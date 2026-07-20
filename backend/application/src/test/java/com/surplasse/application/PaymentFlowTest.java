@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 class PaymentFlowTest {
 
     private static final String PROBLEM_JSON = "application/problem+json";
+    private static final String CONNECTED_ACCOUNT = "acct_test_le_cormoran";
 
     private record CreatedOrder(String id, String trackingToken, int totalCents, String sessionToken) {}
 
@@ -47,8 +48,9 @@ class PaymentFlowTest {
         String intent = "pi_fake_" + order.id();
         given().contentType(ContentType.JSON)
                 .header("Stripe-Signature", FakeStripeEventVerifier.VALID_SIGNATURE)
-                .body("{\"id\":\"evt_%s\",\"type\":\"payment_intent.succeeded\",\"data\":{\"object\":{\"id\":\"%s\"}}}"
-                        .formatted(UUID.randomUUID(), intent))
+                .body(
+                        "{\"id\":\"evt_%s\",\"type\":\"payment_intent.succeeded\",\"account\":\"%s\",\"livemode\":false,\"data\":{\"object\":{\"id\":\"%s\"}}}"
+                                .formatted(UUID.randomUUID(), CONNECTED_ACCOUNT, intent))
                 .post("/v1/webhooks/stripe")
                 .then()
                 .statusCode(200);
@@ -69,7 +71,8 @@ class PaymentFlowTest {
                 .statusCode(201)
                 .body("orderId", equalTo(order.id()))
                 .body("amountCents", is(order.totalCents()))
-                .body("clientSecret", equalTo("pi_fake_secret_" + order.id()));
+                .body("clientSecret", equalTo("pi_fake_secret_" + order.id()))
+                .body("connectedAccountId", equalTo(CONNECTED_ACCOUNT));
     }
 
     @Test
@@ -293,8 +296,8 @@ class PaymentFlowTest {
         given().contentType(ContentType.JSON)
                 .header("Stripe-Signature", FakeStripeEventVerifier.VALID_SIGNATURE)
                 .body(
-                        "{\"id\":\"evt_failed_%s\",\"type\":\"payment_intent.payment_failed\",\"data\":{\"object\":{\"id\":\"%s\"}}}"
-                                .formatted(order.id(), intent))
+                        "{\"id\":\"evt_failed_%s\",\"type\":\"payment_intent.payment_failed\",\"account\":\"%s\",\"livemode\":false,\"data\":{\"object\":{\"id\":\"%s\"}}}"
+                                .formatted(order.id(), CONNECTED_ACCOUNT, intent))
                 .post("/v1/webhooks/stripe")
                 .then()
                 .statusCode(200);
@@ -327,8 +330,8 @@ class PaymentFlowTest {
 
         String intent = "pi_fake_" + order.id();
         String event =
-                "{\"id\":\"evt_replay_%s\",\"type\":\"payment_intent.succeeded\",\"data\":{\"object\":{\"id\":\"%s\"}}}"
-                        .formatted(order.id(), intent);
+                "{\"id\":\"evt_replay_%s\",\"type\":\"payment_intent.succeeded\",\"account\":\"%s\",\"livemode\":false,\"data\":{\"object\":{\"id\":\"%s\"}}}"
+                        .formatted(order.id(), CONNECTED_ACCOUNT, intent);
         for (int delivery = 0; delivery < 2; delivery++) {
             given().contentType(ContentType.JSON)
                     .header("Stripe-Signature", FakeStripeEventVerifier.VALID_SIGNATURE)
@@ -347,12 +350,48 @@ class PaymentFlowTest {
     }
 
     @Test
+    void webhook_sameIntentFromAnotherConnectedAccount_hasNoPaymentEffect() {
+        CreatedOrder order = createOrder();
+        given().contentType(ContentType.JSON)
+                .header("X-Table-Session", order.sessionToken())
+                .header("Idempotency-Key", UUID.randomUUID().toString())
+                .body("{\"orderId\":\"%s\"}".formatted(order.id()))
+                .post("/v1/payments")
+                .then()
+                .statusCode(201);
+
+        String intent = "pi_fake_" + order.id();
+        given().contentType(ContentType.JSON)
+                .header("Stripe-Signature", FakeStripeEventVerifier.VALID_SIGNATURE)
+                .body(
+                        "{\"id\":\"evt_wrong_%s\",\"type\":\"payment_intent.succeeded\",\"account\":\"acct_test_other\",\"livemode\":false,\"data\":{\"object\":{\"id\":\"%s\"}}}"
+                                .formatted(order.id(), intent))
+                .post("/v1/webhooks/stripe")
+                .then()
+                .statusCode(200);
+
+        given().when()
+                .get("/v1/orders/{orderId}?trackingToken={t}", order.id(), order.trackingToken())
+                .then()
+                .statusCode(200)
+                .body("status", equalTo("pending_payment"));
+
+        payViaWebhook(order);
+
+        given().when()
+                .get("/v1/orders/{orderId}?trackingToken={t}", order.id(), order.trackingToken())
+                .then()
+                .statusCode(200)
+                .body("status", equalTo("paid"));
+    }
+
+    @Test
     void webhook_invalidSignature_returns400Problem() {
         given().filter(ContractValidation.FILTER)
                 .contentType(ContentType.JSON)
                 .header("Stripe-Signature", "forged")
                 .body(
-                        "{\"id\":\"evt_forged\",\"type\":\"payment_intent.succeeded\",\"data\":{\"object\":{\"id\":\"pi_x\"}}}")
+                        "{\"id\":\"evt_forged\",\"type\":\"payment_intent.succeeded\",\"account\":\"acct_test_le_cormoran\",\"livemode\":false,\"data\":{\"object\":{\"id\":\"pi_x\"}}}")
                 .when()
                 .post("/v1/webhooks/stripe")
                 .then()

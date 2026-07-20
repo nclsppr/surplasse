@@ -100,13 +100,12 @@ Concrètement, dans la cible :
 
 | Point ouvert | Où il sera traité |
 |---|---|
-| Schéma des flux Connect : charges directes ou charges avec transfert | Page [Intégrations](../architecture/integrations.md) et le contrat |
 | Politique de remboursement (qui déclenche, qui supporte les frais) | Page [Intégrations](../architecture/integrations.md) |
 | Calendrier de reversement proposé aux restaurateurs | Modèle économique, puis page [Intégrations](../architecture/integrations.md) |
 | Gestion du pourboire dans le parcours de paiement | Parcours [Commande côté client](../produit/parcours/commande-client.md) |
 
 !!! info Ce que la décision fige
-Cet ADR fige le fournisseur (Stripe), le modèle de comptes (Connect Express) et l'intégration frontend (Payment Element). Les points du tableau ci-dessus relèvent de la spécification détaillée, pas d'une remise en cause de la décision.
+Cet ADR fige le fournisseur (Stripe), le modèle de comptes (Connect Express) et l'intégration frontend (Payment Element). L'[ADR-0017](adr-0017-charges-directes-stripe-connect.md) fixe ensuite les charges directes. Les points du tableau ci-dessus relèvent de la spécification détaillée, pas d'une remise en cause de ces décisions.
 !!!
 
 ## Conséquences

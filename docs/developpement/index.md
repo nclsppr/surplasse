@@ -294,6 +294,7 @@ Les URL publiques sont centralisées dans `config/domains/development.env` et `c
 |---|---|---|---|
 | `STRIPE_SECRET_KEY` | Backend | clé secrète Stripe (mode test en dev : `sk_test_...`) | oui, pour les parcours de paiement |
 | `STRIPE_WEBHOOK_SECRET` | Backend | signature des webhooks Stripe (fournie par la CLI Stripe en local) | oui, pour les webhooks |
+| `STRIPE_LIVE_MODE` | Backend | mode attendu des objets et webhooks Stripe ; `false` en développement et test, `true` en production | non, `false` en développement |
 | `OPENAI_API_KEY` | Backend | future clé API OpenAI pour le domaine `generation`, absent actuellement | non, future phase 3 |
 | `QUARKUS_DATASOURCE_JDBC_URL` | Backend | DSN PostgreSQL | non en dev (Dev Services), oui en production |
 | `APP_SCHEME`, `APP_BASE_DOMAIN`, `APP_BASE_URL` | tous | racine des URL publiques et génération des mini-sites | oui, fournis par le profil versionné |
@@ -339,20 +340,24 @@ Ouvrir `https://local.surplasse.test`, puis utiliser « Démarrer le parcours pr
 
 **4. Vérifier l'établissement de démonstration.**
 
-Ouvrir `https://le-cormoran.surplasse.test/?table=tbl_2f8e6a4c0b9d7e1f`. Le hostname fournit le slug `le-cormoran`, la Table 4 ouvre une session anonyme et la carte du Cormoran s'affiche. La carte Stripe de test standard est `4242 4242 4242 4242`.
+Ouvrir `https://le-cormoran.surplasse.test/?table=tbl_2f8e6a4c0b9d7e1f`. Le hostname fournit le slug `le-cormoran`, la Table 4 ouvre une session anonyme et la carte du Cormoran s'affiche.
+
+Le routage Connect du seed est volontairement fictif et sert uniquement aux doublures automatisées. Le parcours réel de paiement reste fermé tant qu'un compte Connect de test encaissable n'a pas été rattaché à l'établissement. La [fiche de preuve Stripe Connect](../operations/preuve-stripe-connect-2026-07-20.md) décrit le blocage actuel et la reprise.
 
 **5. Vérifier le Dashboard et les magic links.**
 
-Ouvrir `https://dashboard.surplasse.test/auth/login`, demander un lien pour `pilote@le-cormoran.example`, puis lire le message dans `https://mail.surplasse.test`. Après échange du jeton, `/service` affiche les commandes opérationnelles et l'indicateur « Temps réel actif ». Payer une nouvelle commande dans Commande et vérifier qu'elle apparaît sans actualisation manuelle. La faire avancer jusqu'à `served` et vérifier qu'elle quitte alors la file active.
+Ouvrir `https://dashboard.surplasse.test/auth/login`, demander un lien pour `pilote@le-cormoran.example`, puis lire le message dans `https://mail.surplasse.test`. Après échange du jeton, `/service` affiche les commandes opérationnelles et l'indicateur « Temps réel actif ». Les commandes déjà payées du seed permettent de vérifier leur avancement jusqu'à `served` et leur sortie de la file active. Après rattachement d'un vrai compte Connect de test et configuration du relais webhook, payer une nouvelle commande avec la carte Stripe de test standard `4242 4242 4242 4242` et vérifier qu'elle apparaît sans actualisation manuelle.
 
 **6. Relayer les webhooks Stripe si le paiement est testé.**
 
 ```bash
-stripe listen --forward-to https://api.surplasse.test/v1/webhooks/stripe
+stripe listen \
+  --forward-connect-to https://api.surplasse.test/v1/webhooks/stripe \
+  --events account.updated,payment_intent.succeeded,payment_intent.payment_failed
 # Copy the printed whsec_... value to backend/.env
 ```
 
-Stripe CLI reste interactif et hors du cockpit. Le passage d'une commande à `paid` ne vient que du webhook signé.
+Stripe CLI reste interactif et hors du cockpit. L'option `--forward-connect-to` est obligatoire pour recevoir les événements des charges directes créées sur les comptes connectés. Le passage d'une commande à `paid` ne vient que du webhook signé.
 
 Les modules peuvent toujours être lancés dans des terminaux séparés avec leurs commandes propres. Le cockpit les marque alors « lancé hors cockpit » et refuse de les arrêter. Avant de committer, lire le [workflow git](workflow-git.md) et exécuter les vérifications adaptées.
 

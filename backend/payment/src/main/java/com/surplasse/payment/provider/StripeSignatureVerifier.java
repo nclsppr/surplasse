@@ -8,6 +8,9 @@ import com.surplasse.common.error.DependencyUnavailableException;
 import com.surplasse.common.error.InvalidRequestException;
 import com.surplasse.payment.config.PaymentConfig;
 import jakarta.enterprise.context.ApplicationScoped;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 @ApplicationScoped
 public class StripeSignatureVerifier implements StripeEventVerifier {
@@ -53,7 +56,34 @@ public class StripeSignatureVerifier implements StripeEventVerifier {
         if (id == null || type == null) {
             throw new InvalidRequestException("Webhook payload misses id or type.");
         }
-        String paymentIntentId = root.path("data").path("object").path("id").asText(null);
-        return new VerifiedEvent(id, type, paymentIntentId);
+        JsonNode liveModeNode = root.get("livemode");
+        if (liveModeNode == null || !liveModeNode.isBoolean()) {
+            throw new InvalidRequestException("Webhook payload misses livemode.");
+        }
+        JsonNode object = root.path("data").path("object");
+        String objectId = object.path("id").asText(null);
+        String paymentIntentId = type.startsWith("payment_intent.") ? objectId : null;
+        String connectedAccountId = root.path("account").asText(null);
+        boolean liveMode = liveModeNode.booleanValue();
+        AccountStatus accountStatus = null;
+        if ("account.updated".equals(type)) {
+            JsonNode chargesEnabled = object.get("charges_enabled");
+            JsonNode payoutsEnabled = object.get("payouts_enabled");
+            JsonNode created = root.get("created");
+            if (connectedAccountId == null
+                    || !connectedAccountId.equals(objectId)
+                    || chargesEnabled == null
+                    || !chargesEnabled.isBoolean()
+                    || payoutsEnabled == null
+                    || !payoutsEnabled.isBoolean()
+                    || created == null
+                    || !created.canConvertToLong()) {
+                throw new InvalidRequestException("Stripe account update is incomplete or inconsistent.");
+            }
+            OffsetDateTime occurredAt =
+                    OffsetDateTime.ofInstant(Instant.ofEpochSecond(created.longValue()), ZoneOffset.UTC);
+            accountStatus = new AccountStatus(chargesEnabled.booleanValue(), payoutsEnabled.booleanValue(), occurredAt);
+        }
+        return new VerifiedEvent(id, type, paymentIntentId, connectedAccountId, liveMode, accountStatus);
     }
 }

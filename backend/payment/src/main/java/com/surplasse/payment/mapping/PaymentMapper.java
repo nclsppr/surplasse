@@ -14,6 +14,7 @@ public final class PaymentMapper {
                 .orderId(payment.getOrderId())
                 .amountCents(payment.getAmountCents())
                 .currency(payment.getCurrency())
-                .clientSecret(payment.getClientSecret());
+                .clientSecret(payment.getClientSecret())
+                .connectedAccountId(payment.getConnectedAccountId());
     }
 }

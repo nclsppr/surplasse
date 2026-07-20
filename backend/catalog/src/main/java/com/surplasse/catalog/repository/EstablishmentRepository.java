@@ -4,6 +4,7 @@ import com.surplasse.catalog.entity.Establishment;
 import com.surplasse.catalog.entity.EstablishmentStatus;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -22,5 +23,11 @@ public class EstablishmentRepository implements PanacheRepositoryBase<Establishm
 
     public boolean belongsToRestaurateur(UUID establishmentId, UUID restaurateurId) {
         return count("id = ?1 and restaurateurId = ?2", establishmentId, restaurateurId) > 0;
+    }
+
+    public Optional<Establishment> findByStripeAccountIdForUpdate(String stripeAccountId) {
+        return find("stripeAccountId", stripeAccountId)
+                .withLock(LockModeType.PESSIMISTIC_WRITE)
+                .firstResultOptional();
     }
 }

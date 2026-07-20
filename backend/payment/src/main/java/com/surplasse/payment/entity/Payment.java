@@ -18,6 +18,8 @@ public class Payment {
     private String provider;
     private String externalReference;
     private UUID creationKey;
+    private String connectedAccountId;
+    private int applicationFeeAmount;
     private PaymentStatus status;
     private int amountCents;
     private String currency;
@@ -32,12 +34,16 @@ public class Payment {
             String externalReference,
             int amountCents,
             String currency,
-            String clientSecret) {
+            String clientSecret,
+            String connectedAccountId,
+            int applicationFeeAmount) {
         this.id = id;
         this.orderId = orderId;
         this.establishmentId = establishmentId;
         this.provider = "stripe";
         this.externalReference = externalReference;
+        this.connectedAccountId = connectedAccountId;
+        this.applicationFeeAmount = applicationFeeAmount;
         this.status = PaymentStatus.PENDING;
         this.amountCents = amountCents;
         this.currency = currency;
@@ -45,8 +51,24 @@ public class Payment {
     }
 
     public static Payment reserve(
-            UUID id, UUID orderId, UUID establishmentId, int amountCents, String currency, UUID creationKey) {
-        Payment payment = new Payment(id, orderId, establishmentId, "creating_" + id, amountCents, currency, null);
+            UUID id,
+            UUID orderId,
+            UUID establishmentId,
+            int amountCents,
+            String currency,
+            UUID creationKey,
+            String connectedAccountId,
+            int applicationFeeAmount) {
+        Payment payment = new Payment(
+                id,
+                orderId,
+                establishmentId,
+                "creating_" + id,
+                amountCents,
+                currency,
+                null,
+                connectedAccountId,
+                applicationFeeAmount);
         payment.status = PaymentStatus.CREATING;
         payment.creationKey = creationKey;
         return payment;
@@ -91,6 +113,14 @@ public class Payment {
 
     public UUID getCreationKey() {
         return creationKey;
+    }
+
+    public String getConnectedAccountId() {
+        return connectedAccountId;
+    }
+
+    public int getApplicationFeeAmount() {
+        return applicationFeeAmount;
     }
 
     public PaymentStatus getStatus() {

@@ -10,6 +10,8 @@ import static org.mockito.Mockito.when;
 
 import com.surplasse.common.error.InvalidRequestException;
 import com.surplasse.common.event.OrderPaid;
+import com.surplasse.common.event.StripeAccountUpdated;
+import com.surplasse.payment.config.PaymentConfig;
 import com.surplasse.payment.entity.Payment;
 import com.surplasse.payment.entity.PaymentStatus;
 import com.surplasse.payment.entity.StripeWebhookEvent;
@@ -26,25 +28,43 @@ import org.junit.jupiter.api.Test;
 
 class WebhookServiceTest {
 
+    private static final String CONNECTED_ACCOUNT = "acct_test_restaurant";
+    private static final OffsetDateTime ACCOUNT_UPDATED_AT = OffsetDateTime.parse("2026-07-20T10:00:00Z");
+
     private StripeEventVerifier verifier;
+    private PaymentConfig config;
     private StripeWebhookEventRepository processedEvents;
     private PaymentRepository paymentRepository;
     private Event<OrderPaid> orderPaid;
+    private Event<StripeAccountUpdated> stripeAccountUpdated;
     private WebhookService service;
 
     @BeforeEach
     @SuppressWarnings("unchecked")
     void setUp() {
         verifier = mock(StripeEventVerifier.class);
+        config = mock(PaymentConfig.class);
         processedEvents = mock(StripeWebhookEventRepository.class);
         paymentRepository = mock(PaymentRepository.class);
         orderPaid = mock(Event.class);
-        service = new WebhookService(verifier, processedEvents, paymentRepository, orderPaid);
+        stripeAccountUpdated = mock(Event.class);
+        service = new WebhookService(
+                verifier, config, processedEvents, paymentRepository, orderPaid, stripeAccountUpdated);
+        when(config.liveMode()).thenReturn(false);
         when(processedEvents.findByIdOptional(any())).thenReturn(Optional.empty());
     }
 
     private Payment pendingPayment() {
-        return new Payment(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "pi_1", 2250, "EUR", "secret");
+        return new Payment(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "pi_1",
+                2250,
+                "EUR",
+                "secret",
+                CONNECTED_ACCOUNT,
+                0);
     }
 
     @Test
@@ -59,14 +79,15 @@ class WebhookServiceTest {
     @Test
     void process_duplicateEvent_isAcknowledgedWithoutEffect() {
         when(verifier.verify(any(), any()))
-                .thenReturn(new StripeEventVerifier.VerifiedEvent("evt_1", "payment_intent.succeeded", "pi_1"));
+                .thenReturn(new StripeEventVerifier.VerifiedEvent(
+                        "evt_1", "payment_intent.succeeded", "pi_1", CONNECTED_ACCOUNT, false));
         when(processedEvents.findByIdOptional("evt_1"))
                 .thenReturn(Optional.of(new StripeWebhookEvent(
                         "evt_1", "payment_intent.succeeded", OffsetDateTime.now(ZoneOffset.UTC))));
 
         service.process("{}", "sig");
 
-        verify(paymentRepository, never()).findByExternalReference(any());
+        verify(paymentRepository, never()).findByExternalReferenceAndAccount(any(), any());
         verify(orderPaid, never()).fire(any());
     }
 
@@ -74,8 +95,10 @@ class WebhookServiceTest {
     void process_succeededIntent_marksPaymentAndFiresOrderPaid() {
         Payment payment = pendingPayment();
         when(verifier.verify(any(), any()))
-                .thenReturn(new StripeEventVerifier.VerifiedEvent("evt_1", "payment_intent.succeeded", "pi_1"));
-        when(paymentRepository.findByExternalReference("pi_1")).thenReturn(Optional.of(payment));
+                .thenReturn(new StripeEventVerifier.VerifiedEvent(
+                        "evt_1", "payment_intent.succeeded", "pi_1", CONNECTED_ACCOUNT, false));
+        when(paymentRepository.findByExternalReferenceAndAccount("pi_1", CONNECTED_ACCOUNT))
+                .thenReturn(Optional.of(payment));
 
         service.process("{}", "sig");
 
@@ -88,8 +111,10 @@ class WebhookServiceTest {
         Payment payment = pendingPayment();
         payment.markFailed();
         when(verifier.verify(any(), any()))
-                .thenReturn(new StripeEventVerifier.VerifiedEvent("evt_legacy", "payment_intent.succeeded", "pi_1"));
-        when(paymentRepository.findByExternalReference("pi_1")).thenReturn(Optional.of(payment));
+                .thenReturn(new StripeEventVerifier.VerifiedEvent(
+                        "evt_legacy", "payment_intent.succeeded", "pi_1", CONNECTED_ACCOUNT, false));
+        when(paymentRepository.findByExternalReferenceAndAccount("pi_1", CONNECTED_ACCOUNT))
+                .thenReturn(Optional.of(payment));
 
         service.process("{}", "sig");
 
@@ -102,8 +127,10 @@ class WebhookServiceTest {
         Payment payment = pendingPayment();
         payment.markSucceeded();
         when(verifier.verify(any(), any()))
-                .thenReturn(new StripeEventVerifier.VerifiedEvent("evt_2", "payment_intent.succeeded", "pi_1"));
-        when(paymentRepository.findByExternalReference("pi_1")).thenReturn(Optional.of(payment));
+                .thenReturn(new StripeEventVerifier.VerifiedEvent(
+                        "evt_2", "payment_intent.succeeded", "pi_1", CONNECTED_ACCOUNT, false));
+        when(paymentRepository.findByExternalReferenceAndAccount("pi_1", CONNECTED_ACCOUNT))
+                .thenReturn(Optional.of(payment));
 
         service.process("{}", "sig");
 
@@ -114,8 +141,10 @@ class WebhookServiceTest {
     void process_failedIntent_keepsThePaymentRetryable() {
         Payment payment = pendingPayment();
         when(verifier.verify(any(), any()))
-                .thenReturn(new StripeEventVerifier.VerifiedEvent("evt_3", "payment_intent.payment_failed", "pi_1"));
-        when(paymentRepository.findByExternalReference("pi_1")).thenReturn(Optional.of(payment));
+                .thenReturn(new StripeEventVerifier.VerifiedEvent(
+                        "evt_3", "payment_intent.payment_failed", "pi_1", CONNECTED_ACCOUNT, false));
+        when(paymentRepository.findByExternalReferenceAndAccount("pi_1", CONNECTED_ACCOUNT))
+                .thenReturn(Optional.of(payment));
 
         service.process("{}", "sig");
 
@@ -126,11 +155,69 @@ class WebhookServiceTest {
     @Test
     void process_unknownIntent_isAcknowledgedWithoutEffect() {
         when(verifier.verify(any(), any()))
-                .thenReturn(new StripeEventVerifier.VerifiedEvent("evt_4", "payment_intent.succeeded", "pi_ghost"));
-        when(paymentRepository.findByExternalReference("pi_ghost")).thenReturn(Optional.empty());
+                .thenReturn(new StripeEventVerifier.VerifiedEvent(
+                        "evt_4", "payment_intent.succeeded", "pi_ghost", CONNECTED_ACCOUNT, false));
+        when(paymentRepository.findByExternalReferenceAndAccount("pi_ghost", CONNECTED_ACCOUNT))
+                .thenReturn(Optional.empty());
 
         service.process("{}", "sig");
 
+        verify(orderPaid, never()).fire(any());
+    }
+
+    @Test
+    void process_missingConnectedAccount_hasNoPaymentEffect() {
+        when(verifier.verify(any(), any()))
+                .thenReturn(new StripeEventVerifier.VerifiedEvent(
+                        "evt_5", "payment_intent.succeeded", "pi_1", null, false));
+
+        service.process("{}", "sig");
+
+        verify(paymentRepository, never()).findByExternalReferenceAndAccount(any(), any());
+        verify(orderPaid, never()).fire(any());
+    }
+
+    @Test
+    void process_wrongConnectedAccount_cannotFindThePayment() {
+        String otherAccount = "acct_test_other";
+        when(verifier.verify(any(), any()))
+                .thenReturn(new StripeEventVerifier.VerifiedEvent(
+                        "evt_6", "payment_intent.succeeded", "pi_1", otherAccount, false));
+        when(paymentRepository.findByExternalReferenceAndAccount("pi_1", otherAccount))
+                .thenReturn(Optional.empty());
+
+        service.process("{}", "sig");
+
+        verify(orderPaid, never()).fire(any());
+    }
+
+    @Test
+    void process_eventFromAnotherStripeMode_isAcknowledgedWithoutEffect() {
+        when(verifier.verify(any(), any()))
+                .thenReturn(new StripeEventVerifier.VerifiedEvent(
+                        "evt_live", "payment_intent.succeeded", "pi_1", CONNECTED_ACCOUNT, true));
+
+        service.process("{}", "sig");
+
+        verify(processedEvents, never()).persist(any(StripeWebhookEvent.class));
+        verify(paymentRepository, never()).findByExternalReferenceAndAccount(any(), any());
+        verify(orderPaid, never()).fire(any());
+    }
+
+    @Test
+    void process_accountUpdated_publishesTheSignedCapabilitySnapshot() {
+        when(verifier.verify(any(), any()))
+                .thenReturn(new StripeEventVerifier.VerifiedEvent(
+                        "evt_account",
+                        "account.updated",
+                        null,
+                        CONNECTED_ACCOUNT,
+                        false,
+                        new StripeEventVerifier.AccountStatus(false, true, ACCOUNT_UPDATED_AT)));
+
+        service.process("{}", "sig");
+
+        verify(stripeAccountUpdated).fire(new StripeAccountUpdated(CONNECTED_ACCOUNT, false, true, ACCOUNT_UPDATED_AT));
         verify(orderPaid, never()).fire(any());
     }
 }

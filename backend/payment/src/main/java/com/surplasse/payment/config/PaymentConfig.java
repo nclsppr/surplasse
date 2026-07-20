@@ -17,4 +17,7 @@ public interface PaymentConfig {
 
     /** Stripe webhook signing secret, from STRIPE_WEBHOOK_SECRET. */
     Optional<String> stripeWebhookSecret();
+
+    /** Expected Stripe object mode. False in development and tests, true in production. */
+    boolean liveMode();
 }

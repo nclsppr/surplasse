@@ -15,6 +15,7 @@ Les pages de la section :
 - [Outillage de l'opérateur](outillage-operateur.md) : accès à la base, logs, résultats de tests, exploration de l'API.
 - [Observabilité](observabilite.md) : logs, métriques, sondes et alertes.
 - [Pilote de phase 2](pilote.md) : portes Go ou No-Go, métriques, répétition, service réel et repli.
+- [Preuve Stripe Connect du 2026-07-20](preuve-stripe-connect-2026-07-20.md) : premier contrôle API test, blocage d'inscription Connect et condition de reprise.
 - [RGPD](rgpd.md) : données personnelles, rétention, droits des personnes.
 
 Le déploiement lui-même (workflows GitHub Actions, images, rollback) est décrit dans [CI/CD](../developpement/ci-cd.md).
@@ -75,7 +76,7 @@ curl --fail https://api.surplasse.com/q/health/ready
 docker compose stop backend
 ```
 
-Le démarrage exige PostgreSQL, les migrations Flyway, les clés JWT RS256 montées hors image et la configuration SMTP décrite dans [Environnements](environnements.md#backend-quarkus). Flyway applique les migrations jusqu'à V6 avant que la readiness passe à `UP`. Une mise à jour ou un retour arrière redéploie l'image Backend entière : il n'existe aucune opération propre à `identity`. Ubuntu LTS fait foi.
+Le démarrage exige PostgreSQL, les migrations Flyway, les clés JWT RS256 montées hors image et la configuration SMTP décrite dans [Environnements](environnements.md#backend-quarkus). Flyway applique les migrations jusqu'à V11 avant que la readiness passe à `UP`. Une mise à jour ou un retour arrière redéploie l'image Backend entière : il n'existe aucune opération propre à `identity`. Ubuntu LTS fait foi.
 
 ### Cycle de vie du Dashboard sous Ubuntu LTS
 
@@ -171,7 +172,7 @@ La base de données est le seul état qui ne se reconstruit pas. Le régime de s
 | Contenu MinIO | Hebdomadaire | Synchronisation des buckets vers le même stockage tiers |
 | Exercice de restauration | Trimestriel | Restauration complète du dernier dump sur un environnement local, vérification que l'application démarre et que les données sont cohérentes |
 
-Le dump PostgreSQL inclut les tables d'identité ajoutées par V5 : restaurateurs, magic links et refresh tokens hachés. Aucune sauvegarde ni aucun volume distinct ne leur est nécessaire. L'exercice de restauration vérifie aussi le rattachement entre restaurateurs et établissements, l'état Flyway de V6 et la présence de l'index partiel `order_operational_page_idx`.
+Le dump PostgreSQL inclut les tables d'identité ajoutées par V5, le routage Connect ajouté par V10 et le snapshot financier ajouté par V11. Aucune sauvegarde ni aucun volume distinct ne leur est nécessaire. L'exercice de restauration vérifie aussi le rattachement entre restaurateurs et établissements, l'état Flyway de V11 et les index critiques décrits dans le [modèle de données](../architecture/donnees.md#migrations-flyway-effectivement-livrées).
 
 Le contenu MinIO est moins critique que la base : les images de produits sont re-téléversables et la carte extraite vit en base, seule la photo originale de la carte serait perdue. La rétention exacte des dumps (nombre de jours, paliers hebdomadaires et mensuels) reste à trancher, en cohérence avec les durées de [RGPD](rgpd.md).
 

@@ -23,14 +23,15 @@ import jakarta.validation.Valid;
 public interface PaymentApi {
 
     /**
-     * Creates (or returns, when replayed) the Stripe payment session of a `pending_payment` order: the backend re-checks product availability, recomputes the amount from the catalog, creates the PaymentIntent and returns its client secret for the Payment Element. The browser confirmation is informative only: the signed Stripe webhook is the single source of truth that marks the order paid. 
+     * Creates (or returns, when replayed) the Stripe payment session of a `pending_payment` order: the backend re-checks product availability, recomputes the amount from the catalog, creates a direct-charge PaymentIntent on the establishment's connected account and returns its client secret and account identifier for the Payment Element. The browser confirmation is informative only: the signed Stripe webhook is the single source of truth that marks the order paid.
      *
-     * @param idempotencyKey Client-generated UUID identifying this intention. Replaying the same request with the same key returns the original response without any duplicate; the same key with a different payload yields a 409 &#x60;idempotency-key-conflict&#x60;. 
-     * @param paymentCreationRequest 
+     * @param idempotencyKey Client-generated UUID identifying this intention. Replaying the same request with the same key returns the original response without any duplicate; the same key with a different payload yields a 409 &#x60;idempotency-key-conflict&#x60;.
+     * @param paymentCreationRequest
      * @return The payment session, ready for the Payment Element.
      * @return The table session token is missing, unknown or expired.
      * @return Unknown order, or order outside this session.
      * @return The order is not payable anymore, or a product became unavailable.
+     * @return The establishment has no active Stripe Connect account able to accept charges.
      * @return Stripe is unreachable after retries.
      */
     @POST

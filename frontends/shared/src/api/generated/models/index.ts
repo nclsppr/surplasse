@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * An operational order displayed to the establishment staff. The customer tracking capability is deliberately omitted.
- * 
+ *
  * @export
  * @interface DashboardOrder
  */
@@ -199,7 +199,7 @@ export interface MenuOption {
 }
 /**
  * A set of options of a product (doneness, size, extras) with its choice rules. `minChoices` of 1 or more makes the group mandatory.
- * 
+ *
  * @export
  * @interface MenuOptionGroup
  */
@@ -237,7 +237,7 @@ export interface MenuOptionGroup {
 }
 /**
  * A product as displayed on the menu. Unavailable products are included with `available: false` so the frontend renders them greyed out.
- * 
+ *
  * @export
  * @interface MenuProduct
  */
@@ -281,7 +281,7 @@ export interface MenuProduct {
 }
 /**
  * An order as seen by the customer: lines frozen at creation (names, prices and options copied from the catalog at that instant), status driven by the kitchen.
- * 
+ *
  * @export
  * @interface Order
  */
@@ -376,7 +376,7 @@ export type OrderTypeEnum = typeof OrderTypeEnum[keyof typeof OrderTypeEnum];
 
 /**
  * The validated cart sent by the Commande frontend. The establishment and the table come from the table session; amounts are recomputed server side from the catalog and never trusted from the client.
- * 
+ *
  * @export
  * @interface OrderCreationRequest
  */
@@ -512,7 +512,7 @@ export interface OrderLineRequest {
 }
 /**
  * One cursor-paginated page of operational orders, newest first. nextCursor is present exactly when hasMore is true.
- * 
+ *
  * @export
  * @interface OrderPage
  */
@@ -611,7 +611,7 @@ export interface PaymentCreationRequest {
 }
 /**
  * A Stripe payment session for one order. The client secret feeds the Payment Element; the amount is recomputed server side.
- * 
+ *
  * @export
  * @interface PaymentSession
  */
@@ -646,10 +646,16 @@ export interface PaymentSession {
      * @memberof PaymentSession
      */
     clientSecret: string;
+    /**
+     * Stripe Connect account used by both the PaymentIntent and Stripe.js.
+     * @type {string}
+     * @memberof PaymentSession
+     */
+    connectedAccountId: string;
 }
 /**
  * RFC 9457 Problem Details document, the single error format of the API. The `type` URI is stable and identifies the applicative error.
- * 
+ *
  * @export
  * @interface Problem
  */
@@ -687,7 +693,7 @@ export interface Problem {
 }
 /**
  * The published menu of an establishment, as a complete read model in display order. Array order is the display order.
- * 
+ *
  * @export
  * @interface PublicMenu
  */
@@ -744,7 +750,7 @@ export interface RestaurateurEstablishment {
 }
 /**
  * Minimal authenticated restaurateur view used to initialize the Dashboard. It contains no authorization token because credentials stay exclusively in HttpOnly cookies.
- * 
+ *
  * @export
  * @interface RestaurateurSession
  */
@@ -776,7 +782,7 @@ export interface RestaurateurSession {
 }
 /**
  * An anonymous table session. The token is opaque (a server-side reference, not a JWT) and carries no personal data.
- * 
+ *
  * @export
  * @interface TableSession
  */

@@ -36,7 +36,10 @@ Concrètement :
 - le Backend crée chaque Payment Intent dans le contexte du compte connecté de l'établissement ;
 - le front Commande initialise Stripe.js avec ce même compte connecté avant d'afficher le Payment Element ;
 - le Payment Intent porte une commission Surplasse de 0 centime pendant les 3 premiers mois, puis de 1 % du montant de la commande ;
+- pendant la période gratuite, `application_fee_amount` est entièrement omis de la requête Stripe ; après cette période, il porte le montant en centimes calculé selon l'[ADR-0015](adr-0015-modele-commission.md) ;
+- le compte connecté et la commission sont figés sur le paiement avant l'appel réseau afin qu'un rejeu conserve exactement le même routage financier ;
 - le Backend reçoit les événements Connect et vérifie que le compte de l'événement correspond au compte mémorisé sur le paiement avant tout changement d'état ;
+- le Backend refuse aussi un événement dont `livemode` ne correspond pas au mode attendu par l'environnement ;
 - un établissement sans compte connecté encaissable reçoit une erreur métier fermée, jamais une charge plateforme de secours ;
 - le compte Express du pilote est créé et rattaché manuellement en phase 2 ; la création du compte et le parcours KYC deviennent automatisés dans l'Onboarding en phase 3.
 

@@ -1,5 +1,6 @@
 package com.surplasse.common.catalog;
 
+import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -30,7 +31,17 @@ public interface CatalogGateway {
      */
     Map<UUID, ProductPricing> priceProducts(UUID establishmentId, Collection<UUID> productIds);
 
+    /**
+     * Payment routing owned by an active establishment. The payment domain
+     * fails closed when the account is absent or its Stripe capabilities are
+     * disabled.
+     */
+    Optional<PaymentRouting> findPaymentRouting(UUID establishmentId);
+
     record TableRef(UUID establishmentId, UUID tableQrId, String tableLabel) {}
+
+    record PaymentRouting(
+            String stripeAccountId, boolean chargesEnabled, boolean payoutsEnabled, OffsetDateTime activatedAt) {}
 
     record ProductPricing(
             UUID productId, String name, int priceCents, boolean available, List<OptionGroupPricing> optionGroups) {}

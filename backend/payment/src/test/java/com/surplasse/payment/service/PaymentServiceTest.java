@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -13,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.surplasse.common.catalog.CatalogGateway;
+import com.surplasse.common.error.BusinessRuleException;
 import com.surplasse.common.error.ConflictException;
 import com.surplasse.common.error.NotFoundException;
 import com.surplasse.common.order.OrderGateway;
@@ -23,6 +23,8 @@ import com.surplasse.payment.repository.PaymentRepository;
 import com.surplasse.payment.repository.PaymentRequestRepository;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.narayana.jta.TransactionRunnerOptions;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -43,6 +45,7 @@ class PaymentServiceTest {
     private static final UUID TABLE_QR = UUID.randomUUID();
     private static final UUID ORDER = UUID.randomUUID();
     private static final UUID PRODUCT = UUID.randomUUID();
+    private static final String CONNECTED_ACCOUNT = "acct_test_restaurant";
     private static final OrderGateway.ActiveTableSession SESSION =
             new OrderGateway.ActiveTableSession(TABLE_SESSION, ESTABLISHMENT, TABLE_QR);
 
@@ -88,7 +91,13 @@ class PaymentServiceTest {
         when(catalogGateway.priceProducts(any(), anyCollection()))
                 .thenReturn(
                         Map.of(PRODUCT, new CatalogGateway.ProductPricing(PRODUCT, "Burger", 1600, true, List.of())));
-        when(paymentProvider.createIntent(eq(ORDER), eq(2250), eq("EUR"), any()))
+        when(catalogGateway.findPaymentRouting(ESTABLISHMENT))
+                .thenReturn(Optional.of(new CatalogGateway.PaymentRouting(
+                        CONNECTED_ACCOUNT,
+                        true,
+                        true,
+                        OffsetDateTime.now(ZoneOffset.UTC).minusMonths(1))));
+        when(paymentProvider.createIntent(any()))
                 .thenReturn(new PaymentProvider.PaymentIntentRef("pi_1", "pi_1_secret"));
     }
 
@@ -106,6 +115,8 @@ class PaymentServiceTest {
         assertEquals(2250, payment.getAmountCents());
         assertEquals("pi_1", payment.getExternalReference());
         assertEquals("pi_1_secret", payment.getClientSecret());
+        assertEquals(CONNECTED_ACCOUNT, payment.getConnectedAccountId());
+        assertEquals(0, payment.getApplicationFeeAmount());
         verify(paymentRepository).persist(payment);
         ArgumentCaptor<PaymentRequest> request = ArgumentCaptor.forClass(PaymentRequest.class);
         verify(paymentRequestRepository).persist(request.capture());
@@ -114,29 +125,38 @@ class PaymentServiceTest {
         assertEquals(ORDER, request.getValue().getOrderId());
         assertEquals(ESTABLISHMENT, request.getValue().getEstablishmentId());
         assertEquals(TABLE_SESSION, request.getValue().getTableSessionId());
+        ArgumentCaptor<PaymentProvider.PaymentIntentRequest> intent =
+                ArgumentCaptor.forClass(PaymentProvider.PaymentIntentRequest.class);
+        verify(paymentProvider).createIntent(intent.capture());
+        assertEquals(payment.getId(), intent.getValue().paymentId());
+        assertEquals(CONNECTED_ACCOUNT, intent.getValue().connectedAccountId());
+        assertEquals(0, intent.getValue().applicationFeeAmount());
+        assertEquals(idempotencyKey, intent.getValue().idempotencyKey());
     }
 
     @Test
     void createSession_replay_returnsThePendingAttemptWithoutCallingStripe() {
-        Payment pending = new Payment(UUID.randomUUID(), ORDER, ESTABLISHMENT, "pi_0", 2250, "EUR", "pi_0_secret");
+        Payment pending = new Payment(
+                UUID.randomUUID(), ORDER, ESTABLISHMENT, "pi_0", 2250, "EUR", "pi_0_secret", CONNECTED_ACCOUNT, 0);
         when(paymentRepository.findReusableByOrder(ORDER, ESTABLISHMENT)).thenReturn(Optional.of(pending));
 
         Payment payment = service.createSession(SESSION, ORDER, UUID.randomUUID());
 
         assertSame(pending, payment);
-        verify(paymentProvider, never()).createIntent(any(), Mockito.anyInt(), any(), any());
+        verify(paymentProvider, never()).createIntent(any());
     }
 
     @Test
     void createSession_legacyFailedAttempt_remainsReusable() {
-        Payment failed = new Payment(UUID.randomUUID(), ORDER, ESTABLISHMENT, "pi_0", 2250, "EUR", "pi_0_secret");
+        Payment failed = new Payment(
+                UUID.randomUUID(), ORDER, ESTABLISHMENT, "pi_0", 2250, "EUR", "pi_0_secret", CONNECTED_ACCOUNT, 0);
         failed.markFailed();
         when(paymentRepository.findReusableByOrder(ORDER, ESTABLISHMENT)).thenReturn(Optional.of(failed));
 
         Payment payment = service.createSession(SESSION, ORDER, UUID.randomUUID());
 
         assertSame(failed, payment);
-        verify(paymentProvider, never()).createIntent(any(), Mockito.anyInt(), any(), any());
+        verify(paymentProvider, never()).createIntent(any());
     }
 
     @Test
@@ -147,13 +167,14 @@ class PaymentServiceTest {
                 assertThrows(ConflictException.class, () -> service.createSession(SESSION, ORDER, UUID.randomUUID()));
 
         assertEquals("order-not-modifiable", conflict.problemType());
-        verify(paymentProvider, never()).createIntent(any(), Mockito.anyInt(), any(), any());
+        verify(paymentProvider, never()).createIntent(any());
     }
 
     @Test
     void createSession_creatingReplay_rechecksAvailabilityBeforeStripe() {
         UUID idempotencyKey = UUID.randomUUID();
-        Payment creating = Payment.reserve(UUID.randomUUID(), ORDER, ESTABLISHMENT, 2250, "EUR", idempotencyKey);
+        Payment creating = Payment.reserve(
+                UUID.randomUUID(), ORDER, ESTABLISHMENT, 2250, "EUR", idempotencyKey, CONNECTED_ACCOUNT, 0);
         when(paymentRequestRepository.findByIdOptional(idempotencyKey))
                 .thenReturn(Optional.of(
                         new PaymentRequest(idempotencyKey, creating.getId(), ORDER, ESTABLISHMENT, TABLE_SESSION)));
@@ -166,13 +187,14 @@ class PaymentServiceTest {
                 assertThrows(ConflictException.class, () -> service.createSession(SESSION, ORDER, idempotencyKey));
 
         assertEquals("product-unavailable", conflict.problemType());
-        verify(paymentProvider, never()).createIntent(any(), Mockito.anyInt(), any(), any());
+        verify(paymentProvider, never()).createIntent(any());
     }
 
     @Test
     void createSession_sameKey_returnsTheOriginalAttemptAfterItsOrderAdvanced() {
         UUID idempotencyKey = UUID.randomUUID();
-        Payment original = new Payment(UUID.randomUUID(), ORDER, ESTABLISHMENT, "pi_0", 2250, "EUR", "pi_0_secret");
+        Payment original = new Payment(
+                UUID.randomUUID(), ORDER, ESTABLISHMENT, "pi_0", 2250, "EUR", "pi_0_secret", CONNECTED_ACCOUNT, 0);
         original.markSucceeded();
         when(paymentRequestRepository.findByIdOptional(idempotencyKey))
                 .thenReturn(Optional.of(
@@ -183,7 +205,7 @@ class PaymentServiceTest {
 
         assertSame(original, payment);
         verify(orderGateway, never()).lockPayableOrder(any(), any());
-        verify(paymentProvider, never()).createIntent(any(), Mockito.anyInt(), any(), any());
+        verify(paymentProvider, never()).createIntent(any());
     }
 
     @Test
@@ -198,7 +220,7 @@ class PaymentServiceTest {
                 assertThrows(ConflictException.class, () -> service.createSession(SESSION, ORDER, idempotencyKey));
 
         assertEquals("idempotency-key-conflict", conflict.problemType());
-        verify(paymentProvider, never()).createIntent(any(), Mockito.anyInt(), any(), any());
+        verify(paymentProvider, never()).createIntent(any());
     }
 
     @Test
@@ -214,21 +236,29 @@ class PaymentServiceTest {
                 assertThrows(ConflictException.class, () -> service.createSession(otherSession, ORDER, idempotencyKey));
 
         assertEquals("idempotency-key-conflict", conflict.problemType());
-        verify(paymentProvider, never()).createIntent(any(), Mockito.anyInt(), any(), any());
+        verify(paymentProvider, never()).createIntent(any());
     }
 
     @Test
     void createSession_pendingOrderOfAnotherTableSession_isNeverReturned() {
         UUID otherEstablishment = UUID.randomUUID();
-        Payment foreign =
-                new Payment(UUID.randomUUID(), ORDER, otherEstablishment, "pi_foreign", 2250, "EUR", "foreign_secret");
+        Payment foreign = new Payment(
+                UUID.randomUUID(),
+                ORDER,
+                otherEstablishment,
+                "pi_foreign",
+                2250,
+                "EUR",
+                "foreign_secret",
+                "acct_test_foreign",
+                0);
         when(orderGateway.lockPayableOrder(ORDER, TABLE_SESSION)).thenReturn(Optional.empty());
         when(paymentRepository.findReusableByOrder(ORDER, otherEstablishment)).thenReturn(Optional.of(foreign));
 
         assertThrows(NotFoundException.class, () -> service.createSession(SESSION, ORDER, UUID.randomUUID()));
 
         verify(paymentRepository, never()).findReusableByOrder(ORDER, otherEstablishment);
-        verify(paymentProvider, never()).createIntent(any(), Mockito.anyInt(), any(), any());
+        verify(paymentProvider, never()).createIntent(any());
     }
 
     @Test
@@ -258,6 +288,83 @@ class PaymentServiceTest {
         ConflictException conflict =
                 assertThrows(ConflictException.class, () -> service.createSession(SESSION, ORDER, UUID.randomUUID()));
         assertEquals("product-unavailable", conflict.problemType());
-        verify(paymentProvider, never()).createIntent(any(), Mockito.anyInt(), any(), any());
+        verify(paymentProvider, never()).createIntent(any());
+    }
+
+    @Test
+    void createSession_missingConnectedAccount_failsClosedBeforeStripe() {
+        when(catalogGateway.findPaymentRouting(ESTABLISHMENT)).thenReturn(Optional.empty());
+
+        BusinessRuleException failure = assertThrows(
+                BusinessRuleException.class, () -> service.createSession(SESSION, ORDER, UUID.randomUUID()));
+
+        assertEquals("business-rule-violation", failure.problemType());
+        verify(paymentProvider, never()).createIntent(any());
+    }
+
+    @Test
+    void createSession_disabledCharges_failsClosedBeforeStripe() {
+        when(catalogGateway.findPaymentRouting(ESTABLISHMENT))
+                .thenReturn(Optional.of(new CatalogGateway.PaymentRouting(
+                        CONNECTED_ACCOUNT,
+                        false,
+                        true,
+                        OffsetDateTime.now(ZoneOffset.UTC).minusMonths(1))));
+
+        assertThrows(BusinessRuleException.class, () -> service.createSession(SESSION, ORDER, UUID.randomUUID()));
+
+        verify(paymentProvider, never()).createIntent(any());
+    }
+
+    @Test
+    void createSession_pendingAttemptAfterChargesDisabled_doesNotReturnItsClientSecret() {
+        Payment pending = new Payment(
+                UUID.randomUUID(), ORDER, ESTABLISHMENT, "pi_0", 2250, "EUR", "pi_0_secret", CONNECTED_ACCOUNT, 0);
+        when(paymentRepository.findReusableByOrder(ORDER, ESTABLISHMENT)).thenReturn(Optional.of(pending));
+        when(catalogGateway.findPaymentRouting(ESTABLISHMENT))
+                .thenReturn(Optional.of(new CatalogGateway.PaymentRouting(
+                        CONNECTED_ACCOUNT,
+                        false,
+                        true,
+                        OffsetDateTime.now(ZoneOffset.UTC).minusMonths(1))));
+
+        assertThrows(BusinessRuleException.class, () -> service.createSession(SESSION, ORDER, UUID.randomUUID()));
+
+        verify(paymentProvider, never()).createIntent(any());
+    }
+
+    @Test
+    void createSession_pendingAttemptAfterAccountChanged_doesNotReturnTheOldAccount() {
+        Payment pending = new Payment(
+                UUID.randomUUID(), ORDER, ESTABLISHMENT, "pi_0", 2250, "EUR", "pi_0_secret", CONNECTED_ACCOUNT, 0);
+        when(paymentRepository.findReusableByOrder(ORDER, ESTABLISHMENT)).thenReturn(Optional.of(pending));
+        when(catalogGateway.findPaymentRouting(ESTABLISHMENT))
+                .thenReturn(Optional.of(new CatalogGateway.PaymentRouting(
+                        "acct_test_replacement",
+                        true,
+                        true,
+                        OffsetDateTime.now(ZoneOffset.UTC).minusMonths(1))));
+
+        assertThrows(BusinessRuleException.class, () -> service.createSession(SESSION, ORDER, UUID.randomUUID()));
+
+        verify(paymentProvider, never()).createIntent(any());
+    }
+
+    @Test
+    void createSession_afterFreePeriod_snapshotsOnePercentRoundedDown() {
+        when(catalogGateway.findPaymentRouting(ESTABLISHMENT))
+                .thenReturn(Optional.of(new CatalogGateway.PaymentRouting(
+                        CONNECTED_ACCOUNT,
+                        true,
+                        true,
+                        OffsetDateTime.now(ZoneOffset.UTC).minusMonths(4))));
+
+        Payment payment = service.createSession(SESSION, ORDER, UUID.randomUUID());
+
+        assertEquals(22, payment.getApplicationFeeAmount());
+        ArgumentCaptor<PaymentProvider.PaymentIntentRequest> intent =
+                ArgumentCaptor.forClass(PaymentProvider.PaymentIntentRequest.class);
+        verify(paymentProvider).createIntent(intent.capture());
+        assertEquals(22, intent.getValue().applicationFeeAmount());
     }
 }

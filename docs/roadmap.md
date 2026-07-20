@@ -119,7 +119,11 @@ Le flux client local couvre déjà le scan du QR code, la carte, le panier, la c
 
 Le Dashboard minimal de cette phase est livré localement, y compris l'indicateur permanent de connexion temps réel. Les deux durcissements navigateur sont livrés. Quarkus refuse toujours les credentials CORS et Caddy les accorde seulement aux origines exactes du Dashboard et de l'Onboarding. Le Dashboard sérialise la rotation du refresh token entre onglets avec Web Locks, propage l'état par BroadcastChannel et force une nouvelle connexion si le verrou n'est pas disponible. Les tests couvrent ces branches et un scénario réel à deux onglets a confirmé une seule rotation effective.
 
-Le noyau paiement local refuse désormais de rendre une session à une autre session de table, persiste et rejoue les clés d'idempotence, transmet la même clé au SDK Stripe, conserve un Payment Intent retentable après un moyen de paiement refusé et rend atomiques la confirmation du paiement, le passage de la commande à `paid` et son événement persistant. Les migrations et les tests d'intégration PostgreSQL couvrent ces garanties. Le Payment Intent reste toutefois créé sur le compte plateforme en mode test : Stripe Connect, la commission, le remboursement et le live ne sont pas livrés.
+Le noyau paiement local refuse désormais de rendre une session à une autre session de table, persiste et rejoue les clés d'idempotence, transmet la même clé au SDK Stripe, conserve un Payment Intent retentable après un moyen de paiement refusé et rend atomiques la confirmation du paiement, le passage de la commande à `paid` et son événement persistant. Les migrations et les tests d'intégration PostgreSQL couvrent ces garanties.
+
+Le chemin logiciel des charges directes est maintenant livré localement. L'établissement porte son compte connecté et sa date d'activation. Chaque paiement fige ce compte et la commission, le SDK Stripe reçoit le contexte `Stripe-Account`, Commande initialise Stripe.js avec le même compte, et le webhook exige le couple compte connecté et Payment Intent ainsi que le bon mode `livemode`. La période gratuite omet `application_fee_amount`, donc la commission Surplasse uniquement. Les frais Stripe restent dus dès le premier paiement. Après trois mois calendaires, le Backend calcule 1 % en centimes avec un arrondi inférieur.
+
+La preuve Stripe réelle reste toutefois bloquée. Le 2026-07-20, les clés de test ont authentifié l'API, mais Stripe a refusé la création du compte Express car le compte plateforme n'est pas encore inscrit à Connect. Aucun compte connecté ni secret de webhook Connect n'a donc pu être créé. Le remboursement, la suspension applicative et le live restent aussi non livrés. La porte 1 demeure No-Go, avec le détail dans la [preuve Stripe Connect](operations/preuve-stripe-connect-2026-07-20.md).
 
 La phase suit désormais des portes explicites, détaillées dans le [runbook pilote](operations/pilote.md) :
 
@@ -131,7 +135,7 @@ La phase suit désormais des portes explicites, détaillées dans le [runbook pi
 | 4 | Service à blanc | Répétition complète sur matériel, QR et réseau du restaurant, sans public |
 | 5 | Service réel contrôlé | Service mesuré, rapproché à 100 % et sans incident bloquant ni repli |
 
-Le provisionnement manuel du compte Connect du seul pilote appartient donc à la phase 2. L'automatisation de la création des comptes Express et du KYC reste en phase 3. La prochaine porte est Stripe Connect en mode test, pas le live direct.
+Le provisionnement manuel du compte Connect du seul pilote appartient donc à la phase 2. L'automatisation de la création des comptes Express et du KYC reste en phase 3. La prochaine action externe est l'inscription du compte plateforme à Connect dans le Dashboard Stripe, puis la création et l'activation du compte Express de test. La prochaine porte reste Stripe Connect en mode test, pas le live direct.
 
 ### Risques et parades
 

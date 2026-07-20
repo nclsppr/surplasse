@@ -1,6 +1,8 @@
 package com.surplasse.payment.service;
 
 import com.surplasse.common.event.OrderPaid;
+import com.surplasse.common.event.StripeAccountUpdated;
+import com.surplasse.payment.config.PaymentConfig;
 import com.surplasse.payment.entity.Payment;
 import com.surplasse.payment.entity.PaymentStatus;
 import com.surplasse.payment.entity.StripeWebhookEvent;
@@ -21,19 +23,25 @@ public class WebhookService {
     private static final Logger LOG = Logger.getLogger(WebhookService.class);
 
     private final StripeEventVerifier verifier;
+    private final PaymentConfig config;
     private final StripeWebhookEventRepository processedEvents;
     private final PaymentRepository paymentRepository;
     private final Event<OrderPaid> orderPaid;
+    private final Event<StripeAccountUpdated> stripeAccountUpdated;
 
     WebhookService(
             StripeEventVerifier verifier,
+            PaymentConfig config,
             StripeWebhookEventRepository processedEvents,
             PaymentRepository paymentRepository,
-            Event<OrderPaid> orderPaid) {
+            Event<OrderPaid> orderPaid,
+            Event<StripeAccountUpdated> stripeAccountUpdated) {
         this.verifier = verifier;
+        this.config = config;
         this.processedEvents = processedEvents;
         this.paymentRepository = paymentRepository;
         this.orderPaid = orderPaid;
+        this.stripeAccountUpdated = stripeAccountUpdated;
     }
 
     /**
@@ -45,6 +53,11 @@ public class WebhookService {
     public void process(String rawPayload, String signatureHeader) {
         StripeEventVerifier.VerifiedEvent event = verifier.verify(rawPayload, signatureHeader);
 
+        if (event.liveMode() != config.liveMode()) {
+            LOG.warnf("Webhook event %s belongs to another Stripe mode and is acknowledged without effect", event.id());
+            return;
+        }
+
         if (processedEvents.findByIdOptional(event.id()).isPresent()) {
             LOG.debugf("Webhook event %s already processed, acknowledged without effect", event.id());
             return;
@@ -54,6 +67,7 @@ public class WebhookService {
         switch (event.type()) {
             case "payment_intent.succeeded" -> onIntentSucceeded(event);
             case "payment_intent.payment_failed" -> onIntentFailed(event);
+            case "account.updated" -> onAccountUpdated(event);
             default -> LOG.debugf("Webhook event type %s ignored", event.type());
         }
     }
@@ -86,14 +100,31 @@ public class WebhookService {
         });
     }
 
+    private void onAccountUpdated(StripeEventVerifier.VerifiedEvent event) {
+        StripeEventVerifier.AccountStatus status = event.accountStatus();
+        if (status == null || event.connectedAccountId() == null) {
+            LOG.warnf("Stripe account event %s carries no capability snapshot", event.id());
+            return;
+        }
+        stripeAccountUpdated.fire(new StripeAccountUpdated(
+                event.connectedAccountId(), status.chargesEnabled(), status.payoutsEnabled(), status.occurredAt()));
+    }
+
     private Optional<Payment> findPayment(StripeEventVerifier.VerifiedEvent event) {
         if (event.paymentIntentId() == null) {
             LOG.warnf("Webhook event %s carries no payment intent id", event.id());
             return Optional.empty();
         }
-        Optional<Payment> payment = paymentRepository.findByExternalReference(event.paymentIntentId());
+        if (event.connectedAccountId() == null || event.connectedAccountId().isBlank()) {
+            LOG.warnf("Connect webhook event %s carries no connected account", event.id());
+            return Optional.empty();
+        }
+        Optional<Payment> payment = paymentRepository.findByExternalReferenceAndAccount(
+                event.paymentIntentId(), event.connectedAccountId());
         if (payment.isEmpty()) {
-            LOG.warnf("Webhook event %s references unknown intent %s", event.id(), event.paymentIntentId());
+            LOG.warnf(
+                    "Webhook event %s references unknown intent %s for account %s",
+                    event.id(), event.paymentIntentId(), event.connectedAccountId());
         }
         return payment;
     }

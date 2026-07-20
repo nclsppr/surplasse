@@ -23,8 +23,9 @@ public class PaymentRepository implements PanacheRepositoryBase<Payment, UUID> {
         return count("orderId = ?1 and establishmentId = ?2", orderId, establishmentId) > 0;
     }
 
-    public Optional<Payment> findByExternalReference(String externalReference) {
-        return find("externalReference = ?1", externalReference).firstResultOptional();
+    public Optional<Payment> findByExternalReferenceAndAccount(String externalReference, String connectedAccountId) {
+        return find("externalReference = ?1 and connectedAccountId = ?2", externalReference, connectedAccountId)
+                .firstResultOptional();
     }
 
     public Optional<Payment> findByIdForUpdate(UUID paymentId) {

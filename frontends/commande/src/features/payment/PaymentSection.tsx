@@ -1,19 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
-import { loadStripe } from "@stripe/stripe-js";
 import { formatPriceCents } from "@surplasse/shared";
 import type { Order, PaymentSession } from "@surplasse/shared";
 import { ResponseError } from "@surplasse/shared";
 
 import { paymentApi } from "../../app/api";
 import { fr } from "../../i18n/fr";
+import { loadStripeForConnectedAccount } from "./stripe";
 
 type Props = {
   order: Order;
 };
 
 const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
-const stripePromise = publishableKey ? loadStripe(publishableKey) : undefined;
 
 /**
  * Stripe payment of a pending order: the backend creates the PaymentIntent
@@ -25,6 +24,14 @@ export function PaymentSection({ order }: Props) {
   const [session, setSession] = useState<PaymentSession | undefined>();
   const [failure, setFailure] = useState<"unavailable" | "session" | undefined>();
   const idempotencyKey = useMemo(() => crypto.randomUUID(), []);
+  const connectedAccountId = session?.connectedAccountId;
+  const stripePromise = useMemo(
+    () =>
+      publishableKey && connectedAccountId
+        ? loadStripeForConnectedAccount(publishableKey, connectedAccountId)
+        : undefined,
+    [connectedAccountId],
+  );
 
   useEffect(() => {
     paymentApi

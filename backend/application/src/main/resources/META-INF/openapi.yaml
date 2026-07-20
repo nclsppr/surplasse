@@ -641,8 +641,9 @@ paths:
       description: |
         Creates (or returns, when replayed) the Stripe payment session of a
         `pending_payment` order: the backend re-checks product availability,
-        recomputes the amount from the catalog, creates the PaymentIntent
-        and returns its client secret for the Payment Element. The browser
+        recomputes the amount from the catalog, creates a direct-charge
+        PaymentIntent on the establishment's connected account and returns
+        its client secret and account identifier for the Payment Element. The browser
         confirmation is informative only: the signed Stripe webhook is the
         single source of truth that marks the order paid.
       security:
@@ -668,6 +669,7 @@ paths:
                 amountCents: 2250
                 currency: EUR
                 clientSecret: pi_3Nxxxxxxxxxxxx_secret_xxxxxxxxxxxxx
+                connectedAccountId: acct_1Nxxxxxxxxxxxxxxxx
         "401":
           description: The table session token is missing, unknown or expired.
           content:
@@ -704,6 +706,18 @@ paths:
                 status: 409
                 detail: Order 0d9e8c7b-6a5f-4e3d-8c2b-1a0f9e8d7c6b is already paid.
                 instance: /v1/payments
+        "422":
+          description: The establishment has no active Stripe Connect account able to accept charges.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/business-rule-violation
+                title: Business rule violation
+                status: 422
+                detail: This establishment is not ready to accept payments.
+                instance: /v1/payments
         "503":
           description: Stripe is unreachable after retries.
           content:
@@ -729,7 +743,10 @@ paths:
         400 with no side effect), the clock tolerance is 5 minutes, and
         processing is idempotent: an already processed event id is
         acknowledged without being replayed. `payment_intent.succeeded` is
-        what moves an order to `paid` and triggers its kitchen broadcast.
+        what moves an order to `paid` and triggers its kitchen broadcast. A
+        Connect event is applied only when its top-level `account` matches the
+        connected account frozen on the payment, and its `livemode` matches
+        the environment.
         Marked `x-raw-body`: contractual, but implemented by hand because
         signature verification needs the raw request bytes, which a
         generated deserializing interface cannot provide.
@@ -1876,13 +1893,17 @@ components:
         clientSecret:
           type: string
           description: Stripe PaymentIntent client secret, consumed by the Payment Element.
-      required: [id, orderId, amountCents, currency, clientSecret]
+        connectedAccountId:
+          type: string
+          description: Stripe Connect account used by both the PaymentIntent and Stripe.js.
+      required: [id, orderId, amountCents, currency, clientSecret, connectedAccountId]
       example:
         id: b3a2c1d0-e9f8-4a7b-8c6d-5e4f3a2b1c0d
         orderId: 0d9e8c7b-6a5f-4e3d-8c2b-1a0f9e8d7c6b
         amountCents: 2250
         currency: EUR
         clientSecret: pi_3Nxxxxxxxxxxxx_secret_xxxxxxxxxxxxx
+        connectedAccountId: acct_1Nxxxxxxxxxxxxxxxx
 
     StripeEvent:
       type: object
@@ -1894,6 +1915,8 @@ components:
       example:
         id: evt_1Nxxxxxxxxxxxxxxxxxxxxxx
         type: payment_intent.succeeded
+        account: acct_1Nxxxxxxxxxxxxxxxx
+        livemode: false
 
     WebhookAck:
       type: object

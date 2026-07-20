@@ -11,7 +11,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
 /**
- * A Stripe payment session for one order. The client secret feeds the Payment Element; the amount is recomputed server side. 
+ * A Stripe payment session for one order. The client secret feeds the Payment Element; the amount is recomputed server side.
  **/
 
 @JsonTypeName("PaymentSession")
@@ -22,6 +22,7 @@ public class PaymentSession   {
   private Integer amountCents;
   private String currency;
   private String clientSecret;
+  private String connectedAccountId;
 
   public PaymentSession() {
   }
@@ -32,13 +33,15 @@ public class PaymentSession   {
     @JsonProperty(required = true, value = "orderId") UUID orderId,
     @JsonProperty(required = true, value = "amountCents") Integer amountCents,
     @JsonProperty(required = true, value = "currency") String currency,
-    @JsonProperty(required = true, value = "clientSecret") String clientSecret
+    @JsonProperty(required = true, value = "clientSecret") String clientSecret,
+    @JsonProperty(required = true, value = "connectedAccountId") String connectedAccountId
   ) {
     this.id = id;
     this.orderId = orderId;
     this.amountCents = amountCents;
     this.currency = currency;
     this.clientSecret = clientSecret;
+    this.connectedAccountId = connectedAccountId;
   }
 
   /**
@@ -49,7 +52,7 @@ public class PaymentSession   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "id")
   @NotNull public UUID getId() {
     return id;
@@ -68,7 +71,7 @@ public class PaymentSession   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "orderId")
   @NotNull public UUID getOrderId() {
     return orderId;
@@ -88,7 +91,7 @@ public class PaymentSession   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "amountCents")
   @NotNull  @Min(1)public Integer getAmountCents() {
     return amountCents;
@@ -107,7 +110,7 @@ public class PaymentSession   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "currency")
   @NotNull public String getCurrency() {
     return currency;
@@ -126,7 +129,7 @@ public class PaymentSession   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "clientSecret")
   @NotNull public String getClientSecret() {
     return clientSecret;
@@ -135,6 +138,25 @@ public class PaymentSession   {
   @JsonProperty(required = true, value = "clientSecret")
   public void setClientSecret(String clientSecret) {
     this.clientSecret = clientSecret;
+  }
+
+  /**
+   * Stripe Connect account used by both the PaymentIntent and Stripe.js.
+   **/
+  public PaymentSession connectedAccountId(String connectedAccountId) {
+    this.connectedAccountId = connectedAccountId;
+    return this;
+  }
+
+
+  @JsonProperty(required = true, value = "connectedAccountId")
+  @NotNull public String getConnectedAccountId() {
+    return connectedAccountId;
+  }
+
+  @JsonProperty(required = true, value = "connectedAccountId")
+  public void setConnectedAccountId(String connectedAccountId) {
+    this.connectedAccountId = connectedAccountId;
   }
 
 
@@ -151,24 +173,26 @@ public class PaymentSession   {
         Objects.equals(this.orderId, paymentSession.orderId) &&
         Objects.equals(this.amountCents, paymentSession.amountCents) &&
         Objects.equals(this.currency, paymentSession.currency) &&
-        Objects.equals(this.clientSecret, paymentSession.clientSecret);
+        Objects.equals(this.clientSecret, paymentSession.clientSecret) &&
+        Objects.equals(this.connectedAccountId, paymentSession.connectedAccountId);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, orderId, amountCents, currency, clientSecret);
+    return Objects.hash(id, orderId, amountCents, currency, clientSecret, connectedAccountId);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class PaymentSession {\n");
-    
+
     sb.append("    id: ").append(toIndentedString(id)).append("\n");
     sb.append("    orderId: ").append(toIndentedString(orderId)).append("\n");
     sb.append("    amountCents: ").append(toIndentedString(amountCents)).append("\n");
     sb.append("    currency: ").append(toIndentedString(currency)).append("\n");
     sb.append("    clientSecret: ").append(toIndentedString(clientSecret)).append("\n");
+    sb.append("    connectedAccountId: ").append(toIndentedString(connectedAccountId)).append("\n");
     sb.append("}");
     return sb.toString();
   }

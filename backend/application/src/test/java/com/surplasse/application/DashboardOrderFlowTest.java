@@ -240,8 +240,9 @@ class DashboardOrderFlowTest {
         String intent = "pi_fake_" + order.id();
         given().contentType(ContentType.JSON)
                 .header("Stripe-Signature", FakeStripeEventVerifier.VALID_SIGNATURE)
-                .body("{\"id\":\"evt_%s\",\"type\":\"payment_intent.succeeded\",\"data\":{\"object\":{\"id\":\"%s\"}}}"
-                        .formatted(UUID.randomUUID(), intent))
+                .body(
+                        "{\"id\":\"evt_%s\",\"type\":\"payment_intent.succeeded\",\"account\":\"acct_test_le_cormoran\",\"livemode\":false,\"data\":{\"object\":{\"id\":\"%s\"}}}"
+                                .formatted(UUID.randomUUID(), intent))
                 .post("/v1/webhooks/stripe")
                 .then()
                 .statusCode(200);

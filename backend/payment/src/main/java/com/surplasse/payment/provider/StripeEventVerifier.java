@@ -13,5 +13,19 @@ public interface StripeEventVerifier {
      */
     VerifiedEvent verify(String rawPayload, String signatureHeader);
 
-    record VerifiedEvent(String id, String type, String paymentIntentId) {}
+    record VerifiedEvent(
+            String id,
+            String type,
+            String paymentIntentId,
+            String connectedAccountId,
+            boolean liveMode,
+            AccountStatus accountStatus) {
+
+        public VerifiedEvent(
+                String id, String type, String paymentIntentId, String connectedAccountId, boolean liveMode) {
+            this(id, type, paymentIntentId, connectedAccountId, liveMode, null);
+        }
+    }
+
+    record AccountStatus(boolean chargesEnabled, boolean payoutsEnabled, java.time.OffsetDateTime occurredAt) {}
 }
