@@ -11,6 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.quarkus.mailer.Mail;
 import io.quarkus.mailer.MockMailbox;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.junit.QuarkusTestProfile;
+import io.quarkus.test.junit.TestProfile;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import io.restassured.path.json.JsonPath;
@@ -31,10 +33,14 @@ import java.util.UUID;
 import java.util.concurrent.locks.LockSupport;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 
 /** End-to-end authenticated and cursor-paginated operational order listing. */
 @QuarkusTest
+@TestProfile(DashboardOrderFlowTest.DashboardProfile.class)
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DashboardOrderFlowTest {
 
     private static final String ESTABLISHMENT = "7c9e6679-7425-40de-944b-e07fc1f90ae7";
@@ -46,9 +52,17 @@ class DashboardOrderFlowTest {
     @Inject
     MockMailbox mailbox;
 
+    private String accessToken;
+
+    @BeforeEach
+    void authenticatePilotOnce() {
+        if (accessToken == null) {
+            accessToken = loginPilot();
+        }
+    }
+
     @Test
     void listOrders_authenticatedPilot_paginatesOperationalOrdersWithoutCustomerCapability() {
-        String accessToken = loginPilot();
         String tableSession = OrderFlowTest.openSession();
         CreatedOrder first = createAndPay(tableSession);
         CreatedOrder second = createAndPay(tableSession);
@@ -135,7 +149,6 @@ class DashboardOrderFlowTest {
 
     @Test
     void updateOrderStatus_authenticatedPilot_advancesTheOrderAndRemovesItAfterService() {
-        String accessToken = loginPilot();
         CreatedOrder order = createAndPay(OrderFlowTest.openSession());
 
         updateStatus(null, order.id(), "accepted")
@@ -198,7 +211,6 @@ class DashboardOrderFlowTest {
 
     @Test
     void refundPaidOrder_authenticatedPilot_returnsMoneyAndRemovesItFromOperations() {
-        String accessToken = loginPilot();
         CreatedOrder order = createAndPay(OrderFlowTest.openSession());
         String idempotencyKey = UUID.randomUUID().toString();
 
@@ -250,7 +262,6 @@ class DashboardOrderFlowTest {
 
     @Test
     void streamEstablishmentOrderEvents_authenticatedPilot_replaysMissedActivity() throws Exception {
-        String accessToken = loginPilot();
         CreatedOrder order = createAndPay(OrderFlowTest.openSession());
 
         SseEvent paid = readOrderEvent(accessToken, null, order.id());
@@ -415,4 +426,14 @@ class DashboardOrderFlowTest {
     private record CreatedOrder(String id, String trackingToken) {}
 
     private record SseEvent(String id, String name, String data) {}
+
+    public static final class DashboardProfile implements QuarkusTestProfile {
+
+        @Override
+        public Map<String, String> getConfigOverrides() {
+            return Map.of(
+                    "surplasse.identity.rate-limit.max-per-email", "20",
+                    "surplasse.identity.rate-limit.max-per-ip", "100");
+        }
+    }
 }
