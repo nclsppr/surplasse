@@ -32,6 +32,54 @@ test("process controller spawns fixed command detached and without shell", async
   assert.equal(invocation.options.cwd, definition.command.cwd);
 });
 
+test("process controller resolves Java 21 for the Backend without relying on its parent PATH", async () => {
+  const definition = createRegistry(repoRoot, configuredDevelopmentUrls()).modules.find(
+    (module) => module.id === "backend",
+  );
+  const child = new FakeChild();
+  let invocation;
+  const controller = new ProcessController({
+    baseEnvironment: { PATH: "/usr/bin" },
+    javaEnvironmentResolver: async () => ({
+      JAVA_HOME: "/opt/jdks/temurin-21",
+      PATH: "/opt/jdks/temurin-21/bin:/usr/bin",
+    }),
+    spawnImpl: (executable, args, options) => {
+      invocation = { executable, args, options };
+      queueMicrotask(() => child.emit("spawn"));
+      return child;
+    },
+    stdout: null,
+    stderr: null,
+  });
+
+  await controller.start(definition, () => {});
+
+  assert.equal(invocation.options.env.JAVA_HOME, "/opt/jdks/temurin-21");
+  assert.equal(invocation.options.env.PATH, "/opt/jdks/temurin-21/bin:/usr/bin");
+});
+
+test("process controller prevents Backend launch when Java 21 is unavailable", async () => {
+  const definition = createRegistry(repoRoot, configuredDevelopmentUrls()).modules.find(
+    (module) => module.id === "backend",
+  );
+  let spawned = false;
+  const controller = new ProcessController({
+    javaEnvironmentResolver: async () => {
+      throw new Error("Java 21 is unavailable.");
+    },
+    spawnImpl: () => {
+      spawned = true;
+      return new FakeChild();
+    },
+    stdout: null,
+    stderr: null,
+  });
+
+  await assert.rejects(() => controller.start(definition, () => {}), /Java 21 is unavailable/u);
+  assert.equal(spawned, false);
+});
+
 test("process controller stops only owned process group with SIGTERM", async () => {
   const definition = createRegistry(repoRoot, configuredDevelopmentUrls()).modules.find(
     (module) => module.id === "docs",

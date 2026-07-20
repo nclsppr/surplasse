@@ -1,9 +1,11 @@
 import { spawn, execFile } from "node:child_process";
 import { randomUUID, timingSafeEqual, X509Certificate } from "node:crypto";
 import { lookup as dnsLookup } from "node:dns/promises";
-import { readFile } from "node:fs/promises";
+import { access, readFile, readdir } from "node:fs/promises";
 import https from "node:https";
 import net from "node:net";
+import { delimiter, join } from "node:path";
+import { homedir } from "node:os";
 import tls from "node:tls";
 
 export class ProcessController {
@@ -16,13 +18,18 @@ export class ProcessController {
     this.stderr = options.stderr ?? process.stderr;
     this.stopTimeoutMs = options.stopTimeoutMs ?? 8_000;
     this.baseEnvironment = options.baseEnvironment ?? process.env;
+    this.javaEnvironmentResolver = options.javaEnvironmentResolver ?? resolveJava21Environment;
   }
 
   async start(definition, onExit) {
+    const javaEnvironment = definition.requiresJava21
+      ? await this.javaEnvironmentResolver(this.baseEnvironment)
+      : {};
     const child = this.spawnImpl(definition.command.executable, [...definition.command.args], {
       cwd: definition.command.cwd,
       env: {
         ...this.baseEnvironment,
+        ...javaEnvironment,
         ...(definition.command.environment ?? {}),
       },
       detached: true,
@@ -102,6 +109,57 @@ export class ProcessController {
       });
     });
   }
+}
+
+async function resolveJava21Environment(baseEnvironment) {
+  const candidates = [
+    baseEnvironment.JAVA_HOME,
+    ...(await sdkmanJavaHomes()),
+  ].filter(Boolean);
+
+  for (const javaHome of candidates) {
+    if (await isJava21Jdk(javaHome)) {
+      return javaEnvironment(javaHome, baseEnvironment.PATH);
+    }
+  }
+
+  throw new CockpitOperationError(
+    "Java 21 (JDK) est requis pour démarrer le Backend. Installez Temurin 21 avec SDKMAN, puis réessayez.",
+    409,
+  );
+}
+
+async function sdkmanJavaHomes() {
+  const candidatesDirectory = join(homedir(), ".sdkman", "candidates", "java");
+  try {
+    const entries = await readdir(candidatesDirectory, { withFileTypes: true });
+    return entries
+      .filter((entry) => entry.isDirectory() && /^21(?:\.|$)/u.test(entry.name))
+      .map((entry) => join(candidatesDirectory, entry.name))
+      .sort((left, right) => right.localeCompare(left));
+  } catch {
+    return [];
+  }
+}
+
+async function isJava21Jdk(javaHome) {
+  const java = join(javaHome, "bin", "java");
+  const javac = join(javaHome, "bin", "javac");
+  try {
+    await Promise.all([access(java), access(javac)]);
+    const { stdout, stderr } = await execFilePromise(java, ["-version"], { timeout: 5_000 });
+    return /(?:openjdk|java) version "21(?:\.|"|$)/iu.test(`${stdout}\n${stderr}`);
+  } catch {
+    return false;
+  }
+}
+
+function javaEnvironment(javaHome, path) {
+  const javaBin = join(javaHome, "bin");
+  return {
+    JAVA_HOME: javaHome,
+    PATH: path ? `${javaBin}${delimiter}${path}` : javaBin,
+  };
 }
 
 export class MailpitController {

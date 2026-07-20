@@ -94,6 +94,7 @@ test("Backend is launched through the fixed central domain profile wrapper", () 
   assert.equal(backend.command.args[0], "development");
   assert.equal(backend.command.args[1], "./mvnw");
   assert.equal(Object.hasOwn(backend.command, "environment"), false);
+  assert.equal(backend.requiresJava21, true);
 });
 
 test("public probes target canonical HTTPS routes and reserved domains expect 503", () => {

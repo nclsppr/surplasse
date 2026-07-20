@@ -26,6 +26,7 @@ export function createRegistry(repoRoot, developmentUrls) {
       }),
       startupTimeoutMs: 180_000,
       requiresDocker: true,
+      requiresJava21: true,
       links: [
         link("API", urls.backend),
         link("Santé", appendPath(urls.backend, "/q/health/ready")),
@@ -164,6 +165,7 @@ function processModule(definition) {
     links: Object.freeze(definition.links),
     startupTimeoutMs: definition.startupTimeoutMs,
     requiresDocker: definition.requiresDocker ?? false,
+    requiresJava21: definition.requiresJava21 ?? false,
     executable: undefined,
     args: undefined,
     cwd: undefined,
