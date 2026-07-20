@@ -225,7 +225,4 @@ public class MenuProduct   {
     }
     return o.toString().replace("\n", "\n    ");
   }
-
-
 }
-

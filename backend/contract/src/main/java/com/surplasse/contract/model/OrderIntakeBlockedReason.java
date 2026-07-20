@@ -56,5 +56,3 @@ public enum OrderIntakeBlockedReason {
     throw new IllegalArgumentException("Unexpected value '" + value + "'");
   }
 }
-
-

@@ -178,7 +178,4 @@ public class RestaurateurSession   {
     }
     return o.toString().replace("\n", "\n    ");
   }
-
-
 }
-

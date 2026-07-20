@@ -175,7 +175,4 @@ public class OrderLineRequest   {
     }
     return o.toString().replace("\n", "\n    ");
   }
-
-
 }
-

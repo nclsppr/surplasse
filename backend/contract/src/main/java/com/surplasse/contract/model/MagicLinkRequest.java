@@ -85,7 +85,4 @@ public class MagicLinkRequest   {
     }
     return o.toString().replace("\n", "\n    ");
   }
-
-
 }
-

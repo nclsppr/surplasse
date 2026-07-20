@@ -51,7 +51,7 @@ public interface PaymentApi {
      * @return The full refund attempt, newly created or safely replayed.
      * @return The restaurateur session is missing or expired.
      * @return Unknown order, order outside the caller's establishment, or no settled payment.
-     * @return The key conflicts, the order cannot be refunded, or a successful refund already exists.
+     * @return The idempotency key conflicts or the order cannot be refunded from its current state.
      * @return Stripe rejects the refund for a business reason.
      * @return Stripe is unreachable after retries.
      */

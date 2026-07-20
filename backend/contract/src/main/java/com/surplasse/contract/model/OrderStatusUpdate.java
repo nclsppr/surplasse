@@ -132,7 +132,4 @@ public class OrderStatusUpdate   {
     }
     return o.toString().replace("\n", "\n    ");
   }
-
-
 }
-

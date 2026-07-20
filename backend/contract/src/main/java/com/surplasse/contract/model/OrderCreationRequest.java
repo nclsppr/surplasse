@@ -176,7 +176,4 @@ public class OrderCreationRequest   {
     }
     return o.toString().replace("\n", "\n    ");
   }
-
-
 }
-

@@ -157,7 +157,4 @@ public class OrderStatusResult   {
     }
     return o.toString().replace("\n", "\n    ");
   }
-
-
 }
-

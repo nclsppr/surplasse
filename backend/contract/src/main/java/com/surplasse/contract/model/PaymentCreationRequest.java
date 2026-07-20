@@ -86,7 +86,4 @@ public class PaymentCreationRequest   {
     }
     return o.toString().replace("\n", "\n    ");
   }
-
-
 }
-

@@ -177,7 +177,4 @@ public class Problem   {
     }
     return o.toString().replace("\n", "\n    ");
   }
-
-
 }
-

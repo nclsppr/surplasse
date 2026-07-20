@@ -85,7 +85,4 @@ public class OrderIntakeUpdate   {
     }
     return o.toString().replace("\n", "\n    ");
   }
-
-
 }
-

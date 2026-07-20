@@ -1004,7 +1004,7 @@ paths:
                 detail: No order matches this identifier.
                 instance: /v1/refunds
         "409":
-          description: The key conflicts, the order cannot be refunded, or a successful refund already exists.
+          description: The idempotency key conflicts or the order cannot be refunded from its current state.
           content:
             application/problem+json:
               schema:

@@ -159,7 +159,4 @@ public class TableSession   {
     }
     return o.toString().replace("\n", "\n    ");
   }
-
-
 }
-

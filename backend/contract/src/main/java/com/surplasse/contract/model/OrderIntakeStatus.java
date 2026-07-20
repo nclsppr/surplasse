@@ -52,5 +52,3 @@ public enum OrderIntakeStatus {
     throw new IllegalArgumentException("Unexpected value '" + value + "'");
   }
 }
-
-

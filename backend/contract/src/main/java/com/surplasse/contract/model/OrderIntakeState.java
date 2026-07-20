@@ -180,7 +180,4 @@ public class OrderIntakeState   {
     }
     return o.toString().replace("\n", "\n    ");
   }
-
-
 }
-

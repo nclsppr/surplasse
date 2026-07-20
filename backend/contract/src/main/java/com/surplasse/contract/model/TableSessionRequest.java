@@ -109,7 +109,4 @@ public class TableSessionRequest   {
     }
     return o.toString().replace("\n", "\n    ");
   }
-
-
 }
-

@@ -251,7 +251,4 @@ public class OrderLine   {
     }
     return o.toString().replace("\n", "\n    ");
   }
-
-
 }
-

@@ -180,7 +180,4 @@ public class EstablishmentPublic   {
     }
     return o.toString().replace("\n", "\n    ");
   }
-
-
 }
-

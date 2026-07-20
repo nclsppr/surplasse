@@ -207,7 +207,4 @@ public class PaymentSession   {
     }
     return o.toString().replace("\n", "\n    ");
   }
-
-
 }
-

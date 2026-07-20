@@ -151,7 +151,4 @@ public class OrderPage   {
     }
     return o.toString().replace("\n", "\n    ");
   }
-
-
 }
-

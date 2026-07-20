@@ -55,7 +55,10 @@ function stripTrailingWhitespace(path) {
     return;
   }
   const content = readFileSync(path, "utf8");
-  const normalized = content.replace(/[ \t]+$/gmu, "");
+  const normalized = content
+    .replace(/[ \t]+$/gmu, "")
+    .replace(/\n+$/u, "\n")
+    .replace(/\n{3,}\}\n$/u, "\n}\n");
   if (normalized !== content) {
     writeFileSync(path, normalized);
   }

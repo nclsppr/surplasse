@@ -134,7 +134,4 @@ public class OrderLineOption   {
     }
     return o.toString().replace("\n", "\n    ");
   }
-
-
 }
-
