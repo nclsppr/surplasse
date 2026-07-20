@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -7,6 +8,21 @@ import {
   ONBOARDING_PORT,
 } from "../onboarding-server.mjs";
 import { close, listen, repoRoot, request } from "./helpers.mjs";
+
+test("Onboarding landing keeps truthful pilot terms and product evidence", async () => {
+  const html = await readFile(`${repoRoot}/frontends/onboarding/index.html`, "utf8");
+
+  assert.match(
+    html,
+    /0 % de commission pendant les 3 premiers mois, puis 1 % par commande\./,
+  );
+  assert.match(html, /Les frais Stripe sont distincts/);
+  assert.match(html, /Surplasse n'est pas une marketplace\./);
+  assert.match(html, /Prototype produit, données d'exemple\./);
+  assert.match(html, /\.\.\/\.\.\/brand\/qr\/qr-demo\.png/);
+  assert.doesNotMatch(html, /repeating-linear-gradient/);
+  assert.doesNotMatch(html, /capture :|téléphone :/);
+});
 
 test("Onboarding static server serves only the explicit public asset allowlist", async (t) => {
   assert.equal(ONBOARDING_HOST, "127.0.0.1");

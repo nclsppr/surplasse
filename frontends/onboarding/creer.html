@@ -8,24 +8,29 @@
 <link rel="stylesheet" href="../../brand/styles.css?v=20260720b">
 <style>
   *{box-sizing:border-box}
-  body{margin:0;background:var(--surface-page);color:var(--text-body);min-height:100vh;display:flex;flex-direction:column}
+  body{margin:0;background:var(--surface-page);color:var(--text-body);min-height:100dvh;display:flex;flex-direction:column;font-family:var(--font-ui)}
   a{color:inherit}
   .topbar{border-bottom:1px solid var(--line-1);background:var(--bg-1)}
   .topbar .in{max-width:640px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:12px}
   .topbar .wm{font-family:var(--font-script);font-size:26px;color:var(--accent);line-height:1}
-  .topbar .back{margin-left:auto;font:700 12px var(--font-ui);text-transform:uppercase;letter-spacing:.06em;color:var(--fg-3);text-decoration:none}
+  .topbar .back{display:inline-flex;align-items:center;min-height:44px;margin-left:auto;font:700 12px var(--font-ui);text-transform:uppercase;letter-spacing:.06em;color:var(--fg-3);text-decoration:none}
+  .topbar .back:focus-visible{outline:none;box-shadow:var(--focus-ring)}
   .demo-banner{border-bottom:1px solid var(--line-1);background:var(--peach-tint)}
   .demo-banner p{max-width:640px;margin:0 auto;padding:9px 20px;color:var(--structure);font:700 11px/1.5 var(--font-mono);text-transform:uppercase;letter-spacing:.035em}
   .progress{max-width:640px;margin:0 auto;padding:14px 20px 0;display:flex;gap:6px}
   .progress .seg{height:4px;flex:1;border-radius:2px;background:var(--bg-0)}
   .progress .seg.on{background:var(--accent-press)}
   main{flex:1;max-width:640px;width:100%;margin:0 auto;padding:24px 20px 48px}
+  form{margin:0}
   .step{display:none}
   .step.on{display:block;animation:fade .25s ease-out}
+  [tabindex="-1"]:focus{outline:none}
   @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
   h1{font:800 clamp(24px,7vw,34px)/1.06 var(--font-display);text-transform:uppercase;color:var(--accent);letter-spacing:.01em;margin:8px 0 0}
   .sub{font:400 15px/1.6 var(--font-ui);color:var(--fg-2);margin:12px 0 24px;max-width:46ch}
+  .sub--center{margin:12px auto 0;text-align:center}
   .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
+  .actions--center{justify-content:center}
   .grow{flex:1}
   .error{min-height:18px;margin:7px 0 0;color:var(--danger);font:700 12px/1.4 var(--font-mono)}
   .drop{border:1.5px dashed var(--line-2);border-radius:var(--radius-md);background:var(--bg-3);padding:32px 20px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
@@ -44,6 +49,7 @@
   .procmsg{font:700 14px var(--font-ui);text-transform:uppercase;letter-spacing:.05em;color:var(--fg-1);min-height:20px}
   .estab{font-family:var(--font-script);font-size:32px;color:var(--fg-1);line-height:1;margin-bottom:2px}
   .demo-pill{display:inline-block;margin-top:7px;padding:4px 7px;border:1px solid var(--line-green);border-radius:var(--radius-sm);color:var(--structure);font:700 10px var(--font-mono);text-transform:uppercase;letter-spacing:.06em}
+  .preview-card{margin-top:6px}
   .cat{display:flex;align-items:center;gap:12px;font:800 var(--display-sm) var(--font-display);text-transform:uppercase;color:var(--accent);letter-spacing:.015em;margin:22px 0 10px}
   .cat::before,.cat::after{content:"";flex:1;height:1.5px;background:var(--accent)}
   .cat span{flex:none}
@@ -57,50 +63,54 @@
   .done-card{max-width:480px;margin:22px auto 0;padding:16px;border-top:1.5px solid var(--line-accent);border-bottom:1.5px solid var(--line-accent);text-align:left}
   .done-card strong{display:block;color:var(--accent-press);font:700 12px var(--font-mono);text-transform:uppercase;letter-spacing:.04em}
   .done-card p{margin:7px 0 0;color:var(--fg-3);font:400 12px/1.55 var(--font-mono)}
-  @media (prefers-reduced-motion:reduce){.step.on{animation:none}.spin{animation-duration:1.8s}}
+  @media (prefers-reduced-motion:reduce){.step.on,.spin{animation:none}}
 </style>
 </head>
 <body>
 <div class="topbar"><div class="in"><span class="wm">Surplasse</span><a href="index.html" class="back">Quitter la démo</a></div></div>
 <div class="demo-banner"><p>Démonstration interactive. Aucun menu n'est publié.</p></div>
-<div class="progress" aria-label="Progression de la démonstration">
+<div class="progress" role="progressbar" aria-label="Progression de la démonstration" aria-valuemin="1" aria-valuemax="4" aria-valuenow="1">
   <div class="seg on" data-seg="1"></div><div class="seg" data-seg="2"></div><div class="seg" data-seg="3"></div><div class="seg" data-seg="4"></div>
 </div>
 
 <main>
   <section class="step on" data-step="1">
-    <div class="eyebrow">Étape 1 sur 4</div>
-    <h1 tabindex="-1">Comment s'appelle votre restaurant ?</h1>
-    <p class="sub">Ce nom personnalise l'aperçu. Rien n'est enregistré dans cette démonstration.</p>
-    <div class="sp-field">
-      <label for="name">Nom de l'établissement</label>
-      <input class="sp-input" id="name" placeholder="Fiorella" autocomplete="organization" aria-describedby="name-error">
-    </div>
-    <p class="error" id="name-error" role="alert"></p>
-    <div class="actions"><button type="button" class="sp-btn sp-btn--primary sp-btn--lg grow" onclick="continueFromName()">Continuer</button></div>
+    <form id="name-form" novalidate>
+      <div class="eyebrow">Étape 1 sur 4</div>
+      <h1 tabindex="-1">Comment s'appelle votre restaurant ?</h1>
+      <p class="sub">Ce nom personnalise l'aperçu. Rien n'est enregistré dans cette démonstration.</p>
+      <div class="sp-field">
+        <label for="name">Nom de l'établissement</label>
+        <input class="sp-input" id="name" placeholder="Fiorella" autocomplete="organization" maxlength="80" required aria-invalid="false" aria-describedby="name-error">
+      </div>
+      <p class="error" id="name-error" role="alert"></p>
+      <div class="actions"><button type="submit" class="sp-btn sp-btn--primary sp-btn--lg grow">Continuer</button></div>
+    </form>
   </section>
 
   <section class="step" data-step="2">
-    <div class="eyebrow">Étape 2 sur 4</div>
-    <h1 tabindex="-1">Une photo de votre carte suffit.</h1>
-    <p class="sub">Le produit final proposera une extraction des catégories, des produits et des prix, toujours suivie d'une relecture humaine.</p>
-    <label class="drop" id="drop">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/><circle cx="12" cy="13" r="3.5"/></svg>
-      <div class="t" id="drop-t">Prendre ou choisir une photo</div>
-      <div class="h">JPG ou PNG, jusqu'à 6 images</div>
-      <input type="file" id="file" accept="image/jpeg,image/png" capture="environment" multiple onchange="onFiles(this)">
-    </label>
-    <div class="thumbs" id="thumbs" aria-live="polite"></div>
-    <p class="privacy">Les images restent dans votre navigateur et ne sont envoyées à aucun serveur par cette démonstration.</p>
-    <p class="error" id="file-error" role="alert"></p>
-    <div class="actions"><button type="button" class="sp-btn sp-btn--secondary sp-btn--lg" onclick="goTo(1)">Retour</button><button type="button" class="sp-btn sp-btn--primary sp-btn--lg grow" onclick="startExtract()">Simuler l'analyse</button></div>
+    <form id="photo-form" novalidate>
+      <div class="eyebrow">Étape 2 sur 4</div>
+      <h1 tabindex="-1">Une photo de votre carte suffit.</h1>
+      <p class="sub">Le produit final proposera une extraction des catégories, des produits et des prix, toujours suivie d'une relecture humaine.</p>
+      <label class="drop" id="drop">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/><circle cx="12" cy="13" r="3.5"/></svg>
+        <div class="t" id="drop-t">Prendre ou choisir une photo</div>
+        <div class="h" id="file-help">JPG ou PNG, jusqu'à 6 images</div>
+        <input type="file" id="file" accept="image/jpeg,image/png" capture="environment" multiple required aria-invalid="false" aria-describedby="file-help file-error" onchange="onFiles(this)">
+      </label>
+      <div class="thumbs" id="thumbs" aria-live="polite"></div>
+      <p class="privacy">Les images restent dans votre navigateur et ne sont envoyées à aucun serveur par cette démonstration.</p>
+      <p class="error" id="file-error" role="alert"></p>
+      <div class="actions"><button type="button" class="sp-btn sp-btn--secondary sp-btn--lg" onclick="goTo(1)">Retour</button><button type="submit" class="sp-btn sp-btn--primary sp-btn--lg grow">Simuler l'analyse</button></div>
+    </form>
   </section>
 
-  <section class="step" data-step="3" aria-live="polite">
+  <section class="step" data-step="3">
     <div class="proc">
       <div class="spin" aria-hidden="true"></div>
-      <div class="procmsg" id="procmsg">Lecture de la carte simulée...</div>
-      <p class="sub" style="margin:16px auto 0;text-align:center">Cette étape illustre le futur traitement. Aucun fichier n'est transmis ni analysé.</p>
+      <div class="procmsg" id="procmsg" role="status" aria-live="polite">Lecture de la carte simulée...</div>
+      <p class="sub sub--center">Cette étape illustre le futur traitement. Aucun fichier n'est transmis ni analysé.</p>
     </div>
   </section>
 
@@ -108,7 +118,7 @@
     <div class="eyebrow">Étape 4 sur 4, relecture</div>
     <h1 tabindex="-1">Votre carte, prête à relire.</h1>
     <p class="sub">Les données ci-dessous sont un exemple fixe. Le produit final signalera les éléments incertains et demandera une validation explicite.</p>
-    <div class="sp-card sp-card--pad" style="margin-top:6px">
+    <div class="sp-card sp-card--pad preview-card">
       <div class="estab" id="preview-name">Fiorella</div>
       <span class="demo-pill">Données de démonstration</span>
       <div class="cat"><span>Antipasti</span></div>
@@ -126,9 +136,9 @@
       <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg>
       <div class="eyebrow">Démonstration terminée</div>
       <h1 tabindex="-1">Rien n'a été publié.</h1>
-      <p class="sub" style="margin:12px auto 0;text-align:center">Vous avez parcouru le principe du futur onboarding. Aucune commande n'a été ouverte.</p>
+      <p class="sub sub--center">Vous avez parcouru le principe du futur onboarding. Aucune commande n'a été ouverte.</p>
       <div class="done-card"><strong>Le vrai parcours devra garantir</strong><p>Consentement avant envoi, progression sauvegardée, correction complète de la carte, aperçu mobile et activation explicite seulement après connexion Stripe.</p></div>
-      <div class="actions" style="justify-content:center"><button type="button" class="sp-btn sp-btn--secondary sp-btn--lg" onclick="restart()">Recommencer</button><a class="sp-btn sp-btn--primary sp-btn--lg" href="index.html">Retour à l'accueil</a></div>
+      <div class="actions actions--center"><button type="button" class="sp-btn sp-btn--secondary sp-btn--lg" onclick="restart()">Recommencer</button><a class="sp-btn sp-btn--primary sp-btn--lg" href="index.html">Retour à l'accueil</a></div>
     </div>
   </section>
 </main>
@@ -141,6 +151,7 @@
   function render(focusHeading = false){
     document.querySelectorAll('.step').forEach((item) => item.classList.toggle('on', Number(item.dataset.step) === step));
     document.querySelectorAll('.progress .seg').forEach((item) => item.classList.toggle('on', Number(item.dataset.seg) <= Math.min(step,4)));
+    document.querySelector('.progress').setAttribute('aria-valuenow', String(Math.min(step,4)));
     window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
     const heading = document.querySelector('.step.on h1');
     if (focusHeading && heading) heading.focus({preventScroll:true});
@@ -153,10 +164,12 @@
     const error = document.getElementById('name-error');
     if (!input.value.trim()) {
       error.textContent = 'Indiquez le nom du restaurant pour personnaliser l’aperçu.';
+      input.setAttribute('aria-invalid', 'true');
       input.focus();
       return;
     }
     error.textContent = '';
+    input.setAttribute('aria-invalid', 'false');
     document.getElementById('preview-name').textContent = input.value.trim();
     goTo(2);
   }
@@ -166,7 +179,8 @@
     objectUrls = [];
     const thumbnails = document.getElementById('thumbs');
     thumbnails.innerHTML = '';
-    [...input.files].slice(0,6).forEach((file) => {
+    const selectedFiles = [...input.files].slice(0,6);
+    selectedFiles.forEach((file) => {
       const url = URL.createObjectURL(file);
       objectUrls.push(url);
       const image = document.createElement('img');
@@ -177,8 +191,9 @@
     });
     if (input.files.length) {
       document.getElementById('drop').classList.add('filled');
-      document.getElementById('drop-t').textContent = input.files.length + (input.files.length > 1 ? ' photos ajoutées' : ' photo ajoutée');
-      document.getElementById('file-error').textContent = '';
+      document.getElementById('drop-t').textContent = selectedFiles.length + (selectedFiles.length > 1 ? ' photos ajoutées' : ' photo ajoutée');
+      document.getElementById('file').setAttribute('aria-invalid', input.files.length > 6 ? 'true' : 'false');
+      document.getElementById('file-error').textContent = input.files.length > 6 ? 'Sélectionnez 6 photos au maximum pour continuer.' : '';
     }
   }
 
@@ -186,9 +201,17 @@
     const fileInput = document.getElementById('file');
     if (!fileInput.files.length) {
       document.getElementById('file-error').textContent = 'Ajoutez au moins une photo pour lancer la simulation.';
+      fileInput.setAttribute('aria-invalid', 'true');
       fileInput.focus();
       return;
     }
+    if (fileInput.files.length > 6) {
+      document.getElementById('file-error').textContent = 'Sélectionnez 6 photos au maximum pour continuer.';
+      fileInput.setAttribute('aria-invalid', 'true');
+      fileInput.focus();
+      return;
+    }
+    fileInput.setAttribute('aria-invalid', 'false');
     goTo(3);
     let index = 0;
     const message = document.getElementById('procmsg');
@@ -203,7 +226,11 @@
 
   function restart(){
     document.getElementById('name').value = '';
+    document.getElementById('name').setAttribute('aria-invalid', 'false');
     document.getElementById('file').value = '';
+    document.getElementById('file').setAttribute('aria-invalid', 'false');
+    document.getElementById('name-error').textContent = '';
+    document.getElementById('file-error').textContent = '';
     document.getElementById('thumbs').innerHTML = '';
     document.getElementById('drop').classList.remove('filled');
     document.getElementById('drop-t').textContent = 'Prendre ou choisir une photo';
@@ -211,6 +238,16 @@
     objectUrls = [];
     goTo(1);
   }
+
+  document.getElementById('name-form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    continueFromName();
+  });
+
+  document.getElementById('photo-form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    startExtract();
+  });
 
   render();
 </script>
