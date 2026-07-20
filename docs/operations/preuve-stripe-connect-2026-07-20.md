@@ -63,6 +63,6 @@ Après cette action :
 4. rattacher l'identifiant du compte à la fixture pilote ;
 5. lancer Stripe CLI avec `--forward-connect-to` et conserver le secret `whsec_...` uniquement dans `backend/.env` ;
 6. exécuter les scénarios accepté, refusé puis repris, SCA, rejeu, webhook dupliqué et compte incorrect ;
-7. rapprocher le paiement, la commande et les événements, puis tester remboursement et suspension.
+7. rapprocher le paiement, la commande et les événements, tester le remboursement, passer la prise de commandes à `paused`, vérifier que les nouvelles admissions sont refusées sans couper le suivi ni les webhooks, puis rouvrir explicitement.
 
 La porte 1 ne passe à Go qu'après la totalité de cette reprise et l'archivage des identifiants de rapprochement, sans secret ni donnée de carte.

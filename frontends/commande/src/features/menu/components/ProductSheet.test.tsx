@@ -16,7 +16,13 @@ const product: MenuProduct = {
 describe("ProductSheet", () => {
   it("renders a native dialog with an accessible name and initial focus target", () => {
     const markup = renderToStaticMarkup(
-      <ProductSheet product={product} currency="EUR" onAdd={vi.fn()} onClose={vi.fn()} />,
+      <ProductSheet
+        product={product}
+        currency="EUR"
+        acceptingOrders
+        onAdd={vi.fn()}
+        onClose={vi.fn()}
+      />,
     );
 
     expect(markup).toContain("<dialog");
@@ -24,5 +30,20 @@ describe("ProductSheet", () => {
     expect(markup).toContain("aria-describedby=");
     expect(markup).toContain("autofocus");
     expect(markup).toContain(">Fermer</button>");
+  });
+
+  it("neutralizes adding when order intake is paused", () => {
+    const markup = renderToStaticMarkup(
+      <ProductSheet
+        product={product}
+        currency="EUR"
+        acceptingOrders={false}
+        onAdd={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(markup).toContain("La prise de commandes est en pause");
+    expect(markup).toMatch(/disabled=""[^>]*>Ajouter au panier<\/button>/);
   });
 });

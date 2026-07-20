@@ -126,6 +126,7 @@ Valeurs d'enum (stockées en base, donc en anglais) :
 | Statut de carte (`Menu.status`) | `draft`, `published` |
 | Cycle de vie d'un espace (`Space.status`) | `pregenerated`, `claiming`, `claimed` |
 | Cycle de vie d'un établissement (`Establishment.status`) | `configuring`, `active`, `suspended` |
+| État opérationnel de prise de commandes (`Establishment.orderIntakeStatus`) | `open`, `paused` |
 | Statut d'un job (`ExtractionJob.status`) | `pending`, `running`, `succeeded`, `failed` |
 | Source d'un média (`MediaAsset.source`) | `uploaded`, `generated` |
 | Nature d'un média (`MediaAsset.kind`) | `dish`, `place`, `logo`, `menu_scan` |
@@ -162,6 +163,10 @@ Glose : `pending_payment` (en attente de paiement), `paid` (payée), `accepted` 
 ### Cycle de vie du panier et de la commande
 
 Le panier est un état **purement côté client** (application Commande). Aucune commande n'existe en base tant que le panier n'est pas validé. À la validation, le Backend crée la commande directement au statut `en attente de paiement`. Il n'y a pas d'état « brouillon » de commande en base.
+
+### Prise de commandes (référence : `decisions/adr-0018-controle-prise-commandes.md`)
+
+La prise de commandes est un état opérationnel distinct du cycle de vie `Establishment.status`. `Establishment.orderIntakeStatus` vaut `open` ou `paused`. La disponibilité effective `acceptingOrders` exige en plus un établissement `active`, une carte publiée, une table active et un compte Stripe Connect encaissable. La pause ferme les nouvelles sessions de table, commandes et sessions de paiement, mais laisse accessibles la carte, les commandes existantes, leur suivi, les flux SSE et les webhooks Stripe. Une perte de la capacité Stripe `charges_enabled` force la pause ; son retour ne rouvre jamais automatiquement la prise de commandes.
 
 ### Domaines métier (référence : `architecture/backend.md`)
 
@@ -211,7 +216,7 @@ surplasse/
 └── .github/workflows/       # CI/CD
 ```
 
-Aujourd'hui existent `docs/`, `brand/`, la préfiguration statique de l'Onboarding, le contrat `api/openapi.yaml` (lint Spectral, chaîne de génération, ADR-0013), le Backend (`common`, `contract`, `catalog`, `order`, `payment`, `identity`, `application`), le package `frontends/shared/`, Commande, le Dashboard minimal et l'infrastructure de domaines locaux sous `infra/local/`. Le paiement local persiste les intentions idempotentes, sérialise les créations concurrentes par une réservation courte, cloisonne toute reprise par session de table et valide dans une même transaction le webhook Stripe, le paiement, la commande et son événement de suivi. Le chemin logiciel Connect fige le compte et la commission sur le paiement, crée une charge directe dans ce compte, initialise Stripe.js dans le même contexte et rapproche le webhook par compte, Payment Intent et mode. Il reste validé avec des doublures tant que le compte plateforme de test n'est pas inscrit à Connect. Le Dashboard couvre la connexion par magic link, la restauration de session, la sélection d'un établissement autorisé, la liste REST des commandes opérationnelles, leur avancement jusqu'au service ou au retrait et leur actualisation par un flux SSE authentifié par établissement. Le cockpit local sous `scripts/dev-cockpit/` est un outil de développement seulement, absent de la production. Le reste est créé au fil de la roadmap.
+Aujourd'hui existent `docs/`, `brand/`, la préfiguration statique de l'Onboarding, le contrat `api/openapi.yaml` (lint Spectral, chaîne de génération, ADR-0013), le Backend (`common`, `contract`, `catalog`, `order`, `payment`, `identity`, `application`), le package `frontends/shared/`, Commande, le Dashboard minimal et l'infrastructure de domaines locaux sous `infra/local/`. Le paiement local persiste les intentions idempotentes, sérialise les créations concurrentes par une réservation courte, cloisonne toute reprise par session de table et valide dans une même transaction le webhook Stripe, le paiement, la commande et son événement de suivi. Le chemin logiciel Connect fige le compte et la commission sur le paiement, crée une charge directe dans ce compte, initialise Stripe.js dans le même contexte et rapproche le webhook par compte, Payment Intent et mode. Il reste validé avec des doublures tant que le compte plateforme de test n'est pas inscrit à Connect. Le contrôle opérationnel de prise de commandes est persistant, fermé par défaut et distinct du cycle de vie de l'établissement ; il sérialise la pause avec les nouvelles admissions tout en préservant le suivi, le Dashboard et les webhooks. Le Dashboard couvre la connexion par magic link, la restauration de session, la sélection d'un établissement autorisé, la liste REST des commandes opérationnelles, leur avancement jusqu'au service ou au retrait et leur actualisation par un flux SSE authentifié par établissement. Le cockpit local sous `scripts/dev-cockpit/` est un outil de développement seulement, absent de la production. Le reste est créé au fil de la roadmap.
 
 ## Exécution multi-plateformes
 

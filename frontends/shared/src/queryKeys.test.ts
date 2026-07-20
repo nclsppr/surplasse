@@ -14,4 +14,12 @@ describe("queryKeys", () => {
       "establishment-id",
     ]);
   });
+
+  it("scopes order intake to an establishment", () => {
+    expect(queryKeys.orderIntake("establishment-id")).toEqual([
+      "establishment",
+      "establishment-id",
+      "order-intake",
+    ]);
+  });
 });

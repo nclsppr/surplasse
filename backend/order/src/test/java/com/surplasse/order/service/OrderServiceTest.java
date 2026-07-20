@@ -63,6 +63,12 @@ class OrderServiceTest {
         when(orderRepository.findByIdempotencyKey(any())).thenReturn(Optional.empty());
         when(catalogGateway.findTableLabel(TABLE)).thenReturn(Optional.of("Table 4"));
         when(catalogGateway.priceProducts(any(), anyCollection())).thenReturn(demoPricing());
+        when(catalogGateway.lockOrderIntake(ESTABLISHMENT))
+                .thenReturn(Optional.of(new CatalogGateway.OrderIntakeAdmission(
+                        true,
+                        true,
+                        new CatalogGateway.PaymentRouting(
+                                "acct_test", true, true, OffsetDateTime.now(ZoneOffset.UTC)))));
     }
 
     private static Map<UUID, CatalogGateway.ProductPricing> demoPricing() {
@@ -209,6 +215,25 @@ class OrderServiceTest {
         var view = service.create(session, key, draft);
 
         assertSame(existing, view.order());
+        verify(orderRepository, never()).persist(any(Order.class));
+        verify(catalogGateway, never()).lockOrderIntake(any());
+    }
+
+    @Test
+    void create_newIntentionWhilePaused_yieldsStableConflictBeforePricing() {
+        when(catalogGateway.lockOrderIntake(ESTABLISHMENT))
+                .thenReturn(Optional.of(new CatalogGateway.OrderIntakeAdmission(
+                        false,
+                        false,
+                        new CatalogGateway.PaymentRouting(
+                                "acct_test", true, true, OffsetDateTime.now(ZoneOffset.UTC)))));
+        OrderDraft draft = new OrderDraft("on_site", List.of(new LineDraft(PANISSES, 1, List.of(), null)));
+
+        ConflictException conflict =
+                assertThrows(ConflictException.class, () -> service.create(session, UUID.randomUUID(), draft));
+
+        assertEquals("order-intake-paused", conflict.problemType());
+        verify(catalogGateway, never()).priceProducts(any(), anyCollection());
         verify(orderRepository, never()).persist(any(Order.class));
     }
 

@@ -1,8 +1,8 @@
 package com.surplasse.catalog.mapping;
 
-import com.surplasse.catalog.entity.Establishment;
 import com.surplasse.catalog.entity.Option;
 import com.surplasse.catalog.service.MenuSnapshot;
+import com.surplasse.catalog.service.PublicEstablishmentSnapshot;
 import com.surplasse.contract.model.EstablishmentPublic;
 import com.surplasse.contract.model.MenuCategory;
 import com.surplasse.contract.model.MenuOption;
@@ -15,12 +15,14 @@ public final class CatalogMapper {
 
     private CatalogMapper() {}
 
-    public static EstablishmentPublic toEstablishmentPublic(Establishment establishment) {
+    public static EstablishmentPublic toEstablishmentPublic(PublicEstablishmentSnapshot snapshot) {
+        var establishment = snapshot.establishment();
         return new EstablishmentPublic()
                 .id(establishment.getId())
                 .name(establishment.getName())
                 .slug(establishment.getSlug())
-                .address(establishment.getAddress());
+                .address(establishment.getAddress())
+                .acceptingOrders(snapshot.acceptingOrders());
     }
 
     public static PublicMenu toPublicMenu(MenuSnapshot snapshot) {

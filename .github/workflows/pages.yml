@@ -8,15 +8,61 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: "pages"
   cancel-in-progress: true
 
 jobs:
+  quality:
+    name: UI quality gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            frontends/shared/package-lock.json
+            frontends/commande/package-lock.json
+            frontends/dashboard/package-lock.json
+      - name: Install frontend dependencies
+        run: |
+          npm ci --prefix frontends/shared
+          npm ci --prefix frontends/commande
+          npm ci --prefix frontends/dashboard
+      - name: Validate domains and static demo
+        run: |
+          npm run domains:test
+          npm run domains:check
+          npm --prefix scripts/dev-cockpit test
+      - name: Validate shared frontend package
+        run: |
+          npm --prefix frontends/shared run check
+          npm --prefix frontends/shared test
+      - name: Validate Commande
+        run: |
+          npm --prefix frontends/commande run lint
+          npm --prefix frontends/commande test
+          npm --prefix frontends/commande run build
+      - name: Validate Dashboard
+        run: |
+          npm --prefix frontends/dashboard run lint
+          npm --prefix frontends/dashboard test
+          npm --prefix frontends/dashboard run build
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: scripts/requirements.txt
+      - name: Validate brand assets
+        run: |
+          python -m pip install -r scripts/requirements.txt
+          python scripts/generate_brand_assets.py --check
+
   build:
+    needs: quality
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -50,6 +96,10 @@ jobs:
   deploy:
     needs: build
     if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

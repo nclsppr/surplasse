@@ -13,6 +13,7 @@ export const DOMAIN_CONFIG_KEYS = Object.freeze([
   "LOCAL_CONTROL_URL",
   "DOCS_URL",
   "MAILPIT_URL",
+  "PROBLEM_TYPE_BASE",
   "COOKIE_DOMAIN",
   "RESERVED_SUBDOMAINS",
 ]);
@@ -171,6 +172,19 @@ function validateDomainConfig(config, source) {
     if (url.hostname !== config.APP_BASE_DOMAIN && !url.hostname.endsWith(`.${config.APP_BASE_DOMAIN}`)) {
       throw new Error(`${source}: ${key} must belong to APP_BASE_DOMAIN`);
     }
+  }
+
+  const problemTypeBase = new URL(config.PROBLEM_TYPE_BASE);
+  if (
+    problemTypeBase.protocol !== "https:" ||
+    problemTypeBase.pathname !== "/problems/" ||
+    problemTypeBase.search ||
+    problemTypeBase.hash ||
+    problemTypeBase.username ||
+    problemTypeBase.password ||
+    problemTypeBase.port
+  ) {
+    throw new Error(`${source}: PROBLEM_TYPE_BASE must be a canonical HTTPS /problems/ URL`);
   }
 
   const reserved = config.RESERVED_SUBDOMAINS.split(",");

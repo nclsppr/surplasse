@@ -10,7 +10,7 @@ description: "Les portes Go ou No-Go, métriques et procédures de repli qui enc
 Cette page est le plan d'exécution de la [phase 2 de la roadmap](../roadmap.md#phase-2--commander-et-payer). Elle ne crée ni une roadmap parallèle ni une date de lancement. Elle transforme le critère de sortie de la phase en preuves observables et impose une décision Go ou No-Go avant chaque exposition supplémentaire.
 
 !!! danger État au 2026-07-20 : No-Go live
-Le chemin logiciel des charges directes Stripe Connect est sécurisé et testé avec des doublures, mais sa validation Stripe réelle est bloquée par l'inscription incomplète du compte plateforme à Connect. La production, le remboursement, la suspension des commandes et la qualification sur appareils réels ne sont pas livrés. Aucune transaction live ni aucun service pilote ne peut donc commencer.
+Le chemin logiciel des charges directes Stripe Connect et la mise en pause de la prise de commandes sont sécurisés et testés localement avec des doublures. Leur validation Stripe réelle reste bloquée par l'inscription incomplète du compte plateforme à Connect. La production, le remboursement et la qualification sur appareils réels ne sont pas livrés. Aucune transaction live ni aucun service pilote ne peut donc commencer.
 !!!
 
 ## Principes de décision
@@ -25,8 +25,8 @@ Le chemin logiciel des charges directes Stripe Connect est sécurisé et testé 
 
 | Porte | État au 2026-07-20 | Preuve attendue pour Go |
 |---|---|---|
-| 0. Noyau paiement local | **Go local** | Idempotence de création, isolation par session de table, webhook retentable, transition paiement et commande atomique, migrations et tests verts |
-| 1. Stripe Connect en test | **No-Go** | Compte Express pilote en test, charges directes, commission correcte, webhook Connect, remboursement et suspension vérifiés |
+| 0. Noyau paiement local | **Go local** | Idempotence de création, isolation par session de table, webhook retentable, transition paiement et commande atomique, pause d'admission, migrations et tests verts |
+| 1. Stripe Connect en test | **No-Go** | Compte Express pilote en test, charges directes, commission correcte, webhook Connect, mécanismes de remboursement et de pause vérifiés |
 | 2. Production prête | **No-Go** | Pile Ubuntu LTS déployable et restaurable, secrets live, SMTP, supervision, retour arrière et données pilote |
 | 3. Live fermé | **No-Go** | Transaction réelle de faible montant, rapprochement complet et remboursement réussi hors service |
 | 4. Service à blanc | **No-Go** | Répétition complète au restaurant, sans public, sur matériel et réseau réels |
@@ -35,6 +35,8 @@ Le chemin logiciel des charges directes Stripe Connect est sécurisé et testé 
 ## Porte 1 : Stripe Connect en test
 
 Le pilote utilise un compte Express provisionné manuellement. L'automatisation de ce parcours reste en phase 3, mais le schéma financier est déjà celui de la cible, à savoir les [charges directes](../decisions/adr-0017-charges-directes-stripe-connect.md).
+
+Le contrôle applicatif de prise de commandes est livré localement selon l'[ADR-0018](../decisions/adr-0018-controle-prise-commandes.md). Il ne fait pas passer cette porte à Go : le compte Connect test, le remboursement et le scénario complet de pause avec un Payment Intent réel restent à vérifier ensemble.
 
 !!! warning Constat du 2026-07-20
 Les clés de test authentifient correctement l'API Stripe. La création idempotente du premier compte Express a néanmoins été refusée car le compte plateforme n'est pas encore inscrit à Connect. Aucun contournement par une charge plateforme n'est accepté. La [fiche de preuve](preuve-stripe-connect-2026-07-20.md) consigne le résultat et la reprise attendue.
@@ -49,18 +51,20 @@ Les clés de test authentifient correctement l'API Stripe. La création idempote
 - Les scénarios carte acceptée, carte refusée, SCA, Apple Pay et Google Pay sont exercés lorsque l'appareil les rend disponibles.
 - Une coupure réseau, un rejeu client et un webhook dupliqué ou retardé ne créent ni second débit ni second effet métier.
 - Le refus d'une commande payée déclenche un remboursement intégral, ou une procédure manuelle Stripe explicite et testée tant que l'interface dédiée n'existe pas.
-- Un mécanisme suspend les nouvelles commandes et nouveaux paiements sans couper le suivi des commandes existantes.
+- Le passage à `paused` ferme les nouvelles sessions de table, commandes et sessions de paiement sans couper le suivi, les flux SSE, le Dashboard ni les webhooks des commandes existantes.
+- Un Payment Intent dont le `client_secret` a été remis avant la pause est rapproché s'il aboutit ensuite, puis sa commande est servie ou remboursée.
+- `charges_enabled=false` force la pause et le retour à `true` ne rouvre jamais automatiquement le service.
 
 ### No-Go immédiat
 
 - Charge créée sur le compte plateforme ou sur le mauvais compte connecté.
 - Commission différente du tarif acté.
-- Remboursement ou suspension impossibles.
+- Remboursement ou mise à `paused` impossibles.
 - Secret live requis pour réussir un test.
 
 ## Porte 2 : production prête
 
-La production démarre avec les commandes suspendues. Elle suit la topologie décrite dans [Exploitation](index.md) et [CI/CD](../developpement/ci-cd.md).
+La production démarre avec `order_intake_status=paused`. Elle suit la topologie décrite dans [Exploitation](index.md) et [CI/CD](../developpement/ci-cd.md).
 
 ### Critères Go
 
@@ -77,7 +81,7 @@ La production démarre avec les commandes suspendues. Elle suit la topologie dé
 
 - Service déclaré sain malgré une dépendance critique absente.
 - Sauvegarde non restaurée, secret exposé ou procédure de retour arrière non exercée.
-- Commandes impossibles à suspendre avant l'ouverture.
+- Prise de commandes impossible à mettre à `paused` et à vérifier avant l'ouverture.
 
 ## Porte 3 : live fermé
 
@@ -109,7 +113,7 @@ Le restaurant est fermé au public. Le restaurateur travaille avec la vraie tabl
 2. Exercer plusieurs commandes simultanées et chaque moyen de paiement réellement disponible.
 3. Provoquer une carte refusée, une reprise de paiement, une coupure réseau client et une reconnexion SSE du Dashboard.
 4. Accepter et faire progresser les commandes jusqu'à `served`.
-5. Suspendre puis rouvrir la prise de commande.
+5. Passer la prise de commandes à `paused`, vérifier les refus et la continuité, puis revenir explicitement à `open`.
 6. Rembourser les paiements de contrôle et rapprocher toutes les écritures.
 
 ### Critères Go
@@ -134,7 +138,7 @@ Suspendre immédiatement les nouvelles commandes si l'un des seuils suivants est
 - deux erreurs techniques de paiement consécutives ;
 - plus de 5 % de réponses API en erreur sur 5 minutes ;
 - un Dashboard sans données fiables pendant plus de 2 minutes ;
-- l'impossibilité de rembourser ou de suspendre les commandes.
+- l'impossibilité de rembourser ou de mettre la prise de commandes à `paused`.
 
 ### Critère de sortie de phase 2
 
@@ -168,11 +172,11 @@ Le petit échantillon du premier pilote ne permet pas d'utiliser la conversion c
 
 ## Repli et reprise
 
-1. Suspendre les nouvelles commandes et nouveaux paiements sans couper les pages de suivi existantes.
+1. Fixer la prise de commandes à `paused`, puis vérifier que `acceptingOrders=false` et `blockedReason=paused`, sans couper les pages de suivi existantes.
 2. Si seul le SSE est indisponible, utiliser la lecture REST pendant 5 minutes au maximum.
 3. Si le paiement, l'API ou le Dashboard deviennent douteux, couvrir les QR et reprendre le parcours habituel du restaurant.
 4. Conserver les preuves. Ne faire aucune écriture SQL manuelle.
-5. Pour une régression applicative identifiée, redéployer le dernier SHA sain. Le premier SHA sain de production inclut V11 : aucun retour vers un SHA pré-V11 n'est autorisé. Ne jamais annuler une migration de base.
+5. Pour une régression applicative identifiée, redéployer le dernier SHA sain. Le premier SHA sain de production inclut V12 : aucun retour vers un SHA pré-V12 n'est autorisé. Ne jamais annuler une migration de base.
 6. Rapprocher chaque Commande, Paiement, Payment Intent et événement Stripe, puis rembourser les cas concernés.
 7. Consigner un post-mortem court, corriger et refaire un service à blanc avant tout nouveau service réel.
 
@@ -186,3 +190,5 @@ Chaque répétition ou service conserve au minimum :
 - appareils, navigateurs, réseau et moyens de paiement exercés ;
 - identifiants de rapprochement sans secret ni donnée de carte ;
 - résultat de chaque critère, incident, décision Go ou No-Go et actions suivantes.
+
+La preuve de pause conserve en plus l'état lu avant l'action, la réponse idempotente du `PUT /v1/establishments/{establishmentId}/order-intake`, l'état relu après l'action et le résultat de quatre contrôles : nouvelle session de table refusée, nouvelle commande refusée, nouvelle session de paiement refusée et suivi d'une commande existante toujours accessible. Aucune écriture SQL manuelle ne remplace cette preuve.

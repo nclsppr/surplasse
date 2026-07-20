@@ -512,6 +512,177 @@ button:disabled {
   text-align: center;
 }
 
+.order-intake {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-4) var(--sp-6);
+  margin: 0 0 var(--sp-5);
+  padding: var(--sp-4);
+  border: 1px solid var(--line-2);
+  border-top: 3px double var(--accent-press);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+}
+
+.order-intake-copy {
+  min-width: 0;
+}
+
+.order-intake-title-line {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-1);
+}
+
+.order-intake-title-line h2 {
+  margin: 0;
+  color: var(--fg-1);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 800;
+  letter-spacing: 0.015em;
+  text-transform: uppercase;
+}
+
+.order-intake-state {
+  display: inline-flex;
+  min-height: 1.75rem;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 0 var(--sp-2);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.order-intake-state > span {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.order-intake-state-open {
+  color: var(--ok);
+  background: var(--ok-tint);
+}
+
+.order-intake-state-paused {
+  color: var(--accent-press);
+  background: var(--accent-tint);
+}
+
+.order-intake-description {
+  max-width: 70rem;
+  margin: var(--sp-2) 0 0;
+  color: var(--fg-2);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.order-intake-effective {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+  margin: var(--sp-2) 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+
+.order-intake-effective span {
+  color: var(--fg-2);
+}
+
+.order-intake-effective span::after {
+  content: " :";
+}
+
+.order-intake-effective-open strong {
+  color: var(--ok);
+}
+
+.order-intake-effective-blocked strong {
+  color: var(--accent-press);
+}
+
+.order-intake-action,
+.order-intake-loading {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.order-intake-loading .spinner {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.order-intake-confirmation {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-4);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--line-accent);
+}
+
+.order-intake-confirmation strong {
+  color: var(--accent-press);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.order-intake-confirmation p {
+  max-width: 75rem;
+  margin: var(--sp-1) 0 0;
+  color: var(--fg-2);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.order-intake-confirmation-actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.order-intake-warning,
+.order-intake-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line-1);
+  color: var(--accent-press);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+}
+
+.order-intake-warning {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.order-intake-warning button {
+  min-height: 44px;
+  padding: 0 var(--sp-2);
+  border: 0;
+  color: var(--accent-press);
+  background: transparent;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
 .order-board-region {
   width: 100%;
   padding: 3px 3px var(--sp-3);
@@ -885,6 +1056,28 @@ button:disabled {
     gap: var(--sp-5);
   }
 
+  .order-intake {
+    grid-template-columns: 1fr;
+    gap: var(--sp-3);
+  }
+
+  .order-intake-action,
+  .order-intake-action .button {
+    width: 100%;
+  }
+
+  .order-intake-action {
+    justify-content: stretch;
+  }
+
+  .order-intake-confirmation {
+    grid-template-columns: 1fr;
+  }
+
+  .order-intake-confirmation-actions {
+    justify-content: flex-end;
+  }
+
   .service-controls {
     align-items: stretch;
   }
@@ -928,6 +1121,20 @@ button:disabled {
   .title-line {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .order-intake-title-line {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .order-intake-confirmation-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .order-intake-confirmation-actions .button {
+    width: 100%;
   }
 
   .service-controls {

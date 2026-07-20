@@ -99,6 +99,7 @@ Les noms d'identité et de SMTP ci-dessous sont stabilisés par le module `ident
 | `APP_BASE_URL` | URL de l'Onboarding et base des URL publiques |
 | `DASHBOARD_URL` | origine publique du Dashboard |
 | `API_URL` | origine publique du Backend et émetteur JWT obligatoire |
+| `PROBLEM_TYPE_BASE` | base canonique des identifiants RFC 9457, identique dans tous les environnements |
 | `RESERVED_SUBDOMAINS` | noms exclus des slugs d'établissement |
 | `COOKIE_DOMAIN` | vide par décision de sécurité ; les cookies restent hôte uniquement |
 | `CORS_PUBLIC_ORIGINS` | apex et motif du sous-domaine direct, dérivés de `APP_BASE_DOMAIN` par le wrapper de profil, toujours sans credentials côté Quarkus |

@@ -16,6 +16,10 @@ public class TableQrRepository implements PanacheRepositoryBase<TableQr, UUID> {
                 .firstResultOptional();
     }
 
+    public boolean hasActiveByEstablishment(UUID establishmentId) {
+        return count("establishmentId = ?1 and active = true", establishmentId) > 0;
+    }
+
     public List<TableQr> listByIds(Collection<UUID> ids) {
         if (ids.isEmpty()) {
             return List.of();

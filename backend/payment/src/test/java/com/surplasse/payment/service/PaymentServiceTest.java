@@ -91,12 +91,12 @@ class PaymentServiceTest {
         when(catalogGateway.priceProducts(any(), anyCollection()))
                 .thenReturn(
                         Map.of(PRODUCT, new CatalogGateway.ProductPricing(PRODUCT, "Burger", 1600, true, List.of())));
-        when(catalogGateway.findPaymentRouting(ESTABLISHMENT))
-                .thenReturn(Optional.of(new CatalogGateway.PaymentRouting(
+        when(catalogGateway.lockOrderIntake(ESTABLISHMENT))
+                .thenReturn(Optional.of(openAdmission(new CatalogGateway.PaymentRouting(
                         CONNECTED_ACCOUNT,
                         true,
                         true,
-                        OffsetDateTime.now(ZoneOffset.UTC).minusMonths(1))));
+                        OffsetDateTime.now(ZoneOffset.UTC).minusMonths(1)))));
         when(paymentProvider.createIntent(any()))
                 .thenReturn(new PaymentProvider.PaymentIntentRef("pi_1", "pi_1_secret"));
     }
@@ -293,7 +293,9 @@ class PaymentServiceTest {
 
     @Test
     void createSession_missingConnectedAccount_failsClosedBeforeStripe() {
-        when(catalogGateway.findPaymentRouting(ESTABLISHMENT)).thenReturn(Optional.empty());
+        when(catalogGateway.lockOrderIntake(ESTABLISHMENT))
+                .thenReturn(Optional.of(new CatalogGateway.OrderIntakeAdmission(
+                        true, false, new CatalogGateway.PaymentRouting(null, false, false, null))));
 
         BusinessRuleException failure = assertThrows(
                 BusinessRuleException.class, () -> service.createSession(SESSION, ORDER, UUID.randomUUID()));
@@ -304,12 +306,15 @@ class PaymentServiceTest {
 
     @Test
     void createSession_disabledCharges_failsClosedBeforeStripe() {
-        when(catalogGateway.findPaymentRouting(ESTABLISHMENT))
-                .thenReturn(Optional.of(new CatalogGateway.PaymentRouting(
-                        CONNECTED_ACCOUNT,
-                        false,
+        when(catalogGateway.lockOrderIntake(ESTABLISHMENT))
+                .thenReturn(Optional.of(new CatalogGateway.OrderIntakeAdmission(
                         true,
-                        OffsetDateTime.now(ZoneOffset.UTC).minusMonths(1))));
+                        false,
+                        new CatalogGateway.PaymentRouting(
+                                CONNECTED_ACCOUNT,
+                                false,
+                                true,
+                                OffsetDateTime.now(ZoneOffset.UTC).minusMonths(1)))));
 
         assertThrows(BusinessRuleException.class, () -> service.createSession(SESSION, ORDER, UUID.randomUUID()));
 
@@ -317,19 +322,31 @@ class PaymentServiceTest {
     }
 
     @Test
-    void createSession_pendingAttemptAfterChargesDisabled_doesNotReturnItsClientSecret() {
+    void createSession_replayAfterChargesRemovalAndAutoPause_returnsStableConflict() {
+        UUID idempotencyKey = UUID.randomUUID();
         Payment pending = new Payment(
                 UUID.randomUUID(), ORDER, ESTABLISHMENT, "pi_0", 2250, "EUR", "pi_0_secret", CONNECTED_ACCOUNT, 0);
-        when(paymentRepository.findReusableByOrder(ORDER, ESTABLISHMENT)).thenReturn(Optional.of(pending));
-        when(catalogGateway.findPaymentRouting(ESTABLISHMENT))
-                .thenReturn(Optional.of(new CatalogGateway.PaymentRouting(
-                        CONNECTED_ACCOUNT,
+        when(paymentRequestRepository.findByIdOptional(idempotencyKey))
+                .thenReturn(Optional.of(
+                        new PaymentRequest(idempotencyKey, pending.getId(), ORDER, ESTABLISHMENT, TABLE_SESSION)));
+        when(paymentRepository.findByIdOptional(pending.getId())).thenReturn(Optional.of(pending));
+        when(catalogGateway.lockOrderIntake(ESTABLISHMENT))
+                .thenReturn(Optional.of(new CatalogGateway.OrderIntakeAdmission(
                         false,
-                        true,
-                        OffsetDateTime.now(ZoneOffset.UTC).minusMonths(1))));
+                        false,
+                        new CatalogGateway.PaymentRouting(
+                                CONNECTED_ACCOUNT,
+                                false,
+                                true,
+                                OffsetDateTime.now(ZoneOffset.UTC).minusMonths(1)))));
 
-        assertThrows(BusinessRuleException.class, () -> service.createSession(SESSION, ORDER, UUID.randomUUID()));
+        ConflictException failure =
+                assertThrows(ConflictException.class, () -> service.createSession(SESSION, ORDER, idempotencyKey));
 
+        assertEquals("order-intake-paused", failure.problemType());
+        verify(paymentRequestRepository, never()).lockIdempotencyKey(idempotencyKey);
+        verify(paymentRequestRepository, never()).findByIdOptional(idempotencyKey);
+        verify(orderGateway, never()).lockPayableOrder(any(), any());
         verify(paymentProvider, never()).createIntent(any());
     }
 
@@ -338,12 +355,12 @@ class PaymentServiceTest {
         Payment pending = new Payment(
                 UUID.randomUUID(), ORDER, ESTABLISHMENT, "pi_0", 2250, "EUR", "pi_0_secret", CONNECTED_ACCOUNT, 0);
         when(paymentRepository.findReusableByOrder(ORDER, ESTABLISHMENT)).thenReturn(Optional.of(pending));
-        when(catalogGateway.findPaymentRouting(ESTABLISHMENT))
-                .thenReturn(Optional.of(new CatalogGateway.PaymentRouting(
+        when(catalogGateway.lockOrderIntake(ESTABLISHMENT))
+                .thenReturn(Optional.of(openAdmission(new CatalogGateway.PaymentRouting(
                         "acct_test_replacement",
                         true,
                         true,
-                        OffsetDateTime.now(ZoneOffset.UTC).minusMonths(1))));
+                        OffsetDateTime.now(ZoneOffset.UTC).minusMonths(1)))));
 
         assertThrows(BusinessRuleException.class, () -> service.createSession(SESSION, ORDER, UUID.randomUUID()));
 
@@ -352,12 +369,12 @@ class PaymentServiceTest {
 
     @Test
     void createSession_afterFreePeriod_snapshotsOnePercentRoundedDown() {
-        when(catalogGateway.findPaymentRouting(ESTABLISHMENT))
-                .thenReturn(Optional.of(new CatalogGateway.PaymentRouting(
+        when(catalogGateway.lockOrderIntake(ESTABLISHMENT))
+                .thenReturn(Optional.of(openAdmission(new CatalogGateway.PaymentRouting(
                         CONNECTED_ACCOUNT,
                         true,
                         true,
-                        OffsetDateTime.now(ZoneOffset.UTC).minusMonths(4))));
+                        OffsetDateTime.now(ZoneOffset.UTC).minusMonths(4)))));
 
         Payment payment = service.createSession(SESSION, ORDER, UUID.randomUUID());
 
@@ -366,5 +383,9 @@ class PaymentServiceTest {
                 ArgumentCaptor.forClass(PaymentProvider.PaymentIntentRequest.class);
         verify(paymentProvider).createIntent(intent.capture());
         assertEquals(22, intent.getValue().applicationFeeAmount());
+    }
+
+    private static CatalogGateway.OrderIntakeAdmission openAdmission(CatalogGateway.PaymentRouting routing) {
+        return new CatalogGateway.OrderIntakeAdmission(true, true, routing);
     }
 }

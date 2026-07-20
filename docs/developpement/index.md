@@ -299,6 +299,7 @@ Les URL publiques sont centralisées dans `config/domains/development.env` et `c
 | `QUARKUS_DATASOURCE_JDBC_URL` | Backend | DSN PostgreSQL | non en dev (Dev Services), oui en production |
 | `APP_SCHEME`, `APP_BASE_DOMAIN`, `APP_BASE_URL` | tous | racine des URL publiques et génération des mini-sites | oui, fournis par le profil versionné |
 | `DASHBOARD_URL`, `API_URL` | tous | origines canoniques du Dashboard et du Backend | oui, fournies par le profil versionné |
+| `PROBLEM_TYPE_BASE` | Backend, Commande et Dashboard | base canonique des types RFC 9457, toujours `https://surplasse.com/problems/` même en local | oui, fournie par le profil versionné |
 | `RESERVED_SUBDOMAINS` | Commande et infrastructure | noms exclus des slugs d'établissement | oui, fourni par le profil versionné |
 | `COOKIE_DOMAIN` | décision de sécurité | doit rester vide pour des cookies API hôte uniquement | oui, vide dans les deux profils |
 | `CORS_PUBLIC_ORIGINS` | Backend | apex exact et motif du sous-domaine direct courant, sans credentials | oui, dérivé par le wrapper de profil |

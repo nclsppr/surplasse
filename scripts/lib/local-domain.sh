@@ -45,7 +45,8 @@ surplasse_local_load_config() {
     API_URL \
     LOCAL_CONTROL_URL \
     DOCS_URL \
-    MAILPIT_URL; do
+    MAILPIT_URL \
+    PROBLEM_TYPE_BASE; do
     [[ -n "${!variable_name:-}" ]] || surplasse_local_die \
       "${variable_name} is required in ${config_file}."
   done

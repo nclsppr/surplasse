@@ -17,6 +17,29 @@ public class EstablishmentRepository implements PanacheRepositoryBase<Establishm
                 .firstResultOptional();
     }
 
+    public Optional<Establishment> findActiveBySlugForAdmission(String slug) {
+        return find("slug = ?1 and status = ?2", slug, EstablishmentStatus.ACTIVE)
+                .withLock(LockModeType.PESSIMISTIC_READ)
+                .firstResultOptional();
+    }
+
+    public Optional<Establishment> findByIdForAdmission(UUID establishmentId) {
+        return find("id", establishmentId)
+                .withLock(LockModeType.PESSIMISTIC_READ)
+                .firstResultOptional();
+    }
+
+    public Optional<Establishment> findOwned(UUID establishmentId, UUID restaurateurId) {
+        return find("id = ?1 and restaurateurId = ?2", establishmentId, restaurateurId)
+                .firstResultOptional();
+    }
+
+    public Optional<Establishment> findOwnedForUpdate(UUID establishmentId, UUID restaurateurId) {
+        return find("id = ?1 and restaurateurId = ?2", establishmentId, restaurateurId)
+                .withLock(LockModeType.PESSIMISTIC_WRITE)
+                .firstResultOptional();
+    }
+
     public List<Establishment> listByRestaurateur(UUID restaurateurId) {
         return list("restaurateurId", restaurateurId);
     }

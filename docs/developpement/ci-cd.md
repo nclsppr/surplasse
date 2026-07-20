@@ -31,13 +31,13 @@ Le fichier `.github/workflows/pages.yml` construit le site Retype, l'assemble av
 | Élément | Valeur |
 |---|---|
 | Déclencheurs | `push` sur `main`, plus déclenchement manuel (`workflow_dispatch`) |
-| Permissions | `contents: read`, `pages: write`, `id-token: write` |
+| Permissions | `contents: read` globalement ; `pages: write` et `id-token: write` accordés uniquement au job `deploy` |
 | Concurrence | Groupe `pages`, avec annulation des exécutions en cours (`cancel-in-progress`) |
-| Jobs | `build` puis `deploy` (ce dernier conditionné à `main`) |
+| Jobs | `quality`, puis `build`, puis `deploy` (ce dernier conditionné à `main`) |
 
-Le job `build` enchaîne checkout (`actions/checkout@v4`), installation de Node 24 (`actions/setup-node@v4`), `npm ci`, vérification du fichier de domaines généré avec `npm run domains:check`, `npm run docs:build`, puis l'assemblage du site publié. Cet assemblage place la landing, le tunnel avec son aperçu fidèle du Dashboard et `runtime-config.js` à la racine, les assets de marque sous `brand/` et la documentation Retype sous `docs/`. Le script npm invoque `node node_modules/retypeapp/retype.js` directement plutôt que la commande `retype` : npm 10.9.x ne crée pas le lien `node_modules/.bin/retype` à l'installation, à cause d'une collision de noms de bin avec les paquets plateforme `retypeapp-*`. Le site assemblé est publié comme artefact Pages via `actions/upload-pages-artifact@v3`.
+Le job `quality` utilise le checkout exact du workflow. Il vérifie les profils de domaines, la démo statique, les assets de marque, le package partagé, puis le lint, les tests et le build de Commande et du Dashboard. Le job `build` ne démarre que si cette porte est verte. Il enchaîne un nouveau checkout du même SHA, l'installation de Node 24 (`actions/setup-node@v4`), `npm ci`, une nouvelle vérification du fichier de domaines généré avec `npm run domains:check`, `npm run docs:build`, puis l'assemblage du site publié. Cet assemblage place la landing, le tunnel avec son aperçu fidèle du Dashboard et `runtime-config.js` à la racine, les assets de marque sous `brand/` et la documentation Retype sous `docs/`. Le script npm invoque `node node_modules/retypeapp/retype.js` directement plutôt que la commande `retype` : npm 10.9.x ne crée pas le lien `node_modules/.bin/retype` à l'installation, à cause d'une collision de noms de bin avec les paquets plateforme `retypeapp-*`. Le site assemblé est publié comme artefact Pages via `actions/upload-pages-artifact@v3`.
 
-Le job `deploy` dépend de `build`, ne s'exécute que si la référence est `refs/heads/main`, cible l'environnement GitHub `github-pages` et publie l'artefact avec `actions/deploy-pages@v4`.
+Le job `deploy` dépend de `build`, qui dépend lui-même de `quality`. Il ne s'exécute que si la référence est `refs/heads/main`, cible l'environnement GitHub `github-pages` et publie l'artefact avec `actions/deploy-pages@v4`. Les permissions `pages: write` et `id-token: write` sont limitées à ce job ; les installations et validations précédentes restent en lecture seule sur le dépôt. Une suite UI rouge ne peut donc pas publier le SHA concerné, même si le workflow `Frontends` séparé termine plus tard.
 
 Ce workflow reste volontairement sans filtre de chemins. Chaque push sur `main` republie la démo. Ainsi, toute évolution de `brand/**` ou `frontends/**` produit un nouvel artefact public, même lorsque seul le Dashboard, Commande ou le package partagé change. Une évolution UI n'est terminée qu'après le succès des workflows `Frontends` et `Pages` pour le même SHA, puis le contrôle visuel de la démo publique en vue mobile et bureau.
 
@@ -47,7 +47,7 @@ Le monorepo suit un découpage par filtres de chemins (`paths`) : un push qui ne
 
 | Workflow | Déclencheur (filtre de chemins) | Étapes |
 |---|---|---|
-| `pages.yml` | chaque `push` sur `main` | Build Retype, assemblage du site public (docs, landing, tunnel, aperçu Dashboard, marque), déploiement GitHub Pages (décrit ci-dessus) |
+| `pages.yml` | chaque `push` sur `main` | Porte qualité UI sur le même SHA, build Retype, assemblage du site public (docs, landing, tunnel, aperçu Dashboard, marque), déploiement GitHub Pages (décrit ci-dessus) |
 | `api.yml` | `push`, chemins `api/**`, `openapitools.json`, `scripts/api/**` | Lint Spectral, contrôle de compatibilité `oasdiff` contre le commit précédent (dérogation par préfixe de commit `api!:`), fraîcheur de la génération (`npm run api:generate` puis `git diff --exit-code`) |
 | `backend.yml` | `push`, chemins `backend/**`, `api/**`, profils de domaines, wrapper ou `package.json` | Java 21 Temurin, cache Maven, `npm run backend:verify` : injection du profil, compilation, tests unitaires et d'intégration (PostgreSQL 17 via Testcontainers), contrat et formatage Spotless |
 | `frontends.yml` | `push`, chemins `frontends/**`, `config/domains/**`, cockpit, scripts locaux, `infra/local/**`, `brand/**`, `api/**` | Profils et QR générés, tests du cockpit, syntaxe shell, adaptation Caddy, package `shared`, lint, tests et builds de Commande et du Dashboard |

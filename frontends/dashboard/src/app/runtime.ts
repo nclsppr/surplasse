@@ -9,7 +9,10 @@ export const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 export const dashboardClients = createDashboardClients(apiBaseUrl);
 export const queryClient = createQueryClient();
 
-const orderQueryRoot = queryKeys.orderList("")[0];
+const businessQueryRoots = new Set<string>([
+  queryKeys.orderList("")[0],
+  queryKeys.orderIntake("")[0],
+]);
 
 export const sessionCoordinator = new SessionCoordinator(
   dashboardClients.identity,
@@ -19,7 +22,7 @@ export const sessionCoordinator = new SessionCoordinator(
     },
     clearBusinessQueries() {
       queryClient.removeQueries({
-        predicate: (query) => query.queryKey[0] === orderQueryRoot,
+        predicate: (query) => businessQueryRoots.has(String(query.queryKey[0])),
       });
     },
   },

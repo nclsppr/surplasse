@@ -1,7 +1,6 @@
 package com.surplasse.catalog.service;
 
 import com.surplasse.catalog.entity.Category;
-import com.surplasse.catalog.entity.EstablishmentStatus;
 import com.surplasse.catalog.entity.Menu;
 import com.surplasse.catalog.entity.Option;
 import com.surplasse.catalog.entity.OptionGroup;
@@ -55,9 +54,13 @@ public class CatalogGatewayService implements CatalogGateway {
 
     @Override
     public Optional<TableRef> findActiveTable(String establishmentSlug, String tableCode) {
-        return establishmentRepository.findActiveBySlug(establishmentSlug).flatMap(establishment -> tableQrRepository
-                .findActiveByCode(establishment.getId(), tableCode)
-                .map(table -> new TableRef(establishment.getId(), table.getId(), table.getLabel())));
+        return establishmentRepository
+                .findActiveBySlugForAdmission(establishmentSlug)
+                .filter(com.surplasse.catalog.entity.Establishment::hasLifecycleAndPaymentReadiness)
+                .filter(establishment -> menuRepository.hasPublishedByEstablishment(establishment.getId()))
+                .flatMap(establishment -> tableQrRepository
+                        .findActiveByCode(establishment.getId(), tableCode)
+                        .map(table -> new TableRef(establishment.getId(), table.getId(), table.getLabel())));
     }
 
     @Override
@@ -121,14 +124,23 @@ public class CatalogGatewayService implements CatalogGateway {
     }
 
     @Override
-    public Optional<PaymentRouting> findPaymentRouting(UUID establishmentId) {
-        return establishmentRepository
-                .findByIdOptional(establishmentId)
-                .filter(establishment -> establishment.getStatus() == EstablishmentStatus.ACTIVE)
-                .map(establishment -> new PaymentRouting(
-                        establishment.getStripeAccountId(),
-                        establishment.isStripeChargesEnabled(),
-                        establishment.isStripePayoutsEnabled(),
-                        establishment.getActivatedAt()));
+    public Optional<OrderIntakeAdmission> lockOrderIntake(UUID establishmentId) {
+        return establishmentRepository.findByIdForAdmission(establishmentId).map(establishment -> {
+            boolean configurationReady = menuRepository.hasPublishedByEstablishment(establishmentId)
+                    && tableQrRepository.hasActiveByEstablishment(establishmentId);
+            PaymentRouting routing = paymentRouting(establishment);
+            return new OrderIntakeAdmission(
+                    establishment.isOrderIntakeOpen(),
+                    establishment.hasLifecycleAndPaymentReadiness() && configurationReady,
+                    routing);
+        });
+    }
+
+    private static PaymentRouting paymentRouting(com.surplasse.catalog.entity.Establishment establishment) {
+        return new PaymentRouting(
+                establishment.getStripeAccountId(),
+                establishment.isStripeChargesEnabled(),
+                establishment.isStripePayoutsEnabled(),
+                establishment.getActivatedAt());
     }
 }

@@ -1,6 +1,8 @@
 package com.surplasse.catalog.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -27,16 +29,18 @@ class CatalogGatewayServiceTest {
 
     private TableQrRepository tableQrRepository;
     private EstablishmentRepository establishmentRepository;
+    private MenuRepository menuRepository;
     private CatalogGatewayService service;
 
     @BeforeEach
     void setUp() {
         tableQrRepository = mock(TableQrRepository.class);
         establishmentRepository = mock(EstablishmentRepository.class);
+        menuRepository = mock(MenuRepository.class);
         service = new CatalogGatewayService(
                 establishmentRepository,
                 tableQrRepository,
-                mock(MenuRepository.class),
+                menuRepository,
                 mock(CategoryRepository.class),
                 mock(ProductRepository.class),
                 mock(OptionGroupRepository.class),
@@ -67,7 +71,7 @@ class CatalogGatewayServiceTest {
     }
 
     @Test
-    void findPaymentRouting_activeEstablishment_returnsItsStripeSnapshot() {
+    void lockOrderIntake_readyOpenEstablishment_returnsLockedAdmissionAndRouting() {
         UUID establishmentId = UUID.randomUUID();
         OffsetDateTime activatedAt = OffsetDateTime.parse("2026-07-20T10:00:00Z");
         Establishment establishment = new Establishment(
@@ -81,13 +85,43 @@ class CatalogGatewayServiceTest {
                 true,
                 false,
                 activatedAt);
-        when(establishmentRepository.findByIdOptional(establishmentId)).thenReturn(Optional.of(establishment));
+        establishment.openOrderIntake(OffsetDateTime.parse("2026-07-20T10:01:00Z"));
+        when(establishmentRepository.findByIdForAdmission(establishmentId)).thenReturn(Optional.of(establishment));
+        when(menuRepository.hasPublishedByEstablishment(establishmentId)).thenReturn(true);
+        when(tableQrRepository.hasActiveByEstablishment(establishmentId)).thenReturn(true);
 
-        var routing = service.findPaymentRouting(establishmentId).orElseThrow();
+        var admission = service.lockOrderIntake(establishmentId).orElseThrow();
+        var routing = admission.paymentRouting();
 
+        assertTrue(admission.open());
+        assertTrue(admission.acceptingOrders());
         assertEquals("acct_test_restaurant", routing.stripeAccountId());
         assertEquals(true, routing.chargesEnabled());
         assertEquals(false, routing.payoutsEnabled());
         assertEquals(activatedAt, routing.activatedAt());
+    }
+
+    @Test
+    void lockOrderIntake_missingPublishedMenu_failsEffectiveAdmission() {
+        UUID establishmentId = UUID.randomUUID();
+        Establishment establishment = new Establishment(
+                establishmentId,
+                UUID.randomUUID(),
+                "Le Cormoran",
+                "le-cormoran",
+                null,
+                EstablishmentStatus.ACTIVE,
+                "acct_test_restaurant",
+                true,
+                true,
+                OffsetDateTime.parse("2026-07-20T10:00:00Z"));
+        establishment.openOrderIntake(OffsetDateTime.parse("2026-07-20T10:01:00Z"));
+        when(establishmentRepository.findByIdForAdmission(establishmentId)).thenReturn(Optional.of(establishment));
+        when(tableQrRepository.hasActiveByEstablishment(establishmentId)).thenReturn(true);
+
+        var admission = service.lockOrderIntake(establishmentId).orElseThrow();
+
+        assertTrue(admission.open());
+        assertFalse(admission.acceptingOrders());
     }
 }

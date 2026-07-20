@@ -10,9 +10,10 @@ import { ProductSheet } from "./ProductSheet";
 type Props = {
   product: MenuProduct;
   currency: string;
+  acceptingOrders: boolean;
 };
 
-export function ProductCard({ product, currency }: Props) {
+export function ProductCard({ product, currency, acceptingOrders }: Props) {
   const { addLine } = useCart();
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -73,15 +74,22 @@ export function ProductCard({ product, currency }: Props) {
       {product.available && (
         <button
           type="button"
+          disabled={!acceptingOrders}
           onClick={() => setSheetOpen(true)}
-          className="mt-3 min-h-11 w-full rounded-md bg-[var(--structure-tint)] font-semibold text-[var(--structure)] hover:bg-[var(--accent-tint)]"
+          className="mt-3 min-h-11 w-full rounded-md bg-[var(--structure-tint)] font-semibold text-[var(--structure)] hover:bg-[var(--accent-tint)] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {fr.menu.add}
+          {acceptingOrders ? fr.menu.add : fr.menu.orderIntakePausedAction}
         </button>
       )}
 
       {sheetOpen && (
-        <ProductSheet product={product} currency={currency} onAdd={add} onClose={() => setSheetOpen(false)} />
+        <ProductSheet
+          product={product}
+          currency={currency}
+          acceptingOrders={acceptingOrders}
+          onAdd={add}
+          onClose={() => setSheetOpen(false)}
+        />
       )}
     </article>
   );

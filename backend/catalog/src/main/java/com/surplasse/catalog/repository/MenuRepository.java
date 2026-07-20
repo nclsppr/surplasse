@@ -14,4 +14,8 @@ public class MenuRepository implements PanacheRepositoryBase<Menu, UUID> {
         return find("establishmentId = ?1 and status = ?2", establishmentId, MenuStatus.PUBLISHED)
                 .firstResultOptional();
     }
+
+    public boolean hasPublishedByEstablishment(UUID establishmentId) {
+        return count("establishmentId = ?1 and status = ?2", establishmentId, MenuStatus.PUBLISHED) > 0;
+    }
 }

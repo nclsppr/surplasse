@@ -22,7 +22,7 @@ import jakarta.validation.Valid;
 public interface CatalogApi {
 
     /**
-     * Returns the public information of an establishment resolved by its slug (the subdomain of its mini-site). This endpoint is public: it backs the header of the mini-site rendered by the Commande frontend. Unknown slugs, as well as establishments that are not publicly visible, yield a 404 without distinction. 
+     * Returns the public information of an establishment resolved by its slug (the subdomain of its mini-site). This endpoint is public: it backs the header of the mini-site rendered by the Commande frontend. `acceptingOrders` lets that frontend keep the menu readable while disabling order actions during an operational pause. Unknown slugs, as well as establishments that are not publicly visible, yield a 404 without distinction. 
      *
      * @param slug Slug of the establishment, the label of its subdomain (&#x60;{slug}.surplasse.com&#x60;). Lowercase letters, digits and hyphens. 
      * @return The public profile of the establishment.

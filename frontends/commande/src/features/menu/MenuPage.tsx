@@ -39,7 +39,7 @@ export function MenuPage({ slug }: Props) {
     );
   }
 
-  if (establishment.isError || menu.isError || !establishment.data || !menu.data) {
+  if (!establishment.data || !menu.data) {
     return (
       <main className="mx-auto max-w-2xl px-5 py-10 text-center">
         <p className="mb-6 text-lg">{fr.menu.error}</p>
@@ -73,9 +73,41 @@ export function MenuPage({ slug }: Props) {
         )}
       </header>
 
+      {establishment.isError && (
+        <p
+          className="mb-6 rounded-md border border-[var(--line-2)] bg-[var(--structure-tint)] px-4 py-3 text-sm text-[var(--text-muted)]"
+          role="status"
+        >
+          {fr.menu.orderIntakeRefreshError}
+        </p>
+      )}
+
+      {!establishment.data.acceptingOrders && (
+        <section
+          className="mb-8 rounded-md border border-[var(--accent-hover)] border-t-2 bg-[var(--accent-tint)] px-4 py-3"
+          aria-labelledby="order-intake-paused-title"
+          role="status"
+        >
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--accent-hover)]">
+            {fr.menu.orderIntakeTitle}
+          </p>
+          <h2 id="order-intake-paused-title" className="mt-1 text-lg font-bold text-[var(--structure)]">
+            {fr.menu.orderIntakePaused}
+          </h2>
+          <p className="mt-1 text-sm leading-6 text-[var(--text-muted)]">
+            {fr.menu.orderIntakePausedDescription}
+          </p>
+        </section>
+      )}
+
       <div className="space-y-10">
         {menu.data.categories.map((category) => (
-          <CategorySection key={category.id} category={category} currency={menu.data.currency} />
+          <CategorySection
+            key={category.id}
+            category={category}
+            currency={menu.data.currency}
+            acceptingOrders={establishment.data.acceptingOrders}
+          />
         ))}
       </div>
 

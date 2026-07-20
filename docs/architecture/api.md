@@ -114,6 +114,22 @@ La première liste paginée effectivement livrée est `GET /v1/orders`. Elle exi
 
 `PATCH /v1/orders/{orderId}/status` est également livré. Il accepte uniquement l'étape opérationnelle suivante : `accepted`, `preparing`, `ready`, puis `served` ou `picked_up` selon le type de commande. Répéter le statut déjà atteint est idempotent. Un saut répond 409, une fin incompatible avec le type répond 422, et une commande inconnue ou hors périmètre répond 404. `refunded` reste exclu : un remboursement doit déclencher une opération du domaine paiement, pas une simple écriture de statut.
 
+### Prise de commandes par établissement
+
+Le contrôle opérationnel livré est une sous-ressource authentifiée de l'établissement :
+
+```
+GET /v1/establishments/{establishmentId}/order-intake
+PUT /v1/establishments/{establishmentId}/order-intake
+{
+  "status": "paused"
+}
+```
+
+Le `GET` retourne le statut configuré `open` ou `paused`, la disponibilité effective `acceptingOrders`, l'horodatage du dernier changement du statut configuré et, lorsque l'admission est fermée, un `blockedReason`. Les causes prévues sont `paused`, `establishment_not_active`, `configuration_unavailable` et `payments_unavailable`. La cause `configuration_unavailable` couvre l'absence de carte publiée ou de table active. Le `PUT` remplace l'état demandé de manière idempotente. Répéter la même valeur conserve `updatedAt`. Une auto-pause Stripe modifie cet horodatage, tandis qu'un prérequis qui change seulement la disponibilité effective ne le modifie pas. Une ouverture répond 422 tant que le cycle de vie, la carte publiée, les tables actives ou Stripe Connect ne sont pas prêts. Les types stables `order-intake-establishment-not-active`, `order-intake-configuration-unavailable` et `order-intake-payments-unavailable` permettent au Dashboard d'expliquer le prérequis à corriger sans interpréter le texte de l'erreur. Leur URI repose sur `PROBLEM_TYPE_BASE`, fixé à `https://surplasse.com/problems/` dans les profils de développement et de production : le domaine local ne crée donc jamais un second identifiant pour la même erreur. Une pause reste toujours autorisée pour un restaurateur membre de l'établissement.
+
+Le profil public `GET /v1/establishments/{slug}/public` expose seulement `acceptingOrders`. La carte reste lisible quand cette valeur vaut `false`. Une nouvelle session de table reçoit le même 404 indistinguable que pour un QR inconnu ou inactif. Avec une session de table déjà ouverte, une nouvelle commande ou session de paiement reçoit le problème 409 `order-intake-paused`. Les lectures de suivi, les flux SSE et les opérations sur les commandes existantes ne changent pas.
+
 ### Erreurs au format Problem Details (RFC 9457)
 
 Toute réponse d'erreur est un document `application/problem+json` conforme à la RFC 9457, avec un champ `type` stable qui identifie l'erreur applicative.
@@ -142,6 +158,10 @@ Types d'erreurs applicatives prévus (liste de départ, complétée au fil du co
 | `establishment-not-claimed` | 403 | Espace non revendiqué, action réservée au restaurateur |
 | `establishment-not-active` | 403 | Établissement suspendu ou embarquement non terminé |
 | `resource-not-found` | 404 | Ressource inconnue ou hors du périmètre du demandeur |
+| `order-intake-paused` | 409 | Nouvelle commande ou session de paiement refusée car la prise de commandes est en pause |
+| `order-intake-establishment-not-active` | 422 | Réouverture refusée car le cycle de vie de l'établissement n'est pas `active` |
+| `order-intake-configuration-unavailable` | 422 | Réouverture refusée faute de carte publiée ou de table active |
+| `order-intake-payments-unavailable` | 422 | Réouverture refusée car Stripe Connect ne peut pas encaisser |
 | `product-unavailable` | 409 | Produit indisponible au moment de la commande |
 | `order-not-modifiable` | 409 | Commande déjà validée ou payée |
 | `idempotency-key-conflict` | 409 | Clé d'idempotence réutilisée avec un payload différent |
@@ -196,6 +216,7 @@ Groupes d'endpoints prévus par domaine :
 | Espaces et revendication | `GET /v1/spaces/{slug}`, `POST /v1/claims` | Public (lecture), puis magic link |
 | Embarquement | `POST /v1/onboarding/menu-extractions`, `POST /v1/establishments` | Restaurateur |
 | Gestion de la carte | `PUT /v1/menus/{id}`, `PATCH /v1/products/{id}` | Restaurateur |
+| Prise de commandes | `GET`, `PUT /v1/establishments/{id}/order-intake` | Restaurateur |
 | Carte publique | `GET /v1/menus/{id}`, `GET /v1/establishments/{slug}/public` | Public |
 | Sessions de table | `POST /v1/table-sessions` | Public (délivre le jeton) |
 | Commandes côté client | `POST /v1/orders`, `GET /v1/orders/{id}` | Client anonyme |

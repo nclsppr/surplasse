@@ -6,6 +6,8 @@ import { ResponseError } from "@surplasse/shared";
 
 import { paymentApi } from "../../app/api";
 import { fr } from "../../i18n/fr";
+import { isOrderIntakePausedProblem } from "../orderIntakeProblem";
+import { PausedPaymentNotice } from "./PausedPaymentNotice";
 import { loadStripeForConnectedAccount } from "./stripe";
 
 type Props = {
@@ -22,7 +24,10 @@ const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
  */
 export function PaymentSection({ order }: Props) {
   const [session, setSession] = useState<PaymentSession | undefined>();
-  const [failure, setFailure] = useState<"unavailable" | "session" | undefined>();
+  const [failure, setFailure] = useState<
+    "paused" | "unavailable" | "session" | undefined
+  >();
+  const [attempt, setAttempt] = useState(0);
   const idempotencyKey = useMemo(() => crypto.randomUUID(), []);
   const connectedAccountId = session?.connectedAccountId;
   const stripePromise = useMemo(
@@ -34,23 +39,62 @@ export function PaymentSection({ order }: Props) {
   );
 
   useEffect(() => {
-    paymentApi
-      .createPayment({ idempotencyKey, paymentCreationRequest: { orderId: order.id } })
-      .then(setSession)
-      .catch((caught: unknown) => {
-        const expired = caught instanceof ResponseError && caught.response.status === 401;
-        setFailure(expired ? "session" : "unavailable");
-      });
-  }, [order.id, idempotencyKey]);
+    let active = true;
 
+    async function createPaymentSession() {
+      try {
+        const nextSession = await paymentApi.createPayment({
+          idempotencyKey,
+          paymentCreationRequest: { orderId: order.id },
+        });
+        if (active) {
+          setSession(nextSession);
+        }
+      } catch (caught) {
+        const paused = await isOrderIntakePausedProblem(caught);
+        if (!active) {
+          return;
+        }
+        const expired = caught instanceof ResponseError && caught.response.status === 401;
+        setFailure(paused ? "paused" : expired ? "session" : "unavailable");
+      }
+    }
+
+    void createPaymentSession();
+    return () => {
+      active = false;
+    };
+  }, [order.id, idempotencyKey, attempt]);
+
+  function retryPaymentSession() {
+    setFailure(undefined);
+    setSession(undefined);
+    setAttempt((current) => current + 1);
+  }
+
+  if (failure === "paused") {
+    return <PausedPaymentNotice onRetry={retryPaymentSession} />;
+  }
   if (failure === "session") {
-    return <p className="mt-8 rounded-md bg-[var(--accent-tint)] p-4 text-sm">{fr.cart.noSession}</p>;
+    return (
+      <p className="mt-8 rounded-md bg-[var(--accent-tint)] p-4 text-sm" role="alert">
+        {fr.cart.noSession}
+      </p>
+    );
   }
   if (failure === "unavailable" || (session !== undefined && stripePromise === undefined)) {
-    return <p className="mt-8 rounded-md bg-[var(--accent-tint)] p-4 text-sm">{fr.payment.notConfigured}</p>;
+    return (
+      <p className="mt-8 rounded-md bg-[var(--accent-tint)] p-4 text-sm" role="alert">
+        {fr.payment.notConfigured}
+      </p>
+    );
   }
   if (session === undefined || stripePromise === undefined) {
-    return <p className="mt-8 text-sm text-[var(--text-muted)]">{fr.payment.loading}</p>;
+    return (
+      <p className="mt-8 text-sm text-[var(--text-muted)]" role="status">
+        {fr.payment.loading}
+      </p>
+    );
   }
 
   return (

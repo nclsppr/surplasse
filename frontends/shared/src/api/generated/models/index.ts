@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * An operational order displayed to the establishment staff. The customer tracking capability is deliberately omitted.
- *
+ * 
  * @export
  * @interface DashboardOrder
  */
@@ -114,6 +114,12 @@ export interface EstablishmentPublic {
      * @memberof EstablishmentPublic
      */
     address?: string;
+    /**
+     * Whether new table sessions, orders and payment sessions are currently accepted.
+     * @type {boolean}
+     * @memberof EstablishmentPublic
+     */
+    acceptingOrders: boolean;
 }
 /**
  * The opaque single-use token carried by the magic link.
@@ -199,7 +205,7 @@ export interface MenuOption {
 }
 /**
  * A set of options of a product (doneness, size, extras) with its choice rules. `minChoices` of 1 or more makes the group mandatory.
- *
+ * 
  * @export
  * @interface MenuOptionGroup
  */
@@ -237,7 +243,7 @@ export interface MenuOptionGroup {
 }
 /**
  * A product as displayed on the menu. Unavailable products are included with `available: false` so the frontend renders them greyed out.
- *
+ * 
  * @export
  * @interface MenuProduct
  */
@@ -281,7 +287,7 @@ export interface MenuProduct {
 }
 /**
  * An order as seen by the customer: lines frozen at creation (names, prices and options copied from the catalog at that instant), status driven by the kitchen.
- *
+ * 
  * @export
  * @interface Order
  */
@@ -376,7 +382,7 @@ export type OrderTypeEnum = typeof OrderTypeEnum[keyof typeof OrderTypeEnum];
 
 /**
  * The validated cart sent by the Commande frontend. The establishment and the table come from the table session; amounts are recomputed server side from the catalog and never trusted from the client.
- *
+ * 
  * @export
  * @interface OrderCreationRequest
  */
@@ -404,6 +410,85 @@ export const OrderCreationRequestTypeEnum = {
     Takeaway: 'takeaway'
 } as const;
 export type OrderCreationRequestTypeEnum = typeof OrderCreationRequestTypeEnum[keyof typeof OrderCreationRequestTypeEnum];
+
+
+/**
+ * Reason why new orders are not effectively accepted. Absent while accepting orders.
+ * @export
+ */
+export const OrderIntakeBlockedReason = {
+    Paused: 'paused',
+    EstablishmentNotActive: 'establishment_not_active',
+    ConfigurationUnavailable: 'configuration_unavailable',
+    PaymentsUnavailable: 'payments_unavailable'
+} as const;
+export type OrderIntakeBlockedReason = typeof OrderIntakeBlockedReason[keyof typeof OrderIntakeBlockedReason];
+
+/**
+ * Current operational order-intake state of an establishment.
+ * @export
+ * @interface OrderIntakeState
+ */
+export interface OrderIntakeState {
+    /**
+     * 
+     * @type {string}
+     * @memberof OrderIntakeState
+     */
+    establishmentId: string;
+    /**
+     * 
+     * @type {OrderIntakeStatus}
+     * @memberof OrderIntakeState
+     */
+    status: OrderIntakeStatus;
+    /**
+     * Effective availability after lifecycle and Stripe readiness are applied.
+     * @type {boolean}
+     * @memberof OrderIntakeState
+     */
+    acceptingOrders: boolean;
+    /**
+     * 
+     * @type {OrderIntakeBlockedReason}
+     * @memberof OrderIntakeState
+     */
+    blockedReason?: OrderIntakeBlockedReason;
+    /**
+     * Instant when the configured status last changed, including an automatic pause caused by Stripe. Readiness changes that only affect acceptingOrders do not move it. Repeated idempotent updates keep it unchanged.
+     * 
+     * @type {string}
+     * @memberof OrderIntakeState
+     */
+    updatedAt: string;
+}
+
+
+
+/**
+ * Operational availability of new table sessions, orders and payment sessions.
+ * @export
+ */
+export const OrderIntakeStatus = {
+    Open: 'open',
+    Paused: 'paused'
+} as const;
+export type OrderIntakeStatus = typeof OrderIntakeStatus[keyof typeof OrderIntakeStatus];
+
+/**
+ * Desired operational state of new orders for one establishment.
+ * @export
+ * @interface OrderIntakeUpdate
+ */
+export interface OrderIntakeUpdate {
+    /**
+     * 
+     * @type {OrderIntakeStatus}
+     * @memberof OrderIntakeUpdate
+     */
+    status: OrderIntakeStatus;
+}
+
 
 /**
  * A line of an order, snapshot of the product and options at creation time.
@@ -512,7 +597,7 @@ export interface OrderLineRequest {
 }
 /**
  * One cursor-paginated page of operational orders, newest first. nextCursor is present exactly when hasMore is true.
- *
+ * 
  * @export
  * @interface OrderPage
  */
@@ -611,7 +696,7 @@ export interface PaymentCreationRequest {
 }
 /**
  * A Stripe payment session for one order. The client secret feeds the Payment Element; the amount is recomputed server side.
- *
+ * 
  * @export
  * @interface PaymentSession
  */
@@ -655,7 +740,7 @@ export interface PaymentSession {
 }
 /**
  * RFC 9457 Problem Details document, the single error format of the API. The `type` URI is stable and identifies the applicative error.
- *
+ * 
  * @export
  * @interface Problem
  */
@@ -693,7 +778,7 @@ export interface Problem {
 }
 /**
  * The published menu of an establishment, as a complete read model in display order. Array order is the display order.
- *
+ * 
  * @export
  * @interface PublicMenu
  */
@@ -750,7 +835,7 @@ export interface RestaurateurEstablishment {
 }
 /**
  * Minimal authenticated restaurateur view used to initialize the Dashboard. It contains no authorization token because credentials stay exclusively in HttpOnly cookies.
- *
+ * 
  * @export
  * @interface RestaurateurSession
  */
@@ -782,7 +867,7 @@ export interface RestaurateurSession {
 }
 /**
  * An anonymous table session. The token is opaque (a server-side reference, not a JWT) and carries no personal data.
- *
+ * 
  * @export
  * @interface TableSession
  */

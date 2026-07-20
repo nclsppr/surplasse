@@ -11,10 +11,10 @@ info:
     consume a generated TypeScript client.
 
     Version 0.1 covers the public catalog, ordering, payment, restaurateur
-    identity flows and the authenticated operational-order list. Other
-    Dashboard reads remain drafts (`x-draft` blocks, excluded from generation
-    and compatibility checks) until their authorization is implemented end to
-    end.
+    identity flows, the authenticated operational-order list and the
+    order-intake control. Other Dashboard reads remain drafts (`x-draft`
+    blocks, excluded from generation and compatibility checks) until their
+    authorization is implemented end to end.
 
     Conventions: paths are prefixed with `/v1`, money amounts are integers
     in cents with a `Cents` suffix, timestamps are ISO 8601 UTC, and every
@@ -32,6 +32,10 @@ tags:
     description: >
       The menu of an establishment: categories, products, option groups and
       options, as published on the mini-site.
+  - name: establishment
+    description: >
+      Authenticated operational controls of an establishment, kept separate
+      from its platform-owned lifecycle.
   - name: order
     description: >
       The customer order lifecycle: anonymous table sessions, cart
@@ -56,6 +60,8 @@ paths:
         Returns the public information of an establishment resolved by its
         slug (the subdomain of its mini-site). This endpoint is public: it
         backs the header of the mini-site rendered by the Commande frontend.
+        `acceptingOrders` lets that frontend keep the menu readable while
+        disabling order actions during an operational pause.
         Unknown slugs, as well as establishments that are not publicly
         visible, yield a 404 without distinction.
       parameters:
@@ -72,6 +78,7 @@ paths:
                 name: Le Cormoran
                 slug: le-cormoran
                 address: 12 quai des Belges, 13001 Marseille
+                acceptingOrders: true
         "400":
           description: The slug is syntactically invalid.
           content:
@@ -184,6 +191,179 @@ paths:
                 detail: No establishment matches slug 'le-cormoran'.
                 instance: /v1/establishments/le-cormoran/menu
 
+  /v1/establishments/{establishmentId}/order-intake:
+    get:
+      tags: [establishment]
+      operationId: getOrderIntake
+      summary: Get the operational order-intake state
+      description: |
+        Returns whether the authenticated restaurateur currently accepts new
+        table sessions, orders and payment sessions for this establishment.
+        This operational switch does not hide the public menu and never cuts
+        access to existing orders, their tracking pages or their event streams.
+
+        The restaurateur session cookie is required. Unknown establishments
+        and establishments outside the caller's scope yield the same 404.
+      security:
+        - restaurateurSession: []
+      parameters:
+        - $ref: "#/components/parameters/EstablishmentId"
+      responses:
+        "200":
+          description: The current operational order-intake state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderIntakeState"
+              example:
+                establishmentId: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                status: open
+                acceptingOrders: true
+                updatedAt: "2026-07-20T10:00:00Z"
+        "400":
+          description: The establishment identifier is syntactically invalid.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/validation-error
+                title: Validation error
+                status: 400
+                detail: "Path parameter 'establishmentId' must be a UUID."
+                instance: /v1/establishments/not-a-uuid/order-intake
+        "401":
+          description: The restaurateur session is missing or expired.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/session-expired
+                title: Session expired
+                status: 401
+                detail: The restaurateur session is expired or missing.
+                instance: /v1/establishments/7c9e6679-7425-40de-944b-e07fc1f90ae7/order-intake
+        "404":
+          description: Unknown establishment, or establishment outside the caller's scope.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/resource-not-found
+                title: Resource not found
+                status: 404
+                detail: The establishment does not exist or is not accessible.
+                instance: /v1/establishments/7c9e6679-7425-40de-944b-e07fc1f90ae7/order-intake
+    put:
+      tags: [establishment]
+      operationId: updateOrderIntake
+      summary: Open or pause new orders
+      description: |
+        Idempotently opens or pauses new table sessions, orders and payment
+        sessions for one establishment. Pausing is always allowed. Opening is
+        allowed only while the establishment is active, has a published menu,
+        exposes at least one active table and can create Stripe charges.
+
+        Operations already in flight are not cancelled. In particular, a
+        Payment Intent whose client secret was already returned can still
+        succeed and must then be served or refunded. Existing orders, their
+        tracking pages and their event streams remain available in both states.
+
+        The restaurateur session cookie is required. Unknown establishments
+        and establishments outside the caller's scope yield the same 404.
+      security:
+        - restaurateurSession: []
+      parameters:
+        - $ref: "#/components/parameters/EstablishmentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderIntakeUpdate"
+      responses:
+        "200":
+          description: The state after the idempotent update.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderIntakeState"
+              example:
+                establishmentId: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                status: paused
+                acceptingOrders: false
+                blockedReason: paused
+                updatedAt: "2026-07-20T10:05:00Z"
+        "400":
+          description: The identifier or payload is syntactically invalid.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/validation-error
+                title: Validation error
+                status: 400
+                detail: "status must be one of: open, paused."
+                instance: /v1/establishments/7c9e6679-7425-40de-944b-e07fc1f90ae7/order-intake
+        "401":
+          description: The restaurateur session is missing or expired.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/session-expired
+                title: Session expired
+                status: 401
+                detail: The restaurateur session is expired or missing.
+                instance: /v1/establishments/7c9e6679-7425-40de-944b-e07fc1f90ae7/order-intake
+        "404":
+          description: Unknown establishment, or establishment outside the caller's scope.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/resource-not-found
+                title: Resource not found
+                status: 404
+                detail: The establishment does not exist or is not accessible.
+                instance: /v1/establishments/7c9e6679-7425-40de-944b-e07fc1f90ae7/order-intake
+        "422":
+          description: The establishment is not ready to open order intake.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              examples:
+                establishmentNotActive:
+                  summary: The establishment lifecycle is not active
+                  value:
+                    type: https://surplasse.com/problems/order-intake-establishment-not-active
+                    title: Order intake unavailable
+                    status: 422
+                    detail: The establishment must be active before accepting orders.
+                    instance: /v1/establishments/7c9e6679-7425-40de-944b-e07fc1f90ae7/order-intake
+                configurationUnavailable:
+                  summary: The menu or table configuration is incomplete
+                  value:
+                    type: https://surplasse.com/problems/order-intake-configuration-unavailable
+                    title: Order intake unavailable
+                    status: 422
+                    detail: A published menu and at least one active table are required before accepting orders.
+                    instance: /v1/establishments/7c9e6679-7425-40de-944b-e07fc1f90ae7/order-intake
+                paymentsUnavailable:
+                  summary: Stripe Connect cannot accept card charges
+                  value:
+                    type: https://surplasse.com/problems/order-intake-payments-unavailable
+                    title: Order intake unavailable
+                    status: 422
+                    detail: Stripe card charges must be ready before accepting orders.
+                    instance: /v1/establishments/7c9e6679-7425-40de-944b-e07fc1f90ae7/order-intake
+
   /v1/table-sessions:
     post:
       tags: [order]
@@ -196,8 +376,8 @@ paths:
         token authorizes the ordering endpoints (`X-Table-Session` header)
         for the duration of a meal (2 hours, sliding while active). It
         carries no personal data. An unknown slug, an unknown or inactive
-        table code, or an establishment that is not active all yield a 404
-        without distinction.
+        table code, an establishment that is not active or an operational
+        order-intake pause all yield a 404 without distinction.
       requestBody:
         required: true
         content:
@@ -363,7 +543,9 @@ paths:
         `Idempotency-Key` header guarantees that an unstable connection can
         never create the same order twice. Only `on_site` orders are
         accepted at this stage; `takeaway` is documented for the target and
-        rejected with a business rule error until it opens.
+        rejected with a business rule error until it opens. An order-intake
+        pause rejects every new intention with `order-intake-paused`, while
+        an exact replay still returns the order created before the pause.
       security:
         - tableSession: []
       parameters:
@@ -421,17 +603,28 @@ paths:
                 detail: Product 6f4b9c2d-8a1e-4d7b-b3f5-0e9a8c7d6b5a is not on the menu.
                 instance: /v1/orders
         "409":
-          description: A product became unavailable, or the idempotency key was reused with a different payload.
+          description: Ordering was paused, a product became unavailable, or the idempotency key was reused with a different payload.
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
-              example:
-                type: https://surplasse.com/problems/product-unavailable
-                title: Product unavailable
-                status: 409
-                detail: Product 'Soupe de poisson' is marked unavailable on this menu.
-                instance: /v1/orders
+              examples:
+                orderIntakePaused:
+                  summary: New orders are paused
+                  value:
+                    type: https://surplasse.com/problems/order-intake-paused
+                    title: Order intake paused
+                    status: 409
+                    detail: This establishment is not accepting new orders right now.
+                    instance: /v1/orders
+                productUnavailable:
+                  summary: A product became unavailable
+                  value:
+                    type: https://surplasse.com/problems/product-unavailable
+                    title: Product unavailable
+                    status: 409
+                    detail: Product 'Soupe de poisson' is marked unavailable on this menu.
+                    instance: /v1/orders
         "422":
           description: A business rule rejected the cart (invalid option choices, takeaway not open).
           content:
@@ -645,7 +838,9 @@ paths:
         PaymentIntent on the establishment's connected account and returns
         its client secret and account identifier for the Payment Element. The browser
         confirmation is informative only: the signed Stripe webhook is the
-        single source of truth that marks the order paid.
+        single source of truth that marks the order paid. An operational pause
+        rejects new and replayed payment-session requests but never prevents a
+        signed webhook from reconciling a Payment Intent already in flight.
       security:
         - tableSession: []
       parameters:
@@ -695,17 +890,28 @@ paths:
                 detail: No order matches this identifier.
                 instance: /v1/payments
         "409":
-          description: The order is not payable anymore, or a product became unavailable.
+          description: Ordering was paused, the order is not payable anymore, or a product became unavailable.
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
-              example:
-                type: https://surplasse.com/problems/order-not-modifiable
-                title: Order not modifiable
-                status: 409
-                detail: Order 0d9e8c7b-6a5f-4e3d-8c2b-1a0f9e8d7c6b is already paid.
-                instance: /v1/payments
+              examples:
+                orderIntakePaused:
+                  summary: New payments are paused
+                  value:
+                    type: https://surplasse.com/problems/order-intake-paused
+                    title: Order intake paused
+                    status: 409
+                    detail: This establishment is not accepting new payments right now.
+                    instance: /v1/payments
+                orderNotModifiable:
+                  summary: The order is already settled
+                  value:
+                    type: https://surplasse.com/problems/order-not-modifiable
+                    title: Order not modifiable
+                    status: 409
+                    detail: Order 0d9e8c7b-6a5f-4e3d-8c2b-1a0f9e8d7c6b is already paid.
+                    instance: /v1/payments
         "422":
           description: The establishment has no active Stripe Connect account able to accept charges.
           content:
@@ -1094,6 +1300,16 @@ components:
         SameSite=Lax and scoped to Path=/v1/auth/sessions.
 
   parameters:
+    EstablishmentId:
+      name: establishmentId
+      in: path
+      required: true
+      description: Identifier of an establishment.
+      schema:
+        type: string
+        format: uuid
+      example: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+
     EstablishmentSlug:
       name: slug
       in: path
@@ -1322,12 +1538,69 @@ components:
         address:
           type: string
           description: Postal address, displayed on the mini-site. Absent when not provided.
-      required: [id, name, slug]
+        acceptingOrders:
+          type: boolean
+          description: Whether new table sessions, orders and payment sessions are currently accepted.
+      required: [id, name, slug, acceptingOrders]
       example:
         id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
         name: Le Cormoran
         slug: le-cormoran
         address: 12 quai des Belges, 13001 Marseille
+        acceptingOrders: true
+
+    OrderIntakeStatus:
+      type: string
+      description: Operational availability of new table sessions, orders and payment sessions.
+      enum: [open, paused]
+      example: open
+
+    OrderIntakeBlockedReason:
+      type: string
+      description: Reason why new orders are not effectively accepted. Absent while accepting orders.
+      enum: [paused, establishment_not_active, configuration_unavailable, payments_unavailable]
+      example: paused
+
+    OrderIntakeState:
+      type: object
+      additionalProperties: false
+      description: Current operational order-intake state of an establishment.
+      properties:
+        establishmentId:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/OrderIntakeStatus"
+        acceptingOrders:
+          type: boolean
+          description: Effective availability after lifecycle and Stripe readiness are applied.
+        blockedReason:
+          $ref: "#/components/schemas/OrderIntakeBlockedReason"
+        updatedAt:
+          type: string
+          format: date-time
+          description: >
+            Instant when the configured status last changed, including an
+            automatic pause caused by Stripe. Readiness changes that only
+            affect acceptingOrders do not move it. Repeated idempotent updates
+            keep it unchanged.
+      required: [establishmentId, status, acceptingOrders, updatedAt]
+      example:
+        establishmentId: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+        status: open
+        acceptingOrders: true
+        updatedAt: "2026-07-20T10:00:00Z"
+
+    OrderIntakeUpdate:
+      type: object
+      additionalProperties: false
+      description: Desired operational state of new orders for one establishment.
+      properties:
+        status:
+          $ref: "#/components/schemas/OrderIntakeStatus"
+      required: [status]
+      example:
+        status: paused
 
     PublicMenu:
       type: object

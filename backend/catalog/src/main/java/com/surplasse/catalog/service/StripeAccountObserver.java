@@ -5,6 +5,9 @@ import com.surplasse.common.event.StripeAccountUpdated;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.transaction.Transactional;
+import java.time.Clock;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import org.jboss.logging.Logger;
 
 /** Applies signed Stripe capability updates to the establishment routing snapshot. */
@@ -14,9 +17,11 @@ public class StripeAccountObserver {
     private static final Logger LOG = Logger.getLogger(StripeAccountObserver.class);
 
     private final EstablishmentRepository establishments;
+    private final Clock clock;
 
-    StripeAccountObserver(EstablishmentRepository establishments) {
+    StripeAccountObserver(EstablishmentRepository establishments, Clock clock) {
         this.establishments = establishments;
+        this.clock = clock;
     }
 
     @Transactional
@@ -26,7 +31,10 @@ public class StripeAccountObserver {
                 .ifPresentOrElse(
                         establishment -> {
                             if (establishment.updateStripeCapabilities(
-                                    event.chargesEnabled(), event.payoutsEnabled(), event.occurredAt())) {
+                                    event.chargesEnabled(),
+                                    event.payoutsEnabled(),
+                                    event.occurredAt(),
+                                    OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC))) {
                                 establishments.flush();
                             }
                         },

@@ -4,6 +4,7 @@
 export * from "./api/generated";
 export {
   createCatalogApi,
+  createEstablishmentApi,
   createIdentityApi,
   createOrderApi,
   createPaymentApi,

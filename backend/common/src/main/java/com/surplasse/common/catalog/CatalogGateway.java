@@ -32,16 +32,18 @@ public interface CatalogGateway {
     Map<UUID, ProductPricing> priceProducts(UUID establishmentId, Collection<UUID> productIds);
 
     /**
-     * Payment routing owned by an active establishment. The payment domain
-     * fails closed when the account is absent or its Stripe capabilities are
-     * disabled.
+     * Locks the establishment row for the duration of the caller transaction
+     * and returns the complete order-admission snapshot. A concurrent pause
+     * therefore linearizes before or after the admitted operation.
      */
-    Optional<PaymentRouting> findPaymentRouting(UUID establishmentId);
+    Optional<OrderIntakeAdmission> lockOrderIntake(UUID establishmentId);
 
     record TableRef(UUID establishmentId, UUID tableQrId, String tableLabel) {}
 
     record PaymentRouting(
             String stripeAccountId, boolean chargesEnabled, boolean payoutsEnabled, OffsetDateTime activatedAt) {}
+
+    record OrderIntakeAdmission(boolean open, boolean acceptingOrders, PaymentRouting paymentRouting) {}
 
     record ProductPricing(
             UUID productId, String name, int priceCents, boolean available, List<OptionGroupPricing> optionGroups) {}

@@ -30,6 +30,16 @@ test("Onboarding demonstration ends with a truthful Dashboard service preview", 
   assert.match(html, /aria-valuemax="5"/);
   assert.match(html, /data-step="5"/);
   assert.match(html, /Commandes opérationnelles/);
+  assert.match(html, /Prise de commandes/);
+  assert.match(html, /\.dashboard-intake\{[^}]*border-top:3px double var\(--accent-press\)/);
+  assert.doesNotMatch(html, /\.dashboard-intake\{[^}]*border-left/);
+  assert.match(html, /Ouverte/);
+  assert.match(html, /En pause/);
+  assert.match(html, /Mettre en pause/);
+  assert.match(html, /Rouvrir la prise de commandes/);
+  assert.match(html, /paiement Stripe est déjà lancé/);
+  assert.match(html, /servir ou la rembourser/);
+  assert.match(html, /confirmDashboardPause/);
   assert.match(html, /Simulation locale/);
   assert.match(html, /Nouvelles/);
   assert.match(html, /Acceptées/);

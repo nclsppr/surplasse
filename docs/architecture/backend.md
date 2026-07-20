@@ -10,7 +10,7 @@ description: Le monolithe modulaire Quarkus, l'architecture en couches, le temps
 Le Backend est l'unique processus applicatif de Surplasse : une API REST Quarkus qui implémente [le contrat](api.md), porte la logique métier des six domaines, persiste dans PostgreSQL (voir [les données](donnees.md)) et pousse le temps réel vers le Dashboard et le mini-site Commande. Cette page décrit sa structure interne : le découpage en modules Maven, les couches à l'intérieur de chaque module, les flux SSE, les événements de domaine et les traitements asynchrones.
 
 !!! info Documentation de référence
-Les modules `common`, `contract`, `catalog`, `order`, `payment`, `identity` et `application` existent. `identity` est embarqué dans l'assemblage : il n'ajoute aucun processus, port ou conteneur. La liste REST des commandes opérationnelles est implémentée dans `order`, avec autorisation par établissement et pagination par curseur. Leur avancement authentifié est également implémenté : un verrou de ligne sérialise les actions concurrentes, la machine à états rejette les sauts et chaque transition persistée produit l'événement de suivi client. Les autres modules et certains mécanismes transverses restent la cible de référence, décrite au présent de spécification. Les conventions de code détaillées (nommage, structure des packages, style) vivent dans [les conventions Quarkus](../developpement/conventions-quarkus.md).
+Les modules `common`, `contract`, `catalog`, `order`, `payment`, `identity` et `application` existent. `identity` est embarqué dans l'assemblage : il n'ajoute aucun processus, port ou conteneur. La liste REST des commandes opérationnelles est implémentée dans `order`, avec autorisation par établissement et pagination par curseur. Leur avancement authentifié est également implémenté : un verrou de ligne sérialise les actions concurrentes, la machine à états rejette les sauts et chaque transition persistée produit l'événement de suivi client. Le contrôle persistant de prise de commandes est aussi livré localement : il ferme ensemble les nouvelles sessions de table, commandes et sessions de paiement, sans couper les parcours existants. Les autres modules et certains mécanismes transverses restent la cible de référence, décrite au présent de spécification. Les conventions de code détaillées (nommage, structure des packages, style) vivent dans [les conventions Quarkus](../developpement/conventions-quarkus.md).
 !!!
 
 ## Pourquoi Quarkus
@@ -87,6 +87,24 @@ Chaque module de domaine suit la même structure interne, en quatre couches :
 
 Les resources sont volontairement minces : le contrat étant la source de vérité, elles se contentent de faire le pont entre les interfaces Java générées (module `contract`) et les services. Le workflow de génération est décrit dans [le contrat et l'API](api.md).
 
+## Le contrôle de prise de commandes
+
+Le domaine catalogue possède l'état opérationnel de prise de commandes de chaque établissement. Cet état persistant vaut `open` ou `paused` et reste distinct du cycle de vie `Establishment.status`, conformément à l'[ADR-0018](../decisions/adr-0018-controle-prise-commandes.md). Le contrat restaurateur permet de le lire et de le fixer de manière idempotente. Une ouverture revalide le cycle de vie, la carte publiée, les tables actives et la capacité Stripe Connect avant de réussir.
+
+Trois chemins demandent une admission au catalogue avant tout nouvel effet métier :
+
+| Chemin | Effet refusé pendant `paused` |
+|---|---|
+| Session de table | Création d'un nouveau jeton anonyme depuis un QR |
+| Commande | Persistance d'une nouvelle commande `pending_payment` depuis une session déjà ouverte |
+| Paiement | Création ou restitution d'une session Stripe encore ouverte |
+
+Le contrôle ne repose pas sur deux lectures sans coordination. L'admission prend un verrou partagé sur la ligne de l'établissement pendant la transaction concernée. La pause prend un verrou exclusif sur cette même ligne. Le commit détermine ainsi une frontière : une opération admise avant la pause peut terminer, tandis que toute admission postérieure échoue avec l'état fermé. Une requête idempotente qui retrouve une commande déjà créée peut encore restituer cette commande, car elle ne crée aucun nouvel effet.
+
+Le paiement traverse une frontière externe supplémentaire. La réservation applicative et le routage Stripe sont figés avant l'appel réseau, mais un Payment Intent dont le `client_secret` a déjà été remis ne peut pas être repris au navigateur. Il peut donc aboutir après la pause. Le webhook signé continue alors son traitement normal, fait passer la commande à `paid` et diffuse son événement. Le restaurateur termine ou rembourse cette commande. La pause ne filtre jamais les pages de suivi, les flux SSE, la file Dashboard ni les transitions des commandes existantes.
+
+L'événement Stripe `account.updated` participe au mode fermé. Quand une livraison plus récente retire `charges_enabled`, le catalogue synchronise la capacité et force la prise de commandes à `paused` dans la même transaction. Un événement ultérieur qui rétablit la capacité ne rouvre pas le service. Seule une demande explicite peut revenir à `open`, après une nouvelle vérification de tous les prérequis.
+
 ## Le temps réel : SSE via Mutiny
 
 Le Backend pousse les mises à jour en Server-Sent Events, le choix est argumenté dans l'[ADR 0006 : SSE](../decisions/adr-0006-sse.md). Côté implémentation, chaque endpoint SSE retourne un `Multi` Mutiny : un flux réactif auquel Quarkus branche la réponse HTTP, un événement émis sur le `Multi` partant immédiatement vers les clients connectés.
@@ -156,6 +174,12 @@ Cette approche assume ses limites : la latence de prise en charge est celle du t
 
 Le magic link actuel suit une voie plus simple : le jeton haché est persisté, puis l'email est remis de façon asynchrone par `quarkus-mailer`, sans job durable ni retentative automatique. Une panne du processus ou du SMTP après la réponse 202 peut donc perdre cet envoi. Le restaurateur peut demander un nouveau lien, ce qui invalide le précédent. Cette limite est acceptée pour le MVP et doit être revue avant que la volumétrie ou les attentes de support n'imposent une livraison durable.
 
+### Seuil d'adoption d'une orchestration durable
+
+Temporal n'entre ni dans le MVP ni dans la phase 2. Il orchestre des workflows durables, mais n'est ni le bus d'événements général du Backend, ni la source de vérité métier, ni un remplacement de PostgreSQL ou d'un éventuel broker de transport. Son adoption ajouterait un service, des magasins de persistance et de visibilité, des workers et un modèle de programmation supplémentaire.
+
+La première marche reste composée de transactions locales, d'événements persistés quand un rejeu est nécessaire, d'une outbox transactionnelle au premier effet durable hors processus et de jobs courts en PostgreSQL. Temporal sera réévalué seulement si un parcours réel cumule plusieurs besoins : exécution sur des heures ou des jours, temporisations et attentes externes durables, nombreuses étapes et compensations, ou visibilité opérationnelle devenue coûteuse à construire localement. L'[ADR-0019](../decisions/adr-0019-maintien-java-temporal-differe.md) fixe ce seuil et confirme le maintien de Java 21 avec Quarkus.
+
 ## Les extensions Quarkus
 
 | Extension | Rôle |
@@ -195,3 +219,4 @@ La configuration applicative est consommée par des interfaces `@ConfigMapping` 
 | [Les conventions Quarkus](../developpement/conventions-quarkus.md) | Nommage, structure des packages, style de code et conventions de test du Backend |
 | [ADR 0003 : Quarkus](../decisions/adr-0003-quarkus.md) | La décision d'adopter Quarkus et les alternatives écartées |
 | [ADR 0006 : SSE](../decisions/adr-0006-sse.md) | La décision de retenir SSE plutôt que WebSockets pour le temps réel |
+| [ADR 0019 : maintien de Java et Temporal différé](../decisions/adr-0019-maintien-java-temporal-differe.md) | La réévaluation du runtime transactionnel et le seuil d'adoption d'une orchestration durable |

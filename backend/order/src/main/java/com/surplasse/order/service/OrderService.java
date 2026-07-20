@@ -55,6 +55,13 @@ public class OrderService {
             return view(existing);
         }
 
+        CatalogGateway.OrderIntakeAdmission admission = catalogGateway
+                .lockOrderIntake(session.establishmentId())
+                .orElseThrow(ConflictException::orderIntakePaused);
+        if (!admission.acceptingOrders()) {
+            throw ConflictException.orderIntakePaused();
+        }
+
         if (!"on_site".equals(draft.type())) {
             throw new BusinessRuleException("Takeaway orders are not open yet.");
         }

@@ -1,4 +1,4 @@
-import { CatalogApi, Configuration, IdentityApi, OrderApi, PaymentApi } from "./generated";
+import { CatalogApi, Configuration, EstablishmentApi, IdentityApi, OrderApi, PaymentApi } from "./generated";
 
 /**
  * Builds the typed clients. The frontends never call fetch outside the
@@ -19,6 +19,10 @@ export function createPaymentApi(baseUrl: string, tableSessionToken?: () => stri
 
 export function createIdentityApi(baseUrl: string): IdentityApi {
   return new IdentityApi(configurationWithRestaurateurSession(baseUrl));
+}
+
+export function createEstablishmentApi(baseUrl: string): EstablishmentApi {
+  return new EstablishmentApi(configurationWithRestaurateurSession(baseUrl));
 }
 
 export function createRestaurateurOrderApi(baseUrl: string): OrderApi {

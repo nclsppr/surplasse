@@ -12,6 +12,7 @@ import com.surplasse.catalog.repository.MenuRepository;
 import com.surplasse.catalog.repository.OptionGroupRepository;
 import com.surplasse.catalog.repository.OptionRepository;
 import com.surplasse.catalog.repository.ProductRepository;
+import com.surplasse.catalog.repository.TableQrRepository;
 import com.surplasse.common.error.NotFoundException;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.util.List;
@@ -32,6 +33,7 @@ public class CatalogService {
     private final ProductRepository productRepository;
     private final OptionGroupRepository optionGroupRepository;
     private final OptionRepository optionRepository;
+    private final TableQrRepository tableQrRepository;
 
     CatalogService(
             EstablishmentRepository establishmentRepository,
@@ -39,19 +41,29 @@ public class CatalogService {
             CategoryRepository categoryRepository,
             ProductRepository productRepository,
             OptionGroupRepository optionGroupRepository,
-            OptionRepository optionRepository) {
+            OptionRepository optionRepository,
+            TableQrRepository tableQrRepository) {
         this.establishmentRepository = establishmentRepository;
         this.menuRepository = menuRepository;
         this.categoryRepository = categoryRepository;
         this.productRepository = productRepository;
         this.optionGroupRepository = optionGroupRepository;
         this.optionRepository = optionRepository;
+        this.tableQrRepository = tableQrRepository;
     }
 
     public Establishment activeEstablishmentBySlug(String slug) {
         return establishmentRepository
                 .findActiveBySlug(slug)
                 .orElseThrow(() -> new NotFoundException("No establishment matches slug '%s'.".formatted(slug)));
+    }
+
+    public PublicEstablishmentSnapshot publicEstablishmentBySlug(String slug) {
+        Establishment establishment = activeEstablishmentBySlug(slug);
+        boolean configurationReady = menuRepository.hasPublishedByEstablishment(establishment.getId())
+                && tableQrRepository.hasActiveByEstablishment(establishment.getId());
+        return new PublicEstablishmentSnapshot(
+                establishment, establishment.hasLifecycleAndPaymentReadiness() && configurationReady);
     }
 
     public MenuSnapshot publishedMenuBySlug(String slug) {

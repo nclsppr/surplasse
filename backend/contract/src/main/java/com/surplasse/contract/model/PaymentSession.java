@@ -11,7 +11,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
 /**
- * A Stripe payment session for one order. The client secret feeds the Payment Element; the amount is recomputed server side.
+ * A Stripe payment session for one order. The client secret feeds the Payment Element; the amount is recomputed server side. 
  **/
 
 @JsonTypeName("PaymentSession")
@@ -52,7 +52,7 @@ public class PaymentSession   {
     return this;
   }
 
-
+  
   @JsonProperty(required = true, value = "id")
   @NotNull public UUID getId() {
     return id;
@@ -71,7 +71,7 @@ public class PaymentSession   {
     return this;
   }
 
-
+  
   @JsonProperty(required = true, value = "orderId")
   @NotNull public UUID getOrderId() {
     return orderId;
@@ -91,7 +91,7 @@ public class PaymentSession   {
     return this;
   }
 
-
+  
   @JsonProperty(required = true, value = "amountCents")
   @NotNull  @Min(1)public Integer getAmountCents() {
     return amountCents;
@@ -110,7 +110,7 @@ public class PaymentSession   {
     return this;
   }
 
-
+  
   @JsonProperty(required = true, value = "currency")
   @NotNull public String getCurrency() {
     return currency;
@@ -129,7 +129,7 @@ public class PaymentSession   {
     return this;
   }
 
-
+  
   @JsonProperty(required = true, value = "clientSecret")
   @NotNull public String getClientSecret() {
     return clientSecret;
@@ -148,7 +148,7 @@ public class PaymentSession   {
     return this;
   }
 
-
+  
   @JsonProperty(required = true, value = "connectedAccountId")
   @NotNull public String getConnectedAccountId() {
     return connectedAccountId;
@@ -186,7 +186,7 @@ public class PaymentSession   {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class PaymentSession {\n");
-
+    
     sb.append("    id: ").append(toIndentedString(id)).append("\n");
     sb.append("    orderId: ").append(toIndentedString(orderId)).append("\n");
     sb.append("    amountCents: ").append(toIndentedString(amountCents)).append("\n");

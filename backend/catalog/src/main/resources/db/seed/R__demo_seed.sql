@@ -49,7 +49,9 @@ insert into establishment (
     stripe_account_id,
     stripe_charges_enabled,
     stripe_payouts_enabled,
-    activated_at
+    activated_at,
+    order_intake_status,
+    order_intake_updated_at
 ) values
     (
         '7c9e6679-7425-40de-944b-e07fc1f90ae7',
@@ -64,6 +66,8 @@ insert into establishment (
         'acct_test_le_cormoran',
         true,
         true,
+        now(),
+        'open',
         now()
     );
 

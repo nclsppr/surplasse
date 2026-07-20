@@ -11,6 +11,7 @@
     "LOCAL_CONTROL_URL": "https://local.surplasse.test",
     "DOCS_URL": "https://docs.surplasse.test",
     "MAILPIT_URL": "https://mail.surplasse.test",
+    "PROBLEM_TYPE_BASE": "https://surplasse.com/problems/",
     "COOKIE_DOMAIN": "",
     "RESERVED_SUBDOMAINS": "www,api,dashboard,docs,app,admin,local,mail"
   },
@@ -24,6 +25,7 @@
     "LOCAL_CONTROL_URL": "",
     "DOCS_URL": "https://docs.surplasse.com",
     "MAILPIT_URL": "",
+    "PROBLEM_TYPE_BASE": "https://surplasse.com/problems/",
     "COOKIE_DOMAIN": "",
     "RESERVED_SUBDOMAINS": "www,api,dashboard,docs,app,admin,local,mail"
   }

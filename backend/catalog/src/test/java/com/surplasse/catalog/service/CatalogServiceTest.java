@@ -22,6 +22,7 @@ import com.surplasse.catalog.repository.MenuRepository;
 import com.surplasse.catalog.repository.OptionGroupRepository;
 import com.surplasse.catalog.repository.OptionRepository;
 import com.surplasse.catalog.repository.ProductRepository;
+import com.surplasse.catalog.repository.TableQrRepository;
 import com.surplasse.common.error.NotFoundException;
 import java.util.List;
 import java.util.Optional;
@@ -37,6 +38,7 @@ class CatalogServiceTest {
     private ProductRepository productRepository;
     private OptionGroupRepository optionGroupRepository;
     private OptionRepository optionRepository;
+    private TableQrRepository tableQrRepository;
     private CatalogService service;
 
     private final UUID establishmentId = UUID.randomUUID();
@@ -50,13 +52,15 @@ class CatalogServiceTest {
         productRepository = mock(ProductRepository.class);
         optionGroupRepository = mock(OptionGroupRepository.class);
         optionRepository = mock(OptionRepository.class);
+        tableQrRepository = mock(TableQrRepository.class);
         service = new CatalogService(
                 establishmentRepository,
                 menuRepository,
                 categoryRepository,
                 productRepository,
                 optionGroupRepository,
-                optionRepository);
+                optionRepository,
+                tableQrRepository);
     }
 
     @Test

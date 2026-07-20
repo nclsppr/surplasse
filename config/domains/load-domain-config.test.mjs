@@ -18,6 +18,7 @@ test("development exposes the complete local HTTPS topology", () => {
 
   assert.equal(config.APP_BASE_DOMAIN, "surplasse.test");
   assert.equal(config.API_URL, "https://api.surplasse.test");
+  assert.equal(config.PROBLEM_TYPE_BASE, "https://surplasse.com/problems/");
   assert.equal(config.COOKIE_DOMAIN, "");
   assert.equal(config.RESERVED_SUBDOMAINS, "www,api,dashboard,docs,app,admin,local,mail");
 });
@@ -27,6 +28,7 @@ test("production keeps development-only services disabled", () => {
 
   assert.equal(config.APP_BASE_DOMAIN, "surplasse.com");
   assert.equal(config.API_URL, "https://api.surplasse.com");
+  assert.equal(config.PROBLEM_TYPE_BASE, "https://surplasse.com/problems/");
   assert.equal(config.LOCAL_CONTROL_URL, "");
   assert.equal(config.MAILPIT_URL, "");
 });
@@ -40,6 +42,7 @@ test("frontend overrides derive a coherent topology from the base domain", () =>
   assert.equal(config.APP_BASE_URL, "https://example.test");
   assert.equal(config.DASHBOARD_URL, "https://dashboard.example.test");
   assert.equal(config.API_URL, "https://gateway.example.test");
+  assert.equal(config.PROBLEM_TYPE_BASE, "https://surplasse.com/problems/");
   assert.deepEqual(allowedFrontendHosts(config), ["example.test", ".example.test"]);
 });
 
@@ -91,7 +94,7 @@ test("backend wrapper exports one coherent profile without Java URL defaults", (
     new URL("../../scripts/run-with-domain-profile.sh", import.meta.url),
   );
   const command = [
-    "printf '%s\\n' \"$APP_BASE_DOMAIN\" \"$SURPLASSE_PLATFORM_API_URL\" \"$ONBOARDING_URL\" \"$SURPLASSE_PLATFORM_DASHBOARD_URL\" \"$CORS_PUBLIC_ORIGINS\"",
+    "printf '%s\\n' \"$APP_BASE_DOMAIN\" \"$SURPLASSE_PLATFORM_API_URL\" \"$ONBOARDING_URL\" \"$SURPLASSE_PLATFORM_DASHBOARD_URL\" \"$SURPLASSE_PLATFORM_PROBLEM_TYPE_BASE\" \"$CORS_PUBLIC_ORIGINS\"",
   ];
 
   const development = execFileSync(script, ["development", "bash", "-c", ...command], {
@@ -106,6 +109,7 @@ test("backend wrapper exports one coherent profile without Java URL defaults", (
     "https://api.surplasse.test",
     "https://surplasse.test",
     "https://dashboard.surplasse.test",
+    "https://surplasse.com/problems/",
     "https://surplasse.test,/https:\\/\\/[a-z0-9-]+\\.surplasse\\.test/",
   ]);
   assert.deepEqual(production, [
@@ -113,6 +117,7 @@ test("backend wrapper exports one coherent profile without Java URL defaults", (
     "https://api.surplasse.com",
     "https://surplasse.com",
     "https://dashboard.surplasse.com",
+    "https://surplasse.com/problems/",
     "https://surplasse.com,/https:\\/\\/[a-z0-9-]+\\.surplasse\\.com/",
   ]);
 });

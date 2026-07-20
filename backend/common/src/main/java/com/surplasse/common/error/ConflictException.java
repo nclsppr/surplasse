@@ -21,4 +21,11 @@ public class ConflictException extends DomainException {
                 "Idempotency key conflict",
                 "This idempotency key was already used with a different payload.");
     }
+
+    public static ConflictException orderIntakePaused() {
+        return new ConflictException(
+                "order-intake-paused",
+                "Order intake paused",
+                "This establishment is not accepting new orders right now.");
+    }
 }

@@ -21,6 +21,7 @@ public class EstablishmentPublic   {
   private String name;
   private String slug;
   private String address;
+  private Boolean acceptingOrders;
 
   public EstablishmentPublic() {
   }
@@ -29,11 +30,13 @@ public class EstablishmentPublic   {
   public EstablishmentPublic(
     @JsonProperty(required = true, value = "id") UUID id,
     @JsonProperty(required = true, value = "name") String name,
-    @JsonProperty(required = true, value = "slug") String slug
+    @JsonProperty(required = true, value = "slug") String slug,
+    @JsonProperty(required = true, value = "acceptingOrders") Boolean acceptingOrders
   ) {
     this.id = id;
     this.name = name;
     this.slug = slug;
+    this.acceptingOrders = acceptingOrders;
   }
 
   /**
@@ -112,6 +115,25 @@ public class EstablishmentPublic   {
     this.address = address;
   }
 
+  /**
+   * Whether new table sessions, orders and payment sessions are currently accepted.
+   **/
+  public EstablishmentPublic acceptingOrders(Boolean acceptingOrders) {
+    this.acceptingOrders = acceptingOrders;
+    return this;
+  }
+
+  
+  @JsonProperty(required = true, value = "acceptingOrders")
+  @NotNull public Boolean getAcceptingOrders() {
+    return acceptingOrders;
+  }
+
+  @JsonProperty(required = true, value = "acceptingOrders")
+  public void setAcceptingOrders(Boolean acceptingOrders) {
+    this.acceptingOrders = acceptingOrders;
+  }
+
 
   @Override
   public boolean equals(Object o) {
@@ -125,12 +147,13 @@ public class EstablishmentPublic   {
     return Objects.equals(this.id, establishmentPublic.id) &&
         Objects.equals(this.name, establishmentPublic.name) &&
         Objects.equals(this.slug, establishmentPublic.slug) &&
-        Objects.equals(this.address, establishmentPublic.address);
+        Objects.equals(this.address, establishmentPublic.address) &&
+        Objects.equals(this.acceptingOrders, establishmentPublic.acceptingOrders);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, name, slug, address);
+    return Objects.hash(id, name, slug, address, acceptingOrders);
   }
 
   @Override
@@ -142,6 +165,7 @@ public class EstablishmentPublic   {
     sb.append("    name: ").append(toIndentedString(name)).append("\n");
     sb.append("    slug: ").append(toIndentedString(slug)).append("\n");
     sb.append("    address: ").append(toIndentedString(address)).append("\n");
+    sb.append("    acceptingOrders: ").append(toIndentedString(acceptingOrders)).append("\n");
     sb.append("}");
     return sb.toString();
   }

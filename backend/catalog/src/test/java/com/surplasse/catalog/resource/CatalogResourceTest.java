@@ -45,7 +45,8 @@ class CatalogResourceTest {
                 .statusCode(200)
                 .body("name", equalTo("Le Cormoran"))
                 .body("slug", equalTo("le-cormoran"))
-                .body("address", equalTo("12 quai des Belges, 13001 Marseille"));
+                .body("address", equalTo("12 quai des Belges, 13001 Marseille"))
+                .body("acceptingOrders", is(true));
     }
 
     @Test

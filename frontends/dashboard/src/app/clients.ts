@@ -1,7 +1,10 @@
 import {
+  createEstablishmentApi,
   createIdentityApi,
   createRestaurateurOrderApi,
   type OrderPage,
+  type OrderIntakeState,
+  type OrderIntakeStatus,
   type OrderStatusResult,
   type OrderStatusUpdateStatusEnum,
   type RestaurateurSession,
@@ -20,13 +23,23 @@ export interface RestaurateurOrderClient {
   updateStatus(orderId: string, status: OrderStatusUpdateStatusEnum): Promise<OrderStatusResult>;
 }
 
+export interface EstablishmentClient {
+  getOrderIntake(establishmentId: string): Promise<OrderIntakeState>;
+  updateOrderIntake(
+    establishmentId: string,
+    status: OrderIntakeStatus,
+  ): Promise<OrderIntakeState>;
+}
+
 export interface DashboardClients {
   identity: IdentityClient;
+  establishment: EstablishmentClient;
   orders: RestaurateurOrderClient;
 }
 
 export function createDashboardClients(baseUrl: string): DashboardClients {
   const identityApi = createIdentityApi(baseUrl);
+  const establishmentApi = createEstablishmentApi(baseUrl);
   const orderApi = createRestaurateurOrderApi(baseUrl);
 
   return {
@@ -37,6 +50,15 @@ export function createDashboardClients(baseUrl: string): DashboardClients {
       getCurrentSession: () => identityApi.getCurrentRestaurateurSession(),
       refreshSession: () => identityApi.refreshRestaurateurSession(),
       logout: () => identityApi.deleteCurrentRestaurateurSession(),
+    },
+    establishment: {
+      getOrderIntake: (establishmentId) =>
+        establishmentApi.getOrderIntake({ establishmentId }),
+      updateOrderIntake: (establishmentId, status) =>
+        establishmentApi.updateOrderIntake({
+          establishmentId,
+          orderIntakeUpdate: { status },
+        }),
     },
     orders: {
       listOrders: (establishmentId, cursor, limit) =>

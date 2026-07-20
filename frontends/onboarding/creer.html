@@ -76,6 +76,23 @@
   .dashboard-establishment strong{overflow:hidden;max-width:190px;font:400 22px/1 var(--font-script);text-overflow:ellipsis;white-space:nowrap}
   .dashboard-live{display:flex;min-height:44px;align-items:center;gap:7px;padding:0 12px;border:1.5px solid var(--structure);border-radius:var(--radius-sm);color:var(--structure);background:var(--surface-raised);font:700 10px/1.4 var(--font-mono);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
   .dashboard-live::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--structure)}
+  .dashboard-intake{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:14px 24px;margin:16px;padding:14px;border:1px solid var(--line-2);border-top:3px double var(--accent-press);border-radius:var(--radius-md);background:var(--surface-card)}
+  .dashboard-intake-kicker{margin:0;color:var(--accent-press);font:700 9px/1.4 var(--font-mono);text-transform:uppercase;letter-spacing:.08em}
+  .dashboard-intake-heading{display:flex;align-items:center;gap:10px;margin-top:4px}
+  .dashboard-intake-heading h3{margin:0;color:var(--fg-1);font:800 15px/1.25 var(--font-display);text-transform:uppercase;letter-spacing:.01em}
+  .dashboard-intake-status{display:inline-flex;min-height:26px;align-items:center;gap:6px;padding:0 8px;border:1px solid currentColor;border-radius:var(--radius-sm);font:700 9px/1 var(--font-mono);text-transform:uppercase;letter-spacing:.04em}
+  .dashboard-intake-status::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+  .dashboard-intake-status[data-state="open"]{color:var(--ok);background:var(--ok-tint)}
+  .dashboard-intake-status[data-state="paused"]{color:var(--accent-press);background:var(--accent-tint)}
+  .dashboard-intake-description{max-width:78ch;margin:6px 0 0;color:var(--fg-3);font:400 11px/1.5 var(--font-mono)}
+  .dashboard-intake-effective{display:flex;gap:5px;margin:6px 0 0;color:var(--fg-3);font:400 10px/1.4 var(--font-mono)}
+  .dashboard-intake-effective strong{color:var(--ok)}
+  .dashboard-intake[data-state="paused"] .dashboard-intake-effective strong{color:var(--accent-press)}
+  .dashboard-intake-action{white-space:nowrap}
+  .dashboard-intake-confirm{display:grid;grid-column:1/-1;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:14px;padding-top:14px;border-top:1px solid var(--line-accent)}
+  .dashboard-intake-confirm strong{display:block;color:var(--accent-press);font:800 11px/1.35 var(--font-display);text-transform:uppercase}
+  .dashboard-intake-confirm p{margin:4px 0 0;color:var(--fg-3);font:400 10px/1.5 var(--font-mono)}
+  .dashboard-intake-confirm-actions{display:flex;gap:8px}
   .dashboard-board{display:grid;grid-template-columns:1fr;gap:12px;padding:16px;background:var(--surface-page)}
   .dashboard-column{min-width:0;padding:12px;border:1px solid var(--line-1);border-radius:var(--radius-md);background:var(--surface-card)}
   .dashboard-column-header{display:flex;min-height:62px;align-items:flex-start;justify-content:space-between;gap:8px;padding:2px 0 10px;border-bottom:1px solid var(--line-accent)}
@@ -114,6 +131,11 @@
     .dashboard-demo-label{text-align:left}
     .dashboard-controls{align-items:stretch;flex-direction:column}
     .dashboard-establishment{max-width:none}
+    .dashboard-intake{grid-template-columns:1fr}
+    .dashboard-intake-action{width:100%}
+    .dashboard-intake-confirm{grid-template-columns:1fr}
+    .dashboard-intake-confirm-actions{display:grid;grid-template-columns:1fr}
+    .dashboard-intake-confirm-actions .sp-btn{width:100%}
     .dashboard-step>.actions{display:grid}
     .dashboard-step>.actions .sp-btn{width:100%}
   }
@@ -207,6 +229,23 @@
         </div>
       </div>
 
+      <section class="dashboard-intake" id="dashboard-intake" data-state="open" aria-labelledby="dashboard-intake-title">
+        <div>
+          <p class="dashboard-intake-kicker">Pendant le service</p>
+          <div class="dashboard-intake-heading">
+            <h3 id="dashboard-intake-title">Prise de commandes</h3>
+            <span class="dashboard-intake-status" id="dashboard-intake-status" data-state="open" role="status" aria-live="polite"><span id="dashboard-intake-status-label">Ouverte</span></span>
+          </div>
+          <p class="dashboard-intake-description" id="dashboard-intake-description">Les clients peuvent créer une commande et lancer un nouveau paiement.</p>
+          <p class="dashboard-intake-effective">Disponibilité réelle : <strong id="dashboard-intake-effective">Active</strong></p>
+        </div>
+        <button type="button" class="sp-btn sp-btn--secondary dashboard-intake-action" id="dashboard-intake-action" aria-controls="dashboard-intake-confirm" aria-expanded="false" onclick="requestDashboardIntakeChange()">Mettre en pause</button>
+        <div class="dashboard-intake-confirm" id="dashboard-intake-confirm" role="group" aria-label="Mettre la prise de commandes en pause ?" aria-live="polite" hidden>
+          <div><strong>Mettre la prise de commandes en pause ?</strong><p>Les nouvelles commandes et les nouveaux paiements seront bloqués. Une commande dont le paiement Stripe est déjà lancé peut encore être débitée. Il faudra alors la servir ou la rembourser.</p></div>
+          <div class="dashboard-intake-confirm-actions"><button type="button" class="sp-btn sp-btn--secondary" onclick="cancelDashboardPause()">Annuler</button><button type="button" class="sp-btn sp-btn--primary" id="dashboard-intake-confirm-action" onclick="confirmDashboardPause()">Confirmer la pause</button></div>
+        </div>
+      </section>
+
       <div class="dashboard-board" role="group" aria-label="Commandes regroupées par statut">
         <section class="dashboard-column" data-status="paid" aria-labelledby="dashboard-paid-title">
           <header class="dashboard-column-header"><div><h3 id="dashboard-paid-title">Nouvelles</h3><p>Payées, à prendre en charge</p></div><span class="dashboard-column-count" id="dashboard-count-paid">1</span></header>
@@ -258,6 +297,8 @@
   let step = 1;
   let objectUrls = [];
   let dashboardOrderStatus = 'paid';
+  let dashboardIntakeStatus = 'open';
+  let dashboardIntakeConfirming = false;
   const messages = ['Lecture de la carte simulée...','Repérage des catégories...','Identification des plats et des prix...','Préparation de la relecture...'];
   const dashboardTransitions = {
     paid: { next: 'accepted', action: 'Accepter', announcement: 'Commande 47 acceptée. Elle apparaît maintenant dans « Acceptées ».' },
@@ -345,7 +386,58 @@
   function showDashboard(){
     dashboardOrderStatus = 'paid';
     renderDashboardOrder();
+    resetDashboardIntake();
     goTo(5);
+  }
+
+  function renderDashboardIntake(){
+    const open = dashboardIntakeStatus === 'open';
+    const intake = document.getElementById('dashboard-intake');
+    const status = document.getElementById('dashboard-intake-status');
+    const action = document.getElementById('dashboard-intake-action');
+    intake.dataset.state = dashboardIntakeStatus;
+    status.dataset.state = dashboardIntakeStatus;
+    document.getElementById('dashboard-intake-status-label').textContent = open ? 'Ouverte' : 'En pause';
+    document.getElementById('dashboard-intake-effective').textContent = open ? 'Active' : 'Bloquée';
+    document.getElementById('dashboard-intake-description').textContent = open
+      ? 'Les clients peuvent créer une commande et lancer un nouveau paiement.'
+      : 'La carte reste visible. Les nouvelles commandes et les nouveaux paiements sont bloqués. Les paiements Stripe déjà ouverts peuvent encore aboutir.';
+    action.textContent = open ? 'Mettre en pause' : 'Rouvrir la prise de commandes';
+    action.className = 'sp-btn ' + (open ? 'sp-btn--secondary' : 'sp-btn--primary') + ' dashboard-intake-action';
+    action.setAttribute('aria-expanded', String(dashboardIntakeConfirming));
+    document.getElementById('dashboard-intake-confirm').hidden = !dashboardIntakeConfirming;
+  }
+
+  function requestDashboardIntakeChange(){
+    if (dashboardIntakeStatus === 'paused') {
+      dashboardIntakeStatus = 'open';
+      dashboardIntakeConfirming = false;
+      renderDashboardIntake();
+      document.getElementById('dashboard-intake-action').focus({preventScroll:true});
+      return;
+    }
+    dashboardIntakeConfirming = true;
+    renderDashboardIntake();
+    document.getElementById('dashboard-intake-confirm-action').focus({preventScroll:true});
+  }
+
+  function cancelDashboardPause(){
+    dashboardIntakeConfirming = false;
+    renderDashboardIntake();
+    document.getElementById('dashboard-intake-action').focus({preventScroll:true});
+  }
+
+  function confirmDashboardPause(){
+    dashboardIntakeStatus = 'paused';
+    dashboardIntakeConfirming = false;
+    renderDashboardIntake();
+    document.getElementById('dashboard-intake-action').focus({preventScroll:true});
+  }
+
+  function resetDashboardIntake(){
+    dashboardIntakeStatus = 'open';
+    dashboardIntakeConfirming = false;
+    renderDashboardIntake();
   }
 
   function renderDashboardOrder(announcement = 'Simulation locale : aucune commande réelle n’est créée ou mise à jour.'){
@@ -410,6 +502,7 @@
     objectUrls.forEach((url) => URL.revokeObjectURL(url));
     objectUrls = [];
     resetDashboardOrder();
+    resetDashboardIntake();
     goTo(1);
   }
 

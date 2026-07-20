@@ -1,4 +1,5 @@
 src/main/java/com/surplasse/contract/api/CatalogApi.java
+src/main/java/com/surplasse/contract/api/EstablishmentApi.java
 src/main/java/com/surplasse/contract/api/IdentityApi.java
 src/main/java/com/surplasse/contract/api/OrderApi.java
 src/main/java/com/surplasse/contract/api/PaymentApi.java
@@ -12,6 +13,10 @@ src/main/java/com/surplasse/contract/model/MenuOptionGroup.java
 src/main/java/com/surplasse/contract/model/MenuProduct.java
 src/main/java/com/surplasse/contract/model/Order.java
 src/main/java/com/surplasse/contract/model/OrderCreationRequest.java
+src/main/java/com/surplasse/contract/model/OrderIntakeBlockedReason.java
+src/main/java/com/surplasse/contract/model/OrderIntakeState.java
+src/main/java/com/surplasse/contract/model/OrderIntakeStatus.java
+src/main/java/com/surplasse/contract/model/OrderIntakeUpdate.java
 src/main/java/com/surplasse/contract/model/OrderLine.java
 src/main/java/com/surplasse/contract/model/OrderLineOption.java
 src/main/java/com/surplasse/contract/model/OrderLineRequest.java

@@ -111,6 +111,7 @@ L'extraction par IA arrive en phase 3. En phase 2, la carte du pilote est saisie
 - Commande sur place par QR code : scan à table, panier, validation, numéro de table.
 - Paiement Stripe intégré au front Commande : noyau sécurisé en mode test, compte Connect Express du pilote provisionné manuellement, puis live sur un périmètre fermé avant le service pilote.
 - Dashboard minimal : flux SSE des commandes entrantes, acceptation des commandes, authentification du restaurateur par magic link.
+- Contrôle opérationnel persistant : ouverture ou pause des nouvelles sessions de table, commandes et sessions de paiement, sans couper le suivi existant.
 - Boucle de retour avec le restaurateur pilote : observations de service, irritants, demandes.
 
 ### État de livraison au 2026-07-20
@@ -123,13 +124,15 @@ Le noyau paiement local refuse désormais de rendre une session à une autre ses
 
 Le chemin logiciel des charges directes est maintenant livré localement. L'établissement porte son compte connecté et sa date d'activation. Chaque paiement fige ce compte et la commission, le SDK Stripe reçoit le contexte `Stripe-Account`, Commande initialise Stripe.js avec le même compte, et le webhook exige le couple compte connecté et Payment Intent ainsi que le bon mode `livemode`. La période gratuite omet `application_fee_amount`, donc la commission Surplasse uniquement. Les frais Stripe restent dus dès le premier paiement. Après trois mois calendaires, le Backend calcule 1 % en centimes avec un arrondi inférieur.
 
-La preuve Stripe réelle reste toutefois bloquée. Le 2026-07-20, les clés de test ont authentifié l'API, mais Stripe a refusé la création du compte Express car le compte plateforme n'est pas encore inscrit à Connect. Aucun compte connecté ni secret de webhook Connect n'a donc pu être créé. Le remboursement, la suspension applicative et le live restent aussi non livrés. La porte 1 demeure No-Go, avec le détail dans la [preuve Stripe Connect](operations/preuve-stripe-connect-2026-07-20.md).
+Le contrôle opérationnel de prise de commandes est lui aussi livré localement. Un état persistant `open` ou `paused`, distinct de `Establishment.status`, ferme ensemble les nouvelles sessions de table, commandes et sessions de paiement. L'admission et la pause sont sérialisées sur l'établissement. Les commandes existantes, leur suivi, les flux SSE, le Dashboard et les webhooks restent actifs. Une perte de `charges_enabled` force `paused` et aucune récupération Stripe ne rouvre automatiquement le service. Le contrat expose l'état configuré, `acceptingOrders` et le `blockedReason` effectif. La frontière et le cas d'un Payment Intent déjà remis au navigateur sont fixés par l'[ADR-0018](decisions/adr-0018-controle-prise-commandes.md).
+
+La preuve Stripe réelle reste toutefois bloquée. Le 2026-07-20, les clés de test ont authentifié l'API, mais Stripe a refusé la création du compte Express car le compte plateforme n'est pas encore inscrit à Connect. Aucun compte connecté ni secret de webhook Connect n'a donc pu être créé. Le contrôle de pause n'a donc pas été qualifié avec un Payment Intent Connect réel. Le remboursement et le live restent non livrés. La porte 1 demeure No-Go, avec le détail dans la [preuve Stripe Connect](operations/preuve-stripe-connect-2026-07-20.md).
 
 La phase suit désormais des portes explicites, détaillées dans le [runbook pilote](operations/pilote.md) :
 
 | Ordre | Porte | Résultat attendu |
 |---|---|---|
-| 1 | Stripe Connect en test | Compte Express pilote manuel, charges directes, commission correcte, remboursement et suspension des commandes |
+| 1 | Stripe Connect en test | Compte Express pilote manuel, charges directes, commission correcte, remboursement et mise en pause qualifiés avec Stripe réel |
 | 2 | Production prête | Pile Ubuntu LTS déployable, restaurable, supervisée et fermée par défaut |
 | 3 | Live fermé | Une transaction réelle de faible montant, rapprochée puis remboursée hors service |
 | 4 | Service à blanc | Répétition complète sur matériel, QR et réseau du restaurant, sans public |

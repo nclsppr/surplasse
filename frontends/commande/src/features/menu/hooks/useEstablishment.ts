@@ -8,5 +8,7 @@ export function useEstablishment(slug: string) {
   return useQuery({
     queryKey: queryKeys.establishment(slug),
     queryFn: () => catalogApi.getEstablishmentPublic({ slug }),
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
   });
 }

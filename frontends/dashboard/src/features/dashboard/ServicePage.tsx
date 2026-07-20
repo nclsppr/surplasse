@@ -6,6 +6,7 @@ import { dashboardClients, sessionCoordinator } from "../../app/runtime";
 import { Brand } from "../../components/Brand";
 import { fr } from "../../i18n/fr";
 import { OrderBoard } from "./OrderBoard";
+import { OrderIntakeControl } from "./OrderIntakeControl";
 import { useEstablishmentSelection } from "./useEstablishmentSelection";
 import { useEstablishmentOrderEvents } from "./useEstablishmentOrderEvents";
 import { useOperationalOrders } from "./useOperationalOrders";
@@ -150,6 +151,8 @@ function OperationalService({ session, selectedId, onSelect }: OperationalServic
           </div>
         </div>
       </section>
+
+      <OrderIntakeControl key={selectedId} establishmentId={selectedId} />
 
       {orders.isError && orders.data ? (
         <div className="board-warning" role="alert">

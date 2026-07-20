@@ -65,10 +65,11 @@ public class PaymentService {
     }
 
     private Payment reserve(OrderGateway.ActiveTableSession tableSession, UUID orderId, UUID idempotencyKey) {
+        CatalogGateway.PaymentRouting routing = requireOrderIntakeRouting(tableSession.establishmentId());
         paymentRequestRepository.lockIdempotencyKey(idempotencyKey);
         Optional<Payment> replayed = replay(tableSession, orderId, idempotencyKey);
         if (replayed.isPresent() && replayed.get().getStatus() != PaymentStatus.CREATING) {
-            requireCurrentRoutingForOpenSession(replayed.get());
+            requireCurrentRoutingForOpenSession(replayed.get(), routing);
             return replayed.get();
         }
 
@@ -79,7 +80,7 @@ public class PaymentService {
         // The row lock may have waited for another reservation to commit.
         replayed = replay(tableSession, orderId, idempotencyKey);
         if (replayed.isPresent() && replayed.get().getStatus() != PaymentStatus.CREATING) {
-            requireCurrentRoutingForOpenSession(replayed.get());
+            requireCurrentRoutingForOpenSession(replayed.get(), routing);
             return replayed.get();
         }
         if (!"pending_payment".equals(order.status())) {
@@ -87,7 +88,7 @@ public class PaymentService {
         }
         if (replayed.isPresent()) {
             requireAvailability(order);
-            requireSameActiveRouting(replayed.get());
+            requireSameActiveRouting(replayed.get(), routing);
             return replayed.get();
         }
 
@@ -96,14 +97,13 @@ public class PaymentService {
             if (reusable.get().getStatus() == PaymentStatus.CREATING) {
                 requireAvailability(order);
             }
-            requireSameActiveRouting(reusable.get());
+            requireSameActiveRouting(reusable.get(), routing);
             return linkRequest(tableSession, orderId, idempotencyKey, reusable.get());
         }
         if (paymentRepository.existsByOrder(orderId, tableSession.establishmentId())) {
             throw ConflictException.orderNotModifiable("Order %s already has a settled payment.".formatted(orderId));
         }
         requireAvailability(order);
-        CatalogGateway.PaymentRouting routing = requireActiveRouting(order.establishmentId());
         int applicationFeeAmount = CommissionPolicy.applicationFeeAmount(
                 order.totalCents(), routing.activatedAt(), OffsetDateTime.now(ZoneOffset.UTC));
 
@@ -165,30 +165,36 @@ public class PaymentService {
         }
     }
 
-    private CatalogGateway.PaymentRouting requireActiveRouting(UUID establishmentId) {
-        CatalogGateway.PaymentRouting routing =
-                catalogGateway.findPaymentRouting(establishmentId).orElseThrow(PaymentService::paymentUnavailable);
+    private CatalogGateway.PaymentRouting requireOrderIntakeRouting(UUID establishmentId) {
+        CatalogGateway.OrderIntakeAdmission admission =
+                catalogGateway.lockOrderIntake(establishmentId).orElseThrow(PaymentService::paymentUnavailable);
+        if (!admission.open()) {
+            throw ConflictException.orderIntakePaused();
+        }
+        CatalogGateway.PaymentRouting routing = admission.paymentRouting();
         if (routing.stripeAccountId() == null
                 || routing.stripeAccountId().isBlank()
                 || !routing.chargesEnabled()
                 || routing.activatedAt() == null) {
             throw paymentUnavailable();
         }
+        if (!admission.acceptingOrders()) {
+            throw ConflictException.orderIntakePaused();
+        }
         return routing;
     }
 
-    private void requireSameActiveRouting(Payment payment) {
-        CatalogGateway.PaymentRouting routing = requireActiveRouting(payment.getEstablishmentId());
+    private void requireSameActiveRouting(Payment payment, CatalogGateway.PaymentRouting routing) {
         if (!routing.stripeAccountId().equals(payment.getConnectedAccountId())) {
             throw paymentUnavailable();
         }
     }
 
-    private void requireCurrentRoutingForOpenSession(Payment payment) {
+    private void requireCurrentRoutingForOpenSession(Payment payment, CatalogGateway.PaymentRouting routing) {
         if (payment.getStatus() == PaymentStatus.PENDING
                 || payment.getStatus() == PaymentStatus.FAILED
                 || payment.getStatus() == PaymentStatus.CREATING) {
-            requireSameActiveRouting(payment);
+            requireSameActiveRouting(payment, routing);
         }
     }
 

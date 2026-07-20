@@ -5,9 +5,10 @@ import { ProductCard } from "./ProductCard";
 type Props = {
   category: MenuCategory;
   currency: string;
+  acceptingOrders: boolean;
 };
 
-export function CategorySection({ category, currency }: Props) {
+export function CategorySection({ category, currency, acceptingOrders }: Props) {
   return (
     <section aria-labelledby={`category-${category.id}`}>
       <h2
@@ -19,7 +20,11 @@ export function CategorySection({ category, currency }: Props) {
       <ul className="space-y-3">
         {category.products.map((product) => (
           <li key={product.id}>
-            <ProductCard product={product} currency={currency} />
+            <ProductCard
+              product={product}
+              currency={currency}
+              acceptingOrders={acceptingOrders}
+            />
           </li>
         ))}
       </ul>

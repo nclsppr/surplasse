@@ -28,7 +28,7 @@ import jakarta.validation.Valid;
 public interface OrderApi {
 
     /**
-     * Creates an order at status `pending_payment` from the cart validated by the customer. The cart itself never exists server side. The establishment and the table come exclusively from the anonymous table session (a customer can only order for the table whose QR was actually scanned). The server recomputes every amount from the catalog; amounts are never accepted from the client. The `Idempotency-Key` header guarantees that an unstable connection can never create the same order twice. Only `on_site` orders are accepted at this stage; `takeaway` is documented for the target and rejected with a business rule error until it opens. 
+     * Creates an order at status `pending_payment` from the cart validated by the customer. The cart itself never exists server side. The establishment and the table come exclusively from the anonymous table session (a customer can only order for the table whose QR was actually scanned). The server recomputes every amount from the catalog; amounts are never accepted from the client. The `Idempotency-Key` header guarantees that an unstable connection can never create the same order twice. Only `on_site` orders are accepted at this stage; `takeaway` is documented for the target and rejected with a business rule error until it opens. An order-intake pause rejects every new intention with `order-intake-paused`, while an exact replay still returns the order created before the pause. 
      *
      * @param idempotencyKey Client-generated UUID identifying this intention. Replaying the same request with the same key returns the original response without any duplicate; the same key with a different payload yields a 409 &#x60;idempotency-key-conflict&#x60;. 
      * @param orderCreationRequest 
@@ -36,7 +36,7 @@ public interface OrderApi {
      * @return The payload is syntactically invalid.
      * @return The table session token is missing, unknown or expired.
      * @return A product or option of the cart does not belong to the published menu.
-     * @return A product became unavailable, or the idempotency key was reused with a different payload.
+     * @return Ordering was paused, a product became unavailable, or the idempotency key was reused with a different payload.
      * @return A business rule rejected the cart (invalid option choices, takeaway not open).
      */
     @POST
@@ -47,7 +47,7 @@ public interface OrderApi {
 
 
     /**
-     * Exchanges the table code carried by a scanned QR (`{slug}.surplasse.com/?table={code}`) for an opaque anonymous session token, bound to the establishment and to that table. The token authorizes the ordering endpoints (`X-Table-Session` header) for the duration of a meal (2 hours, sliding while active). It carries no personal data. An unknown slug, an unknown or inactive table code, or an establishment that is not active all yield a 404 without distinction. 
+     * Exchanges the table code carried by a scanned QR (`{slug}.surplasse.com/?table={code}`) for an opaque anonymous session token, bound to the establishment and to that table. The token authorizes the ordering endpoints (`X-Table-Session` header) for the duration of a meal (2 hours, sliding while active). It carries no personal data. An unknown slug, an unknown or inactive table code, an establishment that is not active or an operational order-intake pause all yield a 404 without distinction. 
      *
      * @param tableSessionRequest 
      * @return The anonymous session, bound to the establishment and the table.

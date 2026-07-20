@@ -16,7 +16,7 @@ public class CatalogResource implements CatalogApi {
 
     @Override
     public Response getEstablishmentPublic(String slug) {
-        return Response.ok(CatalogMapper.toEstablishmentPublic(service.activeEstablishmentBySlug(slug)))
+        return Response.ok(CatalogMapper.toEstablishmentPublic(service.publicEstablishmentBySlug(slug)))
                 .build();
     }
 

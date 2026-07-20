@@ -32,16 +32,6 @@ public class ValidationExceptionMapper implements ExceptionMapper<ConstraintViol
                 .map(violation -> violation.getPropertyPath() + " " + violation.getMessage())
                 .sorted()
                 .collect(Collectors.joining("; "));
-        ProblemPayload payload = ProblemPayload.of(
-                platformConfig.problemTypeBase().toString(),
-                "validation-error",
-                "Validation error",
-                400,
-                detail,
-                DomainExceptionMapper.instancePath(uriInfo));
-        return Response.status(400)
-                .type(DomainExceptionMapper.PROBLEM_JSON)
-                .entity(payload)
-                .build();
+        return ValidationProblemResponses.badRequest(platformConfig, uriInfo, detail);
     }
 }

@@ -10,7 +10,7 @@ description: "Les services externes du système Surplasse : Stripe, extraction I
 Le Backend est le seul point de contact avec les services externes : aucun frontend ne parle directement à Stripe (hors confirmation du Payment Element), à l'API OpenAI ou au fournisseur d'emails. Cette page décrit chaque intégration : son rôle, son mode d'intégration, ses risques et l'état de la décision. La gestion des secrets (clés API, signatures de webhooks) et la vérification des webhooks sont détaillées dans [la sécurité](securite.md).
 
 !!! info Documentation de référence
-Le paiement Stripe en mode test est implémenté dans le Backend et Commande : montant recalculé, Payment Element, idempotence, routage explicite vers un compte Connect, commission figée, webhook signé et passage transactionnel de la commande à `paid`. Ce chemin est validé avec des doublures, pas encore contre un compte Connect réel : le compte plateforme de test doit d'abord être inscrit à Connect. Le remboursement, la suspension et le live restent non livrés. Les autres intégrations décrites ici restent elles aussi des cibles tant que leur module n'existe pas. Les points non tranchés sont signalés et donnent lieu à des ADR dans [decisions](../decisions/).
+Le paiement Stripe en mode test est implémenté dans le Backend et Commande : montant recalculé, Payment Element, idempotence, routage explicite vers un compte Connect, commission figée, webhook signé et passage transactionnel de la commande à `paid`. Le contrôle opérationnel qui ferme les nouvelles sessions de table, commandes et sessions de paiement est lui aussi livré et testé localement. Ce chemin est validé avec des doublures, pas encore contre un compte Connect réel : le compte plateforme de test doit d'abord être inscrit à Connect. Le remboursement et le live restent non livrés. Les autres intégrations décrites ici restent elles aussi des cibles tant que leur module n'existe pas. Les points non tranchés sont signalés et donnent lieu à des ADR dans [decisions](../decisions/).
 !!!
 
 ## Stripe : les paiements
@@ -94,9 +94,17 @@ La clé `Idempotency-Key` reçue du navigateur est persistée avant d'être cons
 
 Un webhook Connect ne recherche jamais un paiement par son seul identifiant Stripe. Le Backend exige le compte connecté porté au niveau racine de l'événement et rapproche le couple `(connected_account_id, external_reference)`. Un événement signé du mauvais mode est acquitté sans effet afin d'éviter les relivraisons inutiles. Un compte absent ou différent ne modifie aucun paiement. L'événement signé `account.updated` synchronise les capacités d'encaissement et de virement de l'établissement ; toute nouvelle session échoue ensuite de manière fermée si l'encaissement est désactivé.
 
+### Pause opérationnelle et frontière Stripe
+
+La [prise de commandes](../decisions/adr-0018-controle-prise-commandes.md) est fermée par un état applicatif, pas en modifiant le compte Stripe. Une pause bloque les nouvelles sessions de table, les nouvelles commandes et les créations ou reprises de sessions de paiement. Le mini-site reste lisible et tous les webhooks continuent à être traités.
+
+La pause ne peut pas reprendre un secret déjà livré au navigateur. Un Payment Intent dont le `client_secret` a été retourné avant la frontière transactionnelle peut encore être confirmé auprès de Stripe. Son événement `payment_intent.succeeded` reste la source de vérité, même si la prise de commandes est désormais `paused`. Cette commande doit apparaître dans le Dashboard, poursuivre son suivi et être servie ou remboursée. Une garantie plus forte demanderait d'annuler puis rapprocher les Payment Intents ouverts, ce qui n'est pas livré dans ce lot.
+
+`account.updated` ferme aussi le parcours de manière persistante. Une livraison plus récente avec `charges_enabled=false` force l'état opérationnel à `paused`. Un retour à `true` met à jour la capacité Stripe mais ne rouvre jamais la prise de commandes. Le restaurateur doit demander explicitement `open`, ce qui revalide le compte encaissable avec les autres prérequis. Cette règle évite qu'une récupération externe rouvre un service sans décision humaine.
+
 ### Statut de la décision
 
-Stripe comme prestataire de paiement et le compte Connect Express sont actés dans l'[ADR-0007](../decisions/adr-0007-stripe.md). Les charges directes sont actées dans l'[ADR-0017](../decisions/adr-0017-charges-directes-stripe-connect.md). La commission Surplasse est actée dans l'[ADR-0015](../decisions/adr-0015-modele-commission.md). Le chemin applicatif est livré, mais son test réel attend l'inscription de la plateforme à Connect. Restent aussi à vérifier le montant exact des frais Stripe applicables, leur répartition contractuelle et la politique de remboursement.
+Stripe comme prestataire de paiement et le compte Connect Express sont actés dans l'[ADR-0007](../decisions/adr-0007-stripe.md). Les charges directes sont actées dans l'[ADR-0017](../decisions/adr-0017-charges-directes-stripe-connect.md). La commission Surplasse est actée dans l'[ADR-0015](../decisions/adr-0015-modele-commission.md). La frontière de pause est actée dans l'[ADR-0018](../decisions/adr-0018-controle-prise-commandes.md). Le chemin applicatif et sa mise en pause sont livrés localement, mais leur test réel attend l'inscription de la plateforme à Connect. Restent aussi à vérifier le montant exact des frais Stripe applicables, leur répartition contractuelle et la politique de remboursement.
 
 ## Extraction IA de la carte
 

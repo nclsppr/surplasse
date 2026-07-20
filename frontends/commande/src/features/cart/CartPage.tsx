@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { formatPriceCents } from "@surplasse/shared";
 import { ResponseError } from "@surplasse/shared";
@@ -6,19 +6,47 @@ import { ResponseError } from "@surplasse/shared";
 import { orderApi } from "../../app/api";
 import { storedTableSession } from "../../app/tableSession";
 import { fr } from "../../i18n/fr";
+import { useEstablishment } from "../menu/hooks/useEstablishment";
+import { isOrderIntakePausedProblem } from "../orderIntakeProblem";
+import { CartCheckoutAction } from "./CartCheckoutAction";
+import type { CartCheckoutAvailability } from "./CartCheckoutAction";
 import { cartTotalCents, lineTotalCents, useCart } from "./hooks/useCart";
 
+type Props = {
+  slug: string;
+};
+
 /** The validated cart becomes an order here; the backend recomputes every amount. */
-export function CartPage() {
+export function CartPage({ slug }: Props) {
   const { lines, removeLine, setQuantity, clear } = useCart();
+  const establishment = useEstablishment(slug);
   const navigate = useNavigate();
   const session = storedTableSession();
   const [error, setError] = useState<string | undefined>();
   const [submitting, setSubmitting] = useState(false);
+  const [intakeRejected, setIntakeRejected] = useState(false);
   // One intention, one idempotency key: an unstable connection can never create two orders.
   const idempotencyKey = useMemo(() => crypto.randomUUID(), []);
+  const checkoutAvailability: CartCheckoutAvailability = intakeRejected
+    ? "paused"
+    : establishment.data
+      ? establishment.data.acceptingOrders
+        ? "open"
+        : "paused"
+      : establishment.isPending
+        ? "checking"
+        : "unknown";
+
+  useEffect(() => {
+    if (establishment.data?.acceptingOrders) {
+      setIntakeRejected(false);
+    }
+  }, [establishment.data?.acceptingOrders, establishment.dataUpdatedAt]);
 
   const checkout = async () => {
+    if (checkoutAvailability === "paused" || checkoutAvailability === "checking") {
+      return;
+    }
     setSubmitting(true);
     setError(undefined);
     try {
@@ -37,7 +65,11 @@ export function CartPage() {
       clear();
       navigate(`/commandes/${order.id}?t=${order.trackingToken}&paiement=1`);
     } catch (caught) {
-      if (caught instanceof ResponseError && caught.response.status === 409) {
+      if (await isOrderIntakePausedProblem(caught)) {
+        setIntakeRejected(true);
+        setError(fr.cart.orderIntakePaused);
+        void establishment.refetch();
+      } else if (caught instanceof ResponseError && caught.response.status === 409) {
         setError(fr.cart.adjust);
       } else {
         setError(fr.cart.error);
@@ -106,19 +138,13 @@ export function CartPage() {
             <span className="text-[var(--structure)]">{formatPriceCents(cartTotalCents(lines), "EUR")}</span>
           </div>
 
-          {session === undefined ? (
-            <p className="mt-4 rounded-md bg-[var(--accent-tint)] p-3 text-sm">{fr.cart.noSession}</p>
-          ) : (
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={() => void checkout()}
-              className="mt-4 min-h-12 w-full rounded-md bg-[var(--accent)] text-lg font-semibold text-[var(--on-accent)] disabled:opacity-50"
-            >
-              {fr.cart.checkout}
-            </button>
-          )}
-          {error !== undefined && <p className="mt-3 text-sm text-[var(--accent)]">{error}</p>}
+          <CartCheckoutAction
+            availability={checkoutAvailability}
+            hasSession={session !== undefined}
+            submitting={submitting}
+            error={error}
+            onCheckout={() => void checkout()}
+          />
         </div>
       )}
 

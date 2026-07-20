@@ -29,7 +29,7 @@ export function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<MenuPage slug={establishmentSlug} />} />
-          <Route path="/panier" element={<CartPage />} />
+          <Route path="/panier" element={<CartPage slug={establishmentSlug} />} />
           <Route path="/commandes/:orderId" element={<TrackingPage />} />
         </Routes>
       </BrowserRouter>

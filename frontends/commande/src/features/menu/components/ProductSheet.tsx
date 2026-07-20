@@ -8,12 +8,13 @@ import type { CartOption } from "../../cart/hooks/useCart";
 type Props = {
   product: MenuProduct;
   currency: string;
+  acceptingOrders: boolean;
   onAdd: (options: CartOption[], note: string | undefined) => void;
   onClose: () => void;
 };
 
 /** Option picking sheet: mandatory groups block the add until satisfied. */
-export function ProductSheet({ product, currency, onAdd, onClose }: Props) {
+export function ProductSheet({ product, currency, acceptingOrders, onAdd, onClose }: Props) {
   const [picked, setPicked] = useState<Record<string, string[]>>({});
   const [note, setNote] = useState("");
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -162,6 +163,12 @@ export function ProductSheet({ product, currency, onAdd, onClose }: Props) {
           />
         </label>
 
+        {!acceptingOrders && (
+          <p className="mt-4 rounded-md border border-[var(--accent-hover)] bg-[var(--accent-tint)] p-3 text-sm">
+            {fr.product.orderIntakePaused}
+          </p>
+        )}
+
         <div className="mt-5 flex gap-3">
           <button
             type="button"
@@ -172,7 +179,7 @@ export function ProductSheet({ product, currency, onAdd, onClose }: Props) {
           </button>
           <button
             type="button"
-            disabled={!satisfied}
+            disabled={!satisfied || !acceptingOrders}
             onClick={submit}
             className="min-h-11 flex-1 rounded-md bg-[var(--accent)] font-semibold text-[var(--on-accent)] disabled:opacity-40"
           >

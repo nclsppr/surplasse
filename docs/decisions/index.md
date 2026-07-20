@@ -85,7 +85,7 @@ Ne jamais « corriger » un ADR pour l'aligner sur une page plus récente. Soit 
 
 ## Registre des ADR
 
-Dix-sept ADR sont acceptés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'au schéma de charges Stripe Connect.
+Dix-neuf ADR sont acceptés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'au maintien du runtime transactionnel et au seuil d'adoption d'une orchestration durable.
 
 | Numéro | Titre | Statut | Lien |
 |---|---|---|---|
@@ -106,5 +106,7 @@ Dix-sept ADR sont acceptés à ce jour. Ils couvrent les choix structurants du p
 | 0015 | Modèle de commission (0 % pendant 3 mois, puis 1 %) | Accepté | [ADR-0015](adr-0015-modele-commission.md) |
 | 0016 | Topologie des domaines locaux | Accepté | [ADR-0016](adr-0016-topologie-domaines-locaux.md) |
 | 0017 | Charges directes Stripe Connect | Accepté | [ADR-0017](adr-0017-charges-directes-stripe-connect.md) |
+| 0018 | Contrôle opérationnel de la prise de commandes | Accepté | [ADR-0018](adr-0018-controle-prise-commandes.md) |
+| 0019 | Maintien de Java et Temporal différé | Accepté | [ADR-0019](adr-0019-maintien-java-temporal-differe.md) |
 
 Les décisions encore ouvertes (par exemple le choix de la solution d'impression thermique ESC/POS mentionné dans la stack de référence) donneront lieu à de futurs ADR au fil de la [roadmap](../roadmap.md).
