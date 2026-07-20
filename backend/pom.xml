@@ -27,7 +27,7 @@
     <surefire-plugin.version>3.5.2</surefire-plugin.version>
     <spotless-plugin.version>2.44.0</spotless-plugin.version>
     <swagger-request-validator.version>2.44.1</swagger-request-validator.version>
-    <stripe-java.version>29.5.0</stripe-java.version>
+    <stripe-java.version>33.1.1</stripe-java.version>
   </properties>
 
   <dependencyManagement>

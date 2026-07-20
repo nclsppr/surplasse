@@ -11,6 +11,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Optional;
 
 @ApplicationScoped
 public class StripeSignatureVerifier implements StripeEventVerifier {
@@ -27,11 +28,11 @@ public class StripeSignatureVerifier implements StripeEventVerifier {
     }
 
     @Override
-    public VerifiedEvent verify(String rawPayload, String signatureHeader) {
-        String webhookSecret = config.stripeWebhookSecret()
+    public VerifiedEvent verify(String rawPayload, String signatureHeader, Destination destination) {
+        String webhookSecret = secret(destination)
                 .filter(secret -> !secret.isBlank())
                 .orElseThrow(() -> new DependencyUnavailableException(
-                        "Stripe webhook secret is not configured (STRIPE_WEBHOOK_SECRET)."));
+                        "Stripe webhook secret is not configured for this event destination."));
         if (signatureHeader == null || signatureHeader.isBlank()) {
             throw new InvalidRequestException("Missing Stripe-Signature header.");
         }
@@ -41,6 +42,12 @@ public class StripeSignatureVerifier implements StripeEventVerifier {
             throw new InvalidRequestException("Invalid Stripe-Signature header.");
         }
         return extract(rawPayload, objectMapper);
+    }
+
+    private Optional<String> secret(Destination destination) {
+        return destination == Destination.PAYMENT_SNAPSHOT
+                ? config.stripePaymentWebhookSecret()
+                : config.stripeAccountWebhookSecret();
     }
 
     /** Field extraction shared with the test double, so both read the payload the same way. */
@@ -65,25 +72,36 @@ public class StripeSignatureVerifier implements StripeEventVerifier {
         String paymentIntentId = type.startsWith("payment_intent.") ? objectId : null;
         String connectedAccountId = root.path("account").asText(null);
         boolean liveMode = liveModeNode.booleanValue();
-        AccountStatus accountStatus = null;
-        if ("account.updated".equals(type)) {
-            JsonNode chargesEnabled = object.get("charges_enabled");
-            JsonNode payoutsEnabled = object.get("payouts_enabled");
-            JsonNode created = root.get("created");
-            if (connectedAccountId == null
-                    || !connectedAccountId.equals(objectId)
-                    || chargesEnabled == null
-                    || !chargesEnabled.isBoolean()
-                    || payoutsEnabled == null
-                    || !payoutsEnabled.isBoolean()
-                    || created == null
-                    || !created.canConvertToLong()) {
-                throw new InvalidRequestException("Stripe account update is incomplete or inconsistent.");
+        OffsetDateTime occurredAt = null;
+        if (refreshesConnectedAccountCapabilities(type)) {
+            JsonNode relatedObject = root.path("related_object");
+            String relatedObjectType = relatedObject.path("type").asText(null);
+            connectedAccountId = relatedObject.path("id").asText(null);
+            if (connectedAccountId == null || !"v2.core.account".equals(relatedObjectType)) {
+                throw new InvalidRequestException("Stripe account event is incomplete or inconsistent.");
             }
-            OffsetDateTime occurredAt =
-                    OffsetDateTime.ofInstant(Instant.ofEpochSecond(created.longValue()), ZoneOffset.UTC);
-            accountStatus = new AccountStatus(chargesEnabled.booleanValue(), payoutsEnabled.booleanValue(), occurredAt);
+            occurredAt = parseOccurredAt(root.get("created"));
         }
-        return new VerifiedEvent(id, type, paymentIntentId, connectedAccountId, liveMode, accountStatus);
+        return new VerifiedEvent(id, type, paymentIntentId, connectedAccountId, liveMode, occurredAt);
+    }
+
+    private static boolean refreshesConnectedAccountCapabilities(String type) {
+        return "v2.core.account.updated".equals(type)
+                || "v2.core.account.closed".equals(type)
+                || type.startsWith("v2.core.account[");
+    }
+
+    private static OffsetDateTime parseOccurredAt(JsonNode created) {
+        if (created == null) {
+            throw new InvalidRequestException("Stripe account event misses its creation time.");
+        }
+        try {
+            Instant instant = created.isNumber()
+                    ? Instant.ofEpochSecond(created.longValue())
+                    : Instant.parse(created.textValue());
+            return OffsetDateTime.ofInstant(instant, ZoneOffset.UTC);
+        } catch (RuntimeException e) {
+            throw new InvalidRequestException("Stripe account event has an invalid creation time.");
+        }
     }
 }

@@ -107,7 +107,8 @@ Les noms d'identité et de SMTP ci-dessous sont stabilisés par le module `ident
 | `QUARKUS_DATASOURCE_USERNAME` | Utilisateur applicatif de la base |
 | `QUARKUS_DATASOURCE_PASSWORD` | Mot de passe associé |
 | `STRIPE_SECRET_KEY` | Clé secrète Stripe (live) |
-| `STRIPE_WEBHOOK_SECRET` | Secret de signature des webhooks Stripe |
+| `STRIPE_PAYMENT_WEBHOOK_SECRET` | Secret de la destination snapshot des paiements Connect |
+| `STRIPE_ACCOUNT_WEBHOOK_SECRET` | Secret distinct de la destination fine Accounts v2 |
 | `STRIPE_LIVE_MODE` | `true` obligatoire en production ; le Backend acquitte sans effet tout événement signé d'un autre mode |
 | `OPENAI_API_KEY` | Clé de l'API OpenAI (extraction de carte, enrichissement) |
 | `S3_ENDPOINT_URL` | Endpoint MinIO (réseau interne Compose) |

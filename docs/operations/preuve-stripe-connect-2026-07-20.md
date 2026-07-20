@@ -2,12 +2,12 @@
 label: Preuve Stripe Connect du 2026-07-20
 order: 36
 icon: beaker
-description: "Résultat de la première vérification Stripe Connect en mode test et condition exacte de reprise."
+description: "État de la qualification Stripe Connect Accounts v2 en mode test et condition exacte de reprise."
 ---
 
 # Preuve Stripe Connect du 2026-07-20
 
-Cette fiche applique la [porte 1 du pilote](pilote.md#porte-1--stripe-connect-en-test). Elle conserve uniquement des états et identifiants techniques non secrets. Le SHA de référence est le commit Git qui ajoute cette fiche.
+Cette fiche applique la [porte 1 du pilote](pilote.md#porte-1--stripe-connect-en-test). Elle conserve uniquement des états et identifiants techniques non secrets. Le SHA de référence est le commit Git qui ajoute la dernière mise à jour de cette fiche.
 
 ## Périmètre
 
@@ -15,54 +15,70 @@ Cette fiche applique la [porte 1 du pilote](pilote.md#porte-1--stripe-connect-en
 |---|---|
 | Environnement Stripe | Test |
 | Établissement | Le Cormoran, fixture locale |
-| Opération | Vérification de la plateforme, liste des comptes connectés, création idempotente d'un compte Express français |
+| Plateforme | Compte français `acct_1Bh6s5CvIDeBzuRb` |
+| Compte connecté | Accounts v2 `acct_1TvJsYCvIDRh8N2N` |
+| Configuration | `merchant`, `dashboard=full`, frais et pertes collectés par Stripe |
+| Opérations | Vérification plateforme, création Accounts v2, demande de `card_payments`, ouverture de l'embarquement hébergé, lecture des capacités |
 | Clés | Fichiers `.env` locaux ignorés par git, aucune valeur archivée |
-| Idempotence | Clé stable propre au provisionnement du pilote |
 
 ## Résultat observé
 
-L'authentification à l'API Stripe réussit avec la clé de test. Le compte qui porte cette clé est un compte Standard français dont le dossier n'est pas soumis. Les paiements et virements de ce compte sont désactivés. Aucun compte connecté n'existe au moment du contrôle.
+La première tentative historique de création d'un compte Express a été refusée tant que la plateforme n'était pas inscrite à Connect. Après l'inscription dans le Dashboard Stripe, le compte plateforme est devenu encaissable et payable en environnement de test, sans exigence restante.
 
-La tentative de création du compte Express renvoie HTTP 400. Stripe indique que la plateforme doit d'abord terminer son inscription à Connect dans le Dashboard. Le rejeu avec la même clé d'idempotence donne le même refus et ne crée aucun doublon.
+La nouvelle tentative suit Accounts v2. Pour un compte français, Stripe exige que les données d'identité initiales passent par un account token. La tentative de faire accepter les conditions par la plateforme a été refusée, ce qui confirme que Stripe doit les collecter auprès du titulaire. Le compte a ensuite été créé sans acceptation déléguée, avec Stripe comme collecteur des exigences.
+
+Le lien d'embarquement à usage unique s'ouvre correctement en français et en mode test. Le parcours n'est pas encore terminé par le titulaire. L'état Accounts v2 observé reste donc fermé :
 
 | Critère | Résultat | Décision |
 |---|---|---|
 | Clé test valide | Oui | Poursuivre |
-| Plateforme inscrite à Connect | Non | Bloquant |
-| Compte Express créé | Non | Bloquant |
-| `charges_enabled` sur le compte Express | Non vérifiable | Bloquant |
-| Secret webhook Connect | Absent | Bloquant |
+| Plateforme inscrite à Connect | Oui | Poursuivre |
+| Compte Accounts v2 créé | Oui | Poursuivre |
+| Configuration marchand appliquée | Oui | Poursuivre |
+| `card_payments.status` | `restricted` | Bloquant |
+| `stripe_balance.payouts.status` | `restricted` | Bloquant |
+| Embarquement et conditions Stripe | Incomplets | Bloquant |
+| Destination d'événements Connect et secret | Absents | Bloquant |
 | Charge directe réelle en test | Non exécutée | Bloquant |
 
-Décision : **No-Go porte 1**. Une charge sur le compte plateforme n'est jamais utilisée comme solution de secours.
+Décision : **No-Go porte 1**. Le compte existe et la plateforme est prête, mais aucun paiement ne doit être créé avant que `card_payments.status` soit `active`. Une charge sur le compte plateforme n'est jamais utilisée comme solution de secours.
 
-## Travail logiciel validé sans compte réel
+## Travail logiciel validé
 
-Le dépôt porte désormais le chemin Connect attendu :
+Le dépôt porte désormais le chemin Accounts v2 attendu :
 
-- compte connecté, capacités et date d'activation sur l'établissement ;
+- SDK Stripe Java 33.1.1 avec client v2 pour les comptes et client v1 explicite pour les Payment Intents ;
+- lecture autoritaire de `configuration.merchant.capabilities.card_payments.status` et de `stripe_balance.payouts.status` ;
+- vérification Accounts v2 juste avant chaque création de Payment Intent, en plus du cache local fermé par défaut ;
+- compte connecté, capacités actives et date d'activation sur l'établissement ;
 - compte connecté et commission figés sur le paiement avant l'appel réseau ;
 - `Stripe-Account` et métadonnées de rapprochement transmis au SDK Stripe ;
-- `application_fee_amount` omis pendant les trois mois gratuits, puis calculé à 1 % avec arrondi inférieur ;
+- `application_fee_amount` omis pendant les 3 premiers mois, puis calculé à 1 % avec arrondi inférieur ;
 - même compte connecté fourni à Stripe.js dans Commande ;
-- webhook rapproché par compte et Payment Intent, avec séparation stricte de `livemode` ;
-- capacités Stripe resynchronisées par l'événement signé `account.updated`, puis contrôlées avant toute session nouvelle ou reprise ;
-- tests unitaires, contrat et tests frontend sans clé réelle.
+- événements fins Accounts v2 vérifiés puis enrichis par une lecture du compte avant la transaction de mise à jour ;
+- webhook de paiement rapproché par compte et Payment Intent, avec séparation stricte de `livemode` ;
+- endpoints, familles de payloads et secrets distincts pour les paiements snapshot et les comptes fins Accounts v2 ;
+- perte de `card_payments` mise en pause de façon fermée, sans réouverture automatique ;
+- migration V13 qui remplace les noms v1 par `stripe_card_payments_active` et `stripe_payouts_active` ;
+- tests unitaires Java 21 verts sur les capacités, les signatures, l'orchestration des webhooks et le paiement.
 
-Ces preuves de code ne remplacent pas la charge réelle en mode test. Elles empêchent seulement de conserver l'ancien chemin plateforme pendant la reprise.
+Ces preuves de code ne remplacent pas la charge réelle en mode test. Elles empêchent le chemin plateforme et ferment une fenêtre de cache obsolète avant Stripe.
 
 ## Condition de reprise
 
-Une personne habilitée doit ouvrir le Dashboard Stripe, activer Connect pour cette plateforme et compléter les informations demandées par Stripe. Cette étape peut inclure des informations professionnelles et l'acceptation de conditions. Elle n'est pas automatisée par Surplasse.
+Le titulaire du compte pilote doit terminer le formulaire Stripe déjà ouvert ou demander un nouveau lien si celui-ci expire. Cette étape comprend les informations professionnelles, l'IBAN, les justificatifs éventuels et l'acceptation des conditions Stripe. Surplasse ne doit ni inventer ces données, ni les stocker.
 
 Après cette action :
 
-1. rejouer la création idempotente du compte Express français ;
-2. ouvrir le lien d'embarquement Stripe et terminer le dossier test ;
-3. vérifier `details_submitted`, `charges_enabled`, `payouts_enabled`, les capabilities et les requirements ;
-4. rattacher l'identifiant du compte à la fixture pilote ;
-5. lancer Stripe CLI avec `--forward-connect-to` et conserver le secret `whsec_...` uniquement dans `backend/.env` ;
+1. relire le compte via Accounts v2 et archiver les états `card_payments` et `stripe_balance.payouts` ;
+2. rattacher l'identifiant du compte à l'établissement pilote par un mécanisme répétable, jamais par une modification SQL improvisée ;
+3. créer la destination snapshot des paiements Connect vers `/v1/webhooks/stripe` ;
+4. créer séparément la destination fine Accounts v2 vers `/v1/webhooks/stripe/accounts` ;
+5. conserver les deux secrets `whsec_...` uniquement dans `backend/.env`, respectivement sous `STRIPE_PAYMENT_WEBHOOK_SECRET` et `STRIPE_ACCOUNT_WEBHOOK_SECRET` ;
 6. exécuter les scénarios accepté, refusé puis repris, SCA, rejeu, webhook dupliqué et compte incorrect ;
-7. rapprocher le paiement, la commande et les événements, tester le remboursement, passer la prise de commandes à `paused`, vérifier que les nouvelles admissions sont refusées sans couper le suivi ni les webhooks, puis rouvrir explicitement.
+7. rapprocher le paiement, la commande et les événements, puis vérifier la commission gratuite ;
+8. tester le remboursement intégral ;
+9. retirer la capacité en test ou simuler son état, vérifier le passage à `paused`, le refus des nouvelles admissions et la continuité du suivi ;
+10. restaurer la capacité et vérifier que seule une réouverture explicite reprend le service.
 
-La porte 1 ne passe à Go qu'après la totalité de cette reprise et l'archivage des identifiants de rapprochement, sans secret ni donnée de carte.
+La porte 1 ne passe à Go qu'après la totalité de cette reprise et l'archivage des identifiants de rapprochement, sans secret, donnée de carte ni justificatif d'identité.

@@ -152,13 +152,13 @@ Les webhooks Stripe pilotent le cycle de vie du paiement et synchronisent les ca
 
 | Protection | Mécanisme |
 |---|---|
-| Authenticité | Vérification de la signature `Stripe-Signature` avec le secret de webhook, via la bibliothèque officielle. Toute requête non signée ou mal signée est rejetée en 400 sans traitement. |
+| Authenticité | Vérification de la signature `Stripe-Signature` via la bibliothèque officielle. La destination snapshot des paiements et la destination fine Accounts v2 possèdent chacune leur endpoint et leur secret. Un événement présenté à la mauvaise famille, non signé ou mal signé est rejeté en 400 sans traitement. |
 | Fraîcheur | Tolérance d'horloge de 5 minutes sur l'horodatage inclus dans la signature : un événement rejoué au-delà de cette fenêtre est rejeté. |
-| Cloisonnement Connect | Pour un événement de paiement, le compte de niveau racine doit correspondre au compte figé sur le paiement. Pour `account.updated`, il doit correspondre à l'objet compte et à un établissement connu. Le mode test ou live doit toujours correspondre à l'environnement ; un événement signé d'un autre mode est acquitté sans effet. |
+| Cloisonnement Connect | Pour un événement de paiement, le compte de niveau racine doit correspondre au compte figé sur le paiement. Pour un événement fin Accounts v2, `related_object` doit désigner un `v2.core.account` connu. Le mode test ou live doit toujours correspondre à l'environnement ; un événement signé d'un autre mode est acquitté sans effet. |
 | Idempotence | L'identifiant d'événement Stripe est enregistré en base avec une contrainte d'unicité. Un événement déjà traité est acquitté en 200 sans effet : les livraisons dupliquées de Stripe (comportement normal de leur part) ne produisent jamais de double traitement. |
-| Atomicité | Pour un succès de paiement, l'événement reçu, la réussite du paiement, le passage de la commande à `paid` et son événement de suivi sont validés dans la même transaction. Pour `account.updated`, l'événement et le snapshot de capacités le sont aussi. Si une écriture échoue, l'identifiant Stripe n'est pas conservé et sa prochaine livraison peut réparer le traitement. |
+| Atomicité | Pour un succès de paiement, l'événement reçu, la réussite du paiement, le passage de la commande à `paid` et son événement de suivi sont validés dans la même transaction. Pour un événement Accounts v2, le compte est relu auprès de Stripe avant la transaction, puis l'événement et le snapshot de capacités sont validés ensemble. Si une écriture échoue, l'identifiant Stripe n'est pas conservé et sa prochaine livraison peut réparer le traitement. |
 
-L'endpoint de webhook est le seul endpoint public non couvert par le CORS applicatif : il n'est appelé que serveur à serveur par Stripe.
+Les deux endpoints de webhook sont les seuls endpoints publics non couverts par le CORS applicatif : ils ne sont appelés que serveur à serveur par Stripe.
 
 ## Secrets et configuration
 

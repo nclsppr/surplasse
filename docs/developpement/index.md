@@ -293,7 +293,8 @@ Les URL publiques sont centralisées dans `config/domains/development.env` et `c
 | Variable | Application | Rôle | Requise en dev |
 |---|---|---|---|
 | `STRIPE_SECRET_KEY` | Backend | clé secrète Stripe (mode test en dev : `sk_test_...`) | oui, pour les parcours de paiement |
-| `STRIPE_WEBHOOK_SECRET` | Backend | signature des webhooks Stripe (fournie par la CLI Stripe en local) | oui, pour les webhooks |
+| `STRIPE_PAYMENT_WEBHOOK_SECRET` | Backend | signature de la destination d'événements de paiement Connect au format snapshot | oui, pour confirmer les paiements |
+| `STRIPE_ACCOUNT_WEBHOOK_SECRET` | Backend | signature de la destination d'événements fins Accounts v2 | oui, pour synchroniser les capacités |
 | `STRIPE_LIVE_MODE` | Backend | mode attendu des objets et webhooks Stripe ; `false` en développement et test, `true` en production | non, `false` en développement |
 | `OPENAI_API_KEY` | Backend | future clé API OpenAI pour le domaine `generation`, absent actuellement | non, future phase 3 |
 | `QUARKUS_DATASOURCE_JDBC_URL` | Backend | DSN PostgreSQL | non en dev (Dev Services), oui en production |
@@ -351,14 +352,33 @@ Ouvrir `https://dashboard.surplasse.test/auth/login`, demander un lien pour `pil
 
 **6. Relayer les webhooks Stripe si le paiement est testé.**
 
+Ouvrir deux terminaux à la racine du dépôt. Le premier relaie les événements snapshot des Payment Intents créés sur les comptes connectés :
+
 ```bash
+set -a
+source config/domains/development.env
+set +a
+
 stripe listen \
-  --forward-connect-to https://api.surplasse.test/v1/webhooks/stripe \
-  --events account.updated,payment_intent.succeeded,payment_intent.payment_failed
-# Copy the printed whsec_... value to backend/.env
+  --events payment_intent.succeeded,payment_intent.payment_failed \
+  --forward-connect-to "${API_URL}/v1/webhooks/stripe"
+# Copier le whsec_... affiché dans STRIPE_PAYMENT_WEBHOOK_SECRET de backend/.env
 ```
 
-Stripe CLI reste interactif et hors du cockpit. L'option `--forward-connect-to` est obligatoire pour recevoir les événements des charges directes créées sur les comptes connectés. Le passage d'une commande à `paid` ne vient que du webhook signé.
+Le second relaie les événements fins des comptes connectés Accounts v2 :
+
+```bash
+set -a
+source config/domains/development.env
+set +a
+
+stripe listen \
+  --thin-events 'v2.core.account.updated,v2.core.account.closed,v2.core.account[configuration.merchant].capability_status_updated' \
+  --forward-thin-connect-to "${API_URL}/v1/webhooks/stripe/accounts"
+# Copier l'autre whsec_... dans STRIPE_ACCOUNT_WEBHOOK_SECRET de backend/.env
+```
+
+Stripe CLI reste interactif et hors du cockpit. `--forward-connect-to` est obligatoire pour les événements snapshot des charges directes et `--forward-thin-connect-to` pour les événements fins Accounts v2 des comptes connectés. Les deux processus fournissent des secrets distincts qui ne sont jamais interchangeables. Le passage d'une commande à `paid` ne vient que du webhook de paiement signé.
 
 Les modules peuvent toujours être lancés dans des terminaux séparés avec leurs commandes propres. Le cockpit les marque alors « lancé hors cockpit » et refuse de les arrêter. Avant de committer, lire le [workflow git](workflow-git.md) et exécuter les vérifications adaptées.
 

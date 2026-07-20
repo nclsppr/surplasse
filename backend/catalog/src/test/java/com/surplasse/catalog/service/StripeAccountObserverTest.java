@@ -47,8 +47,8 @@ class StripeAccountObserverTest {
 
         observer.onStripeAccountUpdated(new StripeAccountUpdated("acct_test_restaurant", false, true, NEWER));
 
-        assertFalse(establishment.isStripeChargesEnabled());
-        assertTrue(establishment.isStripePayoutsEnabled());
+        assertFalse(establishment.isStripeCardPaymentsActive());
+        assertTrue(establishment.isStripePayoutsActive());
         assertEquals(OrderIntakeStatus.PAUSED, establishment.getOrderIntakeStatus());
         assertEquals(PROCESSED_AT, establishment.getOrderIntakeUpdatedAt());
         verify(establishments).flush();
@@ -76,7 +76,7 @@ class StripeAccountObserverTest {
         observer.onStripeAccountUpdated(new StripeAccountUpdated("acct_test_restaurant", false, true, NEWER));
         observer.onStripeAccountUpdated(new StripeAccountUpdated("acct_test_restaurant", true, true, OLDER));
 
-        assertFalse(establishment.isStripeChargesEnabled());
+        assertFalse(establishment.isStripeCardPaymentsActive());
         assertEquals(OrderIntakeStatus.PAUSED, establishment.getOrderIntakeStatus());
     }
 
@@ -100,7 +100,7 @@ class StripeAccountObserverTest {
 
         observer.onStripeAccountUpdated(new StripeAccountUpdated("acct_test_restaurant", true, true, NEWER));
 
-        assertTrue(establishment.isStripeChargesEnabled());
+        assertTrue(establishment.isStripeCardPaymentsActive());
         assertEquals(OrderIntakeStatus.PAUSED, establishment.getOrderIntakeStatus());
     }
 

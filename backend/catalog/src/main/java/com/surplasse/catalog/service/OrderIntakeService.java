@@ -110,7 +110,7 @@ public class OrderIntakeService {
     private static boolean paymentsReady(Establishment establishment) {
         return establishment.getStripeAccountId() != null
                 && !establishment.getStripeAccountId().isBlank()
-                && establishment.isStripeChargesEnabled()
+                && establishment.isStripeCardPaymentsActive()
                 && establishment.getActivatedAt() != null;
     }
 

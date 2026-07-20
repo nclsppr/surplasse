@@ -169,7 +169,7 @@ Seuls `docs/` et la configuration racine existent aujourd'hui. Le reste est cré
 3. **Extraction.** Le Backend crée un job d'extraction asynchrone : l'API OpenAI (vision) lit la photo et en tire une carte structurée (catégories, produits, options, prix). Le frontend suit l'avancement du job sans bloquer le parcours.
 4. **Prévisualisation.** Le restaurateur voit sa carte extraite et son mini-site généré. Il corrige ce que l'extraction a mal lu : c'est une relecture, pas une saisie.
 5. **Authentification.** Son compte est créé par magic link envoyé par email. Aucun mot de passe.
-6. **Paiements.** Il connecte les encaissements via le parcours Stripe Connect, qui collecte ses informations légales et bancaires. Le type de compte est Connect Express, acté dans l'[ADR-0007](../decisions/adr-0007-stripe.md).
+6. **Paiements.** Il connecte les encaissements dans les composants Stripe intégrés, qui collectent directement ses informations légales et bancaires. Le Backend crée le compte Accounts v2 et suit ses capacités selon l'[ADR-0020](../decisions/adr-0020-accounts-v2-onboarding-embarque.md).
 7. **Activation.** Le mini-site est actif sur `{slug}.surplasse.com`, les QR codes de table sont générés, la première commande peut arriver. Le parcours détaillé est décrit dans [l'embarquement du restaurateur](../produit/parcours/onboarding-restaurateur.md).
 
 !!! warning Le webhook est la source de vérité du paiement

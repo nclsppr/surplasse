@@ -25,7 +25,7 @@ public class FakeStripeEventVerifier implements StripeEventVerifier {
     }
 
     @Override
-    public VerifiedEvent verify(String rawPayload, String signatureHeader) {
+    public VerifiedEvent verify(String rawPayload, String signatureHeader, Destination destination) {
         if (!VALID_SIGNATURE.equals(signatureHeader)) {
             throw new InvalidRequestException("Invalid Stripe-Signature header.");
         }

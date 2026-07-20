@@ -174,7 +174,7 @@ public class PaymentService {
         CatalogGateway.PaymentRouting routing = admission.paymentRouting();
         if (routing.stripeAccountId() == null
                 || routing.stripeAccountId().isBlank()
-                || !routing.chargesEnabled()
+                || !routing.cardPaymentsActive()
                 || routing.activatedAt() == null) {
             throw paymentUnavailable();
         }

@@ -9,7 +9,7 @@ description: Choix de Stripe, avec Stripe Connect en comptes Express, comme four
 
 ## Statut
 
-**Accepté**, 2026-07-18.
+Remplacé par [ADR-0020](adr-0020-accounts-v2-onboarding-embarque.md), 2026-07-20.
 
 ## Contexte
 

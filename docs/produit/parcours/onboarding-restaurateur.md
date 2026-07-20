@@ -127,9 +127,9 @@ Le délai perçu est un enjeu à part entière. L'écran d'attente affiche des �
 
 **Objectif** : permettre à l'établissement d'encaisser, via un compte Stripe Connect.
 
-**Actions du restaurateur** : il suit l'embarquement Stripe Connect : identité du responsable (pièce d'identité), informations légales de l'établissement (SIREN), RIB pour les virements. Ces informations sont saisies dans le parcours hébergé par Stripe, jamais dans Surplasse.
+**Actions du restaurateur** : il complète le composant Connect intégré dans l'Onboarding : identité du responsable, informations légales de l'établissement, justificatifs éventuels, IBAN et acceptation des conditions Stripe. Il reste visuellement dans Surplasse, mais ces informations sont transmises directement à Stripe et ne sont jamais stockées par Surplasse.
 
-**Ce que fait le système** : le backend crée le compte Stripe Connect, redirige vers le parcours d'embarquement Stripe, puis suit l'avancement via les webhooks Stripe (compte en cours de vérification, pièces manquantes, encaissement activé). Chaque changement d'état est notifié par email, et le tunnel se reprend exactement là où il s'était arrêté. Le détail de l'intégration est dans [la page intégrations](../../architecture/integrations.md).
+**Ce que fait le système** : le Backend crée le compte Accounts v2 avec configuration marchand, génère une session courte pour les composants `account_onboarding`, `notification_banner` et `account_management`, puis suit les capacités via les événements Accounts v2. Le tunnel affiche les informations manquantes et se reprend exactement là où il s'était arrêté. Chaque changement bloquant peut aussi être notifié par email. Le formulaire hébergé par Stripe reste une voie de secours. Le détail de l'intégration est dans [la page intégrations](../../architecture/integrations.md).
 
 !!! info Pourquoi c'est l'étape la plus lourde, et comment la doc l'assume
 La vérification d'identité et le RIB ne sont pas une exigence de Surplasse : ce sont des obligations réglementaires (connaissance client, lutte anti-blanchiment) portées par Stripe pour tout encaissement pour compte de tiers. Le tunnel l'assume plutôt que de le cacher : il annonce la durée (5 à 10 minutes), liste les pièces à préparer avant de commencer, et permet de différer l'étape. Tout le reste du tunnel est conçu pour être léger précisément parce que celle-ci ne peut pas l'être.
@@ -141,12 +141,12 @@ L'étape peut être différée : le restaurateur peut préparer ses QR codes et 
 
 | Erreur | Traitement |
 |---|---|
-| Pièce d'identité refusée par Stripe | Notification email avec le motif remonté par webhook, lien direct pour soumettre à nouveau |
+| Pièce d'identité refusée par Stripe | `notification_banner` explique l'action et `account_onboarding` collecte le nouveau document, avec notification email si nécessaire |
 | Vérification en attente prolongée | État visible dans le tunnel et le Dashboard, relances email, aucune action bloquée en dehors de l'encaissement |
-| Abandon en cours d'embarquement Stripe | Reprise au même point du parcours Stripe, relance email après un délai (à définir) |
-| RIB invalide | Erreur remontée par Stripe, correction dans le parcours hébergé |
+| Abandon en cours d'embarquement Stripe | Reprise dans le composant intégré, relance email après un délai à définir |
+| IBAN invalide | Validation par Stripe et correction dans le composant intégré |
 
-**Critère de succès** : le compte Stripe Connect est activé pour l'encaissement.
+**Critère de succès** : `card_payments.status` et `stripe_balance.payouts.status` valent `active` sur le compte connecté.
 
 ## Étape 7 : choix et réception des QR codes
 

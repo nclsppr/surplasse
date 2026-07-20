@@ -96,8 +96,8 @@ class CatalogGatewayServiceTest {
         assertTrue(admission.open());
         assertTrue(admission.acceptingOrders());
         assertEquals("acct_test_restaurant", routing.stripeAccountId());
-        assertEquals(true, routing.chargesEnabled());
-        assertEquals(false, routing.payoutsEnabled());
+        assertEquals(true, routing.cardPaymentsActive());
+        assertEquals(false, routing.payoutsActive());
         assertEquals(activatedAt, routing.activatedAt());
     }
 

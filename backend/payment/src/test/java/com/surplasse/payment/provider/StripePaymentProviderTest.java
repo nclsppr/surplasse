@@ -3,10 +3,14 @@ package com.surplasse.payment.provider;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.stripe.net.RequestOptions;
 import com.stripe.param.PaymentIntentCreateParams;
-import com.surplasse.common.error.DependencyUnavailableException;
+import com.surplasse.common.error.BusinessRuleException;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -57,22 +61,15 @@ class StripePaymentProviderTest {
     }
 
     @Test
-    void requireExpectedKeyMode_testEnvironment_rejectsLiveKey() {
-        assertThrows(
-                DependencyUnavailableException.class,
-                () -> StripePaymentProvider.requireExpectedKeyMode("sk_live_example", false));
-    }
+    void createIntent_inactiveCardPayments_failsBeforeCreatingAStripeClient() {
+        StripeClientFactory clients = mock(StripeClientFactory.class);
+        ConnectedAccountProvider connectedAccounts = mock(ConnectedAccountProvider.class);
+        when(connectedAccounts.retrieveCapabilities(CONNECTED_ACCOUNT))
+                .thenReturn(new ConnectedAccountProvider.Capabilities(false, true));
+        StripePaymentProvider provider = new StripePaymentProvider(clients, connectedAccounts);
 
-    @Test
-    void requireExpectedKeyMode_liveEnvironment_rejectsTestKey() {
-        assertThrows(
-                DependencyUnavailableException.class,
-                () -> StripePaymentProvider.requireExpectedKeyMode("sk_test_example", true));
-    }
+        assertThrows(BusinessRuleException.class, () -> provider.createIntent(request(0)));
 
-    @Test
-    void requireExpectedKeyMode_matchingModes_areAccepted() {
-        StripePaymentProvider.requireExpectedKeyMode("sk_test_example", false);
-        StripePaymentProvider.requireExpectedKeyMode("rk_live_example", true);
+        verify(clients, never()).create();
     }
 }

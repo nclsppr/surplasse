@@ -21,8 +21,8 @@ public class Establishment {
     private String address;
     private EstablishmentStatus status;
     private String stripeAccountId;
-    private boolean stripeChargesEnabled;
-    private boolean stripePayoutsEnabled;
+    private boolean stripeCardPaymentsActive;
+    private boolean stripePayoutsActive;
     private OffsetDateTime stripeCapabilitiesUpdatedAt;
     private OffsetDateTime activatedAt;
     private OrderIntakeStatus orderIntakeStatus;
@@ -43,8 +43,8 @@ public class Establishment {
             String address,
             EstablishmentStatus status,
             String stripeAccountId,
-            boolean stripeChargesEnabled,
-            boolean stripePayoutsEnabled,
+            boolean stripeCardPaymentsActive,
+            boolean stripePayoutsActive,
             OffsetDateTime activatedAt) {
         this.id = id;
         this.restaurateurId = restaurateurId;
@@ -53,8 +53,8 @@ public class Establishment {
         this.address = address;
         this.status = status;
         this.stripeAccountId = stripeAccountId;
-        this.stripeChargesEnabled = stripeChargesEnabled;
-        this.stripePayoutsEnabled = stripePayoutsEnabled;
+        this.stripeCardPaymentsActive = stripeCardPaymentsActive;
+        this.stripePayoutsActive = stripePayoutsActive;
         this.activatedAt = activatedAt;
         this.orderIntakeStatus = OrderIntakeStatus.PAUSED;
         this.orderIntakeUpdatedAt = OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MICROS);
@@ -88,12 +88,12 @@ public class Establishment {
         return stripeAccountId;
     }
 
-    public boolean isStripeChargesEnabled() {
-        return stripeChargesEnabled;
+    public boolean isStripeCardPaymentsActive() {
+        return stripeCardPaymentsActive;
     }
 
-    public boolean isStripePayoutsEnabled() {
-        return stripePayoutsEnabled;
+    public boolean isStripePayoutsActive() {
+        return stripePayoutsActive;
     }
 
     public OffsetDateTime getStripeCapabilitiesUpdatedAt() {
@@ -122,7 +122,7 @@ public class Establishment {
                 && status == EstablishmentStatus.ACTIVE
                 && stripeAccountId != null
                 && !stripeAccountId.isBlank()
-                && stripeChargesEnabled
+                && stripeCardPaymentsActive
                 && activatedAt != null;
     }
 
@@ -146,30 +146,30 @@ public class Establishment {
 
     /** Applies only a newer Stripe snapshot. Equal timestamps merge fail-closed. */
     public boolean updateStripeCapabilities(
-            boolean chargesEnabled, boolean payoutsEnabled, OffsetDateTime occurredAt, OffsetDateTime processedAt) {
+            boolean cardPaymentsActive, boolean payoutsActive, OffsetDateTime occurredAt, OffsetDateTime processedAt) {
         if (stripeCapabilitiesUpdatedAt != null && occurredAt.isBefore(stripeCapabilitiesUpdatedAt)) {
             return false;
         }
         if (stripeCapabilitiesUpdatedAt != null && occurredAt.isEqual(stripeCapabilitiesUpdatedAt)) {
-            boolean safeCharges = stripeChargesEnabled && chargesEnabled;
-            boolean safePayouts = stripePayoutsEnabled && payoutsEnabled;
-            boolean changed = safeCharges != stripeChargesEnabled || safePayouts != stripePayoutsEnabled;
+            boolean safeCardPayments = stripeCardPaymentsActive && cardPaymentsActive;
+            boolean safePayouts = stripePayoutsActive && payoutsActive;
+            boolean changed = safeCardPayments != stripeCardPaymentsActive || safePayouts != stripePayoutsActive;
             if (changed) {
-                stripeChargesEnabled = safeCharges;
-                stripePayoutsEnabled = safePayouts;
+                stripeCardPaymentsActive = safeCardPayments;
+                stripePayoutsActive = safePayouts;
             }
-            boolean autoPaused = autoPauseWhenChargesAreDisabled(processedAt);
+            boolean autoPaused = autoPauseWhenCardPaymentsAreInactive(processedAt);
             return changed || autoPaused;
         }
-        stripeChargesEnabled = chargesEnabled;
-        stripePayoutsEnabled = payoutsEnabled;
+        stripeCardPaymentsActive = cardPaymentsActive;
+        stripePayoutsActive = payoutsActive;
         stripeCapabilitiesUpdatedAt = occurredAt;
-        autoPauseWhenChargesAreDisabled(processedAt);
+        autoPauseWhenCardPaymentsAreInactive(processedAt);
         return true;
     }
 
-    private boolean autoPauseWhenChargesAreDisabled(OffsetDateTime processedAt) {
-        return !stripeChargesEnabled && pauseOrderIntake(processedAt);
+    private boolean autoPauseWhenCardPaymentsAreInactive(OffsetDateTime processedAt) {
+        return !stripeCardPaymentsActive && pauseOrderIntake(processedAt);
     }
 
     private OffsetDateTime normalizedOrderIntakeMutationTime(OffsetDateTime changedAt) {

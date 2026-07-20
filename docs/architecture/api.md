@@ -224,7 +224,7 @@ Groupes d'endpoints prévus par domaine :
 | Paiements | `POST /v1/payments`, `GET /v1/payments/{id}` | Client anonyme |
 | Temps réel | `GET /v1/establishments/{id}/order-events` (SSE), implémenté | Restaurateur |
 | Temps réel | `GET /v1/orders/{id}/events` (SSE) | Client anonyme (jeton propre à la commande) |
-| Webhooks | `POST /v1/webhooks/stripe` | Signature Stripe |
+| Webhooks | `POST /v1/webhooks/stripe`, `POST /v1/webhooks/stripe/accounts` | Signatures Stripe distinctes |
 
 Le tableau mêle les routes implémentées et des routes encore prévues. Le contrat fixe la forme exacte de chaque opération sortie du statut `x-draft`. La description détaillée des mécanismes d'authentification se trouve dans [la page sécurité](securite.md).
 
@@ -246,12 +246,18 @@ Le choix des générateurs (`jaxrs-spec` côté Java, `typescript-fetch` côté 
 
 ### Entrants : Stripe
 
-Stripe notifie le backend des événements de paiement (paiement confirmé, échoué, remboursé) sur `POST /v1/webhooks/stripe`. Conventions :
+Stripe appelle deux endpoints qui ne partagent ni famille de payload ni secret :
+
+- `POST /v1/webhooks/stripe` reçoit les événements snapshot des Payment Intents Connect ;
+- `POST /v1/webhooks/stripe/accounts` reçoit les événements fins Accounts v2 et relit le compte associé avant toute transaction.
+
+Conventions :
 
 - la signature `Stripe-Signature` est vérifiée avant tout traitement ; une signature invalide renvoie 400 sans autre effet ;
 - le traitement est idempotent : l'identifiant d'événement Stripe est journalisé, un événement déjà traité est acquitté (200) sans être rejoué ;
 - le backend acquitte vite et traite de façon asynchrone ce qui peut l'être, pour rester sous les délais de retry de Stripe ;
-- l'endpoint figure dans le contrat comme les autres, avec son périmètre d'authentification propre.
+- les endpoints figurent dans le contrat comme les autres, avec leur périmètre d'authentification propre ;
+- un événement signé pour une destination mais présenté à l'autre est rejeté sans effet.
 
 ### Sortants : impression (éventuel)
 

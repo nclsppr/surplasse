@@ -109,7 +109,7 @@ L'extraction par IA arrive en phase 3. En phase 2, la carte du pilote est saisie
 
 - Carte complète de l'établissement pilote, saisie à la main.
 - Commande sur place par QR code : scan à table, panier, validation, numéro de table.
-- Paiement Stripe intégré au front Commande : noyau sécurisé en mode test, compte Connect Express du pilote provisionné manuellement, puis live sur un périmètre fermé avant le service pilote.
+- Paiement Stripe intégré au front Commande : noyau sécurisé en mode test, compte Connect Accounts v2 du pilote provisionné manuellement, puis live sur un périmètre fermé avant le service pilote.
 - Dashboard minimal : flux SSE des commandes entrantes, acceptation des commandes, authentification du restaurateur par magic link.
 - Contrôle opérationnel persistant : ouverture ou pause des nouvelles sessions de table, commandes et sessions de paiement, sans couper le suivi existant.
 - Boucle de retour avec le restaurateur pilote : observations de service, irritants, demandes.
@@ -124,28 +124,28 @@ Le noyau paiement local refuse désormais de rendre une session à une autre ses
 
 Le chemin logiciel des charges directes est maintenant livré localement. L'établissement porte son compte connecté et sa date d'activation. Chaque paiement fige ce compte et la commission, le SDK Stripe reçoit le contexte `Stripe-Account`, Commande initialise Stripe.js avec le même compte, et le webhook exige le couple compte connecté et Payment Intent ainsi que le bon mode `livemode`. La période gratuite omet `application_fee_amount`, donc la commission Surplasse uniquement. Les frais Stripe restent dus dès le premier paiement. Après trois mois calendaires, le Backend calcule 1 % en centimes avec un arrondi inférieur.
 
-Le contrôle opérationnel de prise de commandes est lui aussi livré localement. Un état persistant `open` ou `paused`, distinct de `Establishment.status`, ferme ensemble les nouvelles sessions de table, commandes et sessions de paiement. L'admission et la pause sont sérialisées sur l'établissement. Les commandes existantes, leur suivi, les flux SSE, le Dashboard et les webhooks restent actifs. Une perte de `charges_enabled` force `paused` et aucune récupération Stripe ne rouvre automatiquement le service. Le contrat expose l'état configuré, `acceptingOrders` et le `blockedReason` effectif. La frontière et le cas d'un Payment Intent déjà remis au navigateur sont fixés par l'[ADR-0018](decisions/adr-0018-controle-prise-commandes.md).
+Le contrôle opérationnel de prise de commandes est lui aussi livré localement. Un état persistant `open` ou `paused`, distinct de `Establishment.status`, ferme ensemble les nouvelles sessions de table, commandes et sessions de paiement. L'admission et la pause sont sérialisées sur l'établissement. Les commandes existantes, leur suivi, les flux SSE, le Dashboard et les webhooks restent actifs. Une perte de la capacité Accounts v2 `card_payments` force `paused` et aucune récupération Stripe ne rouvre automatiquement le service. Le contrat expose l'état configuré, `acceptingOrders` et le `blockedReason` effectif. La frontière et le contrôle Accounts v2 sont fixés par l'[ADR-0020](decisions/adr-0020-accounts-v2-onboarding-embarque.md).
 
-La preuve Stripe réelle reste toutefois bloquée. Le 2026-07-20, les clés de test ont authentifié l'API, mais Stripe a refusé la création du compte Express car le compte plateforme n'est pas encore inscrit à Connect. Aucun compte connecté ni secret de webhook Connect n'a donc pu être créé. Le contrôle de pause n'a donc pas été qualifié avec un Payment Intent Connect réel. Le remboursement et le live restent non livrés. La porte 1 demeure No-Go, avec le détail dans la [preuve Stripe Connect](operations/preuve-stripe-connect-2026-07-20.md).
+La plateforme test est désormais inscrite à Connect et Stripe a créé le compte Accounts v2 `acct_1TvJsYCvIDRh8N2N` pour Le Cormoran. Sa configuration marchand utilise un Dashboard complet avec les frais et pertes collectés par Stripe. L'embarquement hébergé a été ouvert, mais les capacités `card_payments` et `stripe_balance.payouts` restent `restricted` tant que les informations du restaurateur et l'acceptation Stripe ne sont pas terminées. Le Backend lit maintenant ces états Accounts v2 avant chaque paiement et après les événements de compte. Le contrat et le Backend séparent aussi les événements snapshot de paiement et les événements fins Accounts v2 sur deux endpoints et deux secrets. La charge directe réelle, la création des deux destinations Stripe, le remboursement et la qualification de la pause restent non livrés. La porte 1 demeure No-Go, avec le détail dans la [preuve Stripe Connect](operations/preuve-stripe-connect-2026-07-20.md).
 
 La phase suit désormais des portes explicites, détaillées dans le [runbook pilote](operations/pilote.md) :
 
 | Ordre | Porte | Résultat attendu |
 |---|---|---|
-| 1 | Stripe Connect en test | Compte Express pilote manuel, charges directes, commission correcte, remboursement et mise en pause qualifiés avec Stripe réel |
+| 1 | Stripe Connect en test | Compte Accounts v2 pilote activé, charges directes, commission correcte, remboursement et mise en pause qualifiés avec Stripe réel |
 | 2 | Production prête | Pile Ubuntu LTS déployable, restaurable, supervisée et fermée par défaut |
 | 3 | Live fermé | Une transaction réelle de faible montant, rapprochée puis remboursée hors service |
 | 4 | Service à blanc | Répétition complète sur matériel, QR et réseau du restaurant, sans public |
 | 5 | Service réel contrôlé | Service mesuré, rapproché à 100 % et sans incident bloquant ni repli |
 
-Le provisionnement manuel du compte Connect du seul pilote appartient donc à la phase 2. L'automatisation de la création des comptes Express et du KYC reste en phase 3. La prochaine action externe est l'inscription du compte plateforme à Connect dans le Dashboard Stripe, puis la création et l'activation du compte Express de test. La prochaine porte reste Stripe Connect en mode test, pas le live direct.
+Le provisionnement manuel du compte Connect du seul pilote appartient donc à la phase 2. L'automatisation de la création Accounts v2 et du KYC par composants Stripe intégrés reste en phase 3. La prochaine action externe est de terminer l'embarquement hébergé du compte test déjà créé, puis d'activer les destinations d'événements et d'exécuter la matrice de paiement. La prochaine porte reste Stripe Connect en mode test, pas le live direct.
 
 ### Risques et parades
 
 | Risque | Parade |
 |---|---|
 | Le produit casse en plein service et brûle la confiance du pilote | Franchir chaque porte Go ou No-Go, répéter le service à blanc en conditions réelles et garder le parcours habituel disponible |
-| Le paiement en live expose à des obligations réglementaires mal anticipées | Valider le compte plateforme, le compte Express pilote, les responsabilités et la tarification Stripe avant une transaction live fermée |
+| Le paiement en live expose à des obligations réglementaires mal anticipées | Valider le compte plateforme, le compte connecté pilote, les responsabilités et la tarification Stripe avant une transaction live fermée |
 | Le réseau du restaurant est mauvais et le temps réel ne suit pas | Tester le SSE en conditions dégradées ; le Dashboard doit survivre à une reconnexion sans perdre de commande |
 | Un mini-site compromis appelle l'API avec les cookies du restaurateur | Réserver les requêtes CORS avec credentials aux origines Dashboard et Onboarding explicitement autorisées ; traiter les mini-sites comme des origines publiques sans credentials |
 | Deux onglets renouvellent la même session en même temps | Livré : sérialiser la rotation par Web Locks, relire la session sous verrou, diffuser son état par BroadcastChannel et échouer de manière sûre sans Web Locks ; tests unitaires et scénario réel à deux onglets |
@@ -172,7 +172,7 @@ Faire disparaître le coût d'entrée. Un restaurateur photographie sa carte, Su
 
 - Extraction IA de la carte depuis une photo (API OpenAI, vision) : catégories, produits, options, prix, avec écran de relecture et correction avant publication.
 - Génération du mini-site de l'établissement avec choix d'un thème, **SEO compris** : chaque mini-site généré embarque son référencement (balises, données structurées schema.org du menu, sitemap) pour que chaque nouveau restaurant et sa carte soient indexables dès l'activation.
-- Automatisation de Stripe Connect Express dans l'Onboarding : création du compte, KYC, activation et reprise du parcours. Le schéma de charges directes a déjà été validé manuellement avec le pilote en phase 2.
+- Automatisation de Stripe Connect Accounts v2 dans l'Onboarding : création du compte par le Backend, KYC et gestion des exigences dans les composants Connect intégrés, activation et reprise du parcours. Le schéma de charges directes a déjà été validé manuellement avec le pilote en phase 2.
 - Tunnel d'embarquement complet dans le front Onboarding : de la photo de la carte à la première commande encaissable.
 
 ### Risques et parades
@@ -181,7 +181,7 @@ Faire disparaître le coût d'entrée. Un restaurateur photographie sa carte, Su
 |---|---|
 | L'extraction IA se trompe et publie des prix faux | La relecture par le restaurateur est une étape bloquante du tunnel ; rien n'est publié sans validation explicite |
 | Les cartes réelles (manuscrites, plastifiées, mal éclairées) résistent à l'extraction | Constituer un jeu de photos de cartes réelles variées et mesurer le taux d'extraction correcte avant d'ouvrir le tunnel |
-| Le KYC de Stripe Connect Express bloque des restaurateurs en cours de tunnel | Placer l'activation Stripe en fin de tunnel, permettre de finir l'embarquement et d'y revenir ; documenter les pièces attendues |
+| Le KYC Stripe bloque des restaurateurs en cours de tunnel | Placer l'activation Stripe en fin de tunnel, afficher les exigences via `notification_banner`, permettre de finir l'embarquement et d'y revenir ; documenter les pièces attendues |
 | Le tunnel est magique en démonstration et frustrant en vrai | Le critère de sortie impose un test avec un restaurateur inconnu de l'équipe, sans assistance |
 
 ### Exclusions explicites

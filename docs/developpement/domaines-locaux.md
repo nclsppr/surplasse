@@ -132,7 +132,7 @@ Seules des commandes déclarées dans `scripts/dev-cockpit/registry.mjs` peuvent
 
 Un processus lancé hors du cockpit peut être détecté, mais son bouton d'arrêt reste désactivé. Un arrêt depuis l'interface ne vise que le groupe de processus créé par cette instance du cockpit. Mailpit reçoit un label Docker de propriété équivalent. Fermer le cockpit tente d'arrêter ses propres processus, jamais les autres.
 
-Caddy, dnsmasq et mkcert restent hors de ce registre car leur cycle de vie nécessite des droits système. Stripe CLI reste manuel car sa session est interactive et fournit le secret `whsec_...` du webhook.
+Caddy, dnsmasq et mkcert restent hors de ce registre car leur cycle de vie nécessite des droits système. Stripe CLI reste manuel car sa session est interactive et fournit les deux secrets `whsec_...` des destinations de paiement et Accounts v2.
 
 ## Tester un nouvel établissement
 

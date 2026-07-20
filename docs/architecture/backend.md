@@ -103,7 +103,7 @@ Le contrôle ne repose pas sur deux lectures sans coordination. L'admission pren
 
 Le paiement traverse une frontière externe supplémentaire. La réservation applicative et le routage Stripe sont figés avant l'appel réseau, mais un Payment Intent dont le `client_secret` a déjà été remis ne peut pas être repris au navigateur. Il peut donc aboutir après la pause. Le webhook signé continue alors son traitement normal, fait passer la commande à `paid` et diffuse son événement. Le restaurateur termine ou rembourse cette commande. La pause ne filtre jamais les pages de suivi, les flux SSE, la file Dashboard ni les transitions des commandes existantes.
 
-L'événement Stripe `account.updated` participe au mode fermé. Quand une livraison plus récente retire `charges_enabled`, le catalogue synchronise la capacité et force la prise de commandes à `paused` dans la même transaction. Un événement ultérieur qui rétablit la capacité ne rouvre pas le service. Seule une demande explicite peut revenir à `open`, après une nouvelle vérification de tous les prérequis.
+Les événements fins Stripe Accounts v2 participent au mode fermé. Après vérification de signature, le module Paiement relit le compte hors transaction. La transaction de traitement synchronise ensuite `card_payments` et force la prise de commandes à `paused` si cette capacité n'est plus `active`. Un événement ultérieur qui rétablit la capacité ne rouvre pas le service. Seule une demande explicite peut revenir à `open`, après une nouvelle vérification de tous les prérequis.
 
 ## Le temps réel : SSE via Mutiny
 

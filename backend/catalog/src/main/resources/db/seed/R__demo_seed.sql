@@ -47,8 +47,8 @@ insert into establishment (
     address,
     status,
     stripe_account_id,
-    stripe_charges_enabled,
-    stripe_payouts_enabled,
+    stripe_card_payments_active,
+    stripe_payouts_active,
     activated_at,
     order_intake_status,
     order_intake_updated_at

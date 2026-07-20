@@ -1,13 +1,11 @@
 package com.surplasse.payment.provider;
 
-import com.stripe.StripeClient;
 import com.stripe.exception.StripeException;
 import com.stripe.model.PaymentIntent;
 import com.stripe.net.RequestOptions;
 import com.stripe.param.PaymentIntentCreateParams;
 import com.surplasse.common.error.BusinessRuleException;
 import com.surplasse.common.error.DependencyUnavailableException;
-import com.surplasse.payment.config.PaymentConfig;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.util.Locale;
 import org.jboss.logging.Logger;
@@ -17,22 +15,25 @@ public class StripePaymentProvider implements PaymentProvider {
 
     private static final Logger LOG = Logger.getLogger(StripePaymentProvider.class);
 
-    private final PaymentConfig config;
+    private final StripeClientFactory clients;
+    private final ConnectedAccountProvider connectedAccounts;
 
-    StripePaymentProvider(PaymentConfig config) {
-        this.config = config;
+    StripePaymentProvider(StripeClientFactory clients, ConnectedAccountProvider connectedAccounts) {
+        this.clients = clients;
+        this.connectedAccounts = connectedAccounts;
     }
 
     @Override
     public PaymentIntentRef createIntent(PaymentIntentRequest request) {
-        String secretKey = config.stripeSecretKey()
-                .filter(key -> !key.isBlank())
-                .orElseThrow(() -> new DependencyUnavailableException("Stripe is not configured (STRIPE_SECRET_KEY)."));
-        requireExpectedKeyMode(secretKey, config.liveMode());
+        ConnectedAccountProvider.Capabilities capabilities =
+                connectedAccounts.retrieveCapabilities(request.connectedAccountId());
+        if (!capabilities.cardPaymentsActive()) {
+            throw new BusinessRuleException("This establishment is not ready to accept payments.");
+        }
         try {
-            StripeClient client = new StripeClient(secretKey);
-            PaymentIntent intent = client.paymentIntents().create(createParams(request), requestOptions(request));
-            if (intent.getLivemode() == null || intent.getLivemode() != config.liveMode()) {
+            PaymentIntent intent =
+                    clients.create().v1().paymentIntents().create(createParams(request), requestOptions(request));
+            if (intent.getLivemode() == null || intent.getLivemode() != clients.liveMode()) {
                 throw new DependencyUnavailableException("Stripe returned a payment intent from another mode.");
             }
             return new PaymentIntentRef(intent.getId(), intent.getClientSecret());
@@ -67,13 +68,5 @@ public class StripePaymentProvider implements PaymentProvider {
                 .setStripeAccount(request.connectedAccountId())
                 .setMaxNetworkRetries(2)
                 .build();
-    }
-
-    static void requireExpectedKeyMode(String secretKey, boolean liveMode) {
-        boolean testKey = secretKey.startsWith("sk_test_") || secretKey.startsWith("rk_test_");
-        boolean liveKey = secretKey.startsWith("sk_live_") || secretKey.startsWith("rk_live_");
-        if ((!testKey && !liveKey) || liveKey != liveMode) {
-            throw new DependencyUnavailableException("Stripe key mode does not match this environment.");
-        }
     }
 }

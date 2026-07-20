@@ -274,7 +274,7 @@ class OrderIntakeFlowTest {
             assertOpenRejectedWith(accessToken, "order-intake-configuration-unavailable");
 
             setMenuStatus("published");
-            setStripeChargesEnabled(false);
+            setStripeCardPaymentsActive(false);
             assertOpenRejectedWith(accessToken, "order-intake-payments-unavailable");
         } finally {
             restoreOrderIntakePrerequisites();
@@ -357,10 +357,10 @@ class OrderIntakeFlowTest {
                 .executeUpdate());
     }
 
-    private void setStripeChargesEnabled(boolean enabled) {
+    private void setStripeCardPaymentsActive(boolean active) {
         inNewTransaction(() -> entityManager
-                .createNativeQuery("update establishment set stripe_charges_enabled = :enabled where id = :id")
-                .setParameter("enabled", enabled)
+                .createNativeQuery("update establishment set stripe_card_payments_active = :active where id = :id")
+                .setParameter("active", active)
                 .setParameter("id", UUID.fromString(ESTABLISHMENT))
                 .executeUpdate());
     }
@@ -369,7 +369,7 @@ class OrderIntakeFlowTest {
         inNewTransaction(() -> {
             entityManager
                     .createNativeQuery(
-                            "update establishment set status = 'active', stripe_charges_enabled = true where id = :id")
+                            "update establishment set status = 'active', stripe_card_payments_active = true where id = :id")
                     .setParameter("id", UUID.fromString(ESTABLISHMENT))
                     .executeUpdate();
             entityManager

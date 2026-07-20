@@ -10,7 +10,7 @@ description: "Les portes Go ou No-Go, métriques et procédures de repli qui enc
 Cette page est le plan d'exécution de la [phase 2 de la roadmap](../roadmap.md#phase-2--commander-et-payer). Elle ne crée ni une roadmap parallèle ni une date de lancement. Elle transforme le critère de sortie de la phase en preuves observables et impose une décision Go ou No-Go avant chaque exposition supplémentaire.
 
 !!! danger État au 2026-07-20 : No-Go live
-Le chemin logiciel des charges directes Stripe Connect et la mise en pause de la prise de commandes sont sécurisés et testés localement avec des doublures. Leur validation Stripe réelle reste bloquée par l'inscription incomplète du compte plateforme à Connect. La production, le remboursement et la qualification sur appareils réels ne sont pas livrés. Aucune transaction live ni aucun service pilote ne peut donc commencer.
+Le chemin logiciel des charges directes Stripe Connect et la mise en pause de la prise de commandes sont sécurisés et testés localement avec des doublures. La plateforme test est inscrite à Connect et le compte Accounts v2 du pilote existe, mais son embarquement et ses capacités de paiement restent incomplets. La production, le remboursement et la qualification sur appareils réels ne sont pas livrés. Aucune transaction live ni aucun service pilote ne peut donc commencer.
 !!!
 
 ## Principes de décision
@@ -26,7 +26,7 @@ Le chemin logiciel des charges directes Stripe Connect et la mise en pause de la
 | Porte | État au 2026-07-20 | Preuve attendue pour Go |
 |---|---|---|
 | 0. Noyau paiement local | **Go local** | Idempotence de création, isolation par session de table, webhook retentable, transition paiement et commande atomique, pause d'admission, migrations et tests verts |
-| 1. Stripe Connect en test | **No-Go** | Compte Express pilote en test, charges directes, commission correcte, webhook Connect, mécanismes de remboursement et de pause vérifiés |
+| 1. Stripe Connect en test | **No-Go** | Compte Accounts v2 pilote activé en test, charges directes, commission correcte, webhooks Connect, mécanismes de remboursement et de pause vérifiés |
 | 2. Production prête | **No-Go** | Pile Ubuntu LTS déployable et restaurable, secrets live, SMTP, supervision, retour arrière et données pilote |
 | 3. Live fermé | **No-Go** | Transaction réelle de faible montant, rapprochement complet et remboursement réussi hors service |
 | 4. Service à blanc | **No-Go** | Répétition complète au restaurant, sans public, sur matériel et réseau réels |
@@ -34,18 +34,19 @@ Le chemin logiciel des charges directes Stripe Connect et la mise en pause de la
 
 ## Porte 1 : Stripe Connect en test
 
-Le pilote utilise un compte Express provisionné manuellement. L'automatisation de ce parcours reste en phase 3, mais le schéma financier est déjà celui de la cible, à savoir les [charges directes](../decisions/adr-0017-charges-directes-stripe-connect.md).
+Le pilote utilise un compte Accounts v2 avec configuration marchand, provisionné manuellement. L'automatisation par composants Connect intégrés reste en phase 3, mais le schéma financier est déjà celui de la cible, à savoir les charges directes fixées par l'[ADR-0020](../decisions/adr-0020-accounts-v2-onboarding-embarque.md).
 
-Le contrôle applicatif de prise de commandes est livré localement selon l'[ADR-0018](../decisions/adr-0018-controle-prise-commandes.md). Il ne fait pas passer cette porte à Go : le compte Connect test, le remboursement et le scénario complet de pause avec un Payment Intent réel restent à vérifier ensemble.
+Le contrôle applicatif de prise de commandes est livré localement selon l'[ADR-0020](../decisions/adr-0020-accounts-v2-onboarding-embarque.md). Il ne fait pas passer cette porte à Go : l'activation du compte Connect test, le remboursement et le scénario complet de pause avec un Payment Intent réel restent à vérifier ensemble.
 
 !!! warning Constat du 2026-07-20
-Les clés de test authentifient correctement l'API Stripe. La création idempotente du premier compte Express a néanmoins été refusée car le compte plateforme n'est pas encore inscrit à Connect. Aucun contournement par une charge plateforme n'est accepté. La [fiche de preuve](preuve-stripe-connect-2026-07-20.md) consigne le résultat et la reprise attendue.
+Les clés de test authentifient correctement l'API Stripe. Après inscription de la plateforme, le compte Accounts v2 `acct_1TvJsYCvIDRh8N2N` a été créé avec `dashboard=full`, configuration `merchant`, `fees_collector=stripe` et `losses_collector=stripe`. Les capacités de carte et de virement restent `restricted` tant que l'embarquement Stripe n'est pas terminé. Aucun contournement par une charge plateforme n'est accepté. La [fiche de preuve](preuve-stripe-connect-2026-07-20.md) consigne le résultat et la reprise attendue.
 !!!
 
 ### Critères Go
 
 - Le bon compte Connect est rattaché à l'établissement et aucun paiement n'est possible sans compte encaissable.
-- Le Payment Intent, Stripe.js et le webhook utilisent le même compte connecté.
+- Le Payment Intent, Stripe.js et le webhook de paiement utilisent le même compte connecté.
+- Les destinations snapshot de paiement et fine Accounts v2 possèdent des endpoints et secrets distincts, testés contre les mauvais types d'événements.
 - La commission Surplasse vaut exactement 0 % pendant les 3 premiers mois, puis 1 %, hors frais Stripe.
 - Le montant vient exclusivement de la carte recalculée côté Backend.
 - Les scénarios carte acceptée, carte refusée, SCA, Apple Pay et Google Pay sont exercés lorsque l'appareil les rend disponibles.
@@ -53,7 +54,7 @@ Les clés de test authentifient correctement l'API Stripe. La création idempote
 - Le refus d'une commande payée déclenche un remboursement intégral, ou une procédure manuelle Stripe explicite et testée tant que l'interface dédiée n'existe pas.
 - Le passage à `paused` ferme les nouvelles sessions de table, commandes et sessions de paiement sans couper le suivi, les flux SSE, le Dashboard ni les webhooks des commandes existantes.
 - Un Payment Intent dont le `client_secret` a été remis avant la pause est rapproché s'il aboutit ensuite, puis sa commande est servie ou remboursée.
-- `charges_enabled=false` force la pause et le retour à `true` ne rouvre jamais automatiquement le service.
+- `configuration.merchant.capabilities.card_payments.status` différent de `active` force la pause et le retour à `active` ne rouvre jamais automatiquement le service.
 
 ### No-Go immédiat
 
@@ -70,7 +71,7 @@ La production démarre avec `order_intake_status=paused`. Elle suit la topologie
 
 - Les images, le Compose et Caddy sont versionnés et exécutables sur Ubuntu LTS.
 - PostgreSQL utilise un volume persistant. Une sauvegarde puis une restauration complète ont été réalisées et datées.
-- Les clés Stripe live, le secret de webhook, les clés JWT et les identifiants SMTP sont absents de git, des images et des logs.
+- Les clés Stripe live, les deux secrets de webhook, les clés JWT et les identifiants SMTP sont absents de git, des images et des logs.
 - Les domaines et certificats TLS sont valides. CORS reste fermé par défaut et limité aux origines exactes autorisées.
 - Le magic link est reçu via le fournisseur SMTP réel.
 - Les sondes de santé, logs corrélés et alertes minimales sont visibles par l'opérateur.
@@ -89,7 +90,7 @@ Cette porte se déroule hors service, avec un montant faible convenu et une seul
 
 ### Critères Go
 
-- Le compte plateforme et le compte Express pilote sont validés pour les encaissements et virements live.
+- Le compte plateforme et le compte connecté pilote sont validés pour les encaissements et virements live.
 - Le domaine de paiement est enregistré auprès de Stripe et les moyens disponibles sont contrôlés sur les appareils cibles.
 - Une commande issue du QR de contrôle est encaissée sur le bon compte avec le bon montant et une commission Surplasse nulle pendant la période gratuite.
 - Seul le webhook live signé fait passer la commande à `paid`.
@@ -176,7 +177,7 @@ Le petit échantillon du premier pilote ne permet pas d'utiliser la conversion c
 2. Si seul le SSE est indisponible, utiliser la lecture REST pendant 5 minutes au maximum.
 3. Si le paiement, l'API ou le Dashboard deviennent douteux, couvrir les QR et reprendre le parcours habituel du restaurant.
 4. Conserver les preuves. Ne faire aucune écriture SQL manuelle.
-5. Pour une régression applicative identifiée, redéployer le dernier SHA sain. Le premier SHA sain de production inclut V12 : aucun retour vers un SHA pré-V12 n'est autorisé. Ne jamais annuler une migration de base.
+5. Pour une régression applicative identifiée, redéployer le dernier SHA sain. Le premier SHA sain de production inclut V13 : aucun retour vers un SHA pré-V13 n'est autorisé. Ne jamais annuler une migration de base.
 6. Rapprocher chaque Commande, Paiement, Payment Intent et événement Stripe, puis rembourser les cas concernés.
 7. Consigner un post-mortem court, corriger et refaire un service à blanc avant tout nouveau service réel.
 

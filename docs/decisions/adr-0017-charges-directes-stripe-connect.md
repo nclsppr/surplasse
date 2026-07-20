@@ -9,7 +9,7 @@ description: "Pourquoi chaque paiement est créé directement sur le compte Stri
 
 ## Statut
 
-Accepté, 2026-07-20.
+Remplacé par [ADR-0020](adr-0020-accounts-v2-onboarding-embarque.md), 2026-07-20.
 
 ## Contexte
 

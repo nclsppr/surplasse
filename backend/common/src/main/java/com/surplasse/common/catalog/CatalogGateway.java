@@ -41,7 +41,7 @@ public interface CatalogGateway {
     record TableRef(UUID establishmentId, UUID tableQrId, String tableLabel) {}
 
     record PaymentRouting(
-            String stripeAccountId, boolean chargesEnabled, boolean payoutsEnabled, OffsetDateTime activatedAt) {}
+            String stripeAccountId, boolean cardPaymentsActive, boolean payoutsActive, OffsetDateTime activatedAt) {}
 
     record OrderIntakeAdmission(boolean open, boolean acceptingOrders, PaymentRouting paymentRouting) {}
 

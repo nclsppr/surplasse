@@ -31,8 +31,8 @@ public class StripeAccountObserver {
                 .ifPresentOrElse(
                         establishment -> {
                             if (establishment.updateStripeCapabilities(
-                                    event.chargesEnabled(),
-                                    event.payoutsEnabled(),
+                                    event.cardPaymentsActive(),
+                                    event.payoutsActive(),
                                     event.occurredAt(),
                                     OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC))) {
                                 establishments.flush();

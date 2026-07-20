@@ -139,8 +139,8 @@ public class CatalogGatewayService implements CatalogGateway {
     private static PaymentRouting paymentRouting(com.surplasse.catalog.entity.Establishment establishment) {
         return new PaymentRouting(
                 establishment.getStripeAccountId(),
-                establishment.isStripeChargesEnabled(),
-                establishment.isStripePayoutsEnabled(),
+                establishment.isStripeCardPaymentsActive(),
+                establishment.isStripePayoutsActive(),
                 establishment.getActivatedAt());
     }
 }

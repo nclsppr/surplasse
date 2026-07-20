@@ -942,9 +942,10 @@ paths:
       x-raw-body: true
       tags: [payment]
       operationId: receiveStripeWebhook
-      summary: Receive a signed Stripe webhook event
+      summary: Receive a signed Stripe snapshot payment event
       description: |
-        Endpoint called server-to-server by Stripe. The `Stripe-Signature`
+        Snapshot event destination called server-to-server by Stripe for
+        connected-account Payment Intents. The `Stripe-Signature`
         header is verified before any processing (invalid signatures yield
         400 with no side effect), the clock tolerance is 5 minutes, and
         processing is idempotent: an already processed event id is
@@ -985,6 +986,77 @@ paths:
                 status: 400
                 detail: Invalid Stripe-Signature header.
                 instance: /v1/webhooks/stripe
+        "503":
+          description: The payment destination signing secret is not configured.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/dependency-unavailable
+                title: Dependency unavailable
+                status: 503
+                detail: Stripe webhook secret is not configured for this event destination.
+                instance: /v1/webhooks/stripe
+
+  /v1/webhooks/stripe/accounts:
+    post:
+      x-raw-body: true
+      tags: [payment]
+      operationId: receiveStripeAccountWebhook
+      summary: Receive a signed Stripe thin Accounts v2 event
+      description: |
+        Thin event destination called server-to-server by Stripe for Accounts
+        v2 state changes. It has its own signing secret, distinct from the
+        snapshot payment destination. After signature verification, the
+        related `v2.core.account` is retrieved through Accounts v2 before a
+        short transaction deduplicates the event and applies the current
+        `card_payments` and `stripe_balance.payouts` statuses. An event from
+        another Stripe mode is acknowledged without effect. Another payload
+        family or an inconsistent related object is rejected.
+        Marked `x-raw-body`: contractual, but implemented by hand because
+        signature verification needs the raw request bytes.
+      parameters:
+        - $ref: "#/components/parameters/StripeSignature"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StripeThinEvent"
+      responses:
+        "200":
+          description: The event is acknowledged (processed now, or already processed before).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookAck"
+              example:
+                received: true
+        "400":
+          description: Missing or invalid signature, payload family, or related account.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/validation-error
+                title: Validation error
+                status: 400
+                detail: Stripe event type does not match this event destination.
+                instance: /v1/webhooks/stripe/accounts
+        "503":
+          description: Stripe Accounts v2 is unreachable or this destination secret is absent.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/dependency-unavailable
+                title: Dependency unavailable
+                status: 503
+                detail: Stripe did not answer.
+                instance: /v1/webhooks/stripe/accounts
 
   /v1/auth/magic-links:
     post:
@@ -2190,6 +2262,25 @@ components:
         type: payment_intent.succeeded
         account: acct_1Nxxxxxxxxxxxxxxxx
         livemode: false
+
+    StripeThinEvent:
+      type: object
+      description: >
+        Unversioned Stripe thin event for an Accounts v2 change. The backend
+        verifies the raw payload signature, validates the related account and
+        fetches its current versioned state instead of treating this body as a
+        resource snapshot.
+      additionalProperties: true
+      example:
+        id: evt_test_65xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+        object: v2.core.event
+        type: v2.core.account[configuration.merchant].capability_status_updated
+        created: 2026-07-20T10:00:00Z
+        livemode: false
+        related_object:
+          id: acct_1Nxxxxxxxxxxxxxxxx
+          type: v2.core.account
+          url: /v2/core/accounts/acct_1Nxxxxxxxxxxxxxxxx?include=configuration.merchant
 
     WebhookAck:
       type: object
