@@ -1,6 +1,10 @@
-/* Canonical Surplasse visual foundations. */
-@import './fonts/archivo.css?v=20260720';
-@import './tokens/colors.css?v=20260720';
-@import './tokens/typography.css?v=20260720';
-@import './tokens/spacing.css?v=20260720';
-@import './components.css?v=20260720';
+/* Surplasse : feuille de base : tokens de la marque. */
+/* Miroir du design system Claude Design (tokens), polices auto-hébergées. */
+/* La couche composants sera aussi synchronisée dans frontends/shared/ en phase 1. */
+@import './fonts/archivo.css?v=20260720b';
+@import './fonts/spacemono.css?v=20260720b';
+@import './fonts/parisienne.css?v=20260720b';
+@import './tokens/colors.css?v=20260720b';
+@import './tokens/typography.css?v=20260720b';
+@import './tokens/spacing.css?v=20260720b';
+@import './components.css?v=20260720b';

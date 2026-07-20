@@ -181,8 +181,7 @@ function OperationalService({ session, selectedId, onSelect }: OperationalServic
         </div>
       ) : (
         <>
-          {allOrders.length === 0 ? <p className="board-empty">{fr.service.emptyBoard}</p> : null}
-          <section className="order-board-scroll" aria-label={fr.service.boardLabel} tabIndex={0}>
+          <section className="order-board-region" aria-label={fr.service.boardLabel}>
             <OrderBoard establishmentId={selectedId} orders={allOrders} />
           </section>
           {orders.hasNextPage ? (

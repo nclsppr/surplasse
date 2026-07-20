@@ -15,7 +15,7 @@ La marque est définie dans `brand/` et ses premières briques sont consommées 
 
 ## Direction : Bistro premium
 
-Un menu typographique monochrome : **ivoire premium**, **encre espresso**, un seul accent **orange international / terracotta**, et un **petrol** (sarcelle profond) dosé pour la structure fine. Aplats, pas de dégradés. Coins quasi droits, esprit imprimé. Le produit s'efface, la carte parle.
+Un menu typographique monochrome : **ivoire premium**, **encre espresso**, orange signature, paprika fonctionnel et brun cannelle pour la structure fine. Le vert est réservé aux états de succès. Aplats, pas de dégradés. Coins quasi droits, esprit imprimé. Le produit s'efface, la carte parle.
 
 ## Logo
 
@@ -45,7 +45,7 @@ Signature : les titres `h1, h2, h3` sont en capitales Archivo 800 **couleur acce
 
 ## Palette
 
-Palette « Bistro premium », définie par les tokens de `brand/tokens/colors.css`. Un seul accent : l'orange garde la vedette, le petrol ne sert que la structure fine (entêtes, liens, tags, statuts calmes), jamais un CTA ni un titre. Le petrol (teinte 204deg) a été choisi pour se distinguer nettement du vert de succès sémantique, sur analyse OKLCH.
+Palette « Bistro premium », définie par les tokens de `brand/tokens/colors.css`. L'orange historique garde la vedette sur le wordmark, les grands titres et les filets. Le paprika plus sombre porte les boutons et petits textes. Le brun cannelle structure les liens, labels et tags sans concurrencer le vert de succès sémantique.
 
 | Rôle | Token | Valeur |
 |---|---|---|
@@ -53,16 +53,18 @@ Palette « Bistro premium », définie par les tokens de `brand/tokens/colors.cs
 | Fond carte | `--surface-card` | `#fbf7ec` |
 | Fond creusé | `--surface-sunken` | `#ebe1cc` |
 | Encre (texte) | `--fg-1` / `--text-body` | `#2b2118` |
-| Texte secondaire | `--fg-3` / `--text-muted` | `#857463` |
-| Accent (actions, titres) | `--accent` | `#e8481c` |
-| Accent survol / pressé | `--accent-hover` / `--accent-press` | `#cf3a12` / `#b02f0c` |
+| Texte secondaire | `--fg-3` / `--text-muted` | `#71604e` |
+| Orange signature (wordmark, grands titres, filets) | `--accent` | `#e8481c` |
+| Paprika fonctionnel | `--accent-press` | `#b94226` |
+| Paprika profond au survol | `--accent-hover` | `#a83721` |
 | Sur accent (texte ivoire) | `--on-accent` | `#fff7ef` |
 | Soutien (sable) | `--peach` | `#f3d5bd` |
-| Structure (petrol) | `--green` | `#14595f` |
+| Soutien (argile claire) | `--clay` | `#c9926d` |
+| Structure (brun cannelle) | `--structure` | `#7a4933` |
 | Succès | `--ok` | `#256b52` |
 | Ligne fine | `--line-1` | espresso 12% |
 
-Toute paire texte/fond destinée à de la lecture doit respecter le contraste WCAG 2.2 AA ([accessibilité](../produit/fonctionnalites.md)). L'encre sur ivoire passe AA. L'ivoire sur l'accent `#e8481c` est réservé au grand texte : pour un bouton ou un petit libellé, utiliser du blanc sur `--accent-press` ou une autre paire vérifiée. Sur ivoire, `--accent-press` porte les petits textes orange, tandis que `--accent` reste réservé aux grands titres, surfaces et icônes.
+Toute paire texte/fond destinée à de la lecture doit respecter le contraste WCAG 2.2 AA ([accessibilité](../produit/fonctionnalites.md)). L'encre, le texte secondaire, le paprika et la cannelle passent AA sur ivoire. L'orange `#e8481c` est réservé aux grands titres, au wordmark, aux filets et aux icônes. Pour un bouton ou un petit libellé, utiliser `--accent-press`. L'argile claire reste un aplat décoratif avec de l'encre espresso, jamais une couleur de texte.
 
 ### Thèmes
 

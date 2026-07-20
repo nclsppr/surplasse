@@ -55,7 +55,7 @@ export const fr = {
     ordersStaleWarning:
       "L’actualisation a échoué. Les commandes affichées proviennent de la dernière lecture réussie.",
     emptyBoard: "Aucune commande en cours pour cet établissement.",
-    boardLabel: "Commandes par statut, zone à faire défiler horizontalement",
+    boardLabel: "Commandes regroupées par statut",
     columns: {
       paid: {
         title: "Nouvelles",

@@ -71,7 +71,7 @@ export function CartPage() {
               <div className="mt-3 flex items-center gap-3">
                 <button
                   type="button"
-                  aria-label="-"
+                  aria-label={fr.cart.decreaseQuantity(line.productName)}
                   className="min-h-11 min-w-11 rounded-md border border-[var(--line-2)] font-bold"
                   onClick={() => setQuantity(line.lineId, line.quantity - 1)}
                 >
@@ -80,7 +80,7 @@ export function CartPage() {
                 <span className="min-w-6 text-center font-semibold">{line.quantity}</span>
                 <button
                   type="button"
-                  aria-label="+"
+                  aria-label={fr.cart.increaseQuantity(line.productName)}
                   className="min-h-11 min-w-11 rounded-md border border-[var(--line-2)] font-bold"
                   onClick={() => setQuantity(line.lineId, line.quantity + 1)}
                 >

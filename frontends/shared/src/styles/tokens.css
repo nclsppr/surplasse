@@ -14,20 +14,21 @@
   /* Encre (espresso chaud) */
   --text-body: #2b2118;
   --text-secondary: #55483a;
-  --text-muted: #857463;
-  --text-faint: #b3a48f;
+  --text-muted: #71604e;
+  --text-faint: #796958;
 
   /* Accent : orange international / terracotta */
   --accent: #e8481c;
-  --accent-hover: #cf3a12;
-  --accent-press: #b02f0c;
+  --accent-hover: #a83721;
+  --accent-press: #b94226;
   --accent-tint: rgba(232, 72, 28, 0.08);
   --on-accent: #fff7ef;
 
-  /* Structure : petrol */
-  --structure: #14595f;
-  --structure-tint: rgba(20, 89, 95, 0.08);
-  --on-structure: #e9f4f4;
+  /* Structure : brun cannelle, distinct du vert de succès. */
+  --structure: #7a4933;
+  --structure-hover: #603624;
+  --structure-tint: rgba(122, 73, 51, 0.08);
+  --on-structure: #fff7ef;
 
   /* Lignes et ombres */
   --line-1: rgba(43, 33, 24, 0.12);
@@ -35,5 +36,5 @@
   --shadow-card: 0 1px 0 rgba(43, 33, 24, 0.04), 0 4px 16px rgba(43, 33, 24, 0.06);
 
   /* Focus */
-  --focus-ring: 0 0 0 2px var(--surface-page), 0 0 0 4px var(--accent);
+  --focus-ring: 0 0 0 2px var(--surface-page), 0 0 0 4px var(--accent-press);
 }

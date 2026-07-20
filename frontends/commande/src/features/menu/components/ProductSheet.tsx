@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { formatPriceCents } from "@surplasse/shared";
 import type { MenuOption, MenuOptionGroup, MenuProduct } from "@surplasse/shared";
 
@@ -16,6 +16,27 @@ type Props = {
 export function ProductSheet({ product, currency, onAdd, onClose }: Props) {
   const [picked, setPicked] = useState<Record<string, string[]>>({});
   const [note, setNote] = useState("");
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  const descriptionId = useId();
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (dialog === null) {
+      return;
+    }
+
+    dialog.showModal();
+    return () => {
+      if (dialog.open) {
+        dialog.close();
+      }
+      if (previouslyFocused?.isConnected) {
+        previouslyFocused.focus({ preventScroll: true });
+      }
+    };
+  }, []);
 
   const pickedIn = (group: MenuOptionGroup) => picked[group.id] ?? [];
 
@@ -52,16 +73,44 @@ export function ProductSheet({ product, currency, onAdd, onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" role="dialog" aria-modal="true" aria-label={product.name}>
-      <div className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-[var(--surface-raised)] p-5 sm:rounded-2xl">
+    <dialog
+      ref={dialogRef}
+      aria-describedby={product.description === undefined ? undefined : descriptionId}
+      aria-labelledby={titleId}
+      className="fixed inset-x-0 bottom-0 top-auto m-0 max-h-[85vh] w-full max-w-lg overflow-hidden rounded-t-2xl border-0 bg-[var(--surface-raised)] p-0 text-[var(--text-body)] backdrop:bg-black/40 sm:inset-0 sm:m-auto sm:rounded-2xl"
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div className="max-h-[85vh] overflow-y-auto p-5">
+        <div className="mb-3 flex justify-end">
+          <button
+            type="button"
+            autoFocus
+            onClick={onClose}
+            className="min-h-11 rounded-md border border-[var(--line-2)] px-3 text-sm font-semibold"
+          >
+            {fr.product.close}
+          </button>
+        </div>
         <div className="flex items-baseline justify-between gap-4">
-          <h2 className="text-lg font-bold">{product.name}</h2>
+          <h2 id={titleId} className="text-lg font-bold">
+            {product.name}
+          </h2>
           <p className="shrink-0 font-semibold text-[var(--structure)]">
             {formatPriceCents(product.priceCents, currency)}
           </p>
         </div>
         {product.description !== undefined && (
-          <p className="mt-1 text-sm text-[var(--text-muted)]">{product.description}</p>
+          <p id={descriptionId} className="mt-1 text-sm text-[var(--text-muted)]">
+            {product.description}
+          </p>
         )}
 
         {product.optionGroups.map((group) => (
@@ -131,6 +180,6 @@ export function ProductSheet({ product, currency, onAdd, onClose }: Props) {
           </button>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }

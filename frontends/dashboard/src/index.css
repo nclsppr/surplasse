@@ -223,7 +223,7 @@ button:disabled {
 
 .form-error {
   margin: 0;
-  color: var(--accent-press);
+  color: var(--danger);
   font-size: var(--text-sm);
   line-height: 1.45;
 }
@@ -261,7 +261,7 @@ button:disabled {
 }
 
 .exchange-error {
-  border-top: 1.5px solid var(--accent);
+  border-top: 1.5px solid var(--danger);
   color: var(--fg-1);
 }
 
@@ -374,9 +374,9 @@ button:disabled {
 
 .header-error {
   padding: var(--sp-2) var(--sp-5);
-  border-bottom: 1px solid var(--accent-press);
-  color: var(--accent-press);
-  background: var(--accent-tint);
+  border-bottom: 1px solid var(--danger);
+  color: var(--danger);
+  background: var(--danger-tint);
   font-size: var(--text-sm);
   text-align: center;
 }
@@ -512,23 +512,19 @@ button:disabled {
   text-align: center;
 }
 
-.order-board-scroll {
+.order-board-region {
   width: 100%;
-  overflow-x: auto;
   padding: 3px 3px var(--sp-3);
-  scrollbar-color: var(--accent-press) var(--surface-sunken);
-  scrollbar-width: thin;
 }
 
 .order-board {
   display: grid;
-  min-width: 70rem;
-  grid-template-columns: repeat(4, minmax(16rem, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--sp-3);
 }
 
 .order-column {
-  min-height: 26rem;
+  min-width: 0;
   padding: var(--sp-3);
   border: 1px solid var(--line-1);
   border-radius: var(--radius-md);
@@ -942,6 +938,22 @@ button:disabled {
   .board-warning {
     align-items: stretch;
     flex-direction: column;
+  }
+}
+
+@media (min-width: 700px) {
+  .order-board {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1200px) {
+  .order-board {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .order-column {
+    min-height: 26rem;
   }
 }
 

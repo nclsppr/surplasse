@@ -142,6 +142,8 @@ Le Dashboard vit sur le comptoir ou en cuisine, souvent sur une tablette posée 
 
 Ses traits distinctifs :
 
+- **Tableau adaptatif sans défilement horizontal** : une colonne sur mobile, deux sur tablette à partir de 700 px et quatre sur grand écran à partir de 1200 px. L'état vide est affiché une seule fois pour l'ensemble du tableau.
+- **États lisibles sans dépendre de la couleur** : chaque statut conserve un libellé explicite. Le vert est réservé aux états positifs, tandis que les erreurs utilisent les tokens sémantiques de danger.
 - **Session sûre entre onglets** : une requête refusée après expiration du JWT prend un Web Lock exclusif, relit la session, ne tourne le refresh token que si aucun autre onglet ne l'a déjà fait, puis diffuse le nouvel état par BroadcastChannel. Un navigateur sans Web Locks demande une nouvelle connexion au lieu de lancer une rotation non coordonnée.
 - **Flux SSE des commandes** : le Dashboard maintient une connexion Server-Sent Events vers le Backend (voir [l'API](api.md)) pour recevoir chaque nouvelle commande sans polling. Conformément à l'[ADR-0006](../decisions/adr-0006-sse.md), l'objet navigateur `EventSource` gère lui-même la reconnexion et renvoie `Last-Event-ID`. Le frontend ne recrée pas une stratégie exponentielle parallèle. Chaque événement et chaque réouverture du flux invalident la liste TanStack Query, puis REST resynchronise l'état complet. L'état de la connexion reste visible en permanence.
 - **Notifications sonores** : une nouvelle commande émet un signal sonore, activable et réglable par le restaurateur. Le son est un canal de premier ordre en cuisine, pas un gadget.

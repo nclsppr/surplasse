@@ -5,6 +5,7 @@
  */
 export const fr = {
   menu: {
+    sessionLoading: "Ouverture de la carte...",
     loading: "Chargement de la carte...",
     error: "La carte n'a pas pu être chargée.",
     retry: "Réessayer",
@@ -17,6 +18,7 @@ export const fr = {
     notePlaceholder: "Une précision pour la cuisine ? (facultatif)",
     addToCart: "Ajouter au panier",
     cancel: "Annuler",
+    close: "Fermer",
     required: "obligatoire",
     chooseUpTo: (max: number) => `jusqu'à ${max} choix`,
   },
@@ -27,6 +29,8 @@ export const fr = {
     total: "Total",
     checkout: "Commander",
     remove: "Retirer",
+    decreaseQuantity: (productName: string) => `Diminuer la quantité de ${productName}`,
+    increaseQuantity: (productName: string) => `Augmenter la quantité de ${productName}`,
     noSession: "Scannez le QR code de votre table pour commander sur place.",
     error: "La commande n'a pas pu être créée.",
     adjust: "Un produit n'est plus disponible : ajustez votre panier.",

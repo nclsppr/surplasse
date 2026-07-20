@@ -25,6 +25,10 @@ interface OrderBoardProps {
 }
 
 export function OrderBoard({ establishmentId, orders }: OrderBoardProps) {
+  if (orders.length === 0) {
+    return <p className="board-empty">{fr.service.emptyBoard}</p>;
+  }
+
   return (
     <div className="order-board">
       {columns.map((column) => {

@@ -6,6 +6,7 @@ import { createQueryClient } from "@surplasse/shared";
 import { CartPage } from "../features/cart/CartPage";
 import { MenuPage } from "../features/menu/MenuPage";
 import { TrackingPage } from "../features/tracking/TrackingPage";
+import { SessionLoading } from "../components/SessionLoading";
 import { apiBaseUrl, establishmentSlug } from "./api";
 import { bootstrapTableSession } from "./tableSession";
 
@@ -20,7 +21,7 @@ export function App() {
   }, []);
 
   if (!sessionReady) {
-    return null;
+    return <SessionLoading />;
   }
 
   return (
