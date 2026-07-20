@@ -33,4 +33,10 @@ public class PaymentRepository implements PanacheRepositoryBase<Payment, UUID> {
                 .withLock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
                 .firstResultOptional();
     }
+
+    public Optional<Payment> findByOrderForUpdate(UUID orderId, UUID establishmentId) {
+        return find("orderId = ?1 and establishmentId = ?2", orderId, establishmentId)
+                .withLock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+                .firstResultOptional();
+    }
 }

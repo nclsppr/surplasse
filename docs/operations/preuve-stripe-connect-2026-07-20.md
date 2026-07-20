@@ -57,9 +57,11 @@ Le dépôt porte désormais le chemin Accounts v2 attendu :
 - même compte connecté fourni à Stripe.js dans Commande ;
 - événements fins Accounts v2 vérifiés puis enrichis par une lecture du compte avant la transaction de mise à jour ;
 - webhook de paiement rapproché par compte et Payment Intent, avec séparation stricte de `livemode` ;
+- remboursement intégral réservé avant Stripe, routé sur le compte connecté et rapproché par réponse ou webhook signé ;
+- restitution de la commission Surplasse, idempotence persistante et transition atomique du paiement puis de la commande vers `refunded` ;
 - endpoints, familles de payloads et secrets distincts pour les paiements snapshot et les comptes fins Accounts v2 ;
 - perte de `card_payments` mise en pause de façon fermée, sans réouverture automatique ;
-- migration V13 qui remplace les noms v1 par `stripe_card_payments_active` et `stripe_payouts_active` ;
+- migrations V13 pour les capacités Accounts v2 et V14 pour les tentatives de remboursement et leurs clés d'idempotence ;
 - tests unitaires Java 21 verts sur les capacités, les signatures, l'orchestration des webhooks et le paiement.
 
 Ces preuves de code ne remplacent pas la charge réelle en mode test. Elles empêchent le chemin plateforme et ferment une fenêtre de cache obsolète avant Stripe.
@@ -72,7 +74,7 @@ Après cette action :
 
 1. relire le compte via Accounts v2 et archiver les états `card_payments` et `stripe_balance.payouts` ;
 2. rattacher l'identifiant du compte à l'établissement pilote par un mécanisme répétable, jamais par une modification SQL improvisée ;
-3. créer la destination snapshot des paiements Connect vers `/v1/webhooks/stripe` ;
+3. créer la destination snapshot des paiements et remboursements Connect vers `/v1/webhooks/stripe` ;
 4. créer séparément la destination fine Accounts v2 vers `/v1/webhooks/stripe/accounts` ;
 5. conserver les deux secrets `whsec_...` uniquement dans `backend/.env`, respectivement sous `STRIPE_PAYMENT_WEBHOOK_SECRET` et `STRIPE_ACCOUNT_WEBHOOK_SECRET` ;
 6. exécuter les scénarios accepté, refusé puis repris, SCA, rejeu, webhook dupliqué et compte incorrect ;

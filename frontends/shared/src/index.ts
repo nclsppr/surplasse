@@ -8,6 +8,7 @@ export {
   createIdentityApi,
   createOrderApi,
   createPaymentApi,
+  createRestaurateurPaymentApi,
   createRestaurateurOrderApi,
 } from "./api/client";
 export { queryKeys } from "./queryKeys";

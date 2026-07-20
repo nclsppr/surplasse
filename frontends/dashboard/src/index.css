@@ -119,6 +119,25 @@ button:disabled {
   background: var(--surface-sunken);
 }
 
+.button-danger {
+  color: #ffffff;
+  background: var(--danger);
+}
+
+.button-danger:hover:not(:disabled) {
+  background: #812d1d;
+}
+
+.button-danger-quiet {
+  color: var(--danger);
+  background: transparent;
+  border-color: var(--danger);
+}
+
+.button-danger-quiet:hover:not(:disabled) {
+  background: var(--danger-tint);
+}
+
 .button-wide {
   width: 100%;
   margin-top: var(--sp-1);
@@ -911,10 +930,81 @@ button:disabled {
   padding: 0 var(--sp-3) var(--sp-3);
 }
 
+.order-card-actions {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.order-card-actions-with-refund {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
 .order-card-action {
   width: 100%;
   min-height: 2.75rem;
   font-size: var(--text-xs);
+}
+
+.order-card-refund-trigger {
+  min-height: 2.75rem;
+  padding-inline: var(--sp-3);
+  font-size: var(--text-xs);
+}
+
+.order-refund-confirmation {
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  color: var(--fg-1);
+  background: var(--danger-tint);
+}
+
+.order-refund-confirmation > strong {
+  color: var(--danger);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  line-height: 1.35;
+}
+
+.order-refund-confirmation > p {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.order-refund-reason {
+  display: grid;
+  gap: var(--sp-1);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.order-refund-reason select {
+  min-height: 2.75rem;
+  padding: 0 var(--sp-3);
+  border: 1.5px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  color: var(--fg-1);
+  background: var(--surface-raised);
+  font: inherit;
+}
+
+.order-refund-reason select:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.order-refund-confirmation-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-2);
+  margin-top: var(--sp-1);
+}
+
+.order-refund-status {
+  color: var(--fg-1);
 }
 
 .order-card-action-error {

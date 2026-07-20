@@ -12,7 +12,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
 /**
- * An anonymous table session. The token is opaque (a server-side reference, not a JWT) and carries no personal data. 
+ * An anonymous table session. The token is opaque (a server-side reference, not a JWT) and carries no personal data.
  **/
 
 @JsonTypeName("TableSession")
@@ -47,7 +47,7 @@ public class TableSession   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "token")
   @NotNull public String getToken() {
     return token;
@@ -66,7 +66,7 @@ public class TableSession   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "establishmentId")
   @NotNull public UUID getEstablishmentId() {
     return establishmentId;
@@ -85,7 +85,7 @@ public class TableSession   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "tableLabel")
   @NotNull public String getTableLabel() {
     return tableLabel;
@@ -104,7 +104,7 @@ public class TableSession   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "expiresAt")
   @NotNull public OffsetDateTime getExpiresAt() {
     return expiresAt;
@@ -140,7 +140,7 @@ public class TableSession   {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class TableSession {\n");
-    
+
     sb.append("    token: ").append(toIndentedString(token)).append("\n");
     sb.append("    establishmentId: ").append(toIndentedString(establishmentId)).append("\n");
     sb.append("    tableLabel: ").append(toIndentedString(tableLabel)).append("\n");

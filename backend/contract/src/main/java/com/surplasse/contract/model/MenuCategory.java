@@ -47,7 +47,7 @@ public class MenuCategory   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "id")
   @NotNull public UUID getId() {
     return id;
@@ -66,7 +66,7 @@ public class MenuCategory   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "name")
   @NotNull public String getName() {
     return name;
@@ -85,7 +85,7 @@ public class MenuCategory   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "products")
   @NotNull @Valid public List<@Valid MenuProduct> getProducts() {
     return products;
@@ -136,7 +136,7 @@ public class MenuCategory   {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class MenuCategory {\n");
-    
+
     sb.append("    id: ").append(toIndentedString(id)).append("\n");
     sb.append("    name: ").append(toIndentedString(name)).append("\n");
     sb.append("    products: ").append(toIndentedString(products)).append("\n");

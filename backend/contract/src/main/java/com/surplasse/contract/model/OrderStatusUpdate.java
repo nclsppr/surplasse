@@ -83,7 +83,7 @@ public class OrderStatusUpdate   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "status")
   @NotNull public StatusEnum getStatus() {
     return status;
@@ -116,7 +116,7 @@ public class OrderStatusUpdate   {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class OrderStatusUpdate {\n");
-    
+
     sb.append("    status: ").append(toIndentedString(status)).append("\n");
     sb.append("}");
     return sb.toString();

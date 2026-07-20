@@ -23,9 +23,9 @@ import jakarta.validation.Valid;
 public interface IdentityApi {
 
     /**
-     * Atomically consumes a magic link token posted by the intermediate landing page, never by a bare GET. A successful exchange returns the current restaurateur view and sets two host-only HttpOnly cookies: a 15-minute JWT and a rotating opaque refresh token valid for 30 days. Production cookies are Secure and every environment uses SameSite=Lax. 
+     * Atomically consumes a magic link token posted by the intermediate landing page, never by a bare GET. A successful exchange returns the current restaurateur view and sets two host-only HttpOnly cookies: a 15-minute JWT and a rotating opaque refresh token valid for 30 days. Production cookies are Secure and every environment uses SameSite=Lax.
      *
-     * @param magicLinkExchange 
+     * @param magicLinkExchange
      * @return The session is created and both cookies are set.
      * @return The token payload is syntactically invalid.
      * @return The magic link is unknown, expired or already consumed.
@@ -38,7 +38,7 @@ public interface IdentityApi {
 
 
     /**
-     * Revokes the refresh-token family when the refresh cookie is valid, then expires both cookies. The operation stays idempotent and returns 204 when cookies are absent, invalid or already revoked. 
+     * Revokes the refresh-token family when the refresh cookie is valid, then expires both cookies. The operation stays idempotent and returns 204 when cookies are absent, invalid or already revoked.
      *
      * @return The session is revoked when identifiable and both cookies are expired.
      */
@@ -48,7 +48,7 @@ public interface IdentityApi {
 
 
     /**
-     * Returns the authenticated restaurateur and the establishments they can access. The Dashboard uses this read model to discover establishment identifiers instead of embedding one in its configuration. 
+     * Returns the authenticated restaurateur and the establishments they can access. The Dashboard uses this read model to discover establishment identifiers instead of embedding one in its configuration.
      *
      * @return The current restaurateur and accessible establishments.
      * @return The access cookie is missing, expired or invalid.
@@ -60,7 +60,7 @@ public interface IdentityApi {
 
 
     /**
-     * Exchanges the host-only refresh cookie for a new access JWT and a new opaque refresh token. Rotation is atomic. Reuse of a token that has already been rotated revokes its complete token family. 
+     * Exchanges the host-only refresh cookie for a new access JWT and a new opaque refresh token. Rotation is atomic. Reuse of a token that has already been rotated revokes its complete token family.
      *
      * @return The refresh token is rotated and both cookies are replaced.
      * @return The refresh cookie is missing, expired, revoked or reused.
@@ -72,9 +72,9 @@ public interface IdentityApi {
 
 
     /**
-     * Requests a single-use login link valid for 15 minutes. The response is deliberately identical whether the normalized email exists or not, so this endpoint cannot enumerate restaurateur accounts. A new request invalidates every unused link previously issued for that account.  Requests are rate limited independently by target email and source IP. Email delivery happens after the request transaction and its failure is never exposed through this response. 
+     * Requests a single-use login link valid for 15 minutes. The response is deliberately identical whether the normalized email exists or not, so this endpoint cannot enumerate restaurateur accounts. A new request invalidates every unused link previously issued for that account.  Requests are rate limited independently by target email and source IP. Email delivery happens after the request transaction and its failure is never exposed through this response.
      *
-     * @param magicLinkRequest 
+     * @param magicLinkRequest
      * @return Accepted; an email is queued only when the account exists.
      * @return The email payload is syntactically invalid.
      * @return Too many requests for this email or source IP.

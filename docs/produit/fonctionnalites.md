@@ -90,7 +90,7 @@ Le paiement est intégré à la commande, via Stripe. Le client paie depuis son 
 | Paiement CB via Stripe | Paiement par carte bancaire au moment de la validation de la commande, sans création de compte client. | Must | Commande, Backend |
 | Apple Pay et Google Pay | Paiement en un geste via les portefeuilles natifs, servis par la même intégration Stripe. | Must | Commande, Backend |
 | Pourboire numérique | Au moment de payer, le client peut ajouter un pourboire (pourcentages suggérés ou montant libre), reversé à l'établissement. | Should | Commande, Backend |
-| Remboursement | Le restaurateur rembourse une commande, totalement ou partiellement, depuis le Dashboard. | Should | Dashboard, Backend |
+| Remboursement | Le restaurateur rembourse intégralement une commande depuis le Dashboard au MVP. Le remboursement partiel fera l'objet d'une décision ultérieure. | Should | Dashboard, Backend |
 | PayPal | Paiement via PayPal. Exclu du MVP : Stripe couvre les moyens de paiement dominants ; PayPal est en roadmap. | Won't | Commande, Backend |
 
 ## 6. Temps réel et cuisine

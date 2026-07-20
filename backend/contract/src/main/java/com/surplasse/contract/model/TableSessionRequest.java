@@ -39,7 +39,7 @@ public class TableSessionRequest   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "establishmentSlug")
   @NotNull  @Pattern(regexp="^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")public String getEstablishmentSlug() {
     return establishmentSlug;
@@ -58,7 +58,7 @@ public class TableSessionRequest   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "tableCode")
   @NotNull  @Size(min=1)public String getTableCode() {
     return tableCode;
@@ -92,7 +92,7 @@ public class TableSessionRequest   {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class TableSessionRequest {\n");
-    
+
     sb.append("    establishmentSlug: ").append(toIndentedString(establishmentSlug)).append("\n");
     sb.append("    tableCode: ").append(toIndentedString(tableCode)).append("\n");
     sb.append("}");

@@ -138,5 +138,30 @@ export const fr = {
       error: "La commande n’a pas pu être mise à jour. Réessayez.",
       label: (action: string, displayNumber: string) => `${action}, commande ${displayNumber}`,
     },
+    refund: {
+      triggerRefusal: "Refuser",
+      triggerIncident: "Rembourser",
+      triggerLabel: (isRefusal: boolean, displayNumber: string) =>
+        isRefusal
+          ? `Refuser et rembourser la commande ${displayNumber}`
+          : `Rembourser la commande ${displayNumber}`,
+      confirmTitle: (amount: string) => `Rembourser ${amount} ?`,
+      confirmDescription:
+        "Le client sera intégralement remboursé et la commande quittera le service. Si une commission Surplasse a été prélevée, elle sera aussi restituée au restaurant.",
+      reasonLabel: "Motif du remboursement",
+      reasonUnavailable: "Produit indisponible",
+      reasonIncident: "Incident de service",
+      cancelRefusal: "Garder la commande",
+      cancel: "Annuler",
+      confirmRefusal: "Refuser et rembourser",
+      confirmIncident: "Rembourser la commande",
+      pending: "Remboursement…",
+      processing:
+        "Stripe traite le remboursement. La commande reste bloquée jusqu’à sa confirmation.",
+      failed:
+        "Stripe n’a pas pu finaliser ce remboursement. Relancez la demande après avoir vérifié le compte.",
+      error:
+        "Le serveur n’a pas confirmé le remboursement. Vous pouvez relancer cette même demande sans créer de double remboursement.",
+    },
   },
 } as const;

@@ -9,7 +9,7 @@
  * them.
  */
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
@@ -45,6 +45,20 @@ function generate(generator, output, extraArgs) {
     ],
     { cwd: root, stdio: "inherit" },
   );
+}
+
+function stripTrailingWhitespace(path) {
+  if (statSync(path).isDirectory()) {
+    for (const entry of readdirSync(path)) {
+      stripTrailingWhitespace(join(path, entry));
+    }
+    return;
+  }
+  const content = readFileSync(path, "utf8");
+  const normalized = content.replace(/[ \t]+$/gmu, "");
+  if (normalized !== content) {
+    writeFileSync(path, normalized);
+  }
 }
 
 const doc = filterDrafts(YAML.parse(readFileSync(contractPath, "utf8")));
@@ -93,6 +107,9 @@ writeFileSync(
   generatedRuntimePath,
   generatedRuntime.replace(basePathDeclaration, 'export const BASE_PATH = "";'),
 );
+
+stripTrailingWhitespace(join(root, "backend", "contract", "src", "main", "java"));
+stripTrailingWhitespace(join(root, "frontends", "shared", "src", "api", "generated"));
 
 // The full contract (drafts included, marked as such) is served by Swagger
 // UI at /q/swagger-ui; this copy is generated, never edited by hand.

@@ -47,7 +47,7 @@ public class EstablishmentPublic   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "id")
   @NotNull public UUID getId() {
     return id;
@@ -66,7 +66,7 @@ public class EstablishmentPublic   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "name")
   @NotNull public String getName() {
     return name;
@@ -85,7 +85,7 @@ public class EstablishmentPublic   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "slug")
   @NotNull public String getSlug() {
     return slug;
@@ -104,7 +104,7 @@ public class EstablishmentPublic   {
     return this;
   }
 
-  
+
   @JsonProperty("address")
   public String getAddress() {
     return address;
@@ -123,7 +123,7 @@ public class EstablishmentPublic   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "acceptingOrders")
   @NotNull public Boolean getAcceptingOrders() {
     return acceptingOrders;
@@ -160,7 +160,7 @@ public class EstablishmentPublic   {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class EstablishmentPublic {\n");
-    
+
     sb.append("    id: ").append(toIndentedString(id)).append("\n");
     sb.append("    name: ").append(toIndentedString(name)).append("\n");
     sb.append("    slug: ").append(toIndentedString(slug)).append("\n");

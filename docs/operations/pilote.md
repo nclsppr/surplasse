@@ -10,7 +10,7 @@ description: "Les portes Go ou No-Go, métriques et procédures de repli qui enc
 Cette page est le plan d'exécution de la [phase 2 de la roadmap](../roadmap.md#phase-2--commander-et-payer). Elle ne crée ni une roadmap parallèle ni une date de lancement. Elle transforme le critère de sortie de la phase en preuves observables et impose une décision Go ou No-Go avant chaque exposition supplémentaire.
 
 !!! danger État au 2026-07-20 : No-Go live
-Le chemin logiciel des charges directes Stripe Connect et la mise en pause de la prise de commandes sont sécurisés et testés localement avec des doublures. La plateforme test est inscrite à Connect et le compte Accounts v2 du pilote existe, mais son embarquement et ses capacités de paiement restent incomplets. La production, le remboursement et la qualification sur appareils réels ne sont pas livrés. Aucune transaction live ni aucun service pilote ne peut donc commencer.
+Les chemins logiciels des charges directes Stripe Connect, du remboursement intégral et de la mise en pause de la prise de commandes sont sécurisés et testés localement avec des doublures. La plateforme test est inscrite à Connect et le compte Accounts v2 du pilote existe, mais son embarquement et ses capacités de paiement restent incomplets. La production, la qualification du remboursement contre Stripe réel et celle sur appareils réels ne sont pas livrées. Aucune transaction live ni aucun service pilote ne peut donc commencer.
 !!!
 
 ## Principes de décision
@@ -25,7 +25,7 @@ Le chemin logiciel des charges directes Stripe Connect et la mise en pause de la
 
 | Porte | État au 2026-07-20 | Preuve attendue pour Go |
 |---|---|---|
-| 0. Noyau paiement local | **Go local** | Idempotence de création, isolation par session de table, webhook retentable, transition paiement et commande atomique, pause d'admission, migrations et tests verts |
+| 0. Noyau paiement local | **Go local** | Idempotence de création et remboursement, isolation par session de table, webhooks retentables, transitions paiement et commande atomiques, pause d'admission, migrations et tests verts |
 | 1. Stripe Connect en test | **No-Go** | Compte Accounts v2 pilote activé en test, charges directes, commission correcte, webhooks Connect, mécanismes de remboursement et de pause vérifiés |
 | 2. Production prête | **No-Go** | Pile Ubuntu LTS déployable et restaurable, secrets live, SMTP, supervision, retour arrière et données pilote |
 | 3. Live fermé | **No-Go** | Transaction réelle de faible montant, rapprochement complet et remboursement réussi hors service |
@@ -51,7 +51,7 @@ Les clés de test authentifient correctement l'API Stripe. Après inscription de
 - Le montant vient exclusivement de la carte recalculée côté Backend.
 - Les scénarios carte acceptée, carte refusée, SCA, Apple Pay et Google Pay sont exercés lorsque l'appareil les rend disponibles.
 - Une coupure réseau, un rejeu client et un webhook dupliqué ou retardé ne créent ni second débit ni second effet métier.
-- Le refus d'une commande payée déclenche un remboursement intégral, ou une procédure manuelle Stripe explicite et testée tant que l'interface dédiée n'existe pas.
+- Le refus d'une commande payée déclenche depuis le Dashboard un remboursement intégral qui restitue aussi la commission Surplasse lorsqu'elle existe.
 - Le passage à `paused` ferme les nouvelles sessions de table, commandes et sessions de paiement sans couper le suivi, les flux SSE, le Dashboard ni les webhooks des commandes existantes.
 - Un Payment Intent dont le `client_secret` a été remis avant la pause est rapproché s'il aboutit ensuite, puis sa commande est servie ou remboursée.
 - `configuration.merchant.capabilities.card_payments.status` différent de `active` force la pause et le retour à `active` ne rouvre jamais automatiquement le service.
@@ -177,7 +177,7 @@ Le petit échantillon du premier pilote ne permet pas d'utiliser la conversion c
 2. Si seul le SSE est indisponible, utiliser la lecture REST pendant 5 minutes au maximum.
 3. Si le paiement, l'API ou le Dashboard deviennent douteux, couvrir les QR et reprendre le parcours habituel du restaurant.
 4. Conserver les preuves. Ne faire aucune écriture SQL manuelle.
-5. Pour une régression applicative identifiée, redéployer le dernier SHA sain. Le premier SHA sain de production inclut V13 : aucun retour vers un SHA pré-V13 n'est autorisé. Ne jamais annuler une migration de base.
+5. Pour une régression applicative identifiée, redéployer le dernier SHA sain. Le premier SHA sain de production inclut V14 : aucun retour vers un SHA pré-V14 n'est autorisé. Ne jamais annuler une migration de base.
 6. Rapprocher chaque Commande, Paiement, Payment Intent et événement Stripe, puis rembourser les cas concernés.
 7. Consigner un post-mortem court, corriger et refaire un service à blanc avant tout nouveau service réel.
 

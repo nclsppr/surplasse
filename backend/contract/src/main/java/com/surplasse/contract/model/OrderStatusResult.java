@@ -87,7 +87,7 @@ public class OrderStatusResult   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "id")
   @NotNull public UUID getId() {
     return id;
@@ -106,7 +106,7 @@ public class OrderStatusResult   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "status")
   @NotNull public StatusEnum getStatus() {
     return status;
@@ -140,7 +140,7 @@ public class OrderStatusResult   {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class OrderStatusResult {\n");
-    
+
     sb.append("    id: ").append(toIndentedString(id)).append("\n");
     sb.append("    status: ").append(toIndentedString(status)).append("\n");
     sb.append("}");

@@ -115,7 +115,21 @@
   .dashboard-quantity{color:var(--accent-press);font-family:var(--font-mono)}
   .dashboard-order-total{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;color:var(--fg-3);font:400 9px/1.4 var(--font-mono)}
   .dashboard-order-total strong{color:var(--fg-1);font-size:11px;font-variant-numeric:tabular-nums}
-  .dashboard-order-action{width:calc(100% - 24px);margin:0 12px 12px;min-height:44px;padding-inline:10px;font-size:10px}
+  .dashboard-order-actions{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin:0 12px 12px}
+  .dashboard-order-action{width:100%;min-height:44px;padding-inline:10px;font-size:10px}
+  .sp-btn--danger{color:#fff;background:var(--danger);border-color:var(--danger)}
+  .sp-btn--danger:hover{background:#812d1d}
+  .sp-btn--danger-quiet{color:var(--danger);background:transparent;border-color:var(--danger)}
+  .sp-btn--danger-quiet:hover{background:var(--danger-tint)}
+  .dashboard-refund-confirm{display:grid;min-width:0;gap:8px;margin:0 12px 12px;padding:12px;border:1px solid var(--danger);border-radius:var(--radius-sm);background:var(--danger-tint)}
+  .dashboard-refund-confirm>*{min-width:0}
+  .dashboard-refund-confirm strong{color:var(--danger);font:700 11px/1.35 var(--font-ui)}
+  .dashboard-refund-confirm p{margin:0;color:var(--fg-1);font:400 10px/1.5 var(--font-mono)}
+  .dashboard-refund-reason{display:grid;gap:5px;color:var(--fg-1);font:700 10px/1.4 var(--font-ui)}
+  .dashboard-refund-reason select{min-height:44px;padding:0 10px;border:1.5px solid var(--line-2);border-radius:var(--radius-sm);color:var(--fg-1);background:var(--surface-raised);font:inherit}
+  .dashboard-refund-reason select:focus-visible{outline:3px solid var(--focus-ring);outline-offset:2px}
+  .dashboard-refund-confirm-actions{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;margin-top:4px}
+  .dashboard-refund-confirm-actions .sp-btn{width:100%;min-width:0;padding-inline:8px;white-space:normal}
   .dashboard-preview-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 18px;border-top:1px solid var(--line-1);background:var(--surface-raised)}
   .dashboard-preview-footer p{margin:0;color:var(--fg-3);font:400 10px/1.45 var(--font-mono)}
   .dashboard-replay{flex:none;min-height:44px}
@@ -255,7 +269,16 @@
               <header class="dashboard-order-header"><div><span class="dashboard-order-number">Commande 47</span><strong>Table 4</strong></div><time datetime="12:34">Reçue à 12:34</time></header>
               <ul class="dashboard-order-lines" role="list"><li><span class="dashboard-quantity">2 ×</span><span>Margherita</span></li><li><span class="dashboard-quantity">1 ×</span><span>Burrata des Pouilles</span></li></ul>
               <div class="dashboard-order-total"><span>Sur place</span><strong>37,00 €</strong></div>
-              <button type="button" class="sp-btn sp-btn--primary dashboard-order-action" id="dashboard-order-action" onclick="advanceDashboardOrder()" aria-label="Accepter, commande 47">Accepter</button>
+              <div class="dashboard-order-actions">
+                <button type="button" class="sp-btn sp-btn--primary dashboard-order-action" id="dashboard-order-action" onclick="advanceDashboardOrder()" aria-label="Accepter, commande 47">Accepter</button>
+                <button type="button" class="sp-btn sp-btn--danger-quiet dashboard-order-action" id="dashboard-refund-action" aria-controls="dashboard-refund-confirm" aria-expanded="false" onclick="requestDashboardRefund()" aria-label="Refuser et rembourser la commande 47">Refuser</button>
+              </div>
+              <div class="dashboard-refund-confirm" id="dashboard-refund-confirm" role="group" aria-labelledby="dashboard-refund-title" aria-live="polite" onkeydown="if(event.key==='Escape'){event.preventDefault();cancelDashboardRefund()}" hidden>
+                <strong id="dashboard-refund-title">Rembourser 37,00 € ?</strong>
+                <p>Le client sera intégralement remboursé et la commande quittera le service. Si une commission Surplasse a été prélevée, elle sera aussi restituée au restaurant.</p>
+                <label class="dashboard-refund-reason" id="dashboard-refund-reason-field" for="dashboard-refund-reason" hidden>Motif du remboursement<select id="dashboard-refund-reason"><option value="item_unavailable">Produit indisponible</option><option value="service_incident">Incident de service</option></select></label>
+                <div class="dashboard-refund-confirm-actions"><button type="button" class="sp-btn sp-btn--secondary" id="dashboard-refund-cancel-action" onclick="cancelDashboardRefund()">Garder la commande</button><button type="button" class="sp-btn sp-btn--danger" id="dashboard-refund-confirm-action" onclick="confirmDashboardRefund()">Refuser et rembourser</button></div>
+              </div>
             </article>
             <p class="dashboard-empty" data-dashboard-empty="paid" hidden>Aucune nouvelle commande</p>
           </div>
@@ -278,7 +301,7 @@
         <button type="button" class="sp-btn sp-btn--secondary dashboard-replay" id="dashboard-replay" onclick="resetDashboardOrder(true)" hidden>Rejouer la commande</button>
       </footer>
     </article>
-    <p class="dashboard-scope">Cet aperçu montre l'arrivée des commandes payées et leur avancement jusqu'au service. L'édition de la carte, l'historique et les métriques viendront dans une étape ultérieure.</p>
+    <p class="dashboard-scope">Cet aperçu montre l'arrivée des commandes payées, leur avancement jusqu'au service et leur remboursement intégral avant service. L'édition de la carte, l'historique et les métriques viendront dans une étape ultérieure.</p>
     <div class="actions"><button type="button" class="sp-btn sp-btn--secondary sp-btn--lg" onclick="goTo(4)">Retour à la carte</button><button type="button" class="sp-btn sp-btn--primary sp-btn--lg grow" onclick="finishDemo()">Terminer la démo</button></div>
   </section>
 
@@ -288,7 +311,7 @@
       <div class="eyebrow">Démonstration terminée</div>
       <h1 tabindex="-1">Rien n'a été publié ni modifié.</h1>
       <p class="sub sub--center">Vous avez parcouru le principe du futur embarquement puis le tableau de service. Aucune commande réelle n'a été ouverte.</p>
-      <div class="done-card"><strong>Ce que cette démo distingue</strong><p>L'extraction et l'activation restent simulées. Le Dashboard opérationnel réel couvre déjà l'arrivée des commandes payées et leur avancement jusqu'au service.</p></div>
+      <div class="done-card"><strong>Ce que cette démo distingue</strong><p>L'extraction et l'activation restent simulées. Le Dashboard opérationnel réel couvre déjà l'arrivée des commandes payées, leur avancement et la demande de remboursement intégral avant service.</p></div>
       <div class="actions actions--center"><button type="button" class="sp-btn sp-btn--secondary sp-btn--lg" onclick="restart()">Recommencer</button><a class="sp-btn sp-btn--primary sp-btn--lg" href="index.html">Retour à l'accueil</a></div>
     </div>
   </section>
@@ -298,6 +321,7 @@
   let step = 1;
   let objectUrls = [];
   let dashboardOrderStatus = 'paid';
+  let dashboardRefundConfirming = false;
   let dashboardIntakeStatus = 'open';
   let dashboardIntakeConfirming = false;
   const messages = ['Lecture de la carte simulée...','Repérage des catégories...','Identification des plats et des prix...','Préparation de la relecture...'];
@@ -445,7 +469,9 @@
     const order = document.getElementById('dashboard-order');
     const action = document.getElementById('dashboard-order-action');
     const replay = document.getElementById('dashboard-replay');
-    const active = dashboardOrderStatus !== 'served';
+    const active = dashboardOrderStatus !== 'served' && dashboardOrderStatus !== 'refunded';
+    const canRefund = active;
+    const isRefusal = dashboardOrderStatus === 'paid';
 
     ['paid','accepted','preparing','ready'].forEach((status) => {
       const isCurrent = active && status === dashboardOrderStatus;
@@ -465,10 +491,41 @@
     document.querySelector('[data-dashboard-stack="' + dashboardOrderStatus + '"]').prepend(order);
     action.textContent = transition.action;
     action.setAttribute('aria-label', transition.action + ', commande 47');
+    const refundAction = document.getElementById('dashboard-refund-action');
+    refundAction.hidden = !canRefund;
+    refundAction.textContent = isRefusal ? 'Refuser' : 'Rembourser';
+    refundAction.setAttribute('aria-label', (isRefusal ? 'Refuser et rembourser' : 'Rembourser') + ' la commande 47');
+    refundAction.setAttribute('aria-expanded', String(dashboardRefundConfirming && canRefund));
+    document.getElementById('dashboard-refund-confirm').hidden = !(dashboardRefundConfirming && canRefund);
+    document.getElementById('dashboard-refund-reason-field').hidden = isRefusal;
+    document.getElementById('dashboard-refund-cancel-action').textContent = isRefusal ? 'Garder la commande' : 'Annuler';
+    document.getElementById('dashboard-refund-confirm-action').textContent = isRefusal ? 'Refuser et rembourser' : 'Rembourser la commande';
+  }
+
+  function requestDashboardRefund(){
+    dashboardRefundConfirming = true;
+    document.getElementById('dashboard-refund-reason').value = 'item_unavailable';
+    renderDashboardOrder();
+    document.getElementById('dashboard-refund-confirm-action').focus({preventScroll:true});
+  }
+
+  function cancelDashboardRefund(){
+    dashboardRefundConfirming = false;
+    renderDashboardOrder();
+    document.getElementById('dashboard-refund-action').focus({preventScroll:true});
+  }
+
+  function confirmDashboardRefund(){
+    const wasRefusal = dashboardOrderStatus === 'paid';
+    dashboardRefundConfirming = false;
+    dashboardOrderStatus = 'refunded';
+    renderDashboardOrder((wasRefusal ? 'Commande 47 refusée.' : 'Commande 47 remboursée avant la fin du service.') + ' Le remboursement intégral de 37,00 € est simulé et aucune donnée réelle n’est modifiée.');
+    document.getElementById('dashboard-replay').focus({preventScroll:true});
   }
 
   function advanceDashboardOrder(){
     const transition = dashboardTransitions[dashboardOrderStatus];
+    dashboardRefundConfirming = false;
     dashboardOrderStatus = transition.next;
     renderDashboardOrder(transition.announcement);
     if (dashboardOrderStatus === 'served') {
@@ -482,6 +539,7 @@
 
   function resetDashboardOrder(focusAction = false){
     dashboardOrderStatus = 'paid';
+    dashboardRefundConfirming = false;
     renderDashboardOrder('Commande 47 replacée dans les nouvelles commandes. Aucune donnée réelle n’est modifiée.');
     if (focusAction) document.getElementById('dashboard-order-action').focus({preventScroll:true});
   }

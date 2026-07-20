@@ -1,12 +1,15 @@
 import {
   createEstablishmentApi,
   createIdentityApi,
+  createRestaurateurPaymentApi,
   createRestaurateurOrderApi,
   type OrderPage,
   type OrderIntakeState,
   type OrderIntakeStatus,
   type OrderStatusResult,
   type OrderStatusUpdateStatusEnum,
+  type Refund,
+  type RefundCreationRequestReasonEnum,
   type RestaurateurSession,
 } from "@surplasse/shared";
 
@@ -31,16 +34,26 @@ export interface EstablishmentClient {
   ): Promise<OrderIntakeState>;
 }
 
+export interface RefundClient {
+  createRefund(
+    orderId: string,
+    reason: RefundCreationRequestReasonEnum,
+    idempotencyKey: string,
+  ): Promise<Refund>;
+}
+
 export interface DashboardClients {
   identity: IdentityClient;
   establishment: EstablishmentClient;
   orders: RestaurateurOrderClient;
+  refunds: RefundClient;
 }
 
 export function createDashboardClients(baseUrl: string): DashboardClients {
   const identityApi = createIdentityApi(baseUrl);
   const establishmentApi = createEstablishmentApi(baseUrl);
   const orderApi = createRestaurateurOrderApi(baseUrl);
+  const paymentApi = createRestaurateurPaymentApi(baseUrl);
 
   return {
     identity: {
@@ -65,6 +78,13 @@ export function createDashboardClients(baseUrl: string): DashboardClients {
         orderApi.listOrders({ establishmentId, cursor, limit }),
       updateStatus: (orderId, status) =>
         orderApi.updateOrderStatus({ orderId, orderStatusUpdate: { status } }),
+    },
+    refunds: {
+      createRefund: (orderId, reason, idempotencyKey) =>
+        paymentApi.createRefund({
+          idempotencyKey,
+          refundCreationRequest: { orderId, reason },
+        }),
     },
   };
 }

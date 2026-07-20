@@ -1,6 +1,8 @@
 package com.surplasse.application;
 
 import com.surplasse.payment.provider.PaymentProvider;
+import com.surplasse.payment.provider.RefundProvider;
+import com.surplasse.payment.entity.RefundStatus;
 import io.quarkus.test.Mock;
 import jakarta.enterprise.context.ApplicationScoped;
 
@@ -11,10 +13,15 @@ import jakarta.enterprise.context.ApplicationScoped;
  */
 @Mock
 @ApplicationScoped
-public class FakePaymentProvider implements PaymentProvider {
+public class FakePaymentProvider implements PaymentProvider, RefundProvider {
 
     @Override
     public PaymentIntentRef createIntent(PaymentIntentRequest request) {
         return new PaymentIntentRef("pi_fake_" + request.orderId(), "pi_fake_secret_" + request.orderId());
+    }
+
+    @Override
+    public RefundRef createFullRefund(RefundRequest request) {
+        return new RefundRef("re_fake_" + request.orderId(), RefundStatus.SUCCEEDED, null);
     }
 }

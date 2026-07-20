@@ -27,6 +27,8 @@ src/main/java/com/surplasse/contract/model/PaymentCreationRequest.java
 src/main/java/com/surplasse/contract/model/PaymentSession.java
 src/main/java/com/surplasse/contract/model/Problem.java
 src/main/java/com/surplasse/contract/model/PublicMenu.java
+src/main/java/com/surplasse/contract/model/Refund.java
+src/main/java/com/surplasse/contract/model/RefundCreationRequest.java
 src/main/java/com/surplasse/contract/model/RestaurateurEstablishment.java
 src/main/java/com/surplasse/contract/model/RestaurateurSession.java
 src/main/java/com/surplasse/contract/model/TableSession.java

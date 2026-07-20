@@ -15,6 +15,7 @@ import com.surplasse.common.error.BusinessRuleException;
 import com.surplasse.common.error.ConflictException;
 import com.surplasse.common.error.NotFoundException;
 import com.surplasse.common.identity.RestaurateurIdentityGateway;
+import com.surplasse.common.payment.RefundGateway;
 import com.surplasse.order.entity.Order;
 import com.surplasse.order.entity.OrderEvent;
 import com.surplasse.order.entity.OrderStatus;
@@ -39,6 +40,7 @@ class OrderStatusServiceTest {
     private OrderRepository orderRepository;
     private OrderEventRepository eventRepository;
     private RestaurateurIdentityGateway identityGateway;
+    private RefundGateway refundGateway;
     private OrderStatusService service;
 
     @BeforeEach
@@ -46,7 +48,8 @@ class OrderStatusServiceTest {
         orderRepository = mock(OrderRepository.class);
         eventRepository = mock(OrderEventRepository.class);
         identityGateway = mock(RestaurateurIdentityGateway.class);
-        service = new OrderStatusService(orderRepository, eventRepository, identityGateway);
+        refundGateway = mock(RefundGateway.class);
+        service = new OrderStatusService(orderRepository, eventRepository, identityGateway, refundGateway);
         when(identityGateway.authenticate(ACCESS_TOKEN)).thenReturn(RESTAURATEUR);
         when(identityGateway.authorize(ACCESS_TOKEN, ESTABLISHMENT)).thenReturn(RESTAURATEUR);
         doAnswer(invocation -> {
@@ -102,6 +105,52 @@ class OrderStatusServiceTest {
 
         assertEquals("order-not-modifiable", conflict.problemType());
         assertEquals(OrderStatus.PAID, order.getStatus());
+        verify(eventRepository, never()).persist(org.mockito.ArgumentMatchers.any(OrderEvent.class));
+    }
+
+    @Test
+    void update_refundInProgress_blocksKitchenProgress() {
+        Order order = orderAt(OrderStatus.PAID, OrderType.ON_SITE);
+        when(orderRepository.findByIdForUpdate(order.getId())).thenReturn(Optional.of(order));
+        when(refundGateway.hasInProgressRefund(order.getId(), ESTABLISHMENT)).thenReturn(true);
+
+        ConflictException conflict = assertThrows(
+                ConflictException.class, () -> service.update(ACCESS_TOKEN, order.getId(), OrderStatus.ACCEPTED));
+
+        assertEquals("order-not-modifiable", conflict.problemType());
+        assertEquals(OrderStatus.PAID, order.getStatus());
+    }
+
+    @Test
+    void markRefunded_refundableOrder_persistsTheTerminalEvent() {
+        Order order = orderAt(OrderStatus.PREPARING, OrderType.ON_SITE);
+        when(orderRepository.findByIdForUpdate(order.getId())).thenReturn(Optional.of(order));
+
+        Optional<OrderStatusService.PublishedOrderEvent> event = service.markRefunded(order.getId());
+
+        assertEquals(OrderStatus.REFUNDED, order.getStatus());
+        assertTrue(event.isPresent());
+        assertTrue(event.orElseThrow().payload().contains("\"status\":\"refunded\""));
+    }
+
+    @Test
+    void markRefunded_completedOrder_rejectsAnInconsistentPaymentFact() {
+        Order order = orderAt(OrderStatus.SERVED, OrderType.ON_SITE);
+        when(orderRepository.findByIdForUpdate(order.getId())).thenReturn(Optional.of(order));
+
+        assertThrows(IllegalStateException.class, () -> service.markRefunded(order.getId()));
+
+        assertEquals(OrderStatus.SERVED, order.getStatus());
+        verify(eventRepository, never()).persist(org.mockito.ArgumentMatchers.any(OrderEvent.class));
+    }
+
+    @Test
+    void markRefunded_unknownOrder_rejectsAnInconsistentPaymentFact() {
+        UUID orderId = UUID.randomUUID();
+        when(orderRepository.findByIdForUpdate(orderId)).thenReturn(Optional.empty());
+
+        assertThrows(IllegalStateException.class, () -> service.markRefunded(orderId));
+
         verify(eventRepository, never()).persist(org.mockito.ArgumentMatchers.any(OrderEvent.class));
     }
 

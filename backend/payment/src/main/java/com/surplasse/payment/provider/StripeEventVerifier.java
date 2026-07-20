@@ -1,6 +1,8 @@
 package com.surplasse.payment.provider;
 
+import com.surplasse.payment.entity.RefundStatus;
 import java.time.OffsetDateTime;
+import java.util.UUID;
 
 /**
  * Port of the webhook signature verification, doubled in tests. The real
@@ -26,11 +28,22 @@ public interface StripeEventVerifier {
             String paymentIntentId,
             String connectedAccountId,
             boolean liveMode,
-            OffsetDateTime occurredAt) {
+            OffsetDateTime occurredAt,
+            RefundData refund) {
 
         public VerifiedEvent(
                 String id, String type, String paymentIntentId, String connectedAccountId, boolean liveMode) {
-            this(id, type, paymentIntentId, connectedAccountId, liveMode, null);
+            this(id, type, paymentIntentId, connectedAccountId, liveMode, null, null);
+        }
+
+        public VerifiedEvent(
+                String id,
+                String type,
+                String paymentIntentId,
+                String connectedAccountId,
+                boolean liveMode,
+                OffsetDateTime occurredAt) {
+            this(id, type, paymentIntentId, connectedAccountId, liveMode, occurredAt, null);
         }
 
         public boolean refreshesConnectedAccountCapabilities() {
@@ -39,4 +52,10 @@ public interface StripeEventVerifier {
                     || type.startsWith("v2.core.account[");
         }
     }
+
+    record RefundData(
+            String externalReference,
+            UUID internalRefundId,
+            RefundStatus status,
+            String failureReason) {}
 }

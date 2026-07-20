@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Optional;
+import java.util.UUID;
 
 @ApplicationScoped
 public class StripeSignatureVerifier implements StripeEventVerifier {
@@ -69,7 +70,12 @@ public class StripeSignatureVerifier implements StripeEventVerifier {
         }
         JsonNode object = root.path("data").path("object");
         String objectId = object.path("id").asText(null);
-        String paymentIntentId = type.startsWith("payment_intent.") ? objectId : null;
+        String paymentIntentId = type.startsWith("payment_intent.")
+                ? objectId
+                : object.path("payment_intent").asText(null);
+        StripeEventVerifier.RefundData refund = type.startsWith("refund.")
+                ? extractRefund(objectId, object)
+                : null;
         String connectedAccountId = root.path("account").asText(null);
         boolean liveMode = liveModeNode.booleanValue();
         OffsetDateTime occurredAt = null;
@@ -82,7 +88,31 @@ public class StripeSignatureVerifier implements StripeEventVerifier {
             }
             occurredAt = parseOccurredAt(root.get("created"));
         }
-        return new VerifiedEvent(id, type, paymentIntentId, connectedAccountId, liveMode, occurredAt);
+        return new VerifiedEvent(id, type, paymentIntentId, connectedAccountId, liveMode, occurredAt, refund);
+    }
+
+    private static StripeEventVerifier.RefundData extractRefund(String objectId, JsonNode object) {
+        String statusValue = object.path("status").asText(null);
+        if (objectId == null || object.path("payment_intent").asText(null) == null || statusValue == null) {
+            throw new InvalidRequestException("Stripe refund event is incomplete.");
+        }
+        com.surplasse.payment.entity.RefundStatus status;
+        try {
+            status = com.surplasse.payment.entity.RefundStatus.fromProviderValue(statusValue);
+        } catch (IllegalArgumentException e) {
+            throw new InvalidRequestException("Stripe refund event has an unknown status.");
+        }
+        UUID internalRefundId = null;
+        String internalId = object.path("metadata").path("refund_id").asText(null);
+        if (internalId != null) {
+            try {
+                internalRefundId = UUID.fromString(internalId);
+            } catch (IllegalArgumentException e) {
+                throw new InvalidRequestException("Stripe refund event has an invalid refund identifier.");
+            }
+        }
+        return new StripeEventVerifier.RefundData(
+                objectId, internalRefundId, status, object.path("failure_reason").asText(null));
     }
 
     private static boolean refreshesConnectedAccountCapabilities(String type) {

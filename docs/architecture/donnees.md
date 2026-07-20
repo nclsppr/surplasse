@@ -7,7 +7,7 @@ description: Le modèle de données de référence de Surplasse, entités par do
 
 # Modèle de données
 
-Cette page décrit le modèle de données de référence de Surplasse. Le [backend](./backend.md) est le seul à accéder à la base : les frontends passent exclusivement par [le contrat OpenAPI](./api.md). Les domaines catalogue, commande, paiement et identité sont matérialisés par les migrations Flyway V1 à V13 ; les autres domaines restent la cible à implémenter.
+Cette page décrit le modèle de données de référence de Surplasse. Le [backend](./backend.md) est le seul à accéder à la base : les frontends passent exclusivement par [le contrat OpenAPI](./api.md). Les domaines catalogue, commande, paiement et identité sont matérialisés par les migrations Flyway V1 à V14 ; les autres domaines restent la cible à implémenter.
 
 ## Principes
 
@@ -328,6 +328,38 @@ GÉNÉRATION                                    MÉDIAS
 | `table_session_id` | uuid | FK, non nul | Empêche une autre session, même à la même table, de reprendre le paiement |
 | `created_at` | timestamptz | non nul | |
 
+**PaymentRefund** (`payment_refund`) : une tentative auditable de remboursement intégral. Elle est réservée avant l'appel Stripe et conserve toutes les données nécessaires à une reprise sûre.
+
+| Attribut | Type | Contraintes | Commentaire |
+|---|---|---|---|
+| `id` | uuid | PK | Identifiant interne porté dans les métadonnées Stripe |
+| `payment_id` | uuid | FK, non nul | Paiement intégralement remboursé |
+| `order_id`, `establishment_id` | uuid | FK, non nuls | Autorisation et rapprochement métier |
+| `provider` | text | CHECK | `stripe` au MVP |
+| `external_reference` | text | non nul | Référence interne pendant `creating`, puis identifiant du remboursement Stripe ; unique avec le compte connecté |
+| `creation_key` | uuid | non nul | Clé stable transmise à Stripe pour cette tentative |
+| `payment_intent_id` | text | non nul | Payment Intent figé avant l'appel réseau |
+| `connected_account_id` | text | non nul | Compte de la charge directe, repris dans `Stripe-Account` |
+| `amount_cents` | integer | > 0, non nul | Montant total du paiement, sans remboursement partiel au MVP |
+| `application_fee_amount` | integer | >= 0 et < montant | Commission à restituer avec `refund_application_fee` lorsqu'elle est positive |
+| `currency` | text | non nul | Devise du paiement |
+| `reason` | text | CHECK | `restaurant_refusal`, `item_unavailable` ou `service_incident` |
+| `status` | text | CHECK | `creating`, `pending`, `requires_action`, `succeeded`, `failed` ou `canceled` |
+| `failure_reason` | text | nullable | Cause Stripe utile à l'exploitation, sans donnée de carte |
+| `created_at`, `updated_at` | timestamptz | non nuls | |
+
+Un index unique partiel interdit deux remboursements actifs ou réussis sur le même paiement. Un remboursement `failed` ou `canceled` libère une nouvelle tentative, tandis que `creating`, `pending`, `requires_action` et `succeeded` restent exclusifs.
+
+**RefundRequest** (`refund_request`) : une intention restaurateur identifiée par `Idempotency-Key`. Plusieurs clés peuvent pointer vers le même remboursement actif ou réussi sans déclencher un nouvel appel Stripe.
+
+| Attribut | Type | Contraintes | Commentaire |
+|---|---|---|---|
+| `idempotency_key` | uuid | PK | Clé reçue du Dashboard |
+| `refund_id` | uuid | FK, non nul | Tentative rendue pour cette intention |
+| `order_id`, `establishment_id` | uuid | FK, non nuls | Détectent une réutilisation hors périmètre |
+| `reason` | text | CHECK | Motif associé à la requête rejouable |
+| `created_at` | timestamptz | non nul | |
+
 **StripeWebhookEvent** (`stripe_webhook_event`) : les identifiants d'événements Stripe déjà traités, avec contrainte d'unicité. C'est la garantie d'idempotence du webhook (voir [la sécurité](securite.md)) : une livraison dupliquée est acquittée sans effet.
 
 ### Engagement
@@ -439,7 +471,7 @@ Glose des statuts : `paid` (payée), `accepted` (acceptée), `preparing` (en pr�
 | `ready` | `served` | Commande apportée à table (sur place) | Restaurateur (Dashboard) |
 | `ready` | `picked_up` | Commande remise au comptoir (à emporter) | Restaurateur (Dashboard) |
 
-Toute transition hors de ce tableau est rejetée par le service. `cancelled` et `refunded` sont des états terminaux, comme `served` et `picked_up`. Le remboursement partiel n'est pas couvert au MVP : la question est ouverte et sera tranchée par ADR.
+Toute transition hors de ce tableau est rejetée par le service. `cancelled` et `refunded` sont des états terminaux, comme `served` et `picked_up`. L'[ADR-0022](../decisions/adr-0022-remboursement-integral-stripe.md) exclut le remboursement partiel du MVP et impose une nouvelle décision avant de l'introduire.
 
 !!! warning Le webhook fait foi
 Le passage à `paid` ne s'appuie jamais sur le retour navigateur du client : seul le webhook Stripe, vérifié par signature, déclenche la transition. Un retour navigateur sans webhook laisse la commande en attente de paiement.
@@ -495,12 +527,13 @@ La pause ferme les nouvelles sessions de table, commandes et sessions de paiemen
 | V11 | `payment` | compte Connect et commission figés sur le paiement, unicité de la référence par compte |
 | V12 | `catalog` | état opérationnel de prise de commandes, fermé par défaut et horodaté |
 | V13 | `catalog` | renommage des capacités v1 vers les états Accounts v2 `card_payments` et `payouts` |
+| V14 | `payment` | tentatives et intentions idempotentes de remboursement intégral |
 
-V5 vit dans `backend/identity/src/main/resources/db/migration/V5__identity_schema.sql`. Le seed local associe le compte de démonstration à l'établissement pilote ; il n'est jamais chargé en production. V6 vit dans `backend/order/src/main/resources/db/migration/V6__operational_order_index.sql`. Son index partiel couvre `(establishment_id, created_at DESC, id DESC)` uniquement pour `paid`, `accepted`, `preparing` et `ready`, soit la file active lue par le Dashboard. V7 vit dans `backend/payment/src/main/resources/db/migration/V7__payment_idempotency.sql` et rattache chaque clé de requête à la session de paiement effectivement rendue. V8 vit dans `backend/order/src/main/resources/db/migration/V8__order_table_session_scope.sql`, reconstitue la session uniquement quand une seule session encore active au moment de la commande correspond, refuse une reprise absente ou ambiguë et conserve ensuite la session exacte. V9 vit dans `backend/payment/src/main/resources/db/migration/V9__reconcile_payment_order.sql`. Elle introduit l'état court `creating`, impose avec `payment_order_unique_idx` un seul paiement pour toute la vie d'une commande et répare une éventuelle commande restée `pending_payment` alors que son paiement était déjà `succeeded`. Si une base héritée contient un paiement `failed` ou plusieurs paiements pour une commande, la migration s'arrête afin d'imposer leur rapprochement Stripe et l'annulation des Payment Intents surnuméraires avant déploiement. V10 ajoute le routage Connect. Pour un établissement déjà actif sans date fiable, elle démarre une nouvelle période gratuite au moment de la migration, jamais à sa date de création. V11 refuse toute base contenant encore un ancien paiement plateforme : aucun compte Connect ne peut être inféré sans preuve Stripe, et le contrat exige ce compte sur chaque session. V12 ajoute `order_intake_status` et `order_intake_updated_at` avec un défaut fermé ; le seed de démonstration ouvre explicitement son établissement. V13 renomme les copies de capacités sans changer leurs valeurs, afin que le schéma exprime la source Accounts v2.
+V5 vit dans `backend/identity/src/main/resources/db/migration/V5__identity_schema.sql`. Le seed local associe le compte de démonstration à l'établissement pilote ; il n'est jamais chargé en production. V6 vit dans `backend/order/src/main/resources/db/migration/V6__operational_order_index.sql`. Son index partiel couvre `(establishment_id, created_at DESC, id DESC)` uniquement pour `paid`, `accepted`, `preparing` et `ready`, soit la file active lue par le Dashboard. V7 vit dans `backend/payment/src/main/resources/db/migration/V7__payment_idempotency.sql` et rattache chaque clé de requête à la session de paiement effectivement rendue. V8 vit dans `backend/order/src/main/resources/db/migration/V8__order_table_session_scope.sql`, reconstitue la session uniquement quand une seule session encore active au moment de la commande correspond, refuse une reprise absente ou ambiguë et conserve ensuite la session exacte. V9 vit dans `backend/payment/src/main/resources/db/migration/V9__reconcile_payment_order.sql`. Elle introduit l'état court `creating`, impose avec `payment_order_unique_idx` un seul paiement pour toute la vie d'une commande et répare une éventuelle commande restée `pending_payment` alors que son paiement était déjà `succeeded`. Si une base héritée contient un paiement `failed` ou plusieurs paiements pour une commande, la migration s'arrête afin d'imposer leur rapprochement Stripe et l'annulation des Payment Intents surnuméraires avant déploiement. V10 ajoute le routage Connect. Pour un établissement déjà actif sans date fiable, elle démarre une nouvelle période gratuite au moment de la migration, jamais à sa date de création. V11 refuse toute base contenant encore un ancien paiement plateforme : aucun compte Connect ne peut être inféré sans preuve Stripe, et le contrat exige ce compte sur chaque session. V12 ajoute `order_intake_status` et `order_intake_updated_at` avec un défaut fermé ; le seed de démonstration ouvre explicitement son établissement. V13 renomme les copies de capacités sans changer leurs valeurs, afin que le schéma exprime la source Accounts v2. V14 ajoute les tentatives de remboursement et leur table d'idempotence. Elle conserve le Payment Intent et le compte connecté sur chaque tentative, puis garantit par index qu'un paiement ne possède jamais deux remboursements actifs ou réussis.
 
-V8 à V13 sont des migrations de fondation livrées avant la toute première production. Aucun SHA de production antérieur ne leur est compatible et aucun retour binaire vers un SHA pré-V13 n'est autorisé. Le premier SHA déclaré sain en production inclut nécessairement V13. À partir de cette base, toute évolution incompatible suit une séquence expansion, déploiement du code compatible, puis contraction dans une migration ultérieure.
+V8 à V14 sont des migrations de fondation livrées avant la toute première production. Aucun SHA de production antérieur ne leur est compatible et aucun retour binaire vers un SHA pré-V14 n'est autorisé. Le premier SHA déclaré sain en production inclut nécessairement V14. À partir de cette base, toute évolution incompatible suit une séquence expansion, déploiement du code compatible, puis contraction dans une migration ultérieure.
 
-Flyway applique V1 à V13 au démarrage de l'assemblage Backend. Les tables et colonnes ajoutées appartiennent à l'unique base PostgreSQL. Elles sont donc incluses dans chaque `pg_dump`, dans la copie chiffrée hors VPS et dans l'exercice trimestriel de restauration. Elles n'ajoutent ni volume ni sauvegarde séparés. Les index V6 à V11 ne contiennent aucune donnée supplémentaire à sauvegarder : PostgreSQL les restaure avec le schéma. Une restauration doit vérifier que Flyway voit V13 comme appliquée, que les index `order_operational_page_idx`, `payment_request_payment_idx`, `order_table_session_idx`, `payment_order_unique_idx`, `establishment_stripe_account_unique_idx` et `payment_stripe_reference_account_unique_idx` existent, que `order_intake_status` vaut `paused` ou `open` et que les liens entre `restaurateur`, `establishment`, `table_session`, `order`, `payment` et `payment_request` sont cohérents.
+Flyway applique V1 à V14 au démarrage de l'assemblage Backend. Les tables et colonnes ajoutées appartiennent à l'unique base PostgreSQL. Elles sont donc incluses dans chaque `pg_dump`, dans la copie chiffrée hors VPS et dans l'exercice trimestriel de restauration. Elles n'ajoutent ni volume ni sauvegarde séparés. Les index ne contiennent aucune donnée supplémentaire à sauvegarder : PostgreSQL les restaure avec le schéma. Une restauration doit vérifier que Flyway voit V14 comme appliquée, que les index `order_operational_page_idx`, `payment_request_payment_idx`, `order_table_session_idx`, `payment_order_unique_idx`, `establishment_stripe_account_unique_idx`, `payment_stripe_reference_account_unique_idx` et `payment_refund_active_payment_unique_idx` existent, que `order_intake_status` vaut `paused` ou `open` et que les liens entre `restaurateur`, `establishment`, `table_session`, `order`, `payment`, `payment_request`, `payment_refund` et `refund_request` sont cohérents.
 
 ## Invariants métier
 

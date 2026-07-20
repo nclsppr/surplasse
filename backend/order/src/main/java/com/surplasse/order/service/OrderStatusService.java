@@ -4,6 +4,7 @@ import com.surplasse.common.error.BusinessRuleException;
 import com.surplasse.common.error.ConflictException;
 import com.surplasse.common.error.NotFoundException;
 import com.surplasse.common.identity.RestaurateurIdentityGateway;
+import com.surplasse.common.payment.RefundGateway;
 import com.surplasse.order.entity.Order;
 import com.surplasse.order.entity.OrderEvent;
 import com.surplasse.order.entity.OrderStatus;
@@ -29,14 +30,17 @@ public class OrderStatusService {
     private final OrderRepository orderRepository;
     private final OrderEventRepository orderEventRepository;
     private final RestaurateurIdentityGateway identityGateway;
+    private final RefundGateway refundGateway;
 
     OrderStatusService(
             OrderRepository orderRepository,
             OrderEventRepository orderEventRepository,
-            RestaurateurIdentityGateway identityGateway) {
+            RestaurateurIdentityGateway identityGateway,
+            RefundGateway refundGateway) {
         this.orderRepository = orderRepository;
         this.orderEventRepository = orderEventRepository;
         this.identityGateway = identityGateway;
+        this.refundGateway = refundGateway;
     }
 
     /**
@@ -62,6 +66,26 @@ public class OrderStatusService {
         return Optional.of(persistEvent(order));
     }
 
+    /** Moves an order to refunded only after the payment domain confirms that Stripe succeeded. */
+    @Transactional
+    public Optional<PublishedOrderEvent> markRefunded(UUID orderId) {
+        Optional<Order> found = orderRepository.findByIdForUpdate(orderId);
+        if (found.isEmpty()) {
+            throw new IllegalStateException("A successful refund references an unknown order " + orderId + ".");
+        }
+        Order order = found.get();
+        if (order.getStatus() == OrderStatus.REFUNDED) {
+            return Optional.empty();
+        }
+        if (!order.getStatus().canTransitionTo(OrderStatus.REFUNDED)) {
+            throw new IllegalStateException(
+                    "A successful refund cannot move order %s from %s to refunded."
+                            .formatted(orderId, order.getStatus()));
+        }
+        order.moveTo(OrderStatus.REFUNDED);
+        return Optional.of(persistEvent(order));
+    }
+
     /** Advances one order for authorized establishment staff and persists the customer-facing event. */
     @Transactional
     public StatusUpdate update(String accessToken, UUID orderId, OrderStatus target) {
@@ -71,6 +95,10 @@ public class OrderStatusService {
                 .findByIdForUpdate(orderId)
                 .orElseThrow(() -> new NotFoundException("No order matches this identifier."));
         identityGateway.authorize(accessToken, order.getEstablishmentId());
+
+        if (refundGateway.hasInProgressRefund(order.getId(), order.getEstablishmentId())) {
+            throw ConflictException.orderNotModifiable("A full refund is already in progress for this order.");
+        }
 
         if (order.getStatus() == target) {
             return new StatusUpdate(order.getId(), order.getStatus(), Optional.empty());

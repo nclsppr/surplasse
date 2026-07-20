@@ -16,7 +16,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
 /**
- * An operational order displayed to the establishment staff. The customer tracking capability is deliberately omitted. 
+ * An operational order displayed to the establishment staff. The customer tracking capability is deliberately omitted.
  **/
 
 @JsonTypeName("DashboardOrder")
@@ -158,7 +158,7 @@ public class DashboardOrder   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "id")
   @NotNull public UUID getId() {
     return id;
@@ -177,7 +177,7 @@ public class DashboardOrder   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "displayNumber")
   @NotNull public String getDisplayNumber() {
     return displayNumber;
@@ -196,7 +196,7 @@ public class DashboardOrder   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "status")
   @NotNull public StatusEnum getStatus() {
     return status;
@@ -215,7 +215,7 @@ public class DashboardOrder   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "type")
   @NotNull public TypeEnum getType() {
     return type;
@@ -234,7 +234,7 @@ public class DashboardOrder   {
     return this;
   }
 
-  
+
   @JsonProperty("tableLabel")
   public String getTableLabel() {
     return tableLabel;
@@ -253,7 +253,7 @@ public class DashboardOrder   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "lines")
   @NotNull @Valid public List<@Valid OrderLine> getLines() {
     return lines;
@@ -289,7 +289,7 @@ public class DashboardOrder   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "totalCents")
   @NotNull  @Min(0)public Integer getTotalCents() {
     return totalCents;
@@ -308,7 +308,7 @@ public class DashboardOrder   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "currency")
   @NotNull public String getCurrency() {
     return currency;
@@ -327,7 +327,7 @@ public class DashboardOrder   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "createdAt")
   @NotNull public OffsetDateTime getCreatedAt() {
     return createdAt;
@@ -368,7 +368,7 @@ public class DashboardOrder   {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class DashboardOrder {\n");
-    
+
     sb.append("    id: ").append(toIndentedString(id)).append("\n");
     sb.append("    displayNumber: ").append(toIndentedString(displayNumber)).append("\n");
     sb.append("    status: ").append(toIndentedString(status)).append("\n");

@@ -15,7 +15,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
 /**
- * The published menu of an establishment, as a complete read model in display order. Array order is the display order. 
+ * The published menu of an establishment, as a complete read model in display order. Array order is the display order.
  **/
 
 @JsonTypeName("PublicMenu")
@@ -50,7 +50,7 @@ public class PublicMenu   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "id")
   @NotNull public UUID getId() {
     return id;
@@ -69,7 +69,7 @@ public class PublicMenu   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "name")
   @NotNull public String getName() {
     return name;
@@ -88,7 +88,7 @@ public class PublicMenu   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "currency")
   @NotNull public String getCurrency() {
     return currency;
@@ -107,7 +107,7 @@ public class PublicMenu   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "categories")
   @NotNull @Valid public List<@Valid MenuCategory> getCategories() {
     return categories;
@@ -159,7 +159,7 @@ public class PublicMenu   {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class PublicMenu {\n");
-    
+
     sb.append("    id: ").append(toIndentedString(id)).append("\n");
     sb.append("    name: ").append(toIndentedString(name)).append("\n");
     sb.append("    currency: ").append(toIndentedString(currency)).append("\n");

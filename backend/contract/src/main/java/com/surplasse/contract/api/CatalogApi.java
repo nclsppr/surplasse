@@ -22,9 +22,9 @@ import jakarta.validation.Valid;
 public interface CatalogApi {
 
     /**
-     * Returns the public information of an establishment resolved by its slug (the subdomain of its mini-site). This endpoint is public: it backs the header of the mini-site rendered by the Commande frontend. `acceptingOrders` lets that frontend keep the menu readable while disabling order actions during an operational pause. Unknown slugs, as well as establishments that are not publicly visible, yield a 404 without distinction. 
+     * Returns the public information of an establishment resolved by its slug (the subdomain of its mini-site). This endpoint is public: it backs the header of the mini-site rendered by the Commande frontend. `acceptingOrders` lets that frontend keep the menu readable while disabling order actions during an operational pause. Unknown slugs, as well as establishments that are not publicly visible, yield a 404 without distinction.
      *
-     * @param slug Slug of the establishment, the label of its subdomain (&#x60;{slug}.surplasse.com&#x60;). Lowercase letters, digits and hyphens. 
+     * @param slug Slug of the establishment, the label of its subdomain (&#x60;{slug}.surplasse.com&#x60;). Lowercase letters, digits and hyphens.
      * @return The public profile of the establishment.
      * @return The slug is syntactically invalid.
      * @return No establishment matches this slug.
@@ -36,9 +36,9 @@ public interface CatalogApi {
 
 
     /**
-     * Returns the published menu of an establishment resolved by its slug, as a complete read model: categories, products, option groups and options, in display order (array order is the display order, no position field is exposed). Products and options marked unavailable are included with `available: false` so the frontend can render them greyed out. If the establishment has no published menu, the response is a 404. 
+     * Returns the published menu of an establishment resolved by its slug, as a complete read model: categories, products, option groups and options, in display order (array order is the display order, no position field is exposed). Products and options marked unavailable are included with `available: false` so the frontend can render them greyed out. If the establishment has no published menu, the response is a 404.
      *
-     * @param slug Slug of the establishment, the label of its subdomain (&#x60;{slug}.surplasse.com&#x60;). Lowercase letters, digits and hyphens. 
+     * @param slug Slug of the establishment, the label of its subdomain (&#x60;{slug}.surplasse.com&#x60;). Lowercase letters, digits and hyphens.
      * @return The published menu, in display order.
      * @return The slug is syntactically invalid.
      * @return No establishment matches this slug, or it has no published menu.

@@ -15,7 +15,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
 /**
- * Minimal authenticated restaurateur view used to initialize the Dashboard. It contains no authorization token because credentials stay exclusively in HttpOnly cookies. 
+ * Minimal authenticated restaurateur view used to initialize the Dashboard. It contains no authorization token because credentials stay exclusively in HttpOnly cookies.
  **/
 
 @JsonTypeName("RestaurateurSession")
@@ -50,7 +50,7 @@ public class RestaurateurSession   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "id")
   @NotNull public UUID getId() {
     return id;
@@ -69,7 +69,7 @@ public class RestaurateurSession   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "email")
   @NotNull public String getEmail() {
     return email;
@@ -88,7 +88,7 @@ public class RestaurateurSession   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "fullName")
   @NotNull  @Size(min=1,max=200)public String getFullName() {
     return fullName;
@@ -107,7 +107,7 @@ public class RestaurateurSession   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "establishments")
   @NotNull @Valid public List<@Valid RestaurateurEstablishment> getEstablishments() {
     return establishments;
@@ -159,7 +159,7 @@ public class RestaurateurSession   {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class RestaurateurSession {\n");
-    
+
     sb.append("    id: ").append(toIndentedString(id)).append("\n");
     sb.append("    email: ").append(toIndentedString(email)).append("\n");
     sb.append("    fullName: ").append(toIndentedString(fullName)).append("\n");

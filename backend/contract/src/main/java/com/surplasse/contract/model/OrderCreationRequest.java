@@ -14,7 +14,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
 /**
- * The validated cart sent by the Commande frontend. The establishment and the table come from the table session; amounts are recomputed server side from the catalog and never trusted from the client. 
+ * The validated cart sent by the Commande frontend. The establishment and the table come from the table session; amounts are recomputed server side from the catalog and never trusted from the client.
  **/
 
 @JsonTypeName("OrderCreationRequest")
@@ -90,7 +90,7 @@ public class OrderCreationRequest   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "type")
   @NotNull public TypeEnum getType() {
     return type;
@@ -109,7 +109,7 @@ public class OrderCreationRequest   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "lines")
   @NotNull @Valid  @Size(min=1)public List<@Valid OrderLineRequest> getLines() {
     return lines;
@@ -159,7 +159,7 @@ public class OrderCreationRequest   {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class OrderCreationRequest {\n");
-    
+
     sb.append("    type: ").append(toIndentedString(type)).append("\n");
     sb.append("    lines: ").append(toIndentedString(lines)).append("\n");
     sb.append("}");

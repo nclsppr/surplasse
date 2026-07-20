@@ -57,7 +57,7 @@ public class OrderLine   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "productId")
   @NotNull public UUID getProductId() {
     return productId;
@@ -76,7 +76,7 @@ public class OrderLine   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "productName")
   @NotNull public String getProductName() {
     return productName;
@@ -96,7 +96,7 @@ public class OrderLine   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "unitPriceCents")
   @NotNull  @Min(0)public Integer getUnitPriceCents() {
     return unitPriceCents;
@@ -116,7 +116,7 @@ public class OrderLine   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "quantity")
   @NotNull  @Min(1)public Integer getQuantity() {
     return quantity;
@@ -135,7 +135,7 @@ public class OrderLine   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "options")
   @NotNull @Valid public List<@Valid OrderLineOption> getOptions() {
     return options;
@@ -170,7 +170,7 @@ public class OrderLine   {
     return this;
   }
 
-  
+
   @JsonProperty("note")
   public String getNote() {
     return note;
@@ -190,7 +190,7 @@ public class OrderLine   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "lineTotalCents")
   @NotNull  @Min(0)public Integer getLineTotalCents() {
     return lineTotalCents;
@@ -229,7 +229,7 @@ public class OrderLine   {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class OrderLine {\n");
-    
+
     sb.append("    productId: ").append(toIndentedString(productId)).append("\n");
     sb.append("    productName: ").append(toIndentedString(productName)).append("\n");
     sb.append("    unitPriceCents: ").append(toIndentedString(unitPriceCents)).append("\n");

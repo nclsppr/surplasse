@@ -37,7 +37,7 @@ public class PaymentCreationRequest   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "orderId")
   @NotNull public UUID getOrderId() {
     return orderId;
@@ -70,7 +70,7 @@ public class PaymentCreationRequest   {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class PaymentCreationRequest {\n");
-    
+
     sb.append("    orderId: ").append(toIndentedString(orderId)).append("\n");
     sb.append("}");
     return sb.toString();

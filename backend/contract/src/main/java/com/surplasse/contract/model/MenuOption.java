@@ -46,7 +46,7 @@ public class MenuOption   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "id")
   @NotNull public UUID getId() {
     return id;
@@ -65,7 +65,7 @@ public class MenuOption   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "name")
   @NotNull public String getName() {
     return name;
@@ -85,7 +85,7 @@ public class MenuOption   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "extraCostCents")
   @NotNull  @Min(0)public Integer getExtraCostCents() {
     return extraCostCents;
@@ -104,7 +104,7 @@ public class MenuOption   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "available")
   @NotNull public Boolean getAvailable() {
     return available;
@@ -140,7 +140,7 @@ public class MenuOption   {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class MenuOption {\n");
-    
+
     sb.append("    id: ").append(toIndentedString(id)).append("\n");
     sb.append("    name: ").append(toIndentedString(name)).append("\n");
     sb.append("    extraCostCents: ").append(toIndentedString(extraCostCents)).append("\n");

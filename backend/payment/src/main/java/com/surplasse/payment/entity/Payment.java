@@ -91,6 +91,12 @@ public class Payment {
         this.status = PaymentStatus.FAILED;
     }
 
+    public void markRefunded() {
+        if (status == PaymentStatus.SUCCEEDED) {
+            status = PaymentStatus.REFUNDED;
+        }
+    }
+
     public UUID getId() {
         return id;
     }

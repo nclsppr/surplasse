@@ -14,7 +14,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
 /**
- * One cursor-paginated page of operational orders, newest first. nextCursor is present exactly when hasMore is true. 
+ * One cursor-paginated page of operational orders, newest first. nextCursor is present exactly when hasMore is true.
  **/
 
 @JsonTypeName("OrderPage")
@@ -44,7 +44,7 @@ public class OrderPage   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "items")
   @NotNull @Valid public List<@Valid DashboardOrder> getItems() {
     return items;
@@ -79,7 +79,7 @@ public class OrderPage   {
     return this;
   }
 
-  
+
   @JsonProperty("nextCursor")
    @Size(min=1,max=512)public String getNextCursor() {
     return nextCursor;
@@ -98,7 +98,7 @@ public class OrderPage   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "hasMore")
   @NotNull public Boolean getHasMore() {
     return hasMore;
@@ -133,7 +133,7 @@ public class OrderPage   {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class OrderPage {\n");
-    
+
     sb.append("    items: ").append(toIndentedString(items)).append("\n");
     sb.append("    nextCursor: ").append(toIndentedString(nextCursor)).append("\n");
     sb.append("    hasMore: ").append(toIndentedString(hasMore)).append("\n");

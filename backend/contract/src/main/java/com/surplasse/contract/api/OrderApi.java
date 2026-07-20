@@ -28,10 +28,10 @@ import jakarta.validation.Valid;
 public interface OrderApi {
 
     /**
-     * Creates an order at status `pending_payment` from the cart validated by the customer. The cart itself never exists server side. The establishment and the table come exclusively from the anonymous table session (a customer can only order for the table whose QR was actually scanned). The server recomputes every amount from the catalog; amounts are never accepted from the client. The `Idempotency-Key` header guarantees that an unstable connection can never create the same order twice. Only `on_site` orders are accepted at this stage; `takeaway` is documented for the target and rejected with a business rule error until it opens. An order-intake pause rejects every new intention with `order-intake-paused`, while an exact replay still returns the order created before the pause. 
+     * Creates an order at status `pending_payment` from the cart validated by the customer. The cart itself never exists server side. The establishment and the table come exclusively from the anonymous table session (a customer can only order for the table whose QR was actually scanned). The server recomputes every amount from the catalog; amounts are never accepted from the client. The `Idempotency-Key` header guarantees that an unstable connection can never create the same order twice. Only `on_site` orders are accepted at this stage; `takeaway` is documented for the target and rejected with a business rule error until it opens. An order-intake pause rejects every new intention with `order-intake-paused`, while an exact replay still returns the order created before the pause.
      *
-     * @param idempotencyKey Client-generated UUID identifying this intention. Replaying the same request with the same key returns the original response without any duplicate; the same key with a different payload yields a 409 &#x60;idempotency-key-conflict&#x60;. 
-     * @param orderCreationRequest 
+     * @param idempotencyKey Client-generated UUID identifying this intention. Replaying the same request with the same key returns the original response without any duplicate; the same key with a different payload yields a 409 &#x60;idempotency-key-conflict&#x60;.
+     * @param orderCreationRequest
      * @return The order was created, waiting for payment.
      * @return The payload is syntactically invalid.
      * @return The table session token is missing, unknown or expired.
@@ -47,9 +47,9 @@ public interface OrderApi {
 
 
     /**
-     * Exchanges the table code carried by a scanned QR (`{slug}.surplasse.com/?table={code}`) for an opaque anonymous session token, bound to the establishment and to that table. The token authorizes the ordering endpoints (`X-Table-Session` header) for the duration of a meal (2 hours, sliding while active). It carries no personal data. An unknown slug, an unknown or inactive table code, an establishment that is not active or an operational order-intake pause all yield a 404 without distinction. 
+     * Exchanges the table code carried by a scanned QR (`{slug}.surplasse.com/?table={code}`) for an opaque anonymous session token, bound to the establishment and to that table. The token authorizes the ordering endpoints (`X-Table-Session` header) for the duration of a meal (2 hours, sliding while active). It carries no personal data. An unknown slug, an unknown or inactive table code, an establishment that is not active or an operational order-intake pause all yield a 404 without distinction.
      *
-     * @param tableSessionRequest 
+     * @param tableSessionRequest
      * @return The anonymous session, bound to the establishment and the table.
      * @return The payload is syntactically invalid.
      * @return Unknown establishment or table code, or ordering closed.
@@ -62,10 +62,10 @@ public interface OrderApi {
 
 
     /**
-     * Returns an order for the customer tracking page. Access is authorized by the order tracking token (a non-guessable capability returned at creation, carried by the tracking page URL): the customer can close the browser and come back. A wrong token yields a 404 without distinction. 
+     * Returns an order for the customer tracking page. Access is authorized by the order tracking token (a non-guessable capability returned at creation, carried by the tracking page URL): the customer can close the browser and come back. A wrong token yields a 404 without distinction.
      *
      * @param orderId Identifier of the order.
-     * @param trackingToken Non-guessable tracking capability of the order, returned at creation. Carried by the tracking page URL so the customer can close the browser and come back. 
+     * @param trackingToken Non-guessable tracking capability of the order, returned at creation. Carried by the tracking page URL so the customer can close the browser and come back.
      * @return The order, with its current status.
      * @return The tracking token is missing or malformed.
      * @return Unknown order, or tracking token mismatch.
@@ -77,7 +77,7 @@ public interface OrderApi {
 
 
     /**
-     * Cursor-paginated list of the operational orders of one establishment for the Dashboard, sorted by creation timestamp and identifier, both descending. Only `paid`, `accepted`, `preparing` and `ready` orders are returned. Pending payment and terminal orders are deliberately excluded from this phase.  The opaque cursor stays stable while new orders arrive and is never interpreted by the client. The restaurateur session cookie and establishment membership are both required: an unknown establishment and an establishment outside the caller's scope yield the same 404. 
+     * Cursor-paginated list of the operational orders of one establishment for the Dashboard, sorted by creation timestamp and identifier, both descending. Only `paid`, `accepted`, `preparing` and `ready` orders are returned. Pending payment and terminal orders are deliberately excluded from this phase.  The opaque cursor stays stable while new orders arrive and is never interpreted by the client. The restaurateur session cookie and establishment membership are both required: an unknown establishment and an establishment outside the caller's scope yield the same 404.
      *
      * @param establishmentId Establishment whose orders are listed.
      * @param cursor Opaque cursor returned by the previous page.
@@ -94,10 +94,10 @@ public interface OrderApi {
 
 
     /**
-     * Advances one order on behalf of an authenticated restaurateur. The target must be the next state allowed by the order state machine: `paid` to `accepted`, `accepted` to `preparing`, `preparing` to `ready`, then `ready` to `served` for an on-site order or `picked_up` for a takeaway order. Repeating the state already reached is idempotent and returns the current result without emitting another event. Refunds are deliberately excluded: they require a payment operation and cannot be represented by a status-only update.  The restaurateur session cookie is required. Unknown orders and orders outside the caller's establishment scope yield the same 404. 
+     * Advances one order on behalf of an authenticated restaurateur. The target must be the next state allowed by the order state machine: `paid` to `accepted`, `accepted` to `preparing`, `preparing` to `ready`, then `ready` to `served` for an on-site order or `picked_up` for a takeaway order. Repeating the state already reached is idempotent and returns the current result without emitting another event. Refunds are deliberately excluded: they require a payment operation and cannot be represented by a status-only update.  The restaurateur session cookie is required. Unknown orders and orders outside the caller's establishment scope yield the same 404.
      *
      * @param orderId Identifier of the order.
-     * @param orderStatusUpdate 
+     * @param orderStatusUpdate
      * @return The order status after the idempotent update.
      * @return The order identifier or payload is syntactically invalid.
      * @return The restaurateur session is missing or expired.

@@ -36,7 +36,7 @@ public class MagicLinkExchange   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "token")
   @NotNull  @Pattern(regexp="^[A-Za-z0-9_-]+$") @Size(min=43,max=128)public String getToken() {
     return token;
@@ -69,7 +69,7 @@ public class MagicLinkExchange   {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class MagicLinkExchange {\n");
-    
+
     sb.append("    token: ").append(toIndentedString(token)).append("\n");
     sb.append("}");
     return sb.toString();

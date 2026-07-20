@@ -36,7 +36,7 @@ public class MagicLinkRequest   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "email")
   @NotNull  @Size(min=3,max=320)public String getEmail() {
     return email;
@@ -69,7 +69,7 @@ public class MagicLinkRequest   {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class MagicLinkRequest {\n");
-    
+
     sb.append("    email: ").append(toIndentedString(email)).append("\n");
     sb.append("}");
     return sb.toString();

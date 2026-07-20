@@ -15,7 +15,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
 /**
- * A set of options of a product (doneness, size, extras) with its choice rules. &#x60;minChoices&#x60; of 1 or more makes the group mandatory. 
+ * A set of options of a product (doneness, size, extras) with its choice rules. &#x60;minChoices&#x60; of 1 or more makes the group mandatory.
  **/
 
 @JsonTypeName("MenuOptionGroup")
@@ -53,7 +53,7 @@ public class MenuOptionGroup   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "id")
   @NotNull public UUID getId() {
     return id;
@@ -72,7 +72,7 @@ public class MenuOptionGroup   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "name")
   @NotNull public String getName() {
     return name;
@@ -92,7 +92,7 @@ public class MenuOptionGroup   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "minChoices")
   @NotNull  @Min(0)public Integer getMinChoices() {
     return minChoices;
@@ -112,7 +112,7 @@ public class MenuOptionGroup   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "maxChoices")
   @NotNull  @Min(1)public Integer getMaxChoices() {
     return maxChoices;
@@ -131,7 +131,7 @@ public class MenuOptionGroup   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "options")
   @NotNull @Valid public List<@Valid MenuOption> getOptions() {
     return options;
@@ -184,7 +184,7 @@ public class MenuOptionGroup   {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class MenuOptionGroup {\n");
-    
+
     sb.append("    id: ").append(toIndentedString(id)).append("\n");
     sb.append("    name: ").append(toIndentedString(name)).append("\n");
     sb.append("    minChoices: ").append(toIndentedString(minChoices)).append("\n");

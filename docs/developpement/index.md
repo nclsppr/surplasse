@@ -348,11 +348,11 @@ Le routage Connect du seed est volontairement fictif et sert uniquement aux doub
 
 **5. Vérifier le Dashboard et les magic links.**
 
-Ouvrir `https://dashboard.surplasse.test/auth/login`, demander un lien pour `pilote@le-cormoran.example`, puis lire le message dans `https://mail.surplasse.test`. Après échange du jeton, `/service` affiche les commandes opérationnelles et l'indicateur « Temps réel actif ». Les commandes déjà payées du seed permettent de vérifier leur avancement jusqu'à `served` et leur sortie de la file active. Après rattachement d'un vrai compte Connect de test et configuration du relais webhook, payer une nouvelle commande avec la carte Stripe de test standard `4242 4242 4242 4242` et vérifier qu'elle apparaît sans actualisation manuelle.
+Ouvrir `https://dashboard.surplasse.test/auth/login`, demander un lien pour `pilote@le-cormoran.example`, puis lire le message dans `https://mail.surplasse.test`. Après échange du jeton, `/service` affiche les commandes opérationnelles et l'indicateur « Temps réel actif ». Les commandes déjà payées du seed permettent de vérifier leur avancement jusqu'à `served` ou leur remboursement intégral et leur sortie de la file active. Après rattachement d'un vrai compte Connect de test et configuration du relais webhook, payer une nouvelle commande avec la carte Stripe de test standard `4242 4242 4242 4242`, vérifier qu'elle apparaît sans actualisation manuelle, puis la refuser et rapprocher son remboursement.
 
 **6. Relayer les webhooks Stripe si le paiement est testé.**
 
-Ouvrir deux terminaux à la racine du dépôt. Le premier relaie les événements snapshot des Payment Intents créés sur les comptes connectés :
+Ouvrir deux terminaux à la racine du dépôt. Le premier relaie les événements snapshot des Payment Intents et remboursements sur les comptes connectés :
 
 ```bash
 set -a
@@ -360,7 +360,7 @@ source config/domains/development.env
 set +a
 
 stripe listen \
-  --events payment_intent.succeeded,payment_intent.payment_failed \
+  --events payment_intent.succeeded,payment_intent.payment_failed,refund.created,refund.updated,refund.failed \
   --forward-connect-to "${API_URL}/v1/webhooks/stripe"
 # Copier le whsec_... affiché dans STRIPE_PAYMENT_WEBHOOK_SECRET de backend/.env
 ```
@@ -378,7 +378,7 @@ stripe listen \
 # Copier l'autre whsec_... dans STRIPE_ACCOUNT_WEBHOOK_SECRET de backend/.env
 ```
 
-Stripe CLI reste interactif et hors du cockpit. `--forward-connect-to` est obligatoire pour les événements snapshot des charges directes et `--forward-thin-connect-to` pour les événements fins Accounts v2 des comptes connectés. Les deux processus fournissent des secrets distincts qui ne sont jamais interchangeables. Le passage d'une commande à `paid` ne vient que du webhook de paiement signé.
+Stripe CLI reste interactif et hors du cockpit. `--forward-connect-to` est obligatoire pour les événements snapshot des charges directes et des remboursements, puis `--forward-thin-connect-to` pour les événements fins Accounts v2 des comptes connectés. Les deux processus fournissent des secrets distincts qui ne sont jamais interchangeables. Le passage d'une commande à `paid` et le rapprochement asynchrone d'un remboursement viennent uniquement du webhook snapshot signé.
 
 Les modules peuvent toujours être lancés dans des terminaux séparés avec leurs commandes propres. Le cockpit les marque alors « lancé hors cockpit » et refuse de les arrêter. Avant de committer, lire le [workflow git](workflow-git.md) et exécuter les vérifications adaptées.
 

@@ -10,13 +10,13 @@ import com.fasterxml.jackson.annotation.JsonValue;
  * Reason why new orders are not effectively accepted. Absent while accepting orders.
  */
 public enum OrderIntakeBlockedReason {
-  
+
   PAUSED("paused"),
-  
+
   ESTABLISHMENT_NOT_ACTIVE("establishment_not_active"),
-  
+
   CONFIGURATION_UNAVAILABLE("configuration_unavailable"),
-  
+
   PAYMENTS_UNAVAILABLE("payments_unavailable");
 
   private String value;

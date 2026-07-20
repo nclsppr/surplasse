@@ -8,13 +8,19 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.surplasse.common.event.OrderPaid;
+import com.surplasse.common.event.PaymentRefunded;
 import com.surplasse.common.event.StripeAccountUpdated;
+import com.surplasse.common.order.OrderGateway;
 import com.surplasse.payment.entity.Payment;
+import com.surplasse.payment.entity.PaymentRefund;
 import com.surplasse.payment.entity.PaymentStatus;
+import com.surplasse.payment.entity.RefundReason;
+import com.surplasse.payment.entity.RefundStatus;
 import com.surplasse.payment.entity.StripeWebhookEvent;
 import com.surplasse.payment.provider.ConnectedAccountProvider;
 import com.surplasse.payment.provider.StripeEventVerifier;
 import com.surplasse.payment.repository.PaymentRepository;
+import com.surplasse.payment.repository.PaymentRefundRepository;
 import com.surplasse.payment.repository.StripeWebhookEventRepository;
 import jakarta.enterprise.event.Event;
 import java.time.OffsetDateTime;
@@ -31,7 +37,10 @@ class WebhookEventProcessorTest {
 
     private StripeWebhookEventRepository processedEvents;
     private PaymentRepository paymentRepository;
+    private PaymentRefundRepository refundRepository;
+    private OrderGateway orderGateway;
     private Event<OrderPaid> orderPaid;
+    private Event<PaymentRefunded> paymentRefunded;
     private Event<StripeAccountUpdated> stripeAccountUpdated;
     private WebhookEventProcessor processor;
 
@@ -40,9 +49,19 @@ class WebhookEventProcessorTest {
     void setUp() {
         processedEvents = mock(StripeWebhookEventRepository.class);
         paymentRepository = mock(PaymentRepository.class);
+        refundRepository = mock(PaymentRefundRepository.class);
+        orderGateway = mock(OrderGateway.class);
         orderPaid = mock(Event.class);
+        paymentRefunded = mock(Event.class);
         stripeAccountUpdated = mock(Event.class);
-        processor = new WebhookEventProcessor(processedEvents, paymentRepository, orderPaid, stripeAccountUpdated);
+        processor = new WebhookEventProcessor(
+                processedEvents,
+                paymentRepository,
+                refundRepository,
+                orderGateway,
+                orderPaid,
+                paymentRefunded,
+                stripeAccountUpdated);
         when(processedEvents.findByIdOptional(any())).thenReturn(Optional.empty());
     }
 
@@ -134,6 +153,121 @@ class WebhookEventProcessorTest {
 
         verify(stripeAccountUpdated).fire(new StripeAccountUpdated(CONNECTED_ACCOUNT, false, true, ACCOUNT_UPDATED_AT));
         verify(orderPaid, never()).fire(any());
+    }
+
+    @Test
+    void process_succeededRefund_marksPaymentAndPublishesRefundedFact() {
+        Payment payment = pendingPayment();
+        payment.markSucceeded();
+        PaymentRefund refund = PaymentRefund.reserve(
+                UUID.randomUUID(), payment, UUID.randomUUID(), RefundReason.RESTAURANT_REFUSAL);
+        refund.reconcile("re_1", RefundStatus.PENDING, null);
+        when(refundRepository.findByExternalReferenceAndAccount("re_1", CONNECTED_ACCOUNT))
+                .thenReturn(Optional.of(refund));
+        when(orderGateway.lockRefundableOrder(payment.getOrderId()))
+                .thenReturn(Optional.of(new OrderGateway.RefundableOrder(
+                        payment.getOrderId(), payment.getEstablishmentId(), "paid")));
+        when(paymentRepository.findByIdForUpdate(payment.getId())).thenReturn(Optional.of(payment));
+        when(refundRepository.findByIdForUpdate(refund.getId())).thenReturn(Optional.of(refund));
+        StripeEventVerifier.VerifiedEvent event = new StripeEventVerifier.VerifiedEvent(
+                "evt_refund",
+                "refund.updated",
+                "pi_1",
+                CONNECTED_ACCOUNT,
+                false,
+                null,
+                new StripeEventVerifier.RefundData("re_1", refund.getId(), RefundStatus.SUCCEEDED, null));
+
+        processor.process(event, null);
+
+        assertEquals(PaymentStatus.REFUNDED, payment.getStatus());
+        assertEquals(RefundStatus.SUCCEEDED, refund.getStatus());
+        verify(paymentRefunded).fire(new PaymentRefunded(payment.getOrderId(), payment.getEstablishmentId()));
+    }
+
+    @Test
+    void process_refundFromAnotherConnectedAccount_hasNoEffect() {
+        Payment payment = pendingPayment();
+        payment.markSucceeded();
+        PaymentRefund refund = PaymentRefund.reserve(
+                UUID.randomUUID(), payment, UUID.randomUUID(), RefundReason.RESTAURANT_REFUSAL);
+        when(refundRepository.findByIdOptional(refund.getId())).thenReturn(Optional.of(refund));
+        StripeEventVerifier.VerifiedEvent event = new StripeEventVerifier.VerifiedEvent(
+                "evt_wrong_refund_account",
+                "refund.updated",
+                "pi_1",
+                "acct_other_restaurant",
+                false,
+                null,
+                new StripeEventVerifier.RefundData(
+                        "re_foreign", refund.getId(), RefundStatus.SUCCEEDED, null));
+
+        processor.process(event, null);
+
+        assertEquals(PaymentStatus.SUCCEEDED, payment.getStatus());
+        assertEquals(RefundStatus.CREATING, refund.getStatus());
+        verify(orderGateway, never()).lockRefundableOrder(any());
+        verify(paymentRefunded, never()).fire(any());
+    }
+
+    @Test
+    void process_olderPendingEvent_cannotReopenAFailedRefund() {
+        Payment payment = pendingPayment();
+        payment.markSucceeded();
+        PaymentRefund refund = PaymentRefund.reserve(
+                UUID.randomUUID(), payment, UUID.randomUUID(), RefundReason.RESTAURANT_REFUSAL);
+        refund.reconcile("re_1", RefundStatus.FAILED, "lost_or_stolen_card");
+        when(refundRepository.findByExternalReferenceAndAccount("re_1", CONNECTED_ACCOUNT))
+                .thenReturn(Optional.of(refund));
+        when(orderGateway.lockRefundableOrder(payment.getOrderId()))
+                .thenReturn(Optional.of(new OrderGateway.RefundableOrder(
+                        payment.getOrderId(), payment.getEstablishmentId(), "paid")));
+        when(paymentRepository.findByIdForUpdate(payment.getId())).thenReturn(Optional.of(payment));
+        when(refundRepository.findByIdForUpdate(refund.getId())).thenReturn(Optional.of(refund));
+        StripeEventVerifier.VerifiedEvent event = new StripeEventVerifier.VerifiedEvent(
+                "evt_old_refund",
+                "refund.created",
+                "pi_1",
+                CONNECTED_ACCOUNT,
+                false,
+                null,
+                new StripeEventVerifier.RefundData("re_1", refund.getId(), RefundStatus.PENDING, null));
+
+        processor.process(event, null);
+
+        assertEquals(RefundStatus.FAILED, refund.getStatus());
+        assertEquals(PaymentStatus.SUCCEEDED, payment.getStatus());
+        verify(paymentRefunded, never()).fire(any());
+    }
+
+    @Test
+    void process_differentExternalRefundReference_hasNoEffect() {
+        Payment payment = pendingPayment();
+        payment.markSucceeded();
+        PaymentRefund refund = PaymentRefund.reserve(
+                UUID.randomUUID(), payment, UUID.randomUUID(), RefundReason.RESTAURANT_REFUSAL);
+        refund.reconcile("re_1", RefundStatus.PENDING, null);
+        when(refundRepository.findByIdOptional(refund.getId())).thenReturn(Optional.of(refund));
+        when(orderGateway.lockRefundableOrder(payment.getOrderId()))
+                .thenReturn(Optional.of(new OrderGateway.RefundableOrder(
+                        payment.getOrderId(), payment.getEstablishmentId(), "paid")));
+        when(paymentRepository.findByIdForUpdate(payment.getId())).thenReturn(Optional.of(payment));
+        when(refundRepository.findByIdForUpdate(refund.getId())).thenReturn(Optional.of(refund));
+        StripeEventVerifier.VerifiedEvent event = new StripeEventVerifier.VerifiedEvent(
+                "evt_wrong_refund",
+                "refund.updated",
+                "pi_1",
+                CONNECTED_ACCOUNT,
+                false,
+                null,
+                new StripeEventVerifier.RefundData(
+                        "re_other", refund.getId(), RefundStatus.SUCCEEDED, null));
+
+        processor.process(event, null);
+
+        assertEquals(RefundStatus.PENDING, refund.getStatus());
+        assertEquals(PaymentStatus.SUCCEEDED, payment.getStatus());
+        verify(paymentRefunded, never()).fire(any());
     }
 
     private static StripeEventVerifier.VerifiedEvent paymentEvent(String id, String type) {

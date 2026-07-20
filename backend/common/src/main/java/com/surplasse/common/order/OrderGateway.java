@@ -16,6 +16,9 @@ public interface OrderGateway {
      */
     Optional<PayableOrder> lockPayableOrder(UUID orderId, UUID tableSessionId);
 
+    /** Locks one order before the payment domain reserves a full refund. */
+    Optional<RefundableOrder> lockRefundableOrder(UUID orderId);
+
     /**
      * Authenticates an anonymous table session token for another domain
      * (throws the table-session-expired unauthenticated error otherwise).
@@ -31,4 +34,6 @@ public interface OrderGateway {
             int totalCents,
             String currency,
             List<UUID> productIds) {}
+
+    record RefundableOrder(UUID orderId, UUID establishmentId, String status) {}
 }

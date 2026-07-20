@@ -15,7 +15,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
 /**
- * A product as displayed on the menu. Unavailable products are included with &#x60;available: false&#x60; so the frontend renders them greyed out. 
+ * A product as displayed on the menu. Unavailable products are included with &#x60;available: false&#x60; so the frontend renders them greyed out.
  **/
 
 @JsonTypeName("MenuProduct")
@@ -54,7 +54,7 @@ public class MenuProduct   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "id")
   @NotNull public UUID getId() {
     return id;
@@ -73,7 +73,7 @@ public class MenuProduct   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "name")
   @NotNull public String getName() {
     return name;
@@ -92,7 +92,7 @@ public class MenuProduct   {
     return this;
   }
 
-  
+
   @JsonProperty("description")
   public String getDescription() {
     return description;
@@ -112,7 +112,7 @@ public class MenuProduct   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "priceCents")
   @NotNull  @Min(0)public Integer getPriceCents() {
     return priceCents;
@@ -131,7 +131,7 @@ public class MenuProduct   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "available")
   @NotNull public Boolean getAvailable() {
     return available;
@@ -150,7 +150,7 @@ public class MenuProduct   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "optionGroups")
   @NotNull @Valid public List<@Valid MenuOptionGroup> getOptionGroups() {
     return optionGroups;
@@ -204,7 +204,7 @@ public class MenuProduct   {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class MenuProduct {\n");
-    
+
     sb.append("    id: ").append(toIndentedString(id)).append("\n");
     sb.append("    name: ").append(toIndentedString(name)).append("\n");
     sb.append("    description: ").append(toIndentedString(description)).append("\n");

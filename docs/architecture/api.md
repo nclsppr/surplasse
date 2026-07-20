@@ -114,6 +114,8 @@ La première liste paginée effectivement livrée est `GET /v1/orders`. Elle exi
 
 `PATCH /v1/orders/{orderId}/status` est également livré. Il accepte uniquement l'étape opérationnelle suivante : `accepted`, `preparing`, `ready`, puis `served` ou `picked_up` selon le type de commande. Répéter le statut déjà atteint est idempotent. Un saut répond 409, une fin incompatible avec le type répond 422, et une commande inconnue ou hors périmètre répond 404. `refunded` reste exclu : un remboursement doit déclencher une opération du domaine paiement, pas une simple écriture de statut.
 
+`POST /v1/refunds` porte cette opération du domaine Paiement. Il exige le cookie restaurateur, une clé `Idempotency-Key`, l'identifiant de commande et un motif canonique. Le MVP rembourse toujours la totalité de la charge directe et restitue la commission Surplasse lorsqu'elle avait été prélevée. Une même clé rejoue sa réponse, une nouvelle clé réutilise un remboursement encore actif ou déjà réussi, et seule une tentative Stripe confirmée comme échouée ou annulée peut être recommencée avec une nouvelle clé. La commande ne passe à `refunded` qu'après un statut Stripe `succeeded`, jamais au moment du clic. Cette décision est détaillée dans l'[ADR-0022](../decisions/adr-0022-remboursement-integral-stripe.md).
+
 ### Prise de commandes par établissement
 
 Le contrôle opérationnel livré est une sous-ressource authentifiée de l'établissement :
@@ -221,7 +223,8 @@ Groupes d'endpoints prévus par domaine :
 | Sessions de table | `POST /v1/table-sessions` | Public (délivre le jeton) |
 | Commandes côté client | `POST /v1/orders`, `GET /v1/orders/{id}` | Client anonyme |
 | Commandes côté restaurateur | `GET /v1/orders`, `PATCH /v1/orders/{id}/status` | Restaurateur |
-| Paiements | `POST /v1/payments`, `GET /v1/payments/{id}` | Client anonyme |
+| Paiements client | `POST /v1/payments`, `GET /v1/payments/{id}` | Client anonyme |
+| Remboursements | `POST /v1/refunds` | Restaurateur |
 | Temps réel | `GET /v1/establishments/{id}/order-events` (SSE), implémenté | Restaurateur |
 | Temps réel | `GET /v1/orders/{id}/events` (SSE) | Client anonyme (jeton propre à la commande) |
 | Webhooks | `POST /v1/webhooks/stripe`, `POST /v1/webhooks/stripe/accounts` | Signatures Stripe distinctes |
@@ -248,14 +251,14 @@ Le choix des générateurs (`jaxrs-spec` côté Java, `typescript-fetch` côté 
 
 Stripe appelle deux endpoints qui ne partagent ni famille de payload ni secret :
 
-- `POST /v1/webhooks/stripe` reçoit les événements snapshot des Payment Intents Connect ;
+- `POST /v1/webhooks/stripe` reçoit les événements snapshot des Payment Intents et remboursements Connect ;
 - `POST /v1/webhooks/stripe/accounts` reçoit les événements fins Accounts v2 et relit le compte associé avant toute transaction.
 
 Conventions :
 
 - la signature `Stripe-Signature` est vérifiée avant tout traitement ; une signature invalide renvoie 400 sans autre effet ;
 - le traitement est idempotent : l'identifiant d'événement Stripe est journalisé, un événement déjà traité est acquitté (200) sans être rejoué ;
-- le backend acquitte vite et traite de façon asynchrone ce qui peut l'être, pour rester sous les délais de retry de Stripe ;
+- les lectures Stripe nécessaires sont terminées avant une transaction courte ; l'événement n'est acquitté qu'après la validation de son effet local, afin qu'une erreur permette sa relivraison ;
 - les endpoints figurent dans le contrat comme les autres, avec leur périmètre d'authentification propre ;
 - un événement signé pour une destination mais présenté à l'autre est rejeté sans effet.
 

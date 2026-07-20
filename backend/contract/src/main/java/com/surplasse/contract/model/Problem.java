@@ -10,7 +10,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
 /**
- * RFC 9457 Problem Details document, the single error format of the API. The &#x60;type&#x60; URI is stable and identifies the applicative error. 
+ * RFC 9457 Problem Details document, the single error format of the API. The &#x60;type&#x60; URI is stable and identifies the applicative error.
  **/
 
 @JsonTypeName("Problem")
@@ -42,7 +42,7 @@ public class Problem   {
     return this;
   }
 
-  
+
   @JsonProperty("type")
   public String getType() {
     return type;
@@ -61,7 +61,7 @@ public class Problem   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "title")
   @NotNull public String getTitle() {
     return title;
@@ -82,7 +82,7 @@ public class Problem   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "status")
   @NotNull  @Min(100) @Max(599)public Integer getStatus() {
     return status;
@@ -101,7 +101,7 @@ public class Problem   {
     return this;
   }
 
-  
+
   @JsonProperty("detail")
   public String getDetail() {
     return detail;
@@ -120,7 +120,7 @@ public class Problem   {
     return this;
   }
 
-  
+
   @JsonProperty("instance")
   public String getInstance() {
     return instance;
@@ -157,7 +157,7 @@ public class Problem   {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class Problem {\n");
-    
+
     sb.append("    type: ").append(toIndentedString(type)).append("\n");
     sb.append("    title: ").append(toIndentedString(title)).append("\n");
     sb.append("    status: ").append(toIndentedString(status)).append("\n");

@@ -9,11 +9,13 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.surplasse.common.error.InvalidRequestException;
 import com.surplasse.payment.config.PaymentConfig;
+import com.surplasse.payment.entity.RefundStatus;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.HexFormat;
 import java.util.Optional;
+import java.util.UUID;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.Test;
@@ -53,6 +55,25 @@ class StripeSignatureVerifierTest {
                 payload, signature(payload, PAYMENT_SECRET), StripeEventVerifier.Destination.PAYMENT_SNAPSHOT);
 
         assertEquals(true, event.liveMode());
+    }
+
+    @Test
+    void verify_refundEvent_extractsIntentStatusAndInternalReference() throws Exception {
+        PaymentConfig config = mock(PaymentConfig.class);
+        when(config.stripePaymentWebhookSecret()).thenReturn(Optional.of(PAYMENT_SECRET));
+        StripeSignatureVerifier verifier = new StripeSignatureVerifier(config, new ObjectMapper());
+        UUID internalRefundId = UUID.randomUUID();
+        String payload =
+                "{\"id\":\"evt_refund\",\"type\":\"refund.updated\",\"account\":\"acct_test_restaurant\",\"livemode\":false,\"data\":{\"object\":{\"id\":\"re_1\",\"payment_intent\":\"pi_1\",\"status\":\"succeeded\",\"failure_reason\":null,\"metadata\":{\"refund_id\":\"%s\"}}}}"
+                        .formatted(internalRefundId);
+
+        StripeEventVerifier.VerifiedEvent event = verifier.verify(
+                payload, signature(payload, PAYMENT_SECRET), StripeEventVerifier.Destination.PAYMENT_SNAPSHOT);
+
+        assertEquals("pi_1", event.paymentIntentId());
+        assertEquals("re_1", event.refund().externalReference());
+        assertEquals(internalRefundId, event.refund().internalRefundId());
+        assertEquals(RefundStatus.SUCCEEDED, event.refund().status());
     }
 
     @Test

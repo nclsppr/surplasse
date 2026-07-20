@@ -42,7 +42,7 @@ public class OrderLineOption   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "group")
   @NotNull public String getGroup() {
     return group;
@@ -61,7 +61,7 @@ public class OrderLineOption   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "option")
   @NotNull public String getOption() {
     return option;
@@ -81,7 +81,7 @@ public class OrderLineOption   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "extraCostCents")
   @NotNull  @Min(0)public Integer getExtraCostCents() {
     return extraCostCents;
@@ -116,7 +116,7 @@ public class OrderLineOption   {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class OrderLineOption {\n");
-    
+
     sb.append("    group: ").append(toIndentedString(group)).append("\n");
     sb.append("    option: ").append(toIndentedString(option)).append("\n");
     sb.append("    extraCostCents: ").append(toIndentedString(extraCostCents)).append("\n");

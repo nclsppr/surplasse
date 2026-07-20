@@ -49,7 +49,7 @@ public class OrderIntakeState   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "establishmentId")
   @NotNull public UUID getEstablishmentId() {
     return establishmentId;
@@ -67,7 +67,7 @@ public class OrderIntakeState   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "status")
   @NotNull public OrderIntakeStatus getStatus() {
     return status;
@@ -86,7 +86,7 @@ public class OrderIntakeState   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "acceptingOrders")
   @NotNull public Boolean getAcceptingOrders() {
     return acceptingOrders;
@@ -104,7 +104,7 @@ public class OrderIntakeState   {
     return this;
   }
 
-  
+
   @JsonProperty("blockedReason")
   public OrderIntakeBlockedReason getBlockedReason() {
     return blockedReason;
@@ -116,14 +116,14 @@ public class OrderIntakeState   {
   }
 
   /**
-   * Instant when the configured status last changed, including an automatic pause caused by Stripe. Readiness changes that only affect acceptingOrders do not move it. Repeated idempotent updates keep it unchanged. 
+   * Instant when the configured status last changed, including an automatic pause caused by Stripe. Readiness changes that only affect acceptingOrders do not move it. Repeated idempotent updates keep it unchanged.
    **/
   public OrderIntakeState updatedAt(OffsetDateTime updatedAt) {
     this.updatedAt = updatedAt;
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "updatedAt")
   @NotNull public OffsetDateTime getUpdatedAt() {
     return updatedAt;
@@ -160,7 +160,7 @@ public class OrderIntakeState   {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class OrderIntakeState {\n");
-    
+
     sb.append("    establishmentId: ").append(toIndentedString(establishmentId)).append("\n");
     sb.append("    status: ").append(toIndentedString(status)).append("\n");
     sb.append("    acceptingOrders: ").append(toIndentedString(acceptingOrders)).append("\n");

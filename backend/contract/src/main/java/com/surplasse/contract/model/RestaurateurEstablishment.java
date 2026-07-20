@@ -43,7 +43,7 @@ public class RestaurateurEstablishment   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "id")
   @NotNull public UUID getId() {
     return id;
@@ -62,7 +62,7 @@ public class RestaurateurEstablishment   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "name")
   @NotNull  @Size(min=1)public String getName() {
     return name;
@@ -81,7 +81,7 @@ public class RestaurateurEstablishment   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "slug")
   @NotNull  @Pattern(regexp="^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")public String getSlug() {
     return slug;
@@ -116,7 +116,7 @@ public class RestaurateurEstablishment   {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class RestaurateurEstablishment {\n");
-    
+
     sb.append("    id: ").append(toIndentedString(id)).append("\n");
     sb.append("    name: ").append(toIndentedString(name)).append("\n");
     sb.append("    slug: ").append(toIndentedString(slug)).append("\n");

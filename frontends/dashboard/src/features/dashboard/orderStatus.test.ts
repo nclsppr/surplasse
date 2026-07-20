@@ -2,7 +2,7 @@ import type { DashboardOrder, OrderPage } from "@surplasse/shared";
 import type { InfiniteData } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 
-import { applyOrderStatusResult, nextOrderStatus } from "./orderStatus";
+import { applyOrderStatusResult, nextOrderStatus, removeOperationalOrder } from "./orderStatus";
 
 function order(status: DashboardOrder["status"], type: DashboardOrder["type"] = "on_site"): DashboardOrder {
   return {
@@ -55,5 +55,14 @@ describe("order status workflow", () => {
     });
 
     expect(updated?.pages[0].items).toEqual([]);
+  });
+
+  it("removes a successfully refunded order from the cached board", () => {
+    const original = pages(order("paid"));
+
+    const updated = removeOperationalOrder(original, original.pages[0].items[0].id);
+
+    expect(updated?.pages[0].items).toEqual([]);
+    expect(original.pages[0].items).toHaveLength(1);
   });
 });

@@ -16,7 +16,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
 /**
- * An order as seen by the customer: lines frozen at creation (names, prices and options copied from the catalog at that instant), status driven by the kitchen. 
+ * An order as seen by the customer: lines frozen at creation (names, prices and options copied from the catalog at that instant), status driven by the kitchen.
  **/
 
 @JsonTypeName("Order")
@@ -161,7 +161,7 @@ public class Order   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "id")
   @NotNull public UUID getId() {
     return id;
@@ -180,7 +180,7 @@ public class Order   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "displayNumber")
   @NotNull public String getDisplayNumber() {
     return displayNumber;
@@ -199,7 +199,7 @@ public class Order   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "status")
   @NotNull public StatusEnum getStatus() {
     return status;
@@ -218,7 +218,7 @@ public class Order   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "type")
   @NotNull public TypeEnum getType() {
     return type;
@@ -237,7 +237,7 @@ public class Order   {
     return this;
   }
 
-  
+
   @JsonProperty("tableLabel")
   public String getTableLabel() {
     return tableLabel;
@@ -256,7 +256,7 @@ public class Order   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "lines")
   @NotNull @Valid public List<@Valid OrderLine> getLines() {
     return lines;
@@ -292,7 +292,7 @@ public class Order   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "totalCents")
   @NotNull  @Min(0)public Integer getTotalCents() {
     return totalCents;
@@ -311,7 +311,7 @@ public class Order   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "currency")
   @NotNull public String getCurrency() {
     return currency;
@@ -330,7 +330,7 @@ public class Order   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "trackingToken")
   @NotNull public String getTrackingToken() {
     return trackingToken;
@@ -349,7 +349,7 @@ public class Order   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "createdAt")
   @NotNull public OffsetDateTime getCreatedAt() {
     return createdAt;
@@ -391,7 +391,7 @@ public class Order   {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class Order {\n");
-    
+
     sb.append("    id: ").append(toIndentedString(id)).append("\n");
     sb.append("    displayNumber: ").append(toIndentedString(displayNumber)).append("\n");
     sb.append("    status: ").append(toIndentedString(status)).append("\n");

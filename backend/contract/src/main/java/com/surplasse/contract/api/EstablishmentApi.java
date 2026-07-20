@@ -23,7 +23,7 @@ import jakarta.validation.Valid;
 public interface EstablishmentApi {
 
     /**
-     * Returns whether the authenticated restaurateur currently accepts new table sessions, orders and payment sessions for this establishment. This operational switch does not hide the public menu and never cuts access to existing orders, their tracking pages or their event streams.  The restaurateur session cookie is required. Unknown establishments and establishments outside the caller's scope yield the same 404. 
+     * Returns whether the authenticated restaurateur currently accepts new table sessions, orders and payment sessions for this establishment. This operational switch does not hide the public menu and never cuts access to existing orders, their tracking pages or their event streams.  The restaurateur session cookie is required. Unknown establishments and establishments outside the caller's scope yield the same 404.
      *
      * @param establishmentId Identifier of an establishment.
      * @return The current operational order-intake state.
@@ -37,10 +37,10 @@ public interface EstablishmentApi {
 
 
     /**
-     * Idempotently opens or pauses new table sessions, orders and payment sessions for one establishment. Pausing is always allowed. Opening is allowed only while the establishment is active, has a published menu, exposes at least one active table and can create Stripe charges.  Operations already in flight are not cancelled. In particular, a Payment Intent whose client secret was already returned can still succeed and must then be served or refunded. Existing orders, their tracking pages and their event streams remain available in both states.  The restaurateur session cookie is required. Unknown establishments and establishments outside the caller's scope yield the same 404. 
+     * Idempotently opens or pauses new table sessions, orders and payment sessions for one establishment. Pausing is always allowed. Opening is allowed only while the establishment is active, has a published menu, exposes at least one active table and can create Stripe charges.  Operations already in flight are not cancelled. In particular, a Payment Intent whose client secret was already returned can still succeed and must then be served or refunded. Existing orders, their tracking pages and their event streams remain available in both states.  The restaurateur session cookie is required. Unknown establishments and establishments outside the caller's scope yield the same 404.
      *
      * @param establishmentId Identifier of an establishment.
-     * @param orderIntakeUpdate 
+     * @param orderIntakeUpdate
      * @return The state after the idempotent update.
      * @return The identifier or payload is syntactically invalid.
      * @return The restaurateur session is missing or expired.

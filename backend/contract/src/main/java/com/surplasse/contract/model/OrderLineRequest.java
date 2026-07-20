@@ -45,7 +45,7 @@ public class OrderLineRequest   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "productId")
   @NotNull public UUID getProductId() {
     return productId;
@@ -66,7 +66,7 @@ public class OrderLineRequest   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "quantity")
   @NotNull  @Min(1) @Max(50)public Integer getQuantity() {
     return quantity;
@@ -85,7 +85,7 @@ public class OrderLineRequest   {
     return this;
   }
 
-  
+
   @JsonProperty("optionIds")
   public List<UUID> getOptionIds() {
     return optionIds;
@@ -120,7 +120,7 @@ public class OrderLineRequest   {
     return this;
   }
 
-  
+
   @JsonProperty("note")
    @Size(max=200)public String getNote() {
     return note;
@@ -156,7 +156,7 @@ public class OrderLineRequest   {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class OrderLineRequest {\n");
-    
+
     sb.append("    productId: ").append(toIndentedString(productId)).append("\n");
     sb.append("    quantity: ").append(toIndentedString(quantity)).append("\n");
     sb.append("    optionIds: ").append(toIndentedString(optionIds)).append("\n");

@@ -197,6 +197,58 @@ class DashboardOrderFlowTest {
     }
 
     @Test
+    void refundPaidOrder_authenticatedPilot_returnsMoneyAndRemovesItFromOperations() {
+        String accessToken = loginPilot();
+        CreatedOrder order = createAndPay(OrderFlowTest.openSession());
+        String idempotencyKey = UUID.randomUUID().toString();
+
+        Response first = given().filter(ContractValidation.FILTER)
+                .contentType(ContentType.JSON)
+                .header("Cookie", ACCESS_COOKIE + "=" + accessToken)
+                .header("Idempotency-Key", idempotencyKey)
+                .body("{\"orderId\":\"%s\",\"reason\":\"restaurant_refusal\"}".formatted(order.id()))
+                .when()
+                .post("/v1/refunds");
+
+        first.then()
+                .statusCode(201)
+                .body("orderId", equalTo(order.id()))
+                .body("status", equalTo("succeeded"))
+                .body("reason", equalTo("restaurant_refusal"));
+        String refundId = first.jsonPath().getString("id");
+
+        given().filter(ContractValidation.FILTER)
+                .contentType(ContentType.JSON)
+                .header("Cookie", ACCESS_COOKIE + "=" + accessToken)
+                .header("Idempotency-Key", idempotencyKey)
+                .body("{\"orderId\":\"%s\",\"reason\":\"restaurant_refusal\"}".formatted(order.id()))
+                .when()
+                .post("/v1/refunds")
+                .then()
+                .statusCode(201)
+                .body("id", equalTo(refundId));
+
+        given().filter(ContractValidation.FILTER)
+                .queryParam("trackingToken", order.trackingToken())
+                .when()
+                .get("/v1/orders/{orderId}", order.id())
+                .then()
+                .statusCode(200)
+                .body("status", equalTo("refunded"));
+
+        List<String> operationalIds = given().filter(ContractValidation.FILTER)
+                .header("Cookie", ACCESS_COOKIE + "=" + accessToken)
+                .queryParam("establishmentId", ESTABLISHMENT)
+                .when()
+                .get("/v1/orders")
+                .then()
+                .statusCode(200)
+                .extract()
+                .path("items.id");
+        assertFalse(operationalIds.contains(order.id()));
+    }
+
+    @Test
     void streamEstablishmentOrderEvents_authenticatedPilot_replaysMissedActivity() throws Exception {
         String accessToken = loginPilot();
         CreatedOrder order = createAndPay(OrderFlowTest.openSession());

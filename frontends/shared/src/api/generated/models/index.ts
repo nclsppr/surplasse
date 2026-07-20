@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * An operational order displayed to the establishment staff. The customer tracking capability is deliberately omitted.
- * 
+ *
  * @export
  * @interface DashboardOrder
  */
@@ -205,7 +205,7 @@ export interface MenuOption {
 }
 /**
  * A set of options of a product (doneness, size, extras) with its choice rules. `minChoices` of 1 or more makes the group mandatory.
- * 
+ *
  * @export
  * @interface MenuOptionGroup
  */
@@ -243,7 +243,7 @@ export interface MenuOptionGroup {
 }
 /**
  * A product as displayed on the menu. Unavailable products are included with `available: false` so the frontend renders them greyed out.
- * 
+ *
  * @export
  * @interface MenuProduct
  */
@@ -287,7 +287,7 @@ export interface MenuProduct {
 }
 /**
  * An order as seen by the customer: lines frozen at creation (names, prices and options copied from the catalog at that instant), status driven by the kitchen.
- * 
+ *
  * @export
  * @interface Order
  */
@@ -382,7 +382,7 @@ export type OrderTypeEnum = typeof OrderTypeEnum[keyof typeof OrderTypeEnum];
 
 /**
  * The validated cart sent by the Commande frontend. The establishment and the table come from the table session; amounts are recomputed server side from the catalog and never trusted from the client.
- * 
+ *
  * @export
  * @interface OrderCreationRequest
  */
@@ -431,13 +431,13 @@ export type OrderIntakeBlockedReason = typeof OrderIntakeBlockedReason[keyof typ
  */
 export interface OrderIntakeState {
     /**
-     * 
+     *
      * @type {string}
      * @memberof OrderIntakeState
      */
     establishmentId: string;
     /**
-     * 
+     *
      * @type {OrderIntakeStatus}
      * @memberof OrderIntakeState
      */
@@ -449,14 +449,14 @@ export interface OrderIntakeState {
      */
     acceptingOrders: boolean;
     /**
-     * 
+     *
      * @type {OrderIntakeBlockedReason}
      * @memberof OrderIntakeState
      */
     blockedReason?: OrderIntakeBlockedReason;
     /**
      * Instant when the configured status last changed, including an automatic pause caused by Stripe. Readiness changes that only affect acceptingOrders do not move it. Repeated idempotent updates keep it unchanged.
-     * 
+     *
      * @type {string}
      * @memberof OrderIntakeState
      */
@@ -482,7 +482,7 @@ export type OrderIntakeStatus = typeof OrderIntakeStatus[keyof typeof OrderIntak
  */
 export interface OrderIntakeUpdate {
     /**
-     * 
+     *
      * @type {OrderIntakeStatus}
      * @memberof OrderIntakeUpdate
      */
@@ -597,7 +597,7 @@ export interface OrderLineRequest {
 }
 /**
  * One cursor-paginated page of operational orders, newest first. nextCursor is present exactly when hasMore is true.
- * 
+ *
  * @export
  * @interface OrderPage
  */
@@ -696,7 +696,7 @@ export interface PaymentCreationRequest {
 }
 /**
  * A Stripe payment session for one order. The client secret feeds the Payment Element; the amount is recomputed server side.
- * 
+ *
  * @export
  * @interface PaymentSession
  */
@@ -740,7 +740,7 @@ export interface PaymentSession {
 }
 /**
  * RFC 9457 Problem Details document, the single error format of the API. The `type` URI is stable and identifies the applicative error.
- * 
+ *
  * @export
  * @interface Problem
  */
@@ -778,7 +778,7 @@ export interface Problem {
 }
 /**
  * The published menu of an establishment, as a complete read model in display order. Array order is the display order.
- * 
+ *
  * @export
  * @interface PublicMenu
  */
@@ -809,6 +809,110 @@ export interface PublicMenu {
     categories: Array<MenuCategory>;
 }
 /**
+ * A full refund attempt and its latest Stripe status.
+ * @export
+ * @interface Refund
+ */
+export interface Refund {
+    /**
+     * Surplasse refund identifier.
+     * @type {string}
+     * @memberof Refund
+     */
+    id: string;
+    /**
+     * Refunded order.
+     * @type {string}
+     * @memberof Refund
+     */
+    orderId: string;
+    /**
+     * Full customer amount refunded in cents.
+     * @type {number}
+     * @memberof Refund
+     */
+    amountCents: number;
+    /**
+     * Surplasse application fee returned to the restaurant in cents.
+     * @type {number}
+     * @memberof Refund
+     */
+    applicationFeeRefundedCents: number;
+    /**
+     * ISO 4217 currency code.
+     * @type {string}
+     * @memberof Refund
+     */
+    currency: string;
+    /**
+     * Operational reason selected by establishment staff.
+     * @type {string}
+     * @memberof Refund
+     */
+    reason: RefundReasonEnum;
+    /**
+     * Latest authoritative Stripe refund status.
+     * @type {string}
+     * @memberof Refund
+     */
+    status: RefundStatusEnum;
+}
+
+
+/**
+ * @export
+ */
+export const RefundReasonEnum = {
+    RestaurantRefusal: 'restaurant_refusal',
+    ItemUnavailable: 'item_unavailable',
+    ServiceIncident: 'service_incident'
+} as const;
+export type RefundReasonEnum = typeof RefundReasonEnum[keyof typeof RefundReasonEnum];
+
+/**
+ * @export
+ */
+export const RefundStatusEnum = {
+    Pending: 'pending',
+    RequiresAction: 'requires_action',
+    Succeeded: 'succeeded',
+    Failed: 'failed',
+    Canceled: 'canceled'
+} as const;
+export type RefundStatusEnum = typeof RefundStatusEnum[keyof typeof RefundStatusEnum];
+
+/**
+ * The paid order and operational reason for its full refund.
+ * @export
+ * @interface RefundCreationRequest
+ */
+export interface RefundCreationRequest {
+    /**
+     * Paid order owned by the authenticated establishment.
+     * @type {string}
+     * @memberof RefundCreationRequest
+     */
+    orderId: string;
+    /**
+     * Operational reason recorded by Surplasse and sent to Stripe metadata.
+     * @type {string}
+     * @memberof RefundCreationRequest
+     */
+    reason: RefundCreationRequestReasonEnum;
+}
+
+
+/**
+ * @export
+ */
+export const RefundCreationRequestReasonEnum = {
+    RestaurantRefusal: 'restaurant_refusal',
+    ItemUnavailable: 'item_unavailable',
+    ServiceIncident: 'service_incident'
+} as const;
+export type RefundCreationRequestReasonEnum = typeof RefundCreationRequestReasonEnum[keyof typeof RefundCreationRequestReasonEnum];
+
+/**
  * An establishment accessible to the authenticated restaurateur.
  * @export
  * @interface RestaurateurEstablishment
@@ -835,7 +939,7 @@ export interface RestaurateurEstablishment {
 }
 /**
  * Minimal authenticated restaurateur view used to initialize the Dashboard. It contains no authorization token because credentials stay exclusively in HttpOnly cookies.
- * 
+ *
  * @export
  * @interface RestaurateurSession
  */
@@ -867,7 +971,7 @@ export interface RestaurateurSession {
 }
 /**
  * An anonymous table session. The token is opaque (a server-side reference, not a JWT) and carries no personal data.
- * 
+ *
  * @export
  * @interface TableSession
  */

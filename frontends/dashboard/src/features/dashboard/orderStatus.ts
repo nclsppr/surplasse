@@ -54,3 +54,19 @@ export function applyOrderStatusResult(
     }),
   };
 }
+
+export function removeOperationalOrder(
+  data: InfiniteData<OrderPage> | undefined,
+  orderId: string,
+): InfiniteData<OrderPage> | undefined {
+  if (!data) {
+    return data;
+  }
+  return {
+    ...data,
+    pages: data.pages.map((page) => ({
+      ...page,
+      items: page.items.filter((order) => order.id !== orderId),
+    })),
+  };
+}

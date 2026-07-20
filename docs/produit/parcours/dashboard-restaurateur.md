@@ -51,11 +51,11 @@ Le restaurateur fait avancer chaque commande d'un geste (un bouton par transitio
  +----------+
 ```
 
-Les libellés affichés au restaurateur sont rattachés aux statuts canoniques du [modèle de données](../../architecture/donnees.md) : « Nouvelle » correspond au statut `paid` (la commande arrive déjà réglée), « Refusée » à `cancelled` avec remboursement. Le restaurateur agit d'un geste par transition (accepter, démarrer la préparation, marquer prête, puis servie ou retirée).
+Les libellés affichés au restaurateur sont rattachés aux statuts canoniques du [modèle de données](../../architecture/donnees.md) : « Nouvelle » correspond au statut `paid` (la commande arrive déjà réglée), puis un refus confirmé mène à `refunded`. Le restaurateur agit d'un geste par transition (accepter, démarrer la préparation, marquer prête, puis servie ou retirée).
 
 Le client suit ces changements d'état en direct sur son téléphone. Pour le sur place, « Servie » clôt la commande quand le plat arrive à table ; pour l'à emporter, « Prête » déclenche la notification de retrait et « Retirée » correspond à la remise au comptoir.
 
-Le refus d'une commande déjà payée entraîne un remboursement intégral via Stripe. Les motifs de refus proposés et le délai maximal d'acceptation avant relance restent à trancher.
+Le refus d'une commande déjà payée entraîne un remboursement intégral via Stripe. Avant acceptation, le motif canonique est « refus du restaurant ». Après acceptation, le Dashboard demande « produit indisponible » ou « incident de service ». La confirmation affiche le montant total et précise que la commission Surplasse est restituée lorsqu'elle avait été prélevée. La commande reste bloquée pendant le traitement et ne quitte la file qu'après un succès Stripe confirmé. Le délai maximal d'acceptation avant relance reste à trancher.
 
 ### Tablette au comptoir, téléphone en poche
 

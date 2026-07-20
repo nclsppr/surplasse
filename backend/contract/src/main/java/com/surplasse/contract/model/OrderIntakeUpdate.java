@@ -36,7 +36,7 @@ public class OrderIntakeUpdate   {
     return this;
   }
 
-  
+
   @JsonProperty(required = true, value = "status")
   @NotNull public OrderIntakeStatus getStatus() {
     return status;
@@ -69,7 +69,7 @@ public class OrderIntakeUpdate   {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class OrderIntakeUpdate {\n");
-    
+
     sb.append("    status: ").append(toIndentedString(status)).append("\n");
     sb.append("}");
     return sb.toString();

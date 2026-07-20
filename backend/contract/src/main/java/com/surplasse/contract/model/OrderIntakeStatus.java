@@ -10,9 +10,9 @@ import com.fasterxml.jackson.annotation.JsonValue;
  * Operational availability of new table sessions, orders and payment sessions.
  */
 public enum OrderIntakeStatus {
-  
+
   OPEN("open"),
-  
+
   PAUSED("paused");
 
   private String value;

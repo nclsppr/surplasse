@@ -17,6 +17,10 @@ export function createPaymentApi(baseUrl: string, tableSessionToken?: () => stri
   return new PaymentApi(configurationWithSession(baseUrl, tableSessionToken));
 }
 
+export function createRestaurateurPaymentApi(baseUrl: string): PaymentApi {
+  return new PaymentApi(configurationWithRestaurateurSession(baseUrl));
+}
+
 export function createIdentityApi(baseUrl: string): IdentityApi {
   return new IdentityApi(configurationWithRestaurateurSession(baseUrl));
 }

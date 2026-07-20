@@ -937,23 +937,128 @@ paths:
                 detail: Stripe did not answer after retries.
                 instance: /v1/payments
 
+  /v1/refunds:
+    post:
+      tags: [payment]
+      operationId: createRefund
+      summary: Fully refund a paid order
+      description: |
+        Creates or replays the full Stripe refund of one order on behalf of
+        authenticated establishment staff. The direct charge is refunded on
+        the connected account frozen on the payment. When Surplasse collected
+        an application fee, the same operation returns it to the restaurant.
+        Partial refunds are outside the MVP.
+
+        The request is idempotent. Replaying a key returns the exact refund it
+        previously received, while a new key reuses any refund still in
+        progress or already succeeded. A failed or canceled attempt can be
+        retried with a new key. The order moves to `refunded` only after Stripe
+        reports a successful refund, synchronously or through a signed webhook.
+      security:
+        - restaurateurSession: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefundCreationRequest"
+      responses:
+        "201":
+          description: The full refund attempt, newly created or safely replayed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Refund"
+              example:
+                id: a4b3c2d1-e0f9-4876-95a4-b3c2d1e0f987
+                orderId: 0d9e8c7b-6a5f-4e3d-8c2b-1a0f9e8d7c6b
+                amountCents: 2250
+                applicationFeeRefundedCents: 22
+                currency: EUR
+                reason: restaurant_refusal
+                status: succeeded
+        "401":
+          description: The restaurateur session is missing or expired.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/session-expired
+                title: Session expired
+                status: 401
+                detail: The restaurateur session is expired or missing.
+                instance: /v1/refunds
+        "404":
+          description: Unknown order, order outside the caller's establishment, or no settled payment.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/resource-not-found
+                title: Resource not found
+                status: 404
+                detail: No order matches this identifier.
+                instance: /v1/refunds
+        "409":
+          description: The key conflicts, the order cannot be refunded, or a successful refund already exists.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/order-not-modifiable
+                title: Order not modifiable
+                status: 409
+                detail: Order 0d9e8c7b-6a5f-4e3d-8c2b-1a0f9e8d7c6b cannot be refunded from status served.
+                instance: /v1/refunds
+        "422":
+          description: Stripe rejects the refund for a business reason.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/business-rule-violation
+                title: Business rule violation
+                status: 422
+                detail: Stripe rejected the refund for this order.
+                instance: /v1/refunds
+        "503":
+          description: Stripe is unreachable after retries.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+              example:
+                type: https://surplasse.com/problems/dependency-unavailable
+                title: Dependency unavailable
+                status: 503
+                detail: Stripe did not answer.
+                instance: /v1/refunds
+
   /v1/webhooks/stripe:
     post:
       x-raw-body: true
       tags: [payment]
       operationId: receiveStripeWebhook
-      summary: Receive a signed Stripe snapshot payment event
+      summary: Receive a signed Stripe snapshot payment or refund event
       description: |
         Snapshot event destination called server-to-server by Stripe for
-        connected-account Payment Intents. The `Stripe-Signature`
+        connected-account Payment Intents and refunds. The `Stripe-Signature`
         header is verified before any processing (invalid signatures yield
         400 with no side effect), the clock tolerance is 5 minutes, and
         processing is idempotent: an already processed event id is
         acknowledged without being replayed. `payment_intent.succeeded` is
-        what moves an order to `paid` and triggers its kitchen broadcast. A
-        Connect event is applied only when its top-level `account` matches the
-        connected account frozen on the payment, and its `livemode` matches
-        the environment.
+        what moves an order to `paid`. `refund.created`, `refund.updated` and
+        `refund.failed` reconcile the full refund; only a successful refund
+        moves the order to `refunded`. Both transitions trigger their order
+        broadcast. A Connect event is applied only when its top-level `account`
+        matches the connected account frozen on the payment, and its `livemode`
+        matches the environment.
         Marked `x-raw-body`: contractual, but implemented by hand because
         signature verification needs the raw request bytes, which a
         generated deserializing interface cannot provide.
@@ -2249,6 +2354,64 @@ components:
         currency: EUR
         clientSecret: pi_3Nxxxxxxxxxxxx_secret_xxxxxxxxxxxxx
         connectedAccountId: acct_1Nxxxxxxxxxxxxxxxx
+
+    RefundCreationRequest:
+      type: object
+      description: The paid order and operational reason for its full refund.
+      properties:
+        orderId:
+          type: string
+          format: uuid
+          description: Paid order owned by the authenticated establishment.
+        reason:
+          type: string
+          description: Operational reason recorded by Surplasse and sent to Stripe metadata.
+          enum: [restaurant_refusal, item_unavailable, service_incident]
+      required: [orderId, reason]
+      example:
+        orderId: 0d9e8c7b-6a5f-4e3d-8c2b-1a0f9e8d7c6b
+        reason: restaurant_refusal
+
+    Refund:
+      type: object
+      description: A full refund attempt and its latest Stripe status.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Surplasse refund identifier.
+        orderId:
+          type: string
+          format: uuid
+          description: Refunded order.
+        amountCents:
+          type: integer
+          minimum: 1
+          description: Full customer amount refunded in cents.
+        applicationFeeRefundedCents:
+          type: integer
+          minimum: 0
+          description: Surplasse application fee returned to the restaurant in cents.
+        currency:
+          type: string
+          description: ISO 4217 currency code.
+        reason:
+          type: string
+          enum: [restaurant_refusal, item_unavailable, service_incident]
+          description: Operational reason selected by establishment staff.
+        status:
+          type: string
+          enum: [pending, requires_action, succeeded, failed, canceled]
+          description: Latest authoritative Stripe refund status.
+      required: [id, orderId, amountCents, applicationFeeRefundedCents, currency, reason, status]
+      example:
+        id: a4b3c2d1-e0f9-4876-95a4-b3c2d1e0f987
+        orderId: 0d9e8c7b-6a5f-4e3d-8c2b-1a0f9e8d7c6b
+        amountCents: 2250
+        applicationFeeRefundedCents: 22
+        currency: EUR
+        reason: restaurant_refusal
+        status: succeeded
 
     StripeEvent:
       type: object
