@@ -269,6 +269,7 @@ docs/
 - **Branche unique `main`, pas de PR** : on committe et on pousse directement, le plus souvent possible (une unité de travail vérifiée = un commit poussé).
 - Messages de commit en français, impératif, préfixés par le périmètre : `docs:`, `api:`, `backend:`, `front(commande):`, `infra:`, `ci:`.
 - Le build docs doit passer avant tout push touchant `docs/` : `npm run docs:build`.
+- **Démo GitHub Pages obligatoire pour toute évolution UI.** Toute modification de `brand/**` ou `frontends/**` doit être validée localement, committée et poussée sur `main` dans la même unité de travail. Le travail n'est terminé que lorsque les workflows `Frontends` et `Pages` ont réussi pour le SHA poussé et que la démo publique a été contrôlée visuellement en vue mobile et bureau, y compris le dernier écran du parcours. Un échec de validation, de déploiement ou un écart visuel est corrigé et redéployé avant de poursuivre la roadmap.
 
 ## Build et prévisualisation des docs
 
@@ -278,4 +279,4 @@ npm run docs:build   # build de vérification (sortie dans docs-site/)
 npm run docs:watch   # serveur local avec rechargement
 ```
 
-Le déploiement est automatique : chaque push sur `main` publie le site (documentation, landing statique et assets de marque) sur GitHub Pages via `.github/workflows/pages.yml`.
+Le déploiement est automatique : chaque push sur `main` publie le site (documentation, landing statique, tunnel avec aperçu du Dashboard et assets de marque) sur GitHub Pages via `.github/workflows/pages.yml`.

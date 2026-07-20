@@ -26,7 +26,7 @@ La CI ne remplace pas la vérification locale, elle la confirme. Les commandes e
 
 ## Le workflow Pages
 
-Le fichier `.github/workflows/pages.yml` construit le site Retype, l'assemble avec la landing statique (`frontends/onboarding/`) et les assets de marque (`brand/`), et déploie l'ensemble sur GitHub Pages.
+Le fichier `.github/workflows/pages.yml` construit le site Retype, l'assemble avec la landing statique, le tunnel d'embarquement et son aperçu du Dashboard (`frontends/onboarding/`), puis ajoute les assets de marque (`brand/`) et déploie l'ensemble sur GitHub Pages.
 
 | Élément | Valeur |
 |---|---|
@@ -35,11 +35,11 @@ Le fichier `.github/workflows/pages.yml` construit le site Retype, l'assemble av
 | Concurrence | Groupe `pages`, avec annulation des exécutions en cours (`cancel-in-progress`) |
 | Jobs | `build` puis `deploy` (ce dernier conditionné à `main`) |
 
-Le job `build` enchaîne checkout (`actions/checkout@v4`), installation de Node 24 (`actions/setup-node@v4`), `npm ci`, vérification du fichier de domaines généré avec `npm run domains:check`, `npm run docs:build`, puis l'assemblage du site publié. Cet assemblage place la landing, le tunnel et `runtime-config.js` à la racine, les assets de marque sous `brand/` et la documentation Retype sous `docs/`. Le script npm invoque `node node_modules/retypeapp/retype.js` directement plutôt que la commande `retype` : npm 10.9.x ne crée pas le lien `node_modules/.bin/retype` à l'installation, à cause d'une collision de noms de bin avec les paquets plateforme `retypeapp-*`. Le site assemblé est publié comme artefact Pages via `actions/upload-pages-artifact@v3`.
+Le job `build` enchaîne checkout (`actions/checkout@v4`), installation de Node 24 (`actions/setup-node@v4`), `npm ci`, vérification du fichier de domaines généré avec `npm run domains:check`, `npm run docs:build`, puis l'assemblage du site publié. Cet assemblage place la landing, le tunnel avec son aperçu fidèle du Dashboard et `runtime-config.js` à la racine, les assets de marque sous `brand/` et la documentation Retype sous `docs/`. Le script npm invoque `node node_modules/retypeapp/retype.js` directement plutôt que la commande `retype` : npm 10.9.x ne crée pas le lien `node_modules/.bin/retype` à l'installation, à cause d'une collision de noms de bin avec les paquets plateforme `retypeapp-*`. Le site assemblé est publié comme artefact Pages via `actions/upload-pages-artifact@v3`.
 
 Le job `deploy` dépend de `build`, ne s'exécute que si la référence est `refs/heads/main`, cible l'environnement GitHub `github-pages` et publie l'artefact avec `actions/deploy-pages@v4`.
 
-Ce workflow tourne aujourd'hui à chaque push, quel que soit le contenu du commit. Il recevra un filtre de chemins sur son périmètre comme les autres workflows ci-dessous.
+Ce workflow reste volontairement sans filtre de chemins. Chaque push sur `main` republie la démo. Ainsi, toute évolution de `brand/**` ou `frontends/**` produit un nouvel artefact public, même lorsque seul le Dashboard, Commande ou le package partagé change. Une évolution UI n'est terminée qu'après le succès des workflows `Frontends` et `Pages` pour le même SHA, puis le contrôle visuel de la démo publique en vue mobile et bureau.
 
 ## Les workflows
 
@@ -47,7 +47,7 @@ Le monorepo suit un découpage par filtres de chemins (`paths`) : un push qui ne
 
 | Workflow | Déclencheur (filtre de chemins) | Étapes |
 |---|---|---|
-| `pages.yml` | chaque `push` sur `main` | Build Retype, assemblage du site public (docs, landing, marque), déploiement GitHub Pages (décrit ci-dessus) |
+| `pages.yml` | chaque `push` sur `main` | Build Retype, assemblage du site public (docs, landing, tunnel, aperçu Dashboard, marque), déploiement GitHub Pages (décrit ci-dessus) |
 | `api.yml` | `push`, chemins `api/**`, `openapitools.json`, `scripts/api/**` | Lint Spectral, contrôle de compatibilité `oasdiff` contre le commit précédent (dérogation par préfixe de commit `api!:`), fraîcheur de la génération (`npm run api:generate` puis `git diff --exit-code`) |
 | `backend.yml` | `push`, chemins `backend/**`, `api/**`, profils de domaines, wrapper ou `package.json` | Java 21 Temurin, cache Maven, `npm run backend:verify` : injection du profil, compilation, tests unitaires et d'intégration (PostgreSQL 17 via Testcontainers), contrat et formatage Spotless |
 | `frontends.yml` | `push`, chemins `frontends/**`, `config/domains/**`, cockpit, scripts locaux, `infra/local/**`, `brand/**`, `api/**` | Profils et QR générés, tests du cockpit, syntaxe shell, adaptation Caddy, package `shared`, lint, tests et builds de Commande et du Dashboard |

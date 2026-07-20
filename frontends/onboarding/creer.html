@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Démonstration du parcours de création, Surplasse</title>
-<meta name="description" content="Explorez le futur parcours de création d'un menu Surplasse à partir d'une photo.">
+<title>Démonstration de l'embarquement et du Dashboard, Surplasse</title>
+<meta name="description" content="Explorez le parcours de création d'une carte Surplasse puis le Dashboard de service.">
 <link rel="stylesheet" href="../../brand/styles.css?v=20260720b">
 <style>
   *{box-sizing:border-box}
+  [hidden]{display:none!important}
   body{margin:0;background:var(--surface-page);color:var(--text-body);min-height:100dvh;display:flex;flex-direction:column;font-family:var(--font-ui)}
   a{color:inherit}
   .topbar{border-bottom:1px solid var(--line-1);background:var(--bg-1)}
@@ -58,25 +59,78 @@
   .prod .pd{font:400 12px var(--font-mono);color:var(--fg-3);margin-top:3px}
   .prod .pp{font:700 14px var(--font-mono);color:var(--fg-1);white-space:nowrap}
   .flag{display:inline-flex;align-items:center;gap:6px;font:400 11px var(--font-mono);color:var(--warn);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+  body.dashboard-view main{max-width:1180px}
+  body.dashboard-view .topbar .in,body.dashboard-view .demo-banner p,body.dashboard-view .progress{max-width:1180px}
+  .dashboard-step>.sub{max-width:68ch}
+  .dashboard-preview{overflow:hidden;margin-top:28px;border:1px solid var(--line-2);border-radius:var(--radius-md);background:var(--surface-card)}
+  .dashboard-preview-header{display:flex;min-height:58px;align-items:center;justify-content:space-between;gap:16px;padding:12px 18px;border-top:6px solid var(--accent);border-bottom:1px solid var(--line-1);background:var(--surface-raised)}
+  .dashboard-wordmark{font:400 28px/1 var(--font-script);color:var(--accent)}
+  .dashboard-demo-label{font:700 10px/1.4 var(--font-mono);color:var(--fg-3);text-transform:uppercase;letter-spacing:.05em;text-align:right}
+  .dashboard-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:32px;padding:22px 18px;border-bottom:1.5px solid var(--line-accent)}
+  .dashboard-service-label{margin:0;color:var(--accent-press);font:700 10px/1.4 var(--font-mono);text-transform:uppercase;letter-spacing:.08em}
+  .dashboard-toolbar h2{margin:6px 0 0;color:var(--accent);font:800 24px/1.05 var(--font-display);text-transform:uppercase;letter-spacing:.01em}
+  .dashboard-order-count{margin:7px 0 0;color:var(--fg-3);font:400 11px/1.4 var(--font-mono)}
+  .dashboard-controls{display:flex;align-items:flex-end;gap:12px}
+  .dashboard-establishment{display:flex;min-width:150px;flex-direction:column;gap:3px;padding:0 4px 7px;border-bottom:1px solid var(--line-accent)}
+  .dashboard-establishment span{color:var(--fg-3);font:700 9px/1.4 var(--font-mono);text-transform:uppercase;letter-spacing:.05em}
+  .dashboard-establishment strong{overflow:hidden;max-width:190px;font:400 22px/1 var(--font-script);text-overflow:ellipsis;white-space:nowrap}
+  .dashboard-live{display:flex;min-height:44px;align-items:center;gap:7px;padding:0 12px;border:1.5px solid var(--structure);border-radius:var(--radius-sm);color:var(--structure);background:var(--surface-raised);font:700 10px/1.4 var(--font-mono);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+  .dashboard-live::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--structure)}
+  .dashboard-board{display:grid;grid-template-columns:1fr;gap:12px;padding:16px;background:var(--surface-page)}
+  .dashboard-column{min-width:0;padding:12px;border:1px solid var(--line-1);border-radius:var(--radius-md);background:var(--surface-card)}
+  .dashboard-column-header{display:flex;min-height:62px;align-items:flex-start;justify-content:space-between;gap:8px;padding:2px 0 10px;border-bottom:1px solid var(--line-accent)}
+  .dashboard-column-header h3{margin:0;color:var(--accent-press);font:800 14px/1.25 var(--font-display);text-transform:uppercase;letter-spacing:.01em}
+  .dashboard-column-header p{margin:4px 0 0;color:var(--fg-3);font:400 9px/1.35 var(--font-mono)}
+  .dashboard-column-count{display:grid;min-width:26px;height:26px;place-items:center;padding:0 4px;border:1px solid var(--line-2);border-radius:var(--radius-sm);background:var(--surface-raised);font:700 10px var(--font-mono);font-variant-numeric:tabular-nums}
+  .dashboard-stack{display:grid;align-content:start;gap:10px;padding-top:10px}
+  .dashboard-empty{display:flex;min-height:88px;align-items:center;justify-content:center;margin:0;padding:12px;border:1px dashed var(--line-2);border-radius:var(--radius-md);color:var(--fg-3);font:400 10px/1.4 var(--font-mono);text-align:center}
+  .dashboard-order{overflow:hidden;border:1.5px solid var(--accent);border-radius:var(--radius-md);background:var(--surface-raised)}
+  .dashboard-order[data-status="accepted"]{border-color:var(--warn)}
+  .dashboard-order[data-status="preparing"]{border-color:var(--structure)}
+  .dashboard-order[data-status="ready"]{border-color:var(--ok)}
+  .dashboard-order-header{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:12px;border-bottom:1px solid var(--line-1)}
+  .dashboard-order-number{display:block;color:var(--fg-3);font:700 9px/1.4 var(--font-mono);text-transform:uppercase;letter-spacing:.04em}
+  .dashboard-order-header strong{display:block;margin-top:3px;font:700 13px/1.3 var(--font-ui)}
+  .dashboard-order-header time{color:var(--fg-3);font:400 9px/1.4 var(--font-mono);white-space:nowrap}
+  .dashboard-order-lines{display:grid;margin:0;padding:0;list-style:none}
+  .dashboard-order-lines li{display:grid;grid-template-columns:28px 1fr;gap:5px;padding:10px 12px;border-bottom:1px solid var(--line-1);font:800 11px/1.35 var(--font-display);text-transform:uppercase}
+  .dashboard-quantity{color:var(--accent-press);font-family:var(--font-mono)}
+  .dashboard-order-total{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;color:var(--fg-3);font:400 9px/1.4 var(--font-mono)}
+  .dashboard-order-total strong{color:var(--fg-1);font-size:11px;font-variant-numeric:tabular-nums}
+  .dashboard-order-action{width:calc(100% - 24px);margin:0 12px 12px;min-height:44px;padding-inline:10px;font-size:10px}
+  .dashboard-preview-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 18px;border-top:1px solid var(--line-1);background:var(--surface-raised)}
+  .dashboard-preview-footer p{margin:0;color:var(--fg-3);font:400 10px/1.45 var(--font-mono)}
+  .dashboard-replay{flex:none;min-height:44px}
+  .dashboard-scope{max-width:76ch;margin:12px 0 0;color:var(--fg-3);font:400 11px/1.55 var(--font-mono)}
   .done{text-align:center;padding:24px 0}
   .check{width:64px;height:64px;margin:0 auto 18px;color:var(--accent-press)}
   .done-card{max-width:480px;margin:22px auto 0;padding:16px;border-top:1.5px solid var(--line-accent);border-bottom:1.5px solid var(--line-accent);text-align:left}
   .done-card strong{display:block;color:var(--accent-press);font:700 12px var(--font-mono);text-transform:uppercase;letter-spacing:.04em}
   .done-card p{margin:7px 0 0;color:var(--fg-3);font:400 12px/1.55 var(--font-mono)}
+  @media (min-width:700px){.dashboard-board{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media (min-width:1200px){.dashboard-board{grid-template-columns:repeat(4,minmax(0,1fr))}.dashboard-column{min-height:310px}}
+  @media (max-width:620px){
+    .dashboard-preview-header,.dashboard-toolbar,.dashboard-preview-footer{align-items:stretch;flex-direction:column}
+    .dashboard-demo-label{text-align:left}
+    .dashboard-controls{align-items:stretch;flex-direction:column}
+    .dashboard-establishment{max-width:none}
+    .dashboard-step>.actions{display:grid}
+    .dashboard-step>.actions .sp-btn{width:100%}
+  }
   @media (prefers-reduced-motion:reduce){.step.on,.spin{animation:none}}
 </style>
 </head>
 <body>
 <div class="topbar"><div class="in"><span class="wm">Surplasse</span><a href="index.html" class="back">Quitter la démo</a></div></div>
 <div class="demo-banner"><p>Démonstration interactive. Aucun menu n'est publié.</p></div>
-<div class="progress" role="progressbar" aria-label="Progression de la démonstration" aria-valuemin="1" aria-valuemax="4" aria-valuenow="1">
-  <div class="seg on" data-seg="1"></div><div class="seg" data-seg="2"></div><div class="seg" data-seg="3"></div><div class="seg" data-seg="4"></div>
+<div class="progress" role="progressbar" aria-label="Progression de la démonstration" aria-valuemin="1" aria-valuemax="5" aria-valuenow="1">
+  <div class="seg on" data-seg="1"></div><div class="seg" data-seg="2"></div><div class="seg" data-seg="3"></div><div class="seg" data-seg="4"></div><div class="seg" data-seg="5"></div>
 </div>
 
 <main>
   <section class="step on" data-step="1">
     <form id="name-form" novalidate>
-      <div class="eyebrow">Étape 1 sur 4</div>
+      <div class="eyebrow">Étape 1 sur 5</div>
       <h1 tabindex="-1">Comment s'appelle votre restaurant ?</h1>
       <p class="sub">Ce nom personnalise l'aperçu. Rien n'est enregistré dans cette démonstration.</p>
       <div class="sp-field">
@@ -90,7 +144,7 @@
 
   <section class="step" data-step="2">
     <form id="photo-form" novalidate>
-      <div class="eyebrow">Étape 2 sur 4</div>
+      <div class="eyebrow">Étape 2 sur 5</div>
       <h1 tabindex="-1">Une photo de votre carte suffit.</h1>
       <p class="sub">Le produit final proposera une extraction des catégories, des produits et des prix, toujours suivie d'une relecture humaine.</p>
       <label class="drop" id="drop">
@@ -115,7 +169,7 @@
   </section>
 
   <section class="step" data-step="4">
-    <div class="eyebrow">Étape 4 sur 4, relecture</div>
+    <div class="eyebrow">Étape 4 sur 5, relecture</div>
     <h1 tabindex="-1">Votre carte, prête à relire.</h1>
     <p class="sub">Les données ci-dessous sont un exemple fixe. Le produit final signalera les éléments incertains et demandera une validation explicite.</p>
     <div class="sp-card sp-card--pad preview-card">
@@ -128,16 +182,73 @@
       <div class="prod"><div><div class="pn">Margherita</div><div class="pd">tomate, mozzarella di bufala, basilic</div></div><div class="pp">12,00 €</div></div>
       <div class="prod"><div><div class="pn">Diavola</div><div class="pd">tomate, mozzarella, salami piquant</div></div><div class="pp">14,00 €</div></div>
     </div>
-    <div class="actions"><button type="button" class="sp-btn sp-btn--secondary sp-btn--lg" onclick="goTo(2)">Changer la photo</button><button type="button" class="sp-btn sp-btn--primary sp-btn--lg grow" onclick="finishDemo()">Terminer la démo</button></div>
+    <div class="actions"><button type="button" class="sp-btn sp-btn--secondary sp-btn--lg" onclick="goTo(2)">Changer la photo</button><button type="button" class="sp-btn sp-btn--primary sp-btn--lg grow" onclick="showDashboard()">Voir le Dashboard</button></div>
   </section>
 
-  <section class="step" data-step="5">
+  <section class="step dashboard-step" data-step="5">
+    <div class="eyebrow">Étape 5 sur 5, pendant le service</div>
+    <h1 tabindex="-1">Vos commandes arrivent ici.</h1>
+    <p class="sub">Après l'activation, le Dashboard regroupe les commandes payées et permet à l'équipe de les faire avancer jusqu'au service. Cet aperçu reproduit le tableau opérationnel actuellement exécutable en local.</p>
+
+    <article class="dashboard-preview" aria-labelledby="dashboard-preview-title">
+      <header class="dashboard-preview-header">
+        <span class="dashboard-wordmark">Surplasse</span>
+        <span class="dashboard-demo-label">Simulation locale · Données de démonstration</span>
+      </header>
+      <div class="dashboard-toolbar">
+        <div>
+          <p class="dashboard-service-label">Service en cours</p>
+          <h2 id="dashboard-preview-title">Commandes opérationnelles</h2>
+          <p class="dashboard-order-count" id="dashboard-order-count">1 commande en cours</p>
+        </div>
+        <div class="dashboard-controls">
+          <div class="dashboard-establishment"><span>Établissement</span><strong id="dashboard-name">Fiorella</strong></div>
+          <div class="dashboard-live">Simulation locale</div>
+        </div>
+      </div>
+
+      <div class="dashboard-board" role="group" aria-label="Commandes regroupées par statut">
+        <section class="dashboard-column" data-status="paid" aria-labelledby="dashboard-paid-title">
+          <header class="dashboard-column-header"><div><h3 id="dashboard-paid-title">Nouvelles</h3><p>Payées, à prendre en charge</p></div><span class="dashboard-column-count" id="dashboard-count-paid">1</span></header>
+          <div class="dashboard-stack" data-dashboard-stack="paid">
+            <article class="dashboard-order" id="dashboard-order" data-status="paid">
+              <header class="dashboard-order-header"><div><span class="dashboard-order-number">Commande 47</span><strong>Table 4</strong></div><time datetime="12:34">Reçue à 12:34</time></header>
+              <ul class="dashboard-order-lines" role="list"><li><span class="dashboard-quantity">2 ×</span><span>Margherita</span></li><li><span class="dashboard-quantity">1 ×</span><span>Burrata des Pouilles</span></li></ul>
+              <div class="dashboard-order-total"><span>Sur place</span><strong>37,00 €</strong></div>
+              <button type="button" class="sp-btn sp-btn--primary dashboard-order-action" id="dashboard-order-action" onclick="advanceDashboardOrder()" aria-label="Accepter, commande 47">Accepter</button>
+            </article>
+            <p class="dashboard-empty" data-dashboard-empty="paid" hidden>Aucune nouvelle commande</p>
+          </div>
+        </section>
+        <section class="dashboard-column" data-status="accepted" aria-labelledby="dashboard-accepted-title">
+          <header class="dashboard-column-header"><div><h3 id="dashboard-accepted-title">Acceptées</h3><p>Confirmées par l'équipe</p></div><span class="dashboard-column-count" id="dashboard-count-accepted">0</span></header>
+          <div class="dashboard-stack" data-dashboard-stack="accepted"><p class="dashboard-empty" data-dashboard-empty="accepted">Aucune commande acceptée</p></div>
+        </section>
+        <section class="dashboard-column" data-status="preparing" aria-labelledby="dashboard-preparing-title">
+          <header class="dashboard-column-header"><div><h3 id="dashboard-preparing-title">En préparation</h3><p>En cours en cuisine</p></div><span class="dashboard-column-count" id="dashboard-count-preparing">0</span></header>
+          <div class="dashboard-stack" data-dashboard-stack="preparing"><p class="dashboard-empty" data-dashboard-empty="preparing">Aucune préparation en cours</p></div>
+        </section>
+        <section class="dashboard-column" data-status="ready" aria-labelledby="dashboard-ready-title">
+          <header class="dashboard-column-header"><div><h3 id="dashboard-ready-title">Prêtes</h3><p>À servir ou à retirer</p></div><span class="dashboard-column-count" id="dashboard-count-ready">0</span></header>
+          <div class="dashboard-stack" data-dashboard-stack="ready"><p class="dashboard-empty" data-dashboard-empty="ready">Aucune commande prête</p></div>
+        </section>
+      </div>
+      <footer class="dashboard-preview-footer">
+        <p id="dashboard-announcement" role="status" aria-live="polite" aria-atomic="true">Simulation locale : aucune commande réelle n'est créée ou mise à jour.</p>
+        <button type="button" class="sp-btn sp-btn--secondary dashboard-replay" id="dashboard-replay" onclick="resetDashboardOrder(true)" hidden>Rejouer la commande</button>
+      </footer>
+    </article>
+    <p class="dashboard-scope">Cet aperçu montre l'arrivée des commandes payées et leur avancement jusqu'au service. L'édition de la carte, l'historique et les métriques viendront dans une étape ultérieure.</p>
+    <div class="actions"><button type="button" class="sp-btn sp-btn--secondary sp-btn--lg" onclick="goTo(4)">Retour à la carte</button><button type="button" class="sp-btn sp-btn--primary sp-btn--lg grow" onclick="finishDemo()">Terminer la démo</button></div>
+  </section>
+
+  <section class="step" data-step="6">
     <div class="done">
       <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg>
       <div class="eyebrow">Démonstration terminée</div>
-      <h1 tabindex="-1">Rien n'a été publié.</h1>
-      <p class="sub sub--center">Vous avez parcouru le principe du futur onboarding. Aucune commande n'a été ouverte.</p>
-      <div class="done-card"><strong>Le vrai parcours devra garantir</strong><p>Consentement avant envoi, progression sauvegardée, correction complète de la carte, aperçu mobile et activation explicite seulement après connexion Stripe.</p></div>
+      <h1 tabindex="-1">Rien n'a été publié ni modifié.</h1>
+      <p class="sub sub--center">Vous avez parcouru le principe du futur embarquement puis le tableau de service. Aucune commande réelle n'a été ouverte.</p>
+      <div class="done-card"><strong>Ce que cette démo distingue</strong><p>L'extraction et l'activation restent simulées. Le Dashboard opérationnel réel couvre déjà l'arrivée des commandes payées et leur avancement jusqu'au service.</p></div>
       <div class="actions actions--center"><button type="button" class="sp-btn sp-btn--secondary sp-btn--lg" onclick="restart()">Recommencer</button><a class="sp-btn sp-btn--primary sp-btn--lg" href="index.html">Retour à l'accueil</a></div>
     </div>
   </section>
@@ -146,12 +257,20 @@
 <script>
   let step = 1;
   let objectUrls = [];
+  let dashboardOrderStatus = 'paid';
   const messages = ['Lecture de la carte simulée...','Repérage des catégories...','Identification des plats et des prix...','Préparation de la relecture...'];
+  const dashboardTransitions = {
+    paid: { next: 'accepted', action: 'Accepter', announcement: 'Commande 47 acceptée. Elle apparaît maintenant dans « Acceptées ».' },
+    accepted: { next: 'preparing', action: 'Lancer la préparation', announcement: 'Préparation de la commande 47 démarrée.' },
+    preparing: { next: 'ready', action: 'Marquer comme prête', announcement: 'Commande 47 prête à servir.' },
+    ready: { next: 'served', action: 'Marquer comme servie', announcement: 'Commande 47 marquée comme servie. Aucune commande en cours pour cet établissement.' }
+  };
 
   function render(focusHeading = false){
     document.querySelectorAll('.step').forEach((item) => item.classList.toggle('on', Number(item.dataset.step) === step));
-    document.querySelectorAll('.progress .seg').forEach((item) => item.classList.toggle('on', Number(item.dataset.seg) <= Math.min(step,4)));
-    document.querySelector('.progress').setAttribute('aria-valuenow', String(Math.min(step,4)));
+    document.querySelectorAll('.progress .seg').forEach((item) => item.classList.toggle('on', Number(item.dataset.seg) <= Math.min(step,5)));
+    document.querySelector('.progress').setAttribute('aria-valuenow', String(Math.min(step,5)));
+    document.body.classList.toggle('dashboard-view', step === 5);
     window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
     const heading = document.querySelector('.step.on h1');
     if (focusHeading && heading) heading.focus({preventScroll:true});
@@ -171,6 +290,7 @@
     error.textContent = '';
     input.setAttribute('aria-invalid', 'false');
     document.getElementById('preview-name').textContent = input.value.trim();
+    document.getElementById('dashboard-name').textContent = input.value.trim();
     goTo(2);
   }
 
@@ -222,7 +342,58 @@
     setTimeout(() => { clearInterval(interval); goTo(4); }, 2200);
   }
 
-  function finishDemo(){ goTo(5); }
+  function showDashboard(){
+    dashboardOrderStatus = 'paid';
+    renderDashboardOrder();
+    goTo(5);
+  }
+
+  function renderDashboardOrder(announcement = 'Simulation locale : aucune commande réelle n’est créée ou mise à jour.'){
+    const order = document.getElementById('dashboard-order');
+    const action = document.getElementById('dashboard-order-action');
+    const replay = document.getElementById('dashboard-replay');
+    const active = dashboardOrderStatus !== 'served';
+
+    ['paid','accepted','preparing','ready'].forEach((status) => {
+      const isCurrent = active && status === dashboardOrderStatus;
+      document.getElementById('dashboard-count-' + status).textContent = isCurrent ? '1' : '0';
+      document.querySelector('[data-dashboard-empty="' + status + '"]').hidden = isCurrent;
+    });
+
+    document.getElementById('dashboard-order-count').textContent = active ? '1 commande en cours' : '0 commande en cours';
+    document.getElementById('dashboard-announcement').textContent = announcement;
+    replay.hidden = active;
+    order.hidden = !active;
+
+    if (!active) return;
+
+    const transition = dashboardTransitions[dashboardOrderStatus];
+    order.dataset.status = dashboardOrderStatus;
+    document.querySelector('[data-dashboard-stack="' + dashboardOrderStatus + '"]').prepend(order);
+    action.textContent = transition.action;
+    action.setAttribute('aria-label', transition.action + ', commande 47');
+  }
+
+  function advanceDashboardOrder(){
+    const transition = dashboardTransitions[dashboardOrderStatus];
+    dashboardOrderStatus = transition.next;
+    renderDashboardOrder(transition.announcement);
+    if (dashboardOrderStatus === 'served') {
+      document.getElementById('dashboard-replay').focus({preventScroll:true});
+      return;
+    }
+    const order = document.getElementById('dashboard-order');
+    document.getElementById('dashboard-order-action').focus({preventScroll:true});
+    order.scrollIntoView({block:'nearest',behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+  }
+
+  function resetDashboardOrder(focusAction = false){
+    dashboardOrderStatus = 'paid';
+    renderDashboardOrder('Commande 47 replacée dans les nouvelles commandes. Aucune donnée réelle n’est modifiée.');
+    if (focusAction) document.getElementById('dashboard-order-action').focus({preventScroll:true});
+  }
+
+  function finishDemo(){ goTo(6); }
 
   function restart(){
     document.getElementById('name').value = '';
@@ -231,11 +402,14 @@
     document.getElementById('file').setAttribute('aria-invalid', 'false');
     document.getElementById('name-error').textContent = '';
     document.getElementById('file-error').textContent = '';
+    document.getElementById('preview-name').textContent = 'Fiorella';
+    document.getElementById('dashboard-name').textContent = 'Fiorella';
     document.getElementById('thumbs').innerHTML = '';
     document.getElementById('drop').classList.remove('filled');
     document.getElementById('drop-t').textContent = 'Prendre ou choisir une photo';
     objectUrls.forEach((url) => URL.revokeObjectURL(url));
     objectUrls = [];
+    resetDashboardOrder();
     goTo(1);
   }
 

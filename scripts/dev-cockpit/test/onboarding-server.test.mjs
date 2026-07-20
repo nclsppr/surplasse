@@ -24,6 +24,24 @@ test("Onboarding landing keeps truthful pilot terms and product evidence", async
   assert.doesNotMatch(html, /capture :|téléphone :/);
 });
 
+test("Onboarding demonstration ends with a truthful Dashboard service preview", async () => {
+  const html = await readFile(`${repoRoot}/frontends/onboarding/creer.html`, "utf8");
+
+  assert.match(html, /aria-valuemax="5"/);
+  assert.match(html, /data-step="5"/);
+  assert.match(html, /Commandes opérationnelles/);
+  assert.match(html, /Simulation locale/);
+  assert.match(html, /Nouvelles/);
+  assert.match(html, /Acceptées/);
+  assert.match(html, /En préparation/);
+  assert.match(html, /Prêtes/);
+  assert.match(html, /Lancer la préparation/);
+  assert.match(html, /Marquer comme servie/);
+  assert.match(html, /aucune commande réelle n'est créée ou mise à jour/i);
+  assert.match(html, /L'édition de la carte, l'historique et les métriques viendront/);
+  assert.doesNotMatch(html, /Temps réel actif/);
+});
+
 test("Onboarding static server serves only the explicit public asset allowlist", async (t) => {
   assert.equal(ONBOARDING_HOST, "127.0.0.1");
   assert.equal(ONBOARDING_PORT, 4173);
