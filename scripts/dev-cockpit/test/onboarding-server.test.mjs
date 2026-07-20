@@ -66,6 +66,8 @@ test("Onboarding static server serves only the explicit public asset allowlist",
     ["/frontends/onboarding/runtime-config.js", "text/javascript; charset=utf-8"],
     ["/brand/styles.css?v=1", "text/css; charset=utf-8"],
     ["/brand/logo.svg", "image/svg+xml"],
+    ["/brand/mark.svg", "image/svg+xml"],
+    ["/brand/fonts/bodoni-moda.css", "text/css; charset=utf-8"],
     ["/brand/qr/qr-demo.png", "image/png"],
   ];
   for (const [path, contentType] of expectedAssets) {

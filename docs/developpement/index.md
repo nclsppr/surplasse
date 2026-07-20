@@ -128,7 +128,7 @@ Le verrou exact des versions vit dans `frontends/dashboard/package-lock.json`. L
 | React Router | 7 | Bibliothèque applicative | Oui, intégrée au JavaScript statique |
 | TanStack Query | 5 | Bibliothèque applicative | Oui, intégrée au JavaScript statique |
 | `frontends/shared` | version du même commit | Paquet source interne | Oui, compilé dans le Dashboard ; aucun paquet ni conteneur séparé |
-| Polices auto-hébergées de `brand/fonts/` et wordmark `brand/logo.svg` | version du même commit | Assets de marque au build | Oui, intégrés aux fichiers statiques ; aucune requête vers un CDN |
+| Polices auto-hébergées de `brand/fonts/` et logos SVG de `brand/` | version du même commit | Assets de marque au build | Oui, intégrés aux fichiers statiques ; aucune requête vers un CDN |
 | Node.js | 24 | Développement, build et CI | Non, absent du serveur statique une fois les fichiers construits |
 | Vite et son plugin React | 6 | Développement, build et CI | Non, absents du processus de production |
 | Tailwind CSS et son plugin Vite | 4 | Développement et build | Non, seules les feuilles de style produites sont livrées |

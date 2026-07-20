@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title-orange description-orange">
+  <title id="title-orange">Symbole Surplasse</title>
+  <desc id="description-orange">Un repère de localisation au-dessus d'une table entourée de deux chaises.</desc>
+  <rect x="4" y="4" width="120" height="120" rx="30" fill="#e8481c"/>
+  <g fill="none" stroke="#fff7ef" stroke-width="8" stroke-linecap="square" stroke-linejoin="miter">
+    <path d="M86 39C83 27 75 20 64 20C48 20 37 31 37 46C37 55 42 62 49 70L64 87L80 68L86 56"/>
+    <path d="M27 82L31 110H48"/>
+    <path d="M101 82L97 110H80"/>
+  </g>
+  <circle cx="64" cy="45" r="9" fill="#2b2118"/>
+  <ellipse cx="64" cy="94" rx="27" ry="6" fill="#fff7ef"/>
+  <path d="M64 99V114" stroke="#fff7ef" stroke-width="6"/>
+</svg>

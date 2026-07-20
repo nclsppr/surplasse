@@ -15,10 +15,9 @@ from qrcode.constants import ERROR_CORRECT_H
 from qrcode.image.styledpil import StyledPilImage
 from qrcode.image.styles.colormasks import SolidFillColorMask
 from qrcode.image.styles.moduledrawers.pil import RoundedModuleDrawer
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parent.parent
-FONT = ROOT / "brand" / "fonts" / "Parisienne-Regular.ttf"
 OUT = ROOT / "brand" / "qr"
 
 INK = (43, 33, 24)       # --fg-1 espresso
@@ -65,18 +64,31 @@ def example_url(profile: str) -> str:
 
 
 def make_center_mark(size: int = 280) -> Image.Image:
-    """A compact round knockout holding the Parisienne 'S' in accent orange."""
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    """Render the compact Surplasse table-and-location mark for QR centers."""
+    render_size = size * 4
+    img = Image.new("RGBA", (render_size, render_size), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    ring = max(6, size // 22)
-    d.ellipse([ring // 2, ring // 2, size - ring // 2, size - ring // 2],
-              fill=PAPER, outline=ACCENT, width=ring)
-    font = ImageFont.truetype(str(FONT), int(size * 0.66))
-    box = d.textbbox((0, 0), "S", font=font)
-    w, h = box[2] - box[0], box[3] - box[1]
-    d.text(((size - w) / 2 - box[0], (size - h) / 2 - box[1]), "S",
-           font=font, fill=ACCENT)
-    return img
+    scale = render_size / 128
+    point = lambda x, y: (x * scale, y * scale)
+    stroke = max(8, round(8 * scale))
+    inset = round(4 * scale)
+    d.rounded_rectangle(
+        [inset, inset, render_size - inset, render_size - inset],
+        radius=round(30 * scale),
+        fill=PAPER,
+        outline=ACCENT,
+        width=max(4, round(3 * scale)),
+    )
+
+    d.polygon([point(39, 54), point(64, 88), point(84, 58)], fill=INK)
+    d.polygon([point(49, 58), point(64, 77), point(75, 60)], fill=PAPER)
+    d.arc([*point(37, 16), *point(91, 70)], start=30, end=330, fill=INK, width=stroke)
+    d.ellipse([*point(55, 32), *point(73, 50)], fill=ACCENT)
+    d.line([point(27, 82), point(31, 110), point(48, 110)], fill=INK, width=stroke, joint="curve")
+    d.line([point(101, 82), point(97, 110), point(80, 110)], fill=INK, width=stroke, joint="curve")
+    d.ellipse([*point(37, 88), *point(91, 100)], fill=INK)
+    d.line([point(64, 99), point(64, 114)], fill=INK, width=max(6, round(6 * scale)))
+    return img.resize((size, size), Image.Resampling.LANCZOS)
 
 
 def make_qr(url: str, center: Image.Image) -> Image.Image:

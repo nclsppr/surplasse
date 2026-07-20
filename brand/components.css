@@ -1,4 +1,30 @@
-/* Surplasse component classes (bistro premium) : capitales, coins droits, filets nets */
+/* Surplasse component classes (bistro premium): capitals, sharp corners, crisp rules. */
+.sp-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: .34em;
+  color: var(--fg-1);
+  font-size: 32px;
+  line-height: 1;
+  text-decoration: none;
+}
+.sp-brand:hover { color: var(--fg-1); text-decoration: none; }
+.sp-brand__mark { display: block; flex: none; width: 1.12em; height: 1.12em; }
+.sp-brand__wordmark {
+  font-family: var(--font-brand);
+  font-size: 1em;
+  font-kerning: normal;
+  font-optical-sizing: none;
+  font-variation-settings: 'opsz' 72;
+  font-weight: 400;
+  letter-spacing: -.045em;
+  line-height: .82;
+}
+.sp-brand--accent { color: var(--accent); }
+.sp-brand--accent:hover { color: var(--accent-hover); }
+.sp-brand--inverse { color: var(--on-accent); }
+.sp-brand--inverse:hover { color: var(--on-accent); }
+
 .sp-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   height: var(--control-h-md); padding: 0 20px; border-radius: var(--radius-sm);

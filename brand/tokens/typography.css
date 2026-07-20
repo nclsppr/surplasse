@@ -1,10 +1,11 @@
-/* Surplasse type : Archivo (capitales grasses + UI), Space Mono (méta, prix détaillés), Parisienne (script de marque) */
+/* Surplasse type: Bodoni Moda (wordmark), Archivo (display and UI), Space Mono (metadata), Parisienne (restaurant script). */
 /* Font faces are imported first by brand/styles.css to keep bundled CSS valid. */
 
 :root {
   --font-display: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
   --font-ui: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
   --font-mono: 'Space Mono', ui-monospace, monospace;
+  --font-brand: 'Bodoni Moda', 'Bodoni 72', Didot, serif;
   --font-script: 'Parisienne', cursive;
 
   /* Scale */
@@ -42,7 +43,7 @@ h1, h2, h3, .display {
   text-wrap: balance;
 }
 
-/* Script de marque : « Surplasse », noms d'établissements */
+/* Script is reserved for restaurant names and editorial accents. */
 .script {
   font-family: var(--font-script);
   font-weight: 400;

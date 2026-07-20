@@ -85,7 +85,7 @@ Ne jamais « corriger » un ADR pour l'aligner sur une page plus récente. Soit 
 
 ## Registre des ADR
 
-Vingt ADR sont consignés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'à l'intégration Stripe Accounts v2.
+Vingt et un ADR sont consignés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'à l'identité vectorielle de Surplasse.
 
 | Numéro | Titre | Statut | Lien |
 |---|---|---|---|
@@ -109,5 +109,6 @@ Vingt ADR sont consignés à ce jour. Ils couvrent les choix structurants du pro
 | 0018 | Contrôle opérationnel de la prise de commandes | Remplacé par ADR-0020 | [ADR-0018](adr-0018-controle-prise-commandes.md) |
 | 0019 | Maintien de Java et Temporal différé | Accepté | [ADR-0019](adr-0019-maintien-java-temporal-differe.md) |
 | 0020 | Accounts v2 et embarquement Stripe intégré | Accepté | [ADR-0020](adr-0020-accounts-v2-onboarding-embarque.md) |
+| 0021 | Identité et logo vectoriel | Accepté | [ADR-0021](adr-0021-identite-logo-vectoriel.md) |
 
 Les décisions encore ouvertes (par exemple le choix de la solution d'impression thermique ESC/POS mentionné dans la stack de référence) donneront lieu à de futurs ADR au fil de la [roadmap](../roadmap.md).

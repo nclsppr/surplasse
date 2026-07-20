@@ -1,6 +1,7 @@
 @import "../../../brand/fonts/archivo.css";
 @import "../../../brand/fonts/spacemono.css";
 @import "../../../brand/fonts/parisienne.css";
+@import "../../../brand/fonts/bodoni-moda.css";
 @import "tailwindcss";
 @import "../../../brand/tokens/colors.css";
 @import "../../../brand/tokens/typography.css";
@@ -125,19 +126,37 @@ button:disabled {
 
 .brand {
   display: inline-flex;
-  align-items: flex-end;
+  align-items: center;
   gap: var(--sp-3);
 }
 
-.brand-wordmark {
+.brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.34rem;
+  color: var(--fg-1);
+  line-height: 1;
+}
+
+.brand-mark {
   display: block;
-  width: 10rem;
-  height: auto;
+  width: 2.35rem;
+  height: 2.35rem;
+}
+
+.brand-wordmark {
+  font-family: var(--font-brand);
+  font-size: 2.15rem;
+  font-kerning: normal;
+  font-optical-sizing: none;
+  font-variation-settings: "opsz" 72;
+  font-weight: 400;
+  letter-spacing: -0.045em;
+  line-height: 0.82;
 }
 
 .brand-tagline {
   max-width: 12rem;
-  padding-bottom: 0.45rem;
   color: var(--fg-2);
   font-family: var(--font-mono);
   font-size: 0.65rem;
@@ -1105,8 +1124,13 @@ button:disabled {
     display: none;
   }
 
+  .brand-mark {
+    width: 2rem;
+    height: 2rem;
+  }
+
   .brand-wordmark {
-    width: 8.5rem;
+    font-size: 1.85rem;
   }
 
   .service-header {
