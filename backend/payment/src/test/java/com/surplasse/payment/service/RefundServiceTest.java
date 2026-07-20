@@ -103,8 +103,7 @@ class RefundServiceTest {
                 })
                 .when(refunds)
                 .persist(any(PaymentRefund.class));
-        when(refunds.findByIdForUpdate(any()))
-                .thenAnswer(invocation -> Optional.ofNullable(reservedRefund.get()));
+        when(refunds.findByIdForUpdate(any())).thenAnswer(invocation -> Optional.ofNullable(reservedRefund.get()));
         when(provider.createFullRefund(any()))
                 .thenReturn(new RefundProvider.RefundRef("re_1", RefundStatus.SUCCEEDED, null));
     }
@@ -118,8 +117,7 @@ class RefundServiceTest {
     void create_paidOrder_refundsFullPaymentAndApplicationFee() {
         UUID idempotencyKey = UUID.randomUUID();
 
-        PaymentRefund refund = service.create(
-                ACCESS_TOKEN, ORDER, RefundReason.RESTAURANT_REFUSAL, idempotencyKey);
+        PaymentRefund refund = service.create(ACCESS_TOKEN, ORDER, RefundReason.RESTAURANT_REFUSAL, idempotencyKey);
 
         assertEquals(RefundStatus.SUCCEEDED, refund.getStatus());
         assertEquals(2250, refund.getAmountCents());
@@ -137,16 +135,15 @@ class RefundServiceTest {
     @Test
     void create_sameKey_replaysTheExactSucceededRefund() {
         UUID idempotencyKey = UUID.randomUUID();
-        PaymentRefund existing = PaymentRefund.reserve(
-                UUID.randomUUID(), payment, idempotencyKey, RefundReason.RESTAURANT_REFUSAL);
+        PaymentRefund existing =
+                PaymentRefund.reserve(UUID.randomUUID(), payment, idempotencyKey, RefundReason.RESTAURANT_REFUSAL);
         existing.reconcile("re_existing", RefundStatus.SUCCEEDED, null);
         RefundRequest request = new RefundRequest(
                 idempotencyKey, existing.getId(), ORDER, ESTABLISHMENT, RefundReason.RESTAURANT_REFUSAL);
         when(requests.findByIdOptional(idempotencyKey)).thenReturn(Optional.of(request));
         when(refunds.findByIdOptional(existing.getId())).thenReturn(Optional.of(existing));
 
-        PaymentRefund replayed = service.create(
-                ACCESS_TOKEN, ORDER, RefundReason.RESTAURANT_REFUSAL, idempotencyKey);
+        PaymentRefund replayed = service.create(ACCESS_TOKEN, ORDER, RefundReason.RESTAURANT_REFUSAL, idempotencyKey);
 
         assertSame(existing, replayed);
         verify(provider, never()).createFullRefund(any());
@@ -155,15 +152,11 @@ class RefundServiceTest {
     @Test
     void create_sameKeyWithDifferentReason_yieldsIdempotencyConflict() {
         UUID idempotencyKey = UUID.randomUUID();
-        PaymentRefund existing = PaymentRefund.reserve(
-                UUID.randomUUID(), payment, idempotencyKey, RefundReason.RESTAURANT_REFUSAL);
+        PaymentRefund existing =
+                PaymentRefund.reserve(UUID.randomUUID(), payment, idempotencyKey, RefundReason.RESTAURANT_REFUSAL);
         when(requests.findByIdOptional(idempotencyKey))
                 .thenReturn(Optional.of(new RefundRequest(
-                        idempotencyKey,
-                        existing.getId(),
-                        ORDER,
-                        ESTABLISHMENT,
-                        RefundReason.RESTAURANT_REFUSAL)));
+                        idempotencyKey, existing.getId(), ORDER, ESTABLISHMENT, RefundReason.RESTAURANT_REFUSAL)));
 
         ConflictException conflict = assertThrows(
                 ConflictException.class,
@@ -177,13 +170,12 @@ class RefundServiceTest {
     void create_newKey_reusesTheActiveRefundWithoutCallingStripeAgain() {
         UUID originalKey = UUID.randomUUID();
         UUID newKey = UUID.randomUUID();
-        PaymentRefund existing = PaymentRefund.reserve(
-                UUID.randomUUID(), payment, originalKey, RefundReason.RESTAURANT_REFUSAL);
+        PaymentRefund existing =
+                PaymentRefund.reserve(UUID.randomUUID(), payment, originalKey, RefundReason.RESTAURANT_REFUSAL);
         existing.reconcile("re_existing", RefundStatus.PENDING, null);
         when(refunds.findActiveOrSucceededByPayment(payment.getId())).thenReturn(Optional.of(existing));
 
-        PaymentRefund replayed = service.create(
-                ACCESS_TOKEN, ORDER, RefundReason.SERVICE_INCIDENT, newKey);
+        PaymentRefund replayed = service.create(ACCESS_TOKEN, ORDER, RefundReason.SERVICE_INCIDENT, newKey);
 
         assertSame(existing, replayed);
         ArgumentCaptor<RefundRequest> linkedRequest = ArgumentCaptor.forClass(RefundRequest.class);
@@ -196,20 +188,15 @@ class RefundServiceTest {
     @Test
     void create_sameKey_retriesTheAmbiguousReservationAgainstStripe() {
         UUID idempotencyKey = UUID.randomUUID();
-        PaymentRefund existing = PaymentRefund.reserve(
-                UUID.randomUUID(), payment, idempotencyKey, RefundReason.RESTAURANT_REFUSAL);
+        PaymentRefund existing =
+                PaymentRefund.reserve(UUID.randomUUID(), payment, idempotencyKey, RefundReason.RESTAURANT_REFUSAL);
         when(requests.findByIdOptional(idempotencyKey))
                 .thenReturn(Optional.of(new RefundRequest(
-                        idempotencyKey,
-                        existing.getId(),
-                        ORDER,
-                        ESTABLISHMENT,
-                        RefundReason.RESTAURANT_REFUSAL)));
+                        idempotencyKey, existing.getId(), ORDER, ESTABLISHMENT, RefundReason.RESTAURANT_REFUSAL)));
         when(refunds.findByIdOptional(existing.getId())).thenReturn(Optional.of(existing));
         when(refunds.findByIdForUpdate(existing.getId())).thenReturn(Optional.of(existing));
 
-        PaymentRefund retried = service.create(
-                ACCESS_TOKEN, ORDER, RefundReason.RESTAURANT_REFUSAL, idempotencyKey);
+        PaymentRefund retried = service.create(ACCESS_TOKEN, ORDER, RefundReason.RESTAURANT_REFUSAL, idempotencyKey);
 
         assertSame(existing, retried);
         assertEquals(RefundStatus.SUCCEEDED, retried.getStatus());
@@ -227,8 +214,7 @@ class RefundServiceTest {
 
         ConflictException conflict = assertThrows(
                 ConflictException.class,
-                () -> service.create(
-                        ACCESS_TOKEN, ORDER, RefundReason.SERVICE_INCIDENT, UUID.randomUUID()));
+                () -> service.create(ACCESS_TOKEN, ORDER, RefundReason.SERVICE_INCIDENT, UUID.randomUUID()));
 
         assertEquals("order-not-modifiable", conflict.problemType());
         verify(provider, never()).createFullRefund(any());
@@ -240,8 +226,7 @@ class RefundServiceTest {
 
         assertThrows(
                 DependencyUnavailableException.class,
-                () -> service.create(
-                        ACCESS_TOKEN, ORDER, RefundReason.RESTAURANT_REFUSAL, UUID.randomUUID()));
+                () -> service.create(ACCESS_TOKEN, ORDER, RefundReason.RESTAURANT_REFUSAL, UUID.randomUUID()));
 
         assertEquals(RefundStatus.CREATING, reservedRefund.get().getStatus());
         verify(paymentRefunded, never()).fire(any());
@@ -253,8 +238,7 @@ class RefundServiceTest {
 
         assertThrows(
                 BusinessRuleException.class,
-                () -> service.create(
-                        ACCESS_TOKEN, ORDER, RefundReason.RESTAURANT_REFUSAL, UUID.randomUUID()));
+                () -> service.create(ACCESS_TOKEN, ORDER, RefundReason.RESTAURANT_REFUSAL, UUID.randomUUID()));
 
         assertEquals(RefundStatus.FAILED, reservedRefund.get().getStatus());
         verify(paymentRefunded, never()).fire(any());

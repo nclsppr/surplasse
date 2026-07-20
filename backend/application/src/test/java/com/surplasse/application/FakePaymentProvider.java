@@ -1,8 +1,8 @@
 package com.surplasse.application;
 
+import com.surplasse.payment.entity.RefundStatus;
 import com.surplasse.payment.provider.PaymentProvider;
 import com.surplasse.payment.provider.RefundProvider;
-import com.surplasse.payment.entity.RefundStatus;
 import io.quarkus.test.Mock;
 import jakarta.enterprise.context.ApplicationScoped;
 

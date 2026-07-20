@@ -37,13 +37,17 @@ public class OrderGatewayService implements OrderGateway {
                         "EUR",
                         orderLineRepository.listByOrderOrdered(order.getId()).stream()
                                 .map(OrderLine::getProductId)
-                .toList()));
+                                .toList()));
     }
 
     @Override
     public Optional<RefundableOrder> lockRefundableOrder(UUID orderId) {
-        return orderRepository.findByIdForUpdate(orderId).map(order ->
-                new RefundableOrder(order.getId(), order.getEstablishmentId(), order.getStatus().dbValue()));
+        return orderRepository
+                .findByIdForUpdate(orderId)
+                .map(order -> new RefundableOrder(
+                        order.getId(),
+                        order.getEstablishmentId(),
+                        order.getStatus().dbValue()));
     }
 
     @Override

@@ -73,9 +73,7 @@ public class StripeSignatureVerifier implements StripeEventVerifier {
         String paymentIntentId = type.startsWith("payment_intent.")
                 ? objectId
                 : object.path("payment_intent").asText(null);
-        StripeEventVerifier.RefundData refund = type.startsWith("refund.")
-                ? extractRefund(objectId, object)
-                : null;
+        StripeEventVerifier.RefundData refund = type.startsWith("refund.") ? extractRefund(objectId, object) : null;
         String connectedAccountId = root.path("account").asText(null);
         boolean liveMode = liveModeNode.booleanValue();
         OffsetDateTime occurredAt = null;
@@ -112,7 +110,10 @@ public class StripeSignatureVerifier implements StripeEventVerifier {
             }
         }
         return new StripeEventVerifier.RefundData(
-                objectId, internalRefundId, status, object.path("failure_reason").asText(null));
+                objectId,
+                internalRefundId,
+                status,
+                object.path("failure_reason").asText(null));
     }
 
     private static boolean refreshesConnectedAccountCapabilities(String type) {

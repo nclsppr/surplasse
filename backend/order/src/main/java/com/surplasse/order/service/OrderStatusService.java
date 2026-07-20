@@ -78,9 +78,8 @@ public class OrderStatusService {
             return Optional.empty();
         }
         if (!order.getStatus().canTransitionTo(OrderStatus.REFUNDED)) {
-            throw new IllegalStateException(
-                    "A successful refund cannot move order %s from %s to refunded."
-                            .formatted(orderId, order.getStatus()));
+            throw new IllegalStateException("A successful refund cannot move order %s from %s to refunded."
+                    .formatted(orderId, order.getStatus()));
         }
         order.moveTo(OrderStatus.REFUNDED);
         return Optional.of(persistEvent(order));

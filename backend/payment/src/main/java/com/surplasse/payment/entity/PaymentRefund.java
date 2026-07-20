@@ -58,11 +58,7 @@ public class PaymentRefund {
         this.status = RefundStatus.CREATING;
     }
 
-    public static PaymentRefund reserve(
-            UUID id,
-            Payment payment,
-            UUID creationKey,
-            RefundReason reason) {
+    public static PaymentRefund reserve(UUID id, Payment payment, UUID creationKey, RefundReason reason) {
         return new PaymentRefund(
                 id,
                 payment.getId(),

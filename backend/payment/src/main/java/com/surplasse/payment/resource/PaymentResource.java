@@ -1,7 +1,7 @@
 package com.surplasse.payment.resource;
 
-import com.surplasse.common.order.OrderGateway;
 import com.surplasse.common.identity.RestaurateurIdentityGateway;
+import com.surplasse.common.order.OrderGateway;
 import com.surplasse.contract.api.PaymentApi;
 import com.surplasse.contract.model.PaymentCreationRequest;
 import com.surplasse.contract.model.RefundCreationRequest;
@@ -10,8 +10,8 @@ import com.surplasse.payment.mapping.PaymentMapper;
 import com.surplasse.payment.service.PaymentService;
 import com.surplasse.payment.service.RefundService;
 import jakarta.ws.rs.core.Context;
-import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Cookie;
+import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response;
 import java.util.UUID;
 

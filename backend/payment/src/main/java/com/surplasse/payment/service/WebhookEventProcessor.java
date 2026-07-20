@@ -11,8 +11,8 @@ import com.surplasse.payment.entity.RefundStatus;
 import com.surplasse.payment.entity.StripeWebhookEvent;
 import com.surplasse.payment.provider.ConnectedAccountProvider;
 import com.surplasse.payment.provider.StripeEventVerifier;
-import com.surplasse.payment.repository.PaymentRepository;
 import com.surplasse.payment.repository.PaymentRefundRepository;
+import com.surplasse.payment.repository.PaymentRepository;
 import com.surplasse.payment.repository.StripeWebhookEventRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
@@ -145,11 +145,14 @@ public class WebhookEventProcessor {
             LOG.warnf("Refund event %s account does not match local routing", event.id());
             return;
         }
-        orderGateway.lockRefundableOrder(snapshot.getOrderId())
+        orderGateway
+                .lockRefundableOrder(snapshot.getOrderId())
                 .orElseThrow(() -> new IllegalStateException("A refund references an unknown order."));
-        Payment payment = paymentRepository.findByIdForUpdate(snapshot.getPaymentId())
+        Payment payment = paymentRepository
+                .findByIdForUpdate(snapshot.getPaymentId())
                 .orElseThrow(() -> new IllegalStateException("A refund references an unknown payment."));
-        PaymentRefund refund = refundRepository.findByIdForUpdate(snapshot.getId())
+        PaymentRefund refund = refundRepository
+                .findByIdForUpdate(snapshot.getId())
                 .orElseThrow(() -> new IllegalStateException("A refund disappeared during reconciliation."));
         if (!event.paymentIntentId().equals(payment.getExternalReference())) {
             LOG.warnf("Refund event %s payment intent does not match local payment", event.id());
@@ -164,9 +167,8 @@ public class WebhookEventProcessor {
         refund.reconcile(data.externalReference(), data.status(), data.failureReason());
         if (previous != RefundStatus.SUCCEEDED && refund.getStatus() == RefundStatus.SUCCEEDED) {
             if (payment.getStatus() != PaymentStatus.SUCCEEDED && payment.getStatus() != PaymentStatus.REFUNDED) {
-                throw new IllegalStateException(
-                        "Successful refund %s references payment %s in status %s."
-                                .formatted(refund.getId(), payment.getId(), payment.getStatus()));
+                throw new IllegalStateException("Successful refund %s references payment %s in status %s."
+                        .formatted(refund.getId(), payment.getId(), payment.getStatus()));
             }
             payment.markRefunded();
             paymentRefunded.fire(new PaymentRefunded(refund.getOrderId(), refund.getEstablishmentId()));

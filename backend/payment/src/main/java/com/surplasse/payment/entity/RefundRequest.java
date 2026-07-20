@@ -20,8 +20,7 @@ public class RefundRequest {
 
     protected RefundRequest() {}
 
-    public RefundRequest(
-            UUID idempotencyKey, UUID refundId, UUID orderId, UUID establishmentId, RefundReason reason) {
+    public RefundRequest(UUID idempotencyKey, UUID refundId, UUID orderId, UUID establishmentId, RefundReason reason) {
         this.idempotencyKey = idempotencyKey;
         this.refundId = refundId;
         this.orderId = orderId;

@@ -29,7 +29,8 @@ public class StripeRefundProvider implements RefundProvider {
             try {
                 status = RefundStatus.fromProviderValue(refund.getStatus());
             } catch (IllegalArgumentException e) {
-                LOG.errorf("Stripe returned unknown refund status %s for order %s", refund.getStatus(), request.orderId());
+                LOG.errorf(
+                        "Stripe returned unknown refund status %s for order %s", refund.getStatus(), request.orderId());
                 throw new DependencyUnavailableException("Stripe returned an unknown refund status.");
             }
             return new RefundRef(refund.getId(), status, refund.getFailureReason());

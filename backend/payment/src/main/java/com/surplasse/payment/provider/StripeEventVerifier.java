@@ -53,9 +53,5 @@ public interface StripeEventVerifier {
         }
     }
 
-    record RefundData(
-            String externalReference,
-            UUID internalRefundId,
-            RefundStatus status,
-            String failureReason) {}
+    record RefundData(String externalReference, UUID internalRefundId, RefundStatus status, String failureReason) {}
 }

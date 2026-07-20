@@ -56,8 +56,8 @@ public class RefundService {
     /** Reserves locally, calls Stripe without a transaction, then reconciles the authoritative result. */
     public PaymentRefund create(String accessToken, UUID orderId, RefundReason reason, UUID idempotencyKey) {
         identityGateway.authenticate(accessToken);
-        PaymentRefund refund = QuarkusTransaction.requiringNew()
-                .call(() -> reserve(accessToken, orderId, reason, idempotencyKey));
+        PaymentRefund refund =
+                QuarkusTransaction.requiringNew().call(() -> reserve(accessToken, orderId, reason, idempotencyKey));
         if (refund.getStatus() != RefundStatus.CREATING) {
             return refund;
         }
@@ -108,13 +108,11 @@ public class RefundService {
         PaymentRefund refund = PaymentRefund.reserve(UUID.randomUUID(), payment, idempotencyKey, reason);
         refunds.persist(refund);
         refunds.flush();
-        requests.persist(new RefundRequest(
-                idempotencyKey, refund.getId(), orderId, order.establishmentId(), reason));
+        requests.persist(new RefundRequest(idempotencyKey, refund.getId(), orderId, order.establishmentId(), reason));
         return refund;
     }
 
-    private Optional<PaymentRefund> replay(
-            String accessToken, UUID orderId, RefundReason reason, UUID idempotencyKey) {
+    private Optional<PaymentRefund> replay(String accessToken, UUID orderId, RefundReason reason, UUID idempotencyKey) {
         return requests.findByIdOptional(idempotencyKey).map(request -> {
             identityGateway.authorize(accessToken, request.getEstablishmentId());
             if (!request.getOrderId().equals(orderId) || request.getReason() != reason) {
@@ -127,18 +125,15 @@ public class RefundService {
 
     private PaymentRefund linkRequest(UUID idempotencyKey, RefundReason reason, PaymentRefund refund) {
         requests.persist(new RefundRequest(
-                idempotencyKey,
-                refund.getId(),
-                refund.getOrderId(),
-                refund.getEstablishmentId(),
-                reason));
+                idempotencyKey, refund.getId(), refund.getOrderId(), refund.getEstablishmentId(), reason));
         return refund;
     }
 
     private PaymentRefund reconcile(
             UUID orderId, UUID paymentId, UUID refundId, RefundProvider.RefundRef providerRefund) {
         // Global lock order is Order, Payment, Refund. It is shared with reservation and kitchen updates.
-        orderGateway.lockRefundableOrder(orderId)
+        orderGateway
+                .lockRefundableOrder(orderId)
                 .orElseThrow(() -> new IllegalStateException("A refund order disappeared before reconciliation."));
         Payment payment = payments.findByIdForUpdate(paymentId)
                 .orElseThrow(() -> new IllegalStateException("A refund references an unknown payment."));
@@ -157,15 +152,15 @@ public class RefundService {
 
     private void markCreationFailed(UUID refundId, String failureReason) {
         PaymentRefund refund = refunds.findByIdForUpdate(refundId)
-                .orElseThrow(() -> new IllegalStateException("A reserved refund disappeared after provider rejection."));
+                .orElseThrow(
+                        () -> new IllegalStateException("A reserved refund disappeared after provider rejection."));
         refund.markCreationFailed(failureReason);
     }
 
     private static void requireSettledPayment(Payment payment, PaymentRefund refund) {
         if (payment.getStatus() != PaymentStatus.SUCCEEDED && payment.getStatus() != PaymentStatus.REFUNDED) {
-            throw new IllegalStateException(
-                    "Successful refund %s references payment %s in status %s."
-                            .formatted(refund.getId(), payment.getId(), payment.getStatus()));
+            throw new IllegalStateException("Successful refund %s references payment %s in status %s."
+                    .formatted(refund.getId(), payment.getId(), payment.getStatus()));
         }
     }
 }
