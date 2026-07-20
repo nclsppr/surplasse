@@ -1,122 +1,167 @@
-/* Surplasse : « Bistro premium ». Ivoire, encre espresso, orange international/terracotta. */
-/* Source : projet Claude Design « Restaurant management system design » (Nico). */
+/* Surplasse v2: hospitality editorial, built on semantic roles. */
 :root {
-  /* Surfaces (ivoires) */
-  --bg-0: #ebe1cc;
-  --bg-1: #f6efe0;
-  --bg-2: #f1e8d6;
-  --bg-2b: #fbf7ec;
-  --bg-3: #fffef8;
+  color-scheme: light;
+
+  /* Raw brand palette */
+  --brand-paper: #f7f2e8;
+  --brand-ink: #1b2421;
+  --brand-forest: #194d3e;
+  --brand-forest-deep: #123e32;
+  --brand-paprika: #c44b34;
+  --brand-paprika-deep: #a73a28;
+  --brand-saffron: #d8a93b;
+
+  /* Surfaces */
+  --bg-0: #e8e1d6;
+  --bg-1: var(--brand-paper);
+  --bg-2: #efe7da;
+  --bg-2b: #fcf9f3;
+  --bg-3: #ffffff;
   --surface-page: var(--bg-1);
   --surface-card: var(--bg-2b);
   --surface-raised: var(--bg-3);
   --surface-sunken: var(--bg-0);
 
-  /* Encre (espresso chaud) */
-  --fg-1: #2b2118;
-  --fg-2: #55483a;
-  --fg-3: #857463;
-  --fg-4: #b3a48f;
+  /* Text. Every text role passes WCAG AA on the page surface. */
+  --fg-1: var(--brand-ink);
+  --fg-2: #3f4d48;
+  --fg-3: #5d6a65;
+  --fg-4: #63716b;
   --text-body: var(--fg-1);
+  --text-secondary: var(--fg-2);
   --text-muted: var(--fg-3);
   --text-faint: var(--fg-4);
 
-  /* Accent : orange international / terracotta */
-  --accent: #e8481c;
-  --accent-hover: #cf3a12;
-  --accent-press: #b02f0c;
-  --accent-tint: rgba(232, 72, 28, 0.08);
-  --accent-tint-strong: rgba(232, 72, 28, 0.18);
-  --on-accent: #fff7ef;
+  /* Primary action and calm structure */
+  --primary: var(--brand-forest);
+  --primary-hover: var(--brand-forest-deep);
+  --primary-press: #0d3228;
+  --primary-tint: rgb(25 77 62 / 9%);
+  --primary-tint-strong: rgb(25 77 62 / 16%);
+  --on-primary: #fff9f0;
 
-  /* Soutien : sable terracotta */
-  --peach: #f3d5bd;
-  --peach-tint: rgba(243, 213, 189, 0.4);
+  /* Expressive accent. Use the deep value for normal-size text. */
+  --accent: var(--brand-paprika);
+  --accent-text: var(--brand-paprika-deep);
+  --accent-hover: #b43f2c;
+  --accent-press: #8d2f22;
+  --accent-tint: rgb(196 75 52 / 9%);
+  --accent-tint-strong: rgb(196 75 52 / 17%);
+  --on-accent: #ffffff;
 
-  /* Structure : petrol / sarcelle profond (dosé : entêtes, liens, statuts calmes) */
-  /* Teinte 204deg, distincte du vert de succès pour éviter la collision (analyse OKLCH). */
-  --green: #14595f;
-  --green-hover: #104a50;
-  --green-tint: rgba(20, 89, 95, 0.08);
-  --green-tint-strong: rgba(20, 89, 95, 0.16);
-  --on-green: #e9f4f4;
-  --line-green: rgba(20, 89, 95, 0.4);
+  /* Supporting color */
+  --saffron: var(--brand-saffron);
+  --saffron-tint: rgb(216 169 59 / 15%);
+  --peach: #e9c8b7;
+  --peach-tint: rgb(233 200 183 / 45%);
 
-  /* Sémantiques */
-  --ok: #256b52;
-  --ok-tint: rgba(37, 107, 82, 0.12);
-  --warn: oklch(0.55 0.11 75);
-  --warn-tint: oklch(0.55 0.11 75 / 0.12);
-  --danger: oklch(0.5 0.15 30);
-  --danger-tint: oklch(0.5 0.15 30 / 0.12);
+  /* Semantic states never inherit an establishment theme. */
+  --ok: #1f6a50;
+  --ok-tint: rgb(31 106 80 / 12%);
+  --warn: #7a5512;
+  --warn-tint: rgb(122 85 18 / 13%);
+  --danger: #a3372c;
+  --danger-tint: rgb(163 55 44 / 11%);
+  --info: #245c73;
+  --info-tint: rgb(36 92 115 / 11%);
 
-  /* Lignes */
-  --line-1: rgba(43, 33, 24, 0.12);
-  --line-2: rgba(43, 33, 24, 0.22);
-  --line-accent: rgba(232, 72, 28, 0.55);
+  /* Compatibility aliases while applications move to semantic tokens. */
+  --green: var(--primary);
+  --green-hover: var(--primary-hover);
+  --green-tint: var(--primary-tint);
+  --green-tint-strong: var(--primary-tint-strong);
+  --on-green: var(--on-primary);
+  --line-green: rgb(25 77 62 / 38%);
+  --structure: var(--primary);
+  --structure-tint: var(--primary-tint);
+  --on-structure: var(--on-primary);
 
-  /* Ombres : discrètes, esprit imprimé */
-  --shadow-card: 0 1px 0 rgba(43,33,24,.04), 0 4px 16px rgba(43,33,24,.06);
-  --shadow-pop: 0 2px 4px rgba(43,33,24,.08), 0 16px 40px rgba(43,33,24,.18);
+  /* Establishment theme contract. Commande may override these values per restaurant. */
+  --restaurant-primary: var(--primary);
+  --restaurant-primary-hover: var(--primary-hover);
+  --restaurant-on-primary: var(--on-primary);
+  --restaurant-primary-tint: var(--primary-tint);
+  --restaurant-accent: var(--accent-text);
+  --restaurant-page: var(--brand-paper);
+  --restaurant-card: #fffaf1;
+  --restaurant-line: rgb(27 36 33 / 13%);
 
-  /* Focus */
-  --focus-ring: 0 0 0 2px var(--bg-1), 0 0 0 4px var(--accent);
+  /* Lines, elevation and focus */
+  --line-1: rgb(27 36 33 / 11%);
+  --line-2: rgb(27 36 33 / 22%);
+  --line-accent: rgb(196 75 52 / 48%);
+  --shadow-card: 0 1px 2px rgb(27 36 33 / 4%), 0 10px 30px rgb(27 36 33 / 7%);
+  --shadow-pop: 0 4px 12px rgb(27 36 33 / 10%), 0 24px 64px rgb(27 36 33 / 16%);
+  --focus-ring: 0 0 0 2px var(--surface-page), 0 0 0 5px var(--primary);
 }
 
-/* Light premium : scope quasi blanc (landing, dashboard) ; la carte/menu garde l'ivoire */
+/* Marketing and Dashboard use a quieter almost-white canvas. */
 .theme-light {
-  --bg-0: #ece8de;
+  --bg-0: #e9e4dc;
   --bg-1: #faf8f3;
-  --bg-2: #f4f1e9;
+  --bg-2: #f2ede4;
   --bg-2b: #ffffff;
   --bg-3: #ffffff;
   --surface-page: var(--bg-1);
   --surface-card: var(--bg-2b);
   --surface-raised: var(--bg-3);
   --surface-sunken: var(--bg-0);
-  --line-1: rgba(43, 33, 24, 0.10);
-  --line-2: rgba(43, 33, 24, 0.20);
-  --shadow-card: 0 1px 0 rgba(43,33,24,.03), 0 4px 18px rgba(43,33,24,.05);
 }
 
-/* Nuit : scope sombre optionnel (menu du soir, mode cuisine) */
+/* Optional evening palette. Semantic status colors remain distinct. */
 .theme-nuit {
-  --bg-0: #150f0a;
-  --bg-1: #1d1510;
-  --bg-2: #241a13;
-  --bg-2b: #271d15;
-  --bg-3: #32251b;
+  color-scheme: dark;
+  --bg-0: #0f1714;
+  --bg-1: #15201c;
+  --bg-2: #1b2924;
+  --bg-2b: #20302a;
+  --bg-3: #293b34;
   --surface-page: var(--bg-1);
   --surface-card: var(--bg-2b);
   --surface-raised: var(--bg-3);
   --surface-sunken: var(--bg-0);
-  --fg-1: #f6ecdd;
-  --fg-2: #d5c5ae;
-  --fg-3: #a08c74;
-  --fg-4: #6f6050;
+  --fg-1: #f7f2e8;
+  --fg-2: #d4dcd7;
+  --fg-3: #bac6c0;
+  --fg-4: #aab8b1;
   --text-body: var(--fg-1);
+  --text-secondary: var(--fg-2);
   --text-muted: var(--fg-3);
   --text-faint: var(--fg-4);
-  --accent: #ff6a3a;
-  --accent-hover: #ff8258;
-  --accent-press: #e05423;
-  --accent-tint: rgba(255, 106, 58, 0.13);
-  --accent-tint-strong: rgba(255, 106, 58, 0.26);
-  --on-accent: #2a0f05;
-  --peach: #e0b28d;
-  --peach-tint: rgba(224, 178, 141, 0.18);
-  --green: #62b2ba;
-  --green-hover: #7cc4cb;
-  --green-tint: rgba(98, 178, 186, 0.12);
-  --green-tint-strong: rgba(98, 178, 186, 0.22);
-  --on-green: #08201f;
-  --line-green: rgba(98, 178, 186, 0.45);
-  --ok: #63b193;
-  --ok-tint: rgba(99, 177, 147, 0.14);
-  --line-1: rgba(246, 236, 221, 0.1);
-  --line-2: rgba(246, 236, 221, 0.18);
-  --line-accent: rgba(255, 106, 58, 0.5);
-  --shadow-card: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
-  --shadow-pop: 0 2px 6px rgba(0,0,0,.35), 0 16px 48px rgba(0,0,0,.45);
-  --focus-ring: 0 0 0 2px var(--bg-1), 0 0 0 4px var(--accent);
+  --primary: #79b79e;
+  --primary-hover: #91c8b1;
+  --primary-press: #a8d5c1;
+  --primary-tint: rgb(121 183 158 / 12%);
+  --primary-tint-strong: rgb(121 183 158 / 22%);
+  --on-primary: #10231c;
+  --accent: #ef7b61;
+  --accent-text: #ff9b83;
+  --accent-hover: #ff9278;
+  --accent-press: #d8654d;
+  --accent-tint: rgb(239 123 97 / 13%);
+  --accent-tint-strong: rgb(239 123 97 / 24%);
+  --on-accent: #2b100a;
+  --green: var(--primary);
+  --green-hover: var(--primary-hover);
+  --green-tint: var(--primary-tint);
+  --green-tint-strong: var(--primary-tint-strong);
+  --on-green: var(--on-primary);
+  --line-green: rgb(121 183 158 / 44%);
+  --structure: var(--primary);
+  --structure-tint: var(--primary-tint);
+  --on-structure: var(--on-primary);
+  --ok: #78bea0;
+  --ok-tint: rgb(120 190 160 / 14%);
+  --warn: #e4bb62;
+  --warn-tint: rgb(228 187 98 / 14%);
+  --danger: #ef8778;
+  --danger-tint: rgb(239 135 120 / 14%);
+  --info: #8bc2d5;
+  --info-tint: rgb(139 194 213 / 14%);
+  --line-1: rgb(247 242 232 / 11%);
+  --line-2: rgb(247 242 232 / 21%);
+  --line-accent: rgb(239 123 97 / 46%);
+  --shadow-card: 0 2px 6px rgb(0 0 0 / 24%), 0 12px 32px rgb(0 0 0 / 22%);
+  --shadow-pop: 0 4px 14px rgb(0 0 0 / 30%), 0 26px 68px rgb(0 0 0 / 40%);
+  --focus-ring: 0 0 0 2px var(--surface-page), 0 0 0 5px var(--primary);
 }
