@@ -42,8 +42,8 @@ server.on("error", (error) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`Surplasse cockpit is ready on http://${HOST}:${PORT}`);
-  console.log(`Configured local route: ${registry.urlConfiguration.cockpitUrl}`);
+  console.log(`Surplasse cockpit is ready on ${registry.urlConfiguration.cockpitUrl}`);
+  console.log(`Internal listener: ${HOST}, port ${PORT}.`);
   for (const warning of registry.urlConfiguration.warnings) {
     console.warn(warning);
   }

@@ -38,6 +38,8 @@ mkcert crée l'autorité de développement approuvée par le poste et un certifi
 
 Caddy termine le HTTPS local sur la boucle locale et route les noms d'hôte vers les ports de développement. Les noms `www`, `api`, `dashboard`, `docs`, `local`, `mail`, `app` et `admin` sont réservés. `app` et `admin` ne désignent aucune application actuelle et répondent explicitement comme services non implémentés. Tout autre sous-domaine direct valide est transmis à Commande, qui en extrait le `slug` à partir de `APP_BASE_DOMAIN`.
 
+Les ports de développement sont des destinations privées de Caddy, pas des URL applicatives alternatives. Toute navigation, redirection, origine CORS, URL générée et base de test de bout en bout vient du profil central et utilise HTTPS sous `surplasse.test`. Les surfaces locales refusent un accès navigateur direct par `localhost`, `127.0.0.1` ou `::1`. La boucle locale reste limitée aux adresses d'écoute, aux reverse proxies, aux sondes techniques et aux dépendances non HTTP destinées aux outils de développement.
+
 Un cockpit Node réservé au développement expose l'inventaire des URL et leur état. Il peut lancer et arrêter une liste fixe de modules sans privilège administrateur. Il ne pilote jamais Caddy, dnsmasq ou mkcert et ne peut arrêter qu'un processus qu'il a lui-même lancé.
 
 Les cookies restaurateur restent hôte uniquement sur l'API, sans attribut `Domain`. `COOKIE_DOMAIN` reste vide dans la configuration publique. Cette absence est volontaire : partager `.surplasse.test` ou `.surplasse.com` exposerait la session de l'API à tous les mini-sites.

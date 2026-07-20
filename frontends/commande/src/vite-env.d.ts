@@ -13,7 +13,6 @@ interface ImportMetaEnv {
   readonly VITE_MAILPIT_URL: string;
   readonly VITE_PROBLEM_TYPE_BASE: string;
   readonly VITE_RESERVED_SUBDOMAINS: string;
-  readonly VITE_ESTABLISHMENT_SLUG?: string;
   readonly VITE_STRIPE_PUBLISHABLE_KEY?: string;
 }
 

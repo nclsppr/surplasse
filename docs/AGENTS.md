@@ -40,6 +40,8 @@ Le contrat OpenAPI vit dans `api/openapi.yaml`. Il est la source de vérité : l
 
 Les domaines sont des données de configuration. `config/domains/production.env` et `config/domains/development.env` portent les valeurs publiques canoniques. La logique applicative ne code jamais le suffixe `.com` ou `.test`. Les sous-domaines `www`, `api`, `dashboard`, `docs`, `app`, `admin`, `local` et `mail` sont réservés et ne peuvent pas devenir un `slug` d'établissement. `app` et `admin` restent réservés sans désigner une application actuelle. Les cookies restaurateur sont toujours hôte uniquement sur l'API : `COOKIE_DOMAIN` reste vide, jamais `.surplasse.com` ni `.surplasse.test`.
 
+**Règle non négociable pour les URL locales :** toute URL applicative ouverte par un navigateur, affichée à un utilisateur, injectée dans un frontend, utilisée comme origine CORS, cible de redirection, base de test de bout en bout ou lien de cockpit vient du profil central et utilise HTTPS sous `surplasse.test`. `localhost`, `127.0.0.1` et `::1` sont interdits dans ces rôles. Le loopback reste autorisé uniquement comme adresse d'écoute privée d'un processus, cible interne d'un reverse proxy, sonde technique sans navigation, accès SMTP, accès base de données ou connexion de débogage. Une QA navigateur locale utilise toujours le domaine canonique derrière Caddy. Le passage en production consiste à sélectionner `config/domains/production.env`, jamais à remplacer des littéraux dispersés.
+
 ## Stack de référence
 
 | Couche | Choix | Version de référence | Notes |

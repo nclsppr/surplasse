@@ -95,7 +95,7 @@ npm test
 npm run build
 ```
 
-Cette construction produit `frontends/dashboard/dist/`. Le mode production lit `config/domains/production.env` et intègre `https://api.surplasse.com` aux fichiers ; une variable `VITE_API_BASE_URL` peut encore fournir un override explicite de CI. Le résultat ne conserve aucune donnée et n'utilise aucun volume. React, React Router, TanStack Query et `frontends/shared` sont intégrés aux fichiers statiques. Node, Vite, Tailwind CSS, TypeScript, ESLint et Vitest restent dans l'étape de build ou de CI et sont absents du conteneur statique cible.
+Cette construction produit `frontends/dashboard/dist/`. Le mode production lit `APP_BASE_DOMAIN` dans `config/domains/production.env`, puis intègre l'URL API dérivée `https://api.surplasse.com` aux fichiers. Aucun override séparé de l'API n'est accepté. Le résultat ne conserve aucune donnée et n'utilise aucun volume. React, React Router, TanStack Query et `frontends/shared` sont intégrés aux fichiers statiques. Node, Vite, Tailwind CSS, TypeScript, ESLint et Vitest restent dans l'étape de build ou de CI et sont absents du conteneur statique cible.
 
 Le futur commit `infra/` devra construire une image immuable depuis ce dossier, déclarer un service Compose `dashboard` et rendre alors les commandes suivantes réellement exécutables sur Ubuntu LTS :
 

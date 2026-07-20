@@ -46,11 +46,10 @@ def load_domain_config(profile: str) -> dict[str, str]:
 
     scheme = values.get("APP_SCHEME")
     base_domain = values.get("APP_BASE_DOMAIN")
-    base_url = values.get("APP_BASE_URL")
     if scheme != "https" or not base_domain:
         raise ValueError(f"Invalid domain profile: {path}")
-    if base_url != f"{scheme}://{base_domain}":
-        raise ValueError(f"APP_BASE_URL is inconsistent in {path}")
+    if any(key.endswith("_URL") and key != "PROBLEM_TYPE_BASE" for key in values):
+        raise ValueError(f"Derived application URLs must not be duplicated in {path}")
     return values
 
 

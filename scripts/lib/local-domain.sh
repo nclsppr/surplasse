@@ -39,17 +39,18 @@ surplasse_local_load_config() {
   for variable_name in \
     APP_SCHEME \
     APP_BASE_DOMAIN \
-    APP_BASE_URL \
-    ONBOARDING_URL \
-    DASHBOARD_URL \
-    API_URL \
-    LOCAL_CONTROL_URL \
-    DOCS_URL \
-    MAILPIT_URL \
     PROBLEM_TYPE_BASE; do
     [[ -n "${!variable_name:-}" ]] || surplasse_local_die \
       "${variable_name} is required in ${config_file}."
   done
+
+  export APP_BASE_URL="${APP_SCHEME}://${APP_BASE_DOMAIN}"
+  export ONBOARDING_URL="$APP_BASE_URL"
+  export DASHBOARD_URL="${APP_SCHEME}://dashboard.${APP_BASE_DOMAIN}"
+  export API_URL="${APP_SCHEME}://api.${APP_BASE_DOMAIN}"
+  export LOCAL_CONTROL_URL="${APP_SCHEME}://local.${APP_BASE_DOMAIN}"
+  export DOCS_URL="${APP_SCHEME}://docs.${APP_BASE_DOMAIN}"
+  export MAILPIT_URL="${APP_SCHEME}://mail.${APP_BASE_DOMAIN}"
 
   [[ "$APP_BASE_DOMAIN" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?\.test$ ]] || surplasse_local_die \
     "APP_BASE_DOMAIN must be a lowercase .test domain without a scheme, port or wildcard."

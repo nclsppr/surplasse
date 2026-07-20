@@ -16,6 +16,5 @@ export const establishmentSlug = resolveEstablishmentSlug(
   {
     baseDomain: import.meta.env.VITE_APP_BASE_DOMAIN,
     reservedSubdomains: import.meta.env.VITE_RESERVED_SUBDOMAINS,
-    fallbackSlug: import.meta.env.VITE_ESTABLISHMENT_SLUG,
   },
 );

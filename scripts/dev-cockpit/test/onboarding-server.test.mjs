@@ -4,10 +4,14 @@ import test from "node:test";
 
 import {
   createOnboardingStaticServer,
+  INTERNAL_HEALTH_PATH,
   ONBOARDING_HOST,
   ONBOARDING_PORT,
 } from "../onboarding-server.mjs";
 import { close, listen, repoRoot, request } from "./helpers.mjs";
+
+const PUBLIC_ORIGIN = "https://surplasse.test";
+const PUBLIC_HEADERS = Object.freeze({ Host: "surplasse.test" });
 
 test("Onboarding landing keeps truthful pilot terms and product evidence", async () => {
   const html = await readFile(`${repoRoot}/frontends/onboarding/index.html`, "utf8");
@@ -55,7 +59,7 @@ test("Onboarding demonstration ends with a truthful Dashboard service preview", 
 test("Onboarding static server serves only the explicit public asset allowlist", async (t) => {
   assert.equal(ONBOARDING_HOST, "127.0.0.1");
   assert.equal(ONBOARDING_PORT, 4173);
-  const server = createOnboardingStaticServer({ repoRoot });
+  const server = createOnboardingStaticServer({ repoRoot, publicOrigin: PUBLIC_ORIGIN });
   const port = await listen(server);
   t.after(() => close(server));
 
@@ -73,7 +77,7 @@ test("Onboarding static server serves only the explicit public asset allowlist",
     ["/brand/qr/qr-demo.png", "image/png"],
   ];
   for (const [path, contentType] of expectedAssets) {
-    const response = await request(port, { path });
+    const response = await request(port, { path, headers: PUBLIC_HEADERS });
     assert.equal(response.status, 200, path);
     assert.equal(response.headers["content-type"], contentType, path);
     assert.notEqual(response.body.length, 0, path);
@@ -91,6 +95,7 @@ test("Embedded Stripe onboarding exposes only public configuration and short ses
   const server = createOnboardingStaticServer({
     repoRoot,
     stripeConfig,
+    publicOrigin: PUBLIC_ORIGIN,
     createAccountSession: async (receivedConfig) => {
       calls.push(receivedConfig);
       return { clientSecret: "account_session_secret" };
@@ -99,11 +104,14 @@ test("Embedded Stripe onboarding exposes only public configuration and short ses
   const port = await listen(server);
   t.after(() => close(server));
 
-  const config = await request(port, { path: "/stripe-connect/config" });
+  const config = await request(port, {
+    path: "/stripe-connect/config",
+    headers: PUBLIC_HEADERS,
+  });
   const session = await request(port, {
     path: "/stripe-connect/account-session",
     method: "POST",
-    headers: { Host: `127.0.0.1:${port}`, Origin: `http://127.0.0.1:${port}` },
+    headers: { ...PUBLIC_HEADERS, Origin: PUBLIC_ORIGIN },
   });
 
   assert.equal(config.status, 200);
@@ -120,6 +128,7 @@ test("Embedded Stripe onboarding exposes only public configuration and short ses
 test("Embedded Stripe onboarding fails closed outside its same origin", async (t) => {
   const server = createOnboardingStaticServer({
     repoRoot,
+    publicOrigin: PUBLIC_ORIGIN,
     stripeConfig: {
       secretKey: "sk_test_example",
       publishableKey: "pk_test_example",
@@ -136,7 +145,7 @@ test("Embedded Stripe onboarding fails closed outside its same origin", async (t
   const response = await request(port, {
     path: "/stripe-connect/account-session",
     method: "POST",
-    headers: { Host: `127.0.0.1:${port}`, Origin: "https://attacker.example" },
+    headers: { ...PUBLIC_HEADERS, Origin: "https://attacker.example" },
   });
 
   assert.equal(response.status, 403);
@@ -144,14 +153,22 @@ test("Embedded Stripe onboarding fails closed outside its same origin", async (t
 });
 
 test("Embedded Stripe onboarding stays disabled when local credentials are absent", async (t) => {
-  const server = createOnboardingStaticServer({ repoRoot, stripeConfig: null });
+  const server = createOnboardingStaticServer({
+    repoRoot,
+    stripeConfig: null,
+    publicOrigin: PUBLIC_ORIGIN,
+  });
   const port = await listen(server);
   t.after(() => close(server));
 
-  const config = await request(port, { path: "/stripe-connect/config" });
+  const config = await request(port, {
+    path: "/stripe-connect/config",
+    headers: PUBLIC_HEADERS,
+  });
   const session = await request(port, {
     path: "/stripe-connect/account-session",
     method: "POST",
+    headers: { ...PUBLIC_HEADERS, Origin: PUBLIC_ORIGIN },
   });
 
   assert.equal(config.status, 404);
@@ -162,6 +179,7 @@ test("Onboarding static server never exposes repository files or traversal targe
   let assetReads = 0;
   const server = createOnboardingStaticServer({
     repoRoot,
+    publicOrigin: PUBLIC_ORIGIN,
     readAsset: () => {
       assetReads += 1;
       return Buffer.from("allowed");
@@ -183,7 +201,7 @@ test("Onboarding static server never exposes repository files or traversal targe
     "/arbitrary.txt",
   ];
   for (const path of forbiddenPaths) {
-    const response = await request(port, { path });
+    const response = await request(port, { path, headers: PUBLIC_HEADERS });
     assert.equal(response.status, 404, path);
     assert.equal(response.body, "Public asset not found.\n", path);
   }
@@ -194,16 +212,24 @@ test("Onboarding static server reads an allowlisted file for every request", asy
   let version = 0;
   const server = createOnboardingStaticServer({
     repoRoot,
+    publicOrigin: PUBLIC_ORIGIN,
     readAsset: () => Buffer.from(`preview-${++version}`),
   });
   const port = await listen(server);
   t.after(() => close(server));
 
-  const first = await request(port, { path: "/frontends/onboarding/index.html" });
-  const second = await request(port, { path: "/frontends/onboarding/index.html" });
+  const first = await request(port, {
+    path: "/frontends/onboarding/index.html",
+    headers: PUBLIC_HEADERS,
+  });
+  const second = await request(port, {
+    path: "/frontends/onboarding/index.html",
+    headers: PUBLIC_HEADERS,
+  });
   const post = await request(port, {
     path: "/frontends/onboarding/index.html",
     method: "POST",
+    headers: PUBLIC_HEADERS,
   });
 
   assert.equal(first.body, "preview-1");
@@ -211,4 +237,18 @@ test("Onboarding static server reads an allowlisted file for every request", asy
   assert.equal(post.status, 405);
   assert.equal(post.body, "Method not allowed.\n");
   assert.equal(version, 2);
+});
+
+test("Onboarding refuses direct loopback navigation but keeps a private readiness probe", async (t) => {
+  const server = createOnboardingStaticServer({ repoRoot, publicOrigin: PUBLIC_ORIGIN });
+  const port = await listen(server);
+  t.after(() => close(server));
+
+  const direct = await request(port, { path: "/frontends/onboarding/index.html" });
+  const health = await request(port, { path: INTERNAL_HEALTH_PATH });
+
+  assert.equal(direct.status, 421);
+  assert.deepEqual(JSON.parse(direct.body), { error: "canonical_host_required" });
+  assert.equal(health.status, 200);
+  assert.equal(health.body, "ready\n");
 });

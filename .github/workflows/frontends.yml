@@ -67,23 +67,25 @@ jobs:
           scripts/run-with-domain-profile.sh
       - name: Validate the local Caddyfile
         run: |
+          source scripts/lib/local-domain.sh
+          surplasse_local_load_config "$PWD"
           mkdir -p "$RUNNER_TEMP/surplasse-caddy"
           openssl req -x509 -newkey rsa:2048 -nodes -days 30 \
-            -subj "/CN=surplasse.test" \
+            -subj "/CN=${APP_BASE_DOMAIN}" \
             -keyout "$RUNNER_TEMP/surplasse-caddy/key.pem" \
             -out "$RUNNER_TEMP/surplasse-caddy/cert.pem"
           docker run --rm \
-            -e APP_BASE_DOMAIN=surplasse.test \
-            -e APP_BASE_URL=https://surplasse.test \
-            -e ONBOARDING_URL=https://surplasse.test \
-            -e DASHBOARD_URL=https://dashboard.surplasse.test \
+            -e APP_BASE_DOMAIN="$APP_BASE_DOMAIN" \
+            -e APP_BASE_URL="$APP_BASE_URL" \
+            -e ONBOARDING_URL="$ONBOARDING_URL" \
+            -e DASHBOARD_URL="$DASHBOARD_URL" \
             -e SURPLASSE_LOCAL_CERT_FILE=/certs/cert.pem \
             -e SURPLASSE_LOCAL_KEY_FILE=/certs/key.pem \
-            -e SURPLASSE_DASHBOARD_HOST=dashboard.surplasse.test \
-            -e SURPLASSE_API_HOST=api.surplasse.test \
-            -e SURPLASSE_LOCAL_CONTROL_HOST=local.surplasse.test \
-            -e SURPLASSE_DOCS_HOST=docs.surplasse.test \
-            -e SURPLASSE_MAILPIT_HOST=mail.surplasse.test \
+            -e SURPLASSE_DASHBOARD_HOST="$SURPLASSE_DASHBOARD_HOST" \
+            -e SURPLASSE_API_HOST="$SURPLASSE_API_HOST" \
+            -e SURPLASSE_LOCAL_CONTROL_HOST="$SURPLASSE_LOCAL_CONTROL_HOST" \
+            -e SURPLASSE_DOCS_HOST="$SURPLASSE_DOCS_HOST" \
+            -e SURPLASSE_MAILPIT_HOST="$SURPLASSE_MAILPIT_HOST" \
             -v "$PWD/infra/local/Caddyfile:/etc/caddy/Caddyfile:ro" \
             -v "$RUNNER_TEMP/surplasse-caddy:/certs:ro" \
             caddy:2.10.2 \

@@ -11,7 +11,7 @@ test("state is available only through accepted hosts and exposes strict security
   const harness = await serverHarness(t);
   const response = await request(harness.port, {
     path: "/api/state",
-    headers: { Host: `localhost:${harness.port}` },
+    headers: { Host: "local.surplasse.test" },
   });
 
   assert.equal(response.status, 200);
@@ -22,7 +22,7 @@ test("state is available only through accepted hosts and exposes strict security
 
   const hostile = await request(harness.port, {
     path: "/api/state",
-    headers: { Host: `localhost.evil.test:${harness.port}` },
+    headers: { Host: `127.0.0.1:${harness.port}` },
   });
   assert.equal(hostile.status, 421);
   assert.equal(harness.manager.stateCalls, 1);
@@ -32,8 +32,8 @@ test("index receives a per-server CSRF token without unsafe inline script", asyn
   const first = await serverHarness(t, { csrfToken: "b".repeat(64) });
   const second = await serverHarness(t, { csrfToken: "c".repeat(64) });
 
-  const firstIndex = await request(first.port, { headers: { Host: `127.0.0.1:${first.port}` } });
-  const secondIndex = await request(second.port, { headers: { Host: `127.0.0.1:${second.port}` } });
+  const firstIndex = await request(first.port, { headers: { Host: "local.surplasse.test" } });
+  const secondIndex = await request(second.port, { headers: { Host: "local.surplasse.test" } });
 
   assert.match(firstIndex.body, /b{64}/u);
   assert.match(secondIndex.body, /c{64}/u);
@@ -41,7 +41,7 @@ test("index receives a per-server CSRF token without unsafe inline script", asyn
   assert.equal(firstIndex.headers["content-security-policy"].includes("unsafe-inline"), false);
 });
 
-test("valid loopback Host Origin and token can start an allowlisted module", async (t) => {
+test("canonical HTTPS Host Origin and token can start an allowlisted module", async (t) => {
   const harness = await serverHarness(t);
   const response = await mutation(harness, "/api/modules/backend/start");
 
@@ -65,7 +65,7 @@ test("crossed Host Origin pairs, absent Origin and hostile Host are refused befo
   const attempts = [
     { Host: `localhost:${harness.port}`, Origin: "https://local.surplasse.test" },
     { Host: "local.surplasse.test", Origin: `http://localhost:${harness.port}` },
-    { Host: `localhost:${harness.port}`, Origin: null },
+    { Host: "local.surplasse.test", Origin: null },
     { Host: `evil.test:${harness.port}`, Origin: `http://localhost:${harness.port}` },
   ];
 
@@ -79,8 +79,8 @@ test("crossed Host Origin pairs, absent Origin and hostile Host are refused befo
 test("bad or missing CSRF token is refused and no CORS header is emitted", async (t) => {
   const harness = await serverHarness(t);
   const baseHeaders = {
-    Host: `localhost:${harness.port}`,
-    Origin: `http://localhost:${harness.port}`,
+    Host: "local.surplasse.test",
+    Origin: "https://local.surplasse.test",
     "Content-Type": "application/json",
   };
   const missing = await request(harness.port, {
@@ -107,7 +107,7 @@ test("mutation rejects command parameters, unknown IDs and encoded traversal", a
   const parameterized = await request(harness.port, {
     path: "/api/modules/backend/start",
     method: "POST",
-    headers: validMutationHeaders(harness.port),
+    headers: validMutationHeaders(harness.token),
     body: '{"args":["dangerous"]}',
   });
   const unknown = await mutation(harness, "/api/modules/unknown/start");
@@ -125,7 +125,7 @@ test("mutation routes refuse GET and OPTIONS without enabling CORS", async (t) =
     const response = await request(harness.port, {
       path: "/api/modules/backend/start",
       method,
-      headers: { Host: `localhost:${harness.port}` },
+      headers: { Host: "local.surplasse.test" },
     });
     assert.equal(response.status, 405);
     assert.equal(response.headers["access-control-allow-origin"], undefined);
@@ -156,7 +156,7 @@ async function serverHarness(t, options = {}) {
 }
 
 function mutation(harness, path, headerOverrides = {}) {
-  const headers = { ...validMutationHeaders(harness.port, harness.token), ...headerOverrides };
+  const headers = { ...validMutationHeaders(harness.token), ...headerOverrides };
   for (const [name, value] of Object.entries(headers)) {
     if (value === null) {
       delete headers[name];
@@ -170,10 +170,10 @@ function mutation(harness, path, headerOverrides = {}) {
   });
 }
 
-function validMutationHeaders(port, token = TOKEN) {
+function validMutationHeaders(token = TOKEN) {
   return {
-    Host: `localhost:${port}`,
-    Origin: `http://localhost:${port}`,
+    Host: "local.surplasse.test",
+    Origin: "https://local.surplasse.test",
     "Content-Type": "application/json",
     "X-Surplasse-Cockpit-Token": token,
   };

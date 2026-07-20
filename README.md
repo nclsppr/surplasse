@@ -140,7 +140,7 @@ Les sources publiques et sans secret sont :
 
 Les frontends, le Backend, Caddy, l'Onboarding statique et le cockpit partent de ces valeurs. `COOKIE_DOMAIN` reste volontairement vide : les cookies restaurateur sont hôte uniquement sur l'API et ne sont jamais partagés avec les mini-sites.
 
-Le Backend se lance avec `npm run backend:dev` ou se vérifie avec `npm run backend:verify`. Ces commandes sourcent le profil avant Maven et dérivent le CORS et l'expéditeur Mailpit. Quarkus construit ensuite le magic link depuis `DASHBOARD_URL`, l'émetteur JWT depuis `API_URL` et garde les cookies `Secure`. Le code Java et `application.properties` ne contiennent aucune URL Surplasse de repli.
+Le Backend se lance avec `npm run backend:dev` ou se vérifie avec `npm run backend:verify`. Ces commandes sourcent le profil avant Maven et dérivent toutes les URL applicatives, le CORS et l'expéditeur Mailpit depuis `APP_BASE_DOMAIN`. Quarkus construit ensuite le magic link depuis `DASHBOARD_URL`, l'émetteur JWT depuis `API_URL` et garde les cookies `Secure`. Le code Java et `application.properties` ne contiennent aucune URL Surplasse de repli.
 
 ## Documentation et vérifications
 

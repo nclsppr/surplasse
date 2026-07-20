@@ -9,6 +9,8 @@ description: Installation de surplasse.test, DNS wildcard, HTTPS mkcert, routage
 
 Le développement local reproduit la topologie publique de Surplasse avec le domaine racine `surplasse.test`. Le DNS, le certificat et Caddy acceptent n'importe quel sous-domaine direct. Créer un établissement ne demande donc jamais de modifier `/etc/hosts`, le certificat ou le reverse proxy.
 
+Toute navigation, QA visuelle, origine CORS, redirection et URL générée en développement passe par le profil `config/domains/development.env` et par HTTPS. Les origines directes `localhost`, `127.0.0.1` et `::1` ne sont pas des variantes supportées. Les serveurs locaux peuvent écouter en privé sur la boucle locale et Caddy peut les sonder par leur port, mais ces détails de transport ne franchissent jamais la frontière du reverse proxy.
+
 L'[ADR-0016](../decisions/adr-0016-topologie-domaines-locaux.md) consigne le choix de dnsmasq, mkcert, Caddy et du cockpit. Cette pile est réservée au développement. La production utilise `surplasse.com`, un DNS public et un certificat Let's Encrypt obtenu par défi DNS-01.
 
 ## Démarrage rapide sur macOS
@@ -128,7 +130,7 @@ npm run local:cockpit:test
 
 Il classe les éléments en applications, outils, dépendances et domaines réservés. Pour chaque module, il affiche les URL utiles, le port, l'état et la dernière erreur courte. Les états distinguent notamment un module arrêté, en démarrage, prêt, dégradé, lancé hors du cockpit ou en conflit de port.
 
-Seules des commandes déclarées dans `scripts/dev-cockpit/registry.mjs` peuvent être lancées. Le navigateur ne fournit jamais une commande, un argument ou un chemin. Le serveur vérifie `Host`, `Origin` et un jeton anti-CSRF pour toute mutation. Il écoute sur la boucle locale, n'active aucun CORS et ne montre ni secret, ni contenu d'email, ni magic link.
+Seules des commandes déclarées dans `scripts/dev-cockpit/registry.mjs` peuvent être lancées. Le navigateur ne fournit jamais une commande, un argument ou un chemin. Le serveur exige le `Host` et l'`Origin` HTTPS configurés pour `local.surplasse.test`, puis vérifie un jeton anti-CSRF pour toute mutation. Un accès direct à son port par loopback est refusé. Il écoute sur la boucle locale, n'active aucun CORS et ne montre ni secret, ni contenu d'email, ni magic link.
 
 Un processus lancé hors du cockpit peut être détecté, mais son bouton d'arrêt reste désactivé. Un arrêt depuis l'interface ne vise que le groupe de processus créé par cette instance du cockpit. Mailpit reçoit un label Docker de propriété équivalent. Fermer le cockpit tente d'arrêter ses propres processus, jamais les autres.
 
@@ -213,7 +215,7 @@ Les deux fichiers versionnés ne contiennent aucun secret :
 | `config/domains/development.env` | `.test`, Vite en mode développement, Backend local, Caddy et cockpit |
 | `config/domains/production.env` | `.com`, builds Vite de production et future pile VPS |
 
-Ils définissent le schéma, le domaine racine et les URL canoniques. Les frontends les chargent au build. L'Onboarding statique reçoit un `runtime-config.js` généré et vérifié en CI. Le Backend consomme les mêmes noms sous forme de variables d'environnement.
+Ils définissent le schéma et un seul `APP_BASE_DOMAIN`. Le chargeur central dérive toutes les URL canoniques : apex, `api`, `dashboard`, `docs`, puis `local` et `mail` en développement seulement. Les frontends les chargent au build. L'Onboarding statique reçoit un `runtime-config.js` généré et vérifié en CI. Le Backend consomme les mêmes valeurs dérivées sous forme de variables d'environnement. Aucun profil ne répète les URL complètes.
 
 `COOKIE_DOMAIN` est présent et vide pour rendre la décision visible. Les cookies `surplasse_session` et `surplasse_refresh` restent hôte uniquement sur `api.surplasse.test` ou `api.surplasse.com`. Ils sont `Secure`, `HttpOnly` et `SameSite=Lax`. Définir `.surplasse.test` exposerait une session restaurateur à tous les mini-sites.
 

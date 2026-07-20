@@ -35,10 +35,6 @@ set +a
 for variable_name in \
   APP_SCHEME \
   APP_BASE_DOMAIN \
-  APP_BASE_URL \
-  ONBOARDING_URL \
-  DASHBOARD_URL \
-  API_URL \
   PROBLEM_TYPE_BASE \
   RESERVED_SUBDOMAINS; do
   [[ -n "${!variable_name:-}" ]] || {
@@ -46,6 +42,19 @@ for variable_name in \
     exit 1
   }
 done
+
+export APP_BASE_URL="${APP_SCHEME}://${APP_BASE_DOMAIN}"
+export ONBOARDING_URL="$APP_BASE_URL"
+export DASHBOARD_URL="${APP_SCHEME}://dashboard.${APP_BASE_DOMAIN}"
+export API_URL="${APP_SCHEME}://api.${APP_BASE_DOMAIN}"
+export DOCS_URL="${APP_SCHEME}://docs.${APP_BASE_DOMAIN}"
+if [[ "$PROFILE" == "development" ]]; then
+  export LOCAL_CONTROL_URL="${APP_SCHEME}://local.${APP_BASE_DOMAIN}"
+  export MAILPIT_URL="${APP_SCHEME}://mail.${APP_BASE_DOMAIN}"
+else
+  export LOCAL_CONTROL_URL=""
+  export MAILPIT_URL=""
+fi
 
 [[ "$APP_SCHEME" == "https" ]] || {
   printf 'Error: APP_SCHEME must be https in %s.\n' "$CONFIG_FILE" >&2

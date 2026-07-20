@@ -73,13 +73,13 @@ export function createRegistry(repoRoot, developmentUrls) {
       executable: process.execPath,
       args: [resolve(repoRoot, "scripts/dev-cockpit/onboarding-server.mjs")],
       ports: [4173],
-      healthUrl: "http://127.0.0.1:4173/frontends/onboarding/index.html",
+      healthUrl: "http://127.0.0.1:4173/__health",
       publicHealth: publicHealth(urls.onboarding),
       startupTimeoutMs: 20_000,
       links: [
         link("Onboarding", urls.onboarding),
         link("Pilote Stripe intégré", appendPath(urls.onboarding, "/connect.html")),
-        link("Planche de marque", localCompanionLink(urls.onboarding, "http://localhost:4173/brand/board.html")),
+        link("Planche de marque", localCompanionLink(urls.onboarding)),
       ],
     }),
     processModule({
@@ -231,9 +231,9 @@ function withSubdomain(base, subdomain) {
   return url.origin;
 }
 
-function localCompanionLink(configuredOnboardingUrl, fallback) {
-  if (!configuredOnboardingUrl || configuredOnboardingUrl.includes("localhost:4173")) {
-    return fallback;
+function localCompanionLink(configuredOnboardingUrl) {
+  if (!configuredOnboardingUrl) {
+    return null;
   }
   const url = new URL(configuredOnboardingUrl);
   url.pathname = "/brand/board.html";

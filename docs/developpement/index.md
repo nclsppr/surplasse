@@ -14,7 +14,7 @@ Au 2026-07-19, existent : la documentation (`docs/`), la charte graphique (`bran
 !!!
 
 !!! info URL locales canoniques
-Le navigateur utilise désormais exclusivement `https://surplasse.test` et ses sous-domaines. Les ports `localhost` restent des destinations internes et des outils de diagnostic. L'installation, la liste permanente des URL et le cockpit de modules sont détaillés dans [Domaines locaux](domaines-locaux.md).
+Le navigateur utilise exclusivement `https://surplasse.test` et ses sous-domaines. Un accès direct par `localhost`, `127.0.0.1` ou `::1` est refusé par les surfaces locales. Le loopback ne sert qu'à l'écoute privée des processus, au reverse proxy, aux sondes techniques, à PostgreSQL, à SMTP et au débogueur. Il ne sert jamais de lien, d'origine applicative, de base de test de bout en bout ou de solution de repli. L'installation, la liste permanente des URL et le cockpit de modules sont détaillés dans [Domaines locaux](domaines-locaux.md).
 !!!
 
 ## Prérequis
@@ -208,7 +208,7 @@ cd frontends/dashboard
 npm ci
 ```
 
-Le fichier `.env.example` ne documente que des overrides exceptionnels. Le mode Vite sélectionne `config/domains/development.env` et le build sélectionne `config/domains/production.env`.
+Le fichier `.env.example` ne documente que les variables propres à l'application, jamais une URL. Le mode Vite sélectionne `config/domains/development.env` et le build sélectionne `config/domains/production.env`.
 
 Dans trois terminaux, lancer Mailpit, le Backend puis le Dashboard :
 
@@ -286,7 +286,7 @@ cp frontends/commande/.env.example frontends/commande/.env
 cp frontends/dashboard/.env.example frontends/dashboard/.env
 ```
 
-Les URL publiques sont centralisées dans `config/domains/development.env` et `config/domains/production.env`. Les fichiers `.env` propres aux applications gardent les secrets factices et les overrides ponctuels. Les variables principales sont :
+Le domaine racine public est centralisé dans `config/domains/development.env` et `config/domains/production.env`. Le chargeur en dérive toutes les URL applicatives. Les fichiers `.env` propres aux applications gardent uniquement les secrets factices et les réglages qui ne décrivent pas la topologie. Les variables principales sont :
 
 `npm run backend:dev` et le cockpit lancent Maven depuis `backend/`, ce qui permet à Quarkus de charger `backend/.env`. Le wrapper ajoute ensuite le profil de domaines central sans recopier ses URL dans ce fichier local.
 
@@ -300,15 +300,14 @@ Les URL publiques sont centralisées dans `config/domains/development.env` et `c
 | `STRIPE_LIVE_MODE` | Backend | mode attendu des objets et webhooks Stripe ; `false` en développement et test, `true` en production | non, `false` en développement |
 | `OPENAI_API_KEY` | Backend | future clé API OpenAI pour le domaine `generation`, absent actuellement | non, future phase 3 |
 | `QUARKUS_DATASOURCE_JDBC_URL` | Backend | DSN PostgreSQL | non en dev (Dev Services), oui en production |
-| `APP_SCHEME`, `APP_BASE_DOMAIN`, `APP_BASE_URL` | tous | racine des URL publiques et génération des mini-sites | oui, fournis par le profil versionné |
-| `DASHBOARD_URL`, `API_URL` | tous | origines canoniques du Dashboard et du Backend | oui, fournies par le profil versionné |
+| `APP_SCHEME`, `APP_BASE_DOMAIN` | tous | racine unique dont dérivent les URL publiques et les mini-sites | oui, fournis par le profil versionné |
+| `APP_BASE_URL`, `ONBOARDING_URL`, `DASHBOARD_URL`, `API_URL`, `DOCS_URL` | tous | origines canoniques calculées depuis `APP_BASE_DOMAIN` | oui, dérivées par le chargeur central |
 | `PROBLEM_TYPE_BASE` | Backend, Commande et Dashboard | base canonique des types RFC 9457, toujours `https://surplasse.com/problems/` même en local | oui, fournie par le profil versionné |
 | `RESERVED_SUBDOMAINS` | Commande et infrastructure | noms exclus des slugs d'établissement | oui, fourni par le profil versionné |
 | `COOKIE_DOMAIN` | décision de sécurité | doit rester vide pour des cookies API hôte uniquement | oui, vide dans les deux profils |
 | `CORS_PUBLIC_ORIGINS` | Backend | apex exact et motif du sous-domaine direct courant, sans credentials | oui, dérivé par le wrapper de profil |
 | `AUTH_JWT_AUDIENCE` | Backend | audience attendue du JWT restaurateur | non, valeur locale fournie |
-| `VITE_API_BASE_URL` | chaque frontend | override de l'URL de base de l'API | non, profil local `https://api.surplasse.test` |
-| `VITE_ESTABLISHMENT_SLUG` | Commande | repli pour un test direct du port Vite, sans sous-domaine | non, défaut `le-cormoran` |
+| `VITE_API_BASE_URL` | chaque frontend | valeur injectée par le chargeur depuis l'URL API dérivée | oui, générée depuis `APP_BASE_DOMAIN` |
 | `VITE_STRIPE_PUBLISHABLE_KEY` | Commande | clé publique Stripe pour le paiement côté client (`pk_test_...`) | oui, pour payer |
 
 En `%dev` et `%test`, Quarkus génère les clés JWT de travail : aucune clé privée n'est à créer ni à conserver. Le profil `%dev` joint Mailpit sur `localhost:1025`, sans authentification ni TLS. Les variables `AUTH_JWT_PRIVATE_KEY_PATH`, `AUTH_JWT_KEY_ID`, `AUTH_JWT_JWKS_PATH` et `SMTP_*` sont réservées à la production et détaillées dans [Environnements](../operations/environnements.md#backend-quarkus).
@@ -359,26 +358,22 @@ Ouvrir `https://dashboard.surplasse.test/auth/login`, demander un lien pour `pil
 Ouvrir deux terminaux à la racine du dépôt. Le premier relaie les événements snapshot des Payment Intents et remboursements sur les comptes connectés :
 
 ```bash
-set -a
-source config/domains/development.env
-set +a
-
-stripe listen \
-  --events payment_intent.succeeded,payment_intent.payment_failed,refund.created,refund.updated,refund.failed \
-  --forward-connect-to "${API_URL}/v1/webhooks/stripe"
+scripts/run-with-domain-profile.sh development bash -c '
+  stripe listen \
+    --events payment_intent.succeeded,payment_intent.payment_failed,refund.created,refund.updated,refund.failed \
+    --forward-connect-to "${API_URL}/v1/webhooks/stripe"
+'
 # Copier le whsec_... affiché dans STRIPE_PAYMENT_WEBHOOK_SECRET de backend/.env
 ```
 
 Le second relaie les événements fins des comptes connectés Accounts v2 :
 
 ```bash
-set -a
-source config/domains/development.env
-set +a
-
-stripe listen \
-  --thin-events 'v2.core.account.updated,v2.core.account.closed,v2.core.account[configuration.merchant].capability_status_updated' \
-  --forward-thin-connect-to "${API_URL}/v1/webhooks/stripe/accounts"
+scripts/run-with-domain-profile.sh development bash -c '
+  stripe listen \
+    --thin-events "v2.core.account.updated,v2.core.account.closed,v2.core.account[configuration.merchant].capability_status_updated" \
+    --forward-thin-connect-to "${API_URL}/v1/webhooks/stripe/accounts"
+'
 # Copier l'autre whsec_... dans STRIPE_ACCOUNT_WEBHOOK_SECRET de backend/.env
 ```
 
@@ -395,7 +390,7 @@ Les modules peuvent toujours être lancés dans des terminaux séparés avec leu
 | `OpenAPI generation requires JDK 21`, `release version 21 not supported` ou erreur de compilation Java | JDK absent ou mauvaise version active | `java -version` doit afficher 21 ; relever la dernière Temurin 21 avec `sdk list java`, puis exécuter `sdk install java <identifiant>` et `sdk use java <identifiant>` |
 | les Dev Services échouent, `Could not connect to Docker` | le démon Docker n'est pas démarré | lancer Docker Desktop ou OrbStack, vérifier avec `docker info`, relancer `npm run backend:dev` |
 | `docs:watch` ou `docs:build` échoue, binaire `retype` introuvable dans `.bin` | le lien `node_modules/.bin/retype` n'a pas été créé par npm | appeler Retype directement : `node node_modules/retypeapp/retype.js start --port 5005` (ou `build`) ; c'est d'ailleurs la forme utilisée par les scripts npm du `package.json` racine |
-| le front affiche des erreurs réseau vers l'API | le Backend est arrêté, Caddy ne tourne pas, ou `VITE_API_BASE_URL` pointe ailleurs | vérifier le cockpit puis `curl --fail https://api.surplasse.test/q/health/ready` |
+| le front affiche des erreurs réseau vers l'API | le Backend est arrêté, Caddy ne tourne pas ou le profil généré est périmé | vérifier le cockpit, lancer `npm run domains:check`, puis `curl --fail https://api.surplasse.test/q/health/ready` |
 | le Dashboard revient à la connexion après le magic link | la page a été ouverte par le port HTTP ou le cookie `Secure` ne peut pas être posé | utiliser uniquement `https://dashboard.surplasse.test` et `https://api.surplasse.test`, puis vérifier le certificat mkcert |
 | le paiement de test échoue immédiatement | clés Stripe absentes ou mélange de clés (test côté back, autre compte côté front) | vérifier `STRIPE_SECRET_KEY` et `VITE_STRIPE_PUBLISHABLE_KEY` : même compte, toutes deux en mode test |
 | `npm run backend:verify` échoue à charger des classes de test alors qu'elles compilent | `quarkus:dev` tourne sur le même workspace : les deux écrivent dans `target/` | arrêter le mode dev avant `verify` (ou inversement), puis relancer |

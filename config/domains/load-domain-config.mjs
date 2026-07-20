@@ -18,6 +18,14 @@ export const DOMAIN_CONFIG_KEYS = Object.freeze([
   "RESERVED_SUBDOMAINS",
 ]);
 
+const DOMAIN_PROFILE_KEYS = Object.freeze([
+  "APP_SCHEME",
+  "APP_BASE_DOMAIN",
+  "PROBLEM_TYPE_BASE",
+  "COOKIE_DOMAIN",
+  "RESERVED_SUBDOMAINS",
+]);
+
 const URL_KEYS = Object.freeze([
   "APP_BASE_URL",
   "ONBOARDING_URL",
@@ -36,7 +44,7 @@ export function loadDomainConfig(profile) {
   }
 
   const source = readFileSync(`${domainsDirectory}${profile}.env`, "utf8");
-  const config = parseDotenv(source, profile);
+  const config = deriveDomainConfig(parseDotenv(source, profile), profile);
   validateDomainConfig(config, profile);
   return Object.freeze(config);
 }
@@ -52,7 +60,7 @@ export function configureFrontendDomainConfig(
   viteEnvironment = {},
   source = "custom",
 ) {
-  const scheme = override(viteEnvironment, "VITE_APP_SCHEME", base.APP_SCHEME);
+  const scheme = base.APP_SCHEME;
   const baseDomain = normalizeDomain(
     override(viteEnvironment, "VITE_APP_BASE_DOMAIN", base.APP_BASE_DOMAIN),
   );
@@ -83,16 +91,6 @@ export function configureFrontendDomainConfig(
     MAILPIT_URL: profileTopology.MAILPIT_URL,
     COOKIE_DOMAIN: "",
   };
-
-  for (const key of URL_KEYS) {
-    derived[key] = override(viteEnvironment, `VITE_${key}`, derived[key]);
-  }
-  derived.API_URL = override(viteEnvironment, "VITE_API_BASE_URL", derived.API_URL);
-  derived.RESERVED_SUBDOMAINS = override(
-    viteEnvironment,
-    "VITE_RESERVED_SUBDOMAINS",
-    derived.RESERVED_SUBDOMAINS,
-  );
 
   validateDomainConfig(derived, `${source} frontend`);
   return Object.freeze(derived);
@@ -126,7 +124,7 @@ function parseDotenv(source, profile) {
     }
     const key = line.slice(0, separator).trim();
     const value = line.slice(separator + 1).trim();
-    if (!DOMAIN_CONFIG_KEYS.includes(key)) {
+    if (!DOMAIN_PROFILE_KEYS.includes(key)) {
       throw new Error(`Unknown domain setting ${key} in ${profile}.env`);
     }
     if (Object.hasOwn(config, key)) {
@@ -135,12 +133,28 @@ function parseDotenv(source, profile) {
     config[key] = value;
   }
 
-  for (const key of DOMAIN_CONFIG_KEYS) {
+  for (const key of DOMAIN_PROFILE_KEYS) {
     if (!Object.hasOwn(config, key)) {
       throw new Error(`Missing domain setting ${key} in ${profile}.env`);
     }
   }
   return config;
+}
+
+function deriveDomainConfig(profileConfig, profile) {
+  const scheme = profileConfig.APP_SCHEME;
+  const domain = profileConfig.APP_BASE_DOMAIN;
+  const development = profile === "development";
+  return {
+    ...profileConfig,
+    APP_BASE_URL: `${scheme}://${domain}`,
+    ONBOARDING_URL: `${scheme}://${domain}`,
+    DASHBOARD_URL: `${scheme}://dashboard.${domain}`,
+    API_URL: `${scheme}://api.${domain}`,
+    LOCAL_CONTROL_URL: development ? `${scheme}://local.${domain}` : "",
+    DOCS_URL: `${scheme}://docs.${domain}`,
+    MAILPIT_URL: development ? `${scheme}://mail.${domain}` : "",
+  };
 }
 
 function validateDomainConfig(config, source) {

@@ -42,7 +42,7 @@ export function createCockpitServer(options) {
   const server = http.createServer(async (request, response) => {
     setSecurityHeaders(response);
     try {
-      if (!hasSingleHeader(request, "host") || !isAllowedHost(request.headers.host, request.socket.localPort, configuredUrl)) {
+      if (!hasSingleHeader(request, "host") || !isAllowedHost(request.headers.host, configuredUrl)) {
         sendJson(response, 421, { error: "Hôte refusé." });
         return;
       }
@@ -105,7 +105,7 @@ function validateMutationRequest(request, csrfToken, configuredUrl) {
   const origin = request.headers.origin;
   if (
     !hasSingleHeader(request, "origin") ||
-    !isAllowedHostOriginPair(request.headers.host, origin, request.socket.localPort, configuredUrl)
+    !isAllowedHostOriginPair(request.headers.host, origin, configuredUrl)
   ) {
     throw new CockpitOperationError("Origine refusée.", 403);
   }
@@ -147,41 +147,19 @@ async function readEmptyJsonObject(request) {
   }
 }
 
-function isAllowedHost(host, localPort, configuredUrl) {
+function isAllowedHost(host, configuredUrl) {
   if (typeof host !== "string" || host.includes(",")) {
     return false;
   }
   const normalized = host.toLowerCase();
-  return (
-    normalized === `127.0.0.1:${localPort}` ||
-    normalized === `localhost:${localPort}` ||
-    normalized === configuredUrl?.host.toLowerCase()
-  );
+  return normalized === configuredUrl?.host.toLowerCase();
 }
 
-function isAllowedOrigin(origin, localPort, configuredUrl) {
-  if (typeof origin !== "string") {
-    return false;
-  }
-  return (
-    origin === `http://127.0.0.1:${localPort}` ||
-    origin === `http://localhost:${localPort}` ||
-    origin === configuredUrl?.origin
-  );
-}
-
-function isAllowedHostOriginPair(host, origin, localPort, configuredUrl) {
+function isAllowedHostOriginPair(host, origin, configuredUrl) {
   if (typeof host !== "string" || typeof origin !== "string" || host.includes(",") || origin.includes(",")) {
     return false;
   }
-  const normalizedHost = host.toLowerCase();
-  if (normalizedHost === `127.0.0.1:${localPort}`) {
-    return origin === `http://127.0.0.1:${localPort}`;
-  }
-  if (normalizedHost === `localhost:${localPort}`) {
-    return origin === `http://localhost:${localPort}`;
-  }
-  return normalizedHost === configuredUrl?.host.toLowerCase() && origin === configuredUrl?.origin;
+  return host.toLowerCase() === configuredUrl?.host.toLowerCase() && origin === configuredUrl?.origin;
 }
 
 function parseConfiguredUrl(value) {
@@ -232,4 +210,4 @@ function methodNotAllowed(response, allow) {
   sendJson(response, 405, { error: "Méthode refusée." });
 }
 
-export { SECURITY_HEADERS, isAllowedHost, isAllowedHostOriginPair, isAllowedOrigin };
+export { SECURITY_HEADERS, isAllowedHost, isAllowedHostOriginPair };

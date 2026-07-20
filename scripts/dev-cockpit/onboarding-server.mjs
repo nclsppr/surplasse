@@ -3,8 +3,11 @@ import http from "node:http";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { loadDevelopmentUrls } from "./domains.mjs";
+
 const ONBOARDING_HOST = "127.0.0.1";
 const ONBOARDING_PORT = 4173;
+const INTERNAL_HEALTH_PATH = "/__health";
 
 const PUBLIC_FILES = Object.freeze({
   "/frontends/onboarding/": ["frontends/onboarding/index.html", "text/html; charset=utf-8"],
@@ -80,6 +83,7 @@ export function createOnboardingStaticServer(options) {
   const assets = createAssetRoutes(options.repoRoot);
   const readAsset = options.readAsset ?? readAllowedAsset;
   const stripeConfig = options.stripeConfig ?? null;
+  const publicOrigin = parsePublicOrigin(options.publicOrigin);
   const createAccountSession = options.createAccountSession ?? requestStripeAccountSession;
   return http.createServer(async (request, response) => {
     let pathname;
@@ -98,12 +102,32 @@ export function createOnboardingStaticServer(options) {
       response.setHeader(name, value);
     }
 
+    if (pathname === INTERNAL_HEALTH_PATH) {
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        methodNotAllowed(response, "GET, HEAD");
+        return;
+      }
+      response.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
+      response.end(request.method === "HEAD" ? undefined : "ready\n");
+      return;
+    }
+    if (!publicOrigin || !hasCanonicalHost(request, publicOrigin)) {
+      json(response, 421, { error: "canonical_host_required" });
+      return;
+    }
+
     if (pathname === STRIPE_CONFIG_PATH) {
       handleStripeConfig(request, response, stripeConfig);
       return;
     }
     if (pathname === STRIPE_ACCOUNT_SESSION_PATH) {
-      await handleStripeAccountSession(request, response, stripeConfig, createAccountSession);
+      await handleStripeAccountSession(
+        request,
+        response,
+        stripeConfig,
+        createAccountSession,
+        publicOrigin,
+      );
       return;
     }
     if (request.method !== "GET" && request.method !== "HEAD") {
@@ -152,12 +176,18 @@ function handleStripeConfig(request, response, stripeConfig) {
   });
 }
 
-async function handleStripeAccountSession(request, response, stripeConfig, createAccountSession) {
+async function handleStripeAccountSession(
+  request,
+  response,
+  stripeConfig,
+  createAccountSession,
+  publicOrigin,
+) {
   if (request.method !== "POST") {
     methodNotAllowed(response, "POST");
     return;
   }
-  if (!sameOrigin(request)) {
+  if (!sameOrigin(request, publicOrigin)) {
     json(response, 403, { error: "origin_not_allowed" });
     return;
   }
@@ -252,13 +282,24 @@ function firstConfigured(...values) {
   return values.find((value) => typeof value === "string" && value.trim() !== "")?.trim();
 }
 
-function sameOrigin(request) {
+function sameOrigin(request, publicOrigin) {
   const origin = request.headers.origin;
-  if (!origin) return true;
+  return typeof origin === "string" && origin === publicOrigin.origin;
+}
+
+function hasCanonicalHost(request, publicOrigin) {
+  const host = request.headers.host;
+  return typeof host === "string" && !host.includes(",") && host.toLowerCase() === publicOrigin.host;
+}
+
+function parsePublicOrigin(value) {
+  if (typeof value !== "string") return null;
   try {
-    return new URL(origin).host === request.headers.host;
+    const url = new URL(value);
+    if (url.protocol !== "https:" || url.pathname !== "/" || url.search || url.hash) return null;
+    return Object.freeze({ host: url.host.toLowerCase(), origin: url.origin });
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -299,13 +340,16 @@ function start() {
   const currentDirectory = dirname(fileURLToPath(import.meta.url));
   const repoRoot = resolve(currentDirectory, "../..");
   const stripeConfig = loadStripePilotConfig(repoRoot);
-  const server = createOnboardingStaticServer({ repoRoot, stripeConfig });
+  const developmentUrls = loadDevelopmentUrls(repoRoot);
+  const publicOrigin = developmentUrls.urls.onboarding;
+  const server = createOnboardingStaticServer({ repoRoot, stripeConfig, publicOrigin });
   server.on("error", (error) => {
     console.error("The Onboarding static server could not start.", error);
     process.exitCode = 1;
   });
   server.listen(ONBOARDING_PORT, ONBOARDING_HOST, () => {
-    console.log(`Onboarding public assets are ready on http://${ONBOARDING_HOST}:${ONBOARDING_PORT}`);
+    console.log(`Onboarding public assets are ready on ${publicOrigin}`);
+    console.log(`Internal listener: ${ONBOARDING_HOST}, port ${ONBOARDING_PORT}.`);
   });
 }
 
@@ -315,6 +359,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
 
 export {
   CONNECT_RESPONSE_HEADERS,
+  INTERNAL_HEALTH_PATH,
   ONBOARDING_HOST,
   ONBOARDING_PORT,
   PUBLIC_FILES,

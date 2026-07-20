@@ -23,6 +23,17 @@ test("development exposes the complete local HTTPS topology", () => {
   assert.equal(config.RESERVED_SUBDOMAINS, "www,api,dashboard,docs,app,admin,local,mail");
 });
 
+test("domain profiles store one base domain and derive every application URL", () => {
+  for (const profile of ["development", "production"]) {
+    const source = readFileSync(new URL(`./${profile}.env`, import.meta.url), "utf8");
+    assert.match(source, /^APP_BASE_DOMAIN=/mu);
+    assert.doesNotMatch(
+      source,
+      /^(?:APP_BASE_URL|ONBOARDING_URL|DASHBOARD_URL|API_URL|LOCAL_CONTROL_URL|DOCS_URL|MAILPIT_URL)=/mu,
+    );
+  }
+});
+
 test("production keeps development-only services disabled", () => {
   const config = loadFrontendDomainConfig("production");
 
@@ -36,28 +47,23 @@ test("production keeps development-only services disabled", () => {
 test("frontend overrides derive a coherent topology from the base domain", () => {
   const config = loadFrontendDomainConfig("development", {
     VITE_APP_BASE_DOMAIN: "example.test",
-    VITE_API_BASE_URL: "https://gateway.example.test",
   });
 
   assert.equal(config.APP_BASE_URL, "https://example.test");
   assert.equal(config.DASHBOARD_URL, "https://dashboard.example.test");
-  assert.equal(config.API_URL, "https://gateway.example.test");
+  assert.equal(config.API_URL, "https://api.example.test");
   assert.equal(config.PROBLEM_TYPE_BASE, "https://surplasse.com/problems/");
   assert.deepEqual(allowedFrontendHosts(config), ["example.test", ".example.test"]);
 });
 
-test("frontend keeps every canonical URL declared by the selected profile", () => {
-  const base = loadDomainConfig("development");
-  const profile = {
-    ...base,
-    DASHBOARD_URL: "https://portal.surplasse.test",
-    API_URL: "https://gateway.surplasse.test",
-  };
+test("frontend ignores scattered URL overrides and keeps the derived topology", () => {
+  const config = loadFrontendDomainConfig("development", {
+    VITE_API_BASE_URL: "https://gateway.example.test",
+    VITE_DASHBOARD_URL: "https://portal.example.test",
+  });
 
-  const config = configureFrontendDomainConfig(profile, {}, "custom development");
-
-  assert.equal(config.DASHBOARD_URL, profile.DASHBOARD_URL);
-  assert.equal(config.API_URL, profile.API_URL);
+  assert.equal(config.DASHBOARD_URL, "https://dashboard.surplasse.test");
+  assert.equal(config.API_URL, "https://api.surplasse.test");
 });
 
 test("frontend definitions never expose a cookie domain", () => {
@@ -74,11 +80,21 @@ test("unknown profiles fail closed", () => {
   assert.throws(() => loadDomainConfig("staging"), /Unknown domain profile/u);
 });
 
-test("onboarding selects development for direct loopback previews", () => {
+test("onboarding refuses direct loopback previews", () => {
   for (const hostname of ["localhost", "127.0.0.1", "::1", "[::1]"]) {
+    assert.throws(
+      () => onboardingRuntimeConfig(hostname),
+      /Direct loopback previews are forbidden/u,
+    );
+  }
+});
+
+test("onboarding selects development only from the configured local domain", () => {
+  for (const hostname of ["surplasse.test", "le-cormoran.surplasse.test"]) {
     const config = onboardingRuntimeConfig(hostname);
     assert.equal(config.PROFILE, "development");
     assert.equal(config.APP_BASE_DOMAIN, "surplasse.test");
+    assert.equal(config.API_URL, "https://api.surplasse.test");
   }
 });
 
@@ -141,7 +157,7 @@ test("backend CORS stays public and without credentials in every runtime profile
   assert.doesNotMatch(properties, /access-control-allow-credentials=true/u);
 });
 
-test("runtime configuration code contains no Surplasse environment literal", () => {
+test("runtime configuration code contains no hard-coded Surplasse environment", () => {
   const runtimeConfigurationFiles = [
     "../../backend/application/src/main/resources/application.properties",
     "../../backend/common/src/main/java/com/surplasse/common/config/PlatformConfig.java",
@@ -153,6 +169,20 @@ test("runtime configuration code contains no Surplasse environment literal", () 
   for (const relativePath of runtimeConfigurationFiles) {
     const source = readFileSync(new URL(relativePath, import.meta.url), "utf8");
     assert.doesNotMatch(source, /surplasse\.(?:test|com)\b/u, relativePath);
+  }
+});
+
+test("browser runtime code contains no loopback URL literal", () => {
+  const browserRuntimeFiles = [
+    "../../frontends/commande/src/app/api.ts",
+    "../../frontends/commande/src/app/establishmentSlug.ts",
+    "../../frontends/dashboard/src/app/runtime.ts",
+    "../../frontends/onboarding/connect.js",
+  ];
+
+  for (const relativePath of browserRuntimeFiles) {
+    const source = readFileSync(new URL(relativePath, import.meta.url), "utf8");
+    assert.doesNotMatch(source, /(?:localhost|127\.0\.0\.1|\[?::1\]?)/u, relativePath);
   }
 });
 

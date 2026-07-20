@@ -96,9 +96,9 @@ Les noms d'identité et de SMTP ci-dessous sont stabilisés par le module `ident
 |---|---|
 | `APP_SCHEME` | `https` dans les deux environnements |
 | `APP_BASE_DOMAIN` | domaine racine, `surplasse.com` en production |
-| `APP_BASE_URL` | URL de l'Onboarding et base des URL publiques |
-| `DASHBOARD_URL` | origine publique du Dashboard |
-| `API_URL` | origine publique du Backend et émetteur JWT obligatoire |
+| `APP_BASE_URL` | URL de l'Onboarding et base des URL publiques, dérivée du domaine racine |
+| `DASHBOARD_URL` | origine publique du Dashboard, dérivée du domaine racine |
+| `API_URL` | origine publique du Backend et émetteur JWT obligatoire, dérivée du domaine racine |
 | `PROBLEM_TYPE_BASE` | base canonique des identifiants RFC 9457, identique dans tous les environnements |
 | `RESERVED_SUBDOMAINS` | noms exclus des slugs d'établissement |
 | `COOKIE_DOMAIN` | vide par décision de sécurité ; les cookies restent hôte uniquement |
@@ -128,7 +128,7 @@ Les noms d'identité et de SMTP ci-dessous sont stabilisés par le module `ident
 
 Les variables JWT de chemin, de `kid` et de JWKS ainsi que les variables SMTP sont obligatoires en production. Les fichiers de clés et les secrets SMTP sont provisionnés sur Ubuntu LTS hors de l'image Backend. Ils sont montés en lecture seule ou injectés par le fichier d'environnement protégé du VPS. Ubuntu LTS fait foi en cas de divergence de chemins ou de permissions.
 
-Le futur conteneur Backend utilisera `scripts/run-with-domain-profile.sh production` comme point d'entrée avant la commande Java. Le wrapper source uniquement `config/domains/production.env`, puis dérive `CORS_PUBLIC_ORIGINS` et la valeur de repli de `SMTP_FROM`. Quarkus construit le magic link depuis `DASHBOARD_URL`, l'émetteur JWT depuis `API_URL` et impose les cookies `Secure` hors tests. Il produit `Access-Control-Allow-Credentials: false`, y compris en `%prod`. Le Caddy du VPS devra supprimer cet en-tête pour les origines publiques et le remplacer par `true` seulement quand `Origin` correspond exactement à `DASHBOARD_URL` ou `ONBOARDING_URL`. Les secrets du VPS peuvent remplacer uniquement les variables prévues. Sans profil, le Backend échoue au démarrage au lieu de choisir silencieusement `.test` ou `.com`.
+Le futur conteneur Backend utilisera `scripts/run-with-domain-profile.sh production` comme point d'entrée avant la commande Java. Le wrapper source uniquement `config/domains/production.env`, puis dérive toutes les URL applicatives, `CORS_PUBLIC_ORIGINS` et la valeur de repli de `SMTP_FROM`. Quarkus construit le magic link depuis `DASHBOARD_URL`, l'émetteur JWT depuis `API_URL` et impose les cookies `Secure` hors tests. Il produit `Access-Control-Allow-Credentials: false`, y compris en `%prod`. Le Caddy du VPS devra supprimer cet en-tête pour les origines publiques et le remplacer par `true` seulement quand `Origin` correspond exactement à `DASHBOARD_URL` ou `ONBOARDING_URL`. Les secrets du VPS peuvent remplacer uniquement les variables prévues. Sans profil, le Backend échoue au démarrage au lieu de choisir silencieusement `.test` ou `.com`.
 
 ### Rotation des clés JWT
 
@@ -164,17 +164,16 @@ Avant et après chaque redémarrage, `curl --fail https://api.surplasse.com/q/he
 
 ### Les trois fronts
 
-Aucune variable secrète à l'exécution : Onboarding, Commande et Dashboard sont ou seront des fichiers statiques. Les valeurs publiques communes viennent de `config/domains/production.env` au build. Des variables `VITE_*` peuvent les remplacer explicitement dans la CI. Changer une de ces valeurs impose une reconstruction.
+Aucune variable secrète à l'exécution : Onboarding, Commande et Dashboard sont ou seront des fichiers statiques. Les valeurs publiques communes sont dérivées de `APP_BASE_DOMAIN` dans `config/domains/production.env` au build. La CI ne peut pas remplacer séparément une URL applicative. Changer le domaine racine impose une reconstruction.
 
 | Application | Variable de build | État et valeur de production cible |
 |---|---|---|
-| Dashboard | `VITE_API_BASE_URL` | Implémentée ; `https://api.surplasse.com` dans le build de production |
-| Commande | `VITE_API_BASE_URL` | Implémentée ; `https://api.surplasse.com` dans le build de production |
+| Dashboard | `VITE_API_BASE_URL` | Injectée par le chargeur ; `https://api.surplasse.com` dans le build de production |
+| Commande | `VITE_API_BASE_URL` | Injectée par le chargeur ; `https://api.surplasse.com` dans le build de production |
 | Commande | `VITE_STRIPE_PUBLISHABLE_KEY` | Implémentée ; clé publique live injectée au build |
-| Commande | `VITE_ESTABLISHMENT_SLUG` | Développement local seulement ; le sous-domaine fournit le slug en production |
 | Onboarding | À confirmer avec le module React | Cible non implémentée |
 
-Le fichier `config/domains/development.env` fait foi pour le développement et fournit `VITE_API_BASE_URL=https://api.surplasse.test` au build Vite. Les fichiers `.env.example` documentent les overrides propres à chaque frontend. Ces valeurs ne sont pas des secrets. Le Dashboard n'a aucune donnée ni aucun volume propre : ses données viennent du Backend avec les cookies hôte uniquement de l'API.
+Le fichier `config/domains/development.env` fait foi pour le développement. Son unique `APP_BASE_DOMAIN` permet au chargeur de fournir `VITE_API_BASE_URL=https://api.surplasse.test` au build Vite. Les fichiers `.env.example` ne peuvent pas remplacer cette URL. Ces valeurs ne sont pas des secrets. Le Dashboard n'a aucune donnée ni aucun volume propre : ses données viennent du Backend avec les cookies hôte uniquement de l'API.
 
 ## Reproduire la topologie de production en local
 
