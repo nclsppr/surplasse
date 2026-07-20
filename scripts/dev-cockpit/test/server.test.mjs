@@ -41,6 +41,18 @@ test("index receives a per-server CSRF token without unsafe inline script", asyn
   assert.equal(firstIndex.headers["content-security-policy"].includes("unsafe-inline"), false);
 });
 
+test("quality dashboard is served from the canonical cockpit route", async (t) => {
+  const harness = await serverHarness(t);
+  const response = await request(harness.port, {
+    path: "/tests",
+    headers: { Host: "local.surplasse.test" },
+  });
+
+  assert.equal(response.status, 200);
+  assert.match(response.body, /État de la plateforme/u);
+  assert.match(response.body, /id="run-all-tests"/u);
+});
+
 test("canonical HTTPS Host Origin and token can start an allowlisted module", async (t) => {
   const harness = await serverHarness(t);
   const response = await mutation(harness, "/api/modules/backend/start");
@@ -142,6 +154,26 @@ test("preset endpoint accepts only fixed preset and action names", async (t) => 
   assert.deepEqual(harness.manager.presets, [["core", "start"]]);
 });
 
+test("quality endpoints run only fixed suites and accept no arguments", async (t) => {
+  const harness = await serverHarness(t);
+  const suite = await mutation(harness, "/api/quality/backend-integration/run");
+  const all = await mutation(harness, "/api/quality/run");
+  const unknown = await mutation(harness, "/api/quality/arbitrary/run");
+  const parameterized = await request(harness.port, {
+    path: "/api/quality/backend-integration/run",
+    method: "POST",
+    headers: validMutationHeaders(harness.token),
+    body: '{"command":"dangerous"}',
+  });
+
+  assert.equal(suite.status, 202);
+  assert.equal(all.status, 202);
+  assert.equal(unknown.status, 404);
+  assert.equal(parameterized.status, 400);
+  assert.deepEqual(harness.manager.qualitySuites, ["backend-integration"]);
+  assert.equal(harness.manager.qualityAll, 1);
+});
+
 async function serverHarness(t, options = {}) {
   const manager = new StubManager();
   const { server } = createCockpitServer({
@@ -185,6 +217,8 @@ class StubManager {
     this.stops = [];
     this.presets = [];
     this.stateCalls = 0;
+    this.qualitySuites = [];
+    this.qualityAll = 0;
   }
 
   async state() {
@@ -211,5 +245,18 @@ class StubManager {
     }
     this.presets.push([name, action]);
     return { preset: name, action, results: [] };
+  }
+
+  async runQualitySuite(id) {
+    if (id !== "backend-integration") {
+      throw new CockpitOperationError("Suite de vérification inconnue.", 404);
+    }
+    this.qualitySuites.push(id);
+    return { status: "running", suites: [] };
+  }
+
+  async runAllQualitySuites() {
+    this.qualityAll += 1;
+    return { status: "running", suites: [] };
   }
 }

@@ -60,7 +60,9 @@ npm run domains:check
 npm run local:cockpit:test
 ```
 
-Les tests de domaines valident les profils `.test` et `.com`, la dérivation de toutes les URL depuis le seul domaine racine, le refus des previews loopback et des overrides URL dispersés, les sous-domaines réservés et l'obligation d'un `COOKIE_DOMAIN` vide. Les tests du cockpit couvrent le registre fixe, les liens HTTPS canoniques, le refus d'un accès navigateur direct par loopback, les sondes, les transitions d'état, la propriété des processus, le conteneur Mailpit et la protection des mutations HTTP. Ils ne démarrent ni Java, ni Docker, ni Caddy.
+Les tests de domaines valident les profils `.test` et `.com`, la dérivation de toutes les URL depuis le seul domaine racine, le refus des previews loopback et des overrides URL dispersés, les sous-domaines réservés et l'obligation d'un `COOKIE_DOMAIN` vide. Les tests du cockpit couvrent le registre fixe, les liens HTTPS canoniques, le refus d'un accès navigateur direct par loopback, les sondes, les transitions d'état, la propriété des processus, le conteneur Mailpit, la protection des mutations HTTP et le lanceur de vérifications. Ils ne démarrent ni Java, ni Docker, ni Caddy.
+
+Le cockpit rassemble aussi les derniers résultats locaux sur `https://local.surplasse.test/tests`. Cette vue ne constitue pas un nouvel étage de la pyramide. Elle orchestre les commandes existantes dans trois suites fixes et persistantes : Backend intégré, frontends et contrat, plateforme locale. La relance est asynchrone, séquentielle et limitée à une exécution à la fois. Le navigateur ne peut fournir ni commande, ni chemin, ni argument.
 
 Les scripts système sont vérifiés séparément avec `bash -n`. Leur smoke test macOS réel reste manuel car il demande le trousseau, `/etc/resolver` et le port 443.
 

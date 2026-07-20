@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { loadDevelopmentUrls } from "../domains.mjs";
+import { createQualitySuites } from "../quality-suites.mjs";
 import { createRegistry, EXPECTED_MODULE_IDS } from "../registry.mjs";
 import { configuredDevelopmentUrls, repoRoot } from "./helpers.mjs";
 
@@ -121,4 +122,20 @@ test("browser links use canonical surplasse.test domains", () => {
   assert.ok(allLinks.includes("https://mail.surplasse.test"));
   assert.equal(allLinks.some((url) => url.includes("cockpit.surplasse.test")), false);
   assert.equal(allLinks.some((url) => url.includes("mailpit.surplasse.test")), false);
+});
+
+test("quality suites expose a fixed command allowlist without shell composition", () => {
+  const suites = createQualitySuites(repoRoot);
+
+  assert.deepEqual(suites.map((suite) => suite.id), [
+    "backend-integration",
+    "frontend-contracts",
+    "local-platform",
+  ]);
+  assert.equal(suites.every((suite) => suite.commands.length > 0), true);
+  for (const command of suites.flatMap((suite) => suite.commands)) {
+    assert.ok(["npm"].includes(command.executable));
+    assert.equal(command.cwd, repoRoot);
+    assert.equal(command.args.some((argument) => /[;&|`]/u.test(argument)), false);
+  }
 });

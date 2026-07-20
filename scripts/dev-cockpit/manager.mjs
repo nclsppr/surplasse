@@ -14,6 +14,7 @@ export class CockpitManager {
       detail: "Aucune sonde HTTPS publique configurée.",
       statusCode: null,
     }));
+    this.qualityRunner = options.qualityRunner ?? null;
     this.now = options.now ?? Date.now;
     this.definitions = new Map(registry.modules.map((definition) => [definition.id, definition]));
     this.records = new Map(
@@ -39,7 +40,22 @@ export class CockpitManager {
       },
       modules: this.registry.modules.map((definition) => this.publicModule(definition)),
       presets: Object.keys(this.registry.presets),
+      quality: this.qualityRunner ? await this.qualityRunner.state() : null,
     };
+  }
+
+  async runQualitySuite(id) {
+    if (!this.qualityRunner) {
+      throw new CockpitOperationError("Les vérifications ne sont pas configurées.", 503);
+    }
+    return this.qualityRunner.startSuite(id);
+  }
+
+  async runAllQualitySuites() {
+    if (!this.qualityRunner) {
+      throw new CockpitOperationError("Les vérifications ne sont pas configurées.", 503);
+    }
+    return this.qualityRunner.startAll();
   }
 
   async refreshAll() {

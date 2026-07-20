@@ -3,9 +3,14 @@ const groupsRoot = document.querySelector("#groups");
 const notice = document.querySelector("#notice");
 const configuration = document.querySelector("#configuration");
 const refreshButton = document.querySelector("#refresh");
+const modulesView = document.querySelector("#modules-view");
+const testsView = document.querySelector("#tests-view");
+const qualitySuitesRoot = document.querySelector("#quality-suites");
+const runAllTestsButton = document.querySelector("#run-all-tests");
+const isTestsView = window.location.pathname === "/tests";
 
 const groupLabels = {
-  applications: ["Applications", "Les processus qui composent le parcours local."],
+  applications: ["Applications", "Les processus du parcours local."],
   tools: ["Outils locaux", "Les aides de développement sans rôle en production."],
   dependencies: ["Dépendances", "Leur cycle de vie appartient à une application."],
   reserved: ["Domaines réservés", "Ces adresses n'ont encore aucun module."],
@@ -21,6 +26,15 @@ const statusLabels = {
   conflict: "Conflit",
   stopping: "Arrêt",
   reserved: "Réservé",
+};
+
+const qualityLabels = {
+  "not-run": "Non exécuté",
+  queued: "En attente",
+  running: "En cours",
+  passed: "Validé",
+  failed: "Échec",
+  interrupted: "Interrompu",
 };
 
 const publicUrlLabels = {
@@ -44,10 +58,17 @@ const publicUrlLabels = {
 
 let actionInProgress = false;
 let refreshTimer;
+let noticeTimer;
+
+document.title = isTestsView ? "État de la plateforme · Surplasse" : "Cockpit local · Surplasse";
+modulesView.hidden = isTestsView;
+testsView.hidden = !isTestsView;
+document.querySelector(`[data-nav="${isTestsView ? "tests" : "modules"}"]`).setAttribute("aria-current", "page");
 
 document.querySelectorAll("[data-preset]").forEach((button) => {
   button.addEventListener("click", () => runPreset(button.dataset.preset, button.dataset.action));
 });
+runAllTestsButton.addEventListener("click", () => runQuality("/api/quality/run", "Toutes les vérifications sont lancées."));
 refreshButton.addEventListener("click", refreshState);
 
 await refreshState();
@@ -66,6 +87,13 @@ async function refreshState() {
 }
 
 function renderState(state) {
+  if (!isTestsView) {
+    renderModules(state);
+  }
+  renderQuality(state.quality);
+}
+
+function renderModules(state) {
   groupsRoot.replaceChildren();
   groupsRoot.setAttribute("aria-busy", "false");
 
@@ -76,42 +104,75 @@ function renderState(state) {
     }
     const section = element("section", "module-group");
     const headingRow = element("div", "section-heading");
-    const heading = element("h2", null, title);
-    const copy = element("p", null, description);
-    headingRow.append(heading, copy);
+    headingRow.append(element("h2", null, title), element("p", null, description));
     const grid = element("div", "module-grid");
     modules.forEach((module) => grid.append(renderModule(module)));
     section.append(headingRow, grid);
     groupsRoot.append(section);
   }
 
-  const source = state.urlConfiguration.source;
-  const sourceLabel = `Adresses chargées depuis ${source}`;
-  configuration.replaceChildren(element("span", null, sourceLabel));
+  configuration.replaceChildren(element("span", null, `Adresses chargées depuis ${state.urlConfiguration.source}`));
   if (state.urlConfiguration.publicUrl) {
     const control = state.urlConfiguration.publicUrl;
-    configuration.append(
-      element(
-        "span",
-        `configuration-route public-state-${control.state}`,
-        `Cockpit par domaine : ${publicUrlLabels[control.state] ?? control.state}`,
-      ),
-    );
-  }
-  if (state.urlConfiguration.wwwPublicUrl) {
-    const www = state.urlConfiguration.wwwPublicUrl;
-    const wwwLabel = state.urlConfiguration.wwwUrl ?? "Redirection www";
-    configuration.append(
-      element(
-        "span",
-        `configuration-route public-state-${www.state}`,
-        `${wwwLabel} : ${publicUrlLabels[www.state] ?? www.state}`,
-      ),
-    );
+    configuration.append(element("span", `configuration-route public-state-${control.state}`, `Cockpit HTTPS : ${publicUrlLabels[control.state] ?? control.state}`));
   }
   if (state.urlConfiguration.warnings.length) {
     showNotice(state.urlConfiguration.warnings.join(" "), true);
   }
+}
+
+function renderQuality(quality) {
+  if (!quality) {
+    return;
+  }
+  const shortcutDot = document.querySelector("#quality-shortcut-dot");
+  const shortcutLabel = document.querySelector("#quality-shortcut-label");
+  shortcutDot.className = `state-dot state-${quality.status}`;
+  shortcutLabel.textContent = overallLabel(quality);
+
+  if (!isTestsView) {
+    return;
+  }
+
+  const summary = document.querySelector("#quality-summary");
+  const summaryDot = document.querySelector("#quality-summary-dot");
+  summary.setAttribute("aria-busy", quality.running ? "true" : "false");
+  summary.className = `quality-summary quality-${quality.status}`;
+  summaryDot.className = `state-dot state-${quality.status}`;
+  document.querySelector("#quality-summary-title").textContent = overallLabel(quality);
+  document.querySelector("#quality-summary-copy").textContent = summaryCopy(quality);
+  runAllTestsButton.disabled = quality.running || actionInProgress;
+  runAllTestsButton.textContent = quality.running ? "Vérification en cours..." : "Tout relancer";
+
+  qualitySuitesRoot.replaceChildren();
+  quality.suites.forEach((suite) => qualitySuitesRoot.append(renderQualitySuite(suite, quality.running)));
+}
+
+function renderQualitySuite(suite, anyRunning) {
+  const row = element("article", `quality-suite quality-${suite.status}`);
+  const identity = element("div", "quality-identity");
+  const title = element("div", "quality-title");
+  title.append(element("span", `state-dot state-${suite.status}`), element("h2", null, suite.label));
+  identity.append(title, element("p", "description", suite.description), element("p", "suite-hint", suite.hint));
+
+  const result = element("div", "quality-result");
+  result.append(element("span", `quality-badge quality-${suite.status}`, qualityLabels[suite.status] ?? suite.status));
+  const facts = element("p", "quality-facts", suiteFacts(suite));
+  result.append(facts);
+
+  const actions = element("div", "quality-actions");
+  const rerun = element("button", "button button-small button-secondary", suite.status === "not-run" ? "Exécuter" : "Relancer");
+  rerun.type = "button";
+  rerun.disabled = anyRunning || actionInProgress;
+  rerun.addEventListener("click", () => runQuality(`/api/quality/${encodeURIComponent(suite.id)}/run`, `${suite.label} est lancé.`));
+  actions.append(rerun);
+  if (suite.output) {
+    const details = element("details", "quality-output");
+    details.append(element("summary", null, suite.status === "failed" ? "Voir l’erreur" : "Voir la sortie"), element("pre", null, suite.output));
+    actions.append(details);
+  }
+  row.append(identity, result, actions);
+  return row;
 }
 
 function renderModule(module) {
@@ -119,11 +180,8 @@ function renderModule(module) {
   const header = element("div", "card-header");
   const titleBlock = element("div");
   titleBlock.append(element("h3", null, module.label), element("p", "description", module.description));
-  const badge = element("span", `status-badge status-${module.status}`, statusLabels[module.status] ?? module.status);
-  header.append(titleBlock, badge);
+  header.append(titleBlock, element("span", `status-badge status-${module.status}`, statusLabels[module.status] ?? module.status));
 
-  const detail = element("p", "detail", module.detail);
-  const publicRoute = module.publicUrl ? renderPublicRoute(module.publicUrl) : null;
   const metadata = element("div", "metadata");
   if (module.ports.length) {
     metadata.append(element("span", "metadata-item", `Ports ${module.ports.join(", ")}`));
@@ -145,45 +203,97 @@ function renderModule(module) {
 
   const actions = element("div", "card-actions");
   if (module.canStart) {
-    const start = element("button", "button button-small button-primary", "Démarrer");
-    start.type = "button";
-    start.disabled = actionInProgress;
-    start.addEventListener("click", () => runModule(module.id, "start"));
-    actions.append(start);
+    actions.append(moduleButton(module.id, "start", "Démarrer", "button-primary"));
   }
   if (module.canStop) {
-    const stop = element("button", "button button-small button-quiet", "Arrêter");
-    stop.type = "button";
-    stop.disabled = actionInProgress;
-    stop.addEventListener("click", () => runModule(module.id, "stop"));
-    actions.append(stop);
+    actions.append(moduleButton(module.id, "stop", "Arrêter", "button-quiet"));
   }
   if (module.lastError) {
-    const error = element("p", "last-error", module.lastError);
-    actions.append(error);
+    actions.append(element("p", "last-error", module.lastError));
   }
 
-  card.append(header, detail);
-  if (publicRoute) {
-    card.append(publicRoute);
+  card.append(header, element("p", "detail", module.detail));
+  if (module.publicUrl) {
+    card.append(renderPublicRoute(module.publicUrl));
   }
   card.append(metadata, links, actions);
   return card;
 }
 
+function moduleButton(id, action, label, variant) {
+  const button = element("button", `button button-small ${variant}`, label);
+  button.type = "button";
+  button.disabled = actionInProgress;
+  button.addEventListener("click", () => runModule(id, action));
+  return button;
+}
+
 function renderPublicRoute(publicUrl) {
   const container = element("div", `public-route public-state-${publicUrl.state}`);
   const heading = element("div", "public-route-heading");
-  heading.append(
-    element("span", "public-route-name", "Accès HTTPS public"),
-    element(
-      "span",
-      "public-route-badge",
-      publicUrlLabels[publicUrl.state] ?? publicUrl.state,
-    ),
-  );
+  heading.append(element("span", "public-route-name", "Accès HTTPS"), element("span", "public-route-badge", publicUrlLabels[publicUrl.state] ?? publicUrl.state));
   container.append(heading, element("p", "public-route-detail", publicUrl.detail));
   return container;
+}
+
+function overallLabel(quality) {
+  if (quality.status === "running") {
+    return "Vérification en cours";
+  }
+  if (quality.status === "passed") {
+    return "Plateforme validée";
+  }
+  if (quality.status === "failed") {
+    const failures = quality.suites.filter((suite) => ["failed", "interrupted"].includes(suite.status)).length;
+    return `${failures} ${failures > 1 ? "suites à corriger" : "suite à corriger"}`;
+  }
+  return "Tests non exécutés";
+}
+
+function summaryCopy(quality) {
+  const passed = quality.suites.filter((suite) => suite.status === "passed").length;
+  const update = quality.updatedAt ? ` Dernière activité ${formatDate(quality.updatedAt)}.` : "";
+  if (quality.running) {
+    const active = quality.suites.find((suite) => suite.status === "running");
+    return `${active?.label ?? "Une suite"} s’exécute. ${passed} sur ${quality.suites.length} sont déjà validées.${update}`;
+  }
+  if (quality.status === "passed") {
+    return `Les ${quality.suites.length} suites sont au vert.${update}`;
+  }
+  if (quality.status === "failed") {
+    return `${passed} sur ${quality.suites.length} suites sont validées. Ouvrez le détail de la suite en échec.${update}`;
+  }
+  return "Lancez toutes les suites pour établir un premier état de référence.";
+}
+
+function suiteFacts(suite) {
+  if (suite.status === "running") {
+    return `Étape en cours · démarrée ${formatDate(suite.startedAt)}`;
+  }
+  if (suite.status === "queued") {
+    return "Démarrera après la suite en cours";
+  }
+  if (!suite.completedAt) {
+    return `${suite.stepCount} ${suite.stepCount > 1 ? "étapes" : "étape"}`;
+  }
+  const duration = formatDuration(suite.durationMs);
+  const failure = suite.failedStep ? ` · arrêt sur « ${suite.failedStep} »` : "";
+  return `${suite.completedSteps}/${suite.stepCount} étapes · ${duration} · ${formatDate(suite.completedAt)}${failure}`;
+}
+
+function formatDate(value) {
+  return new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "medium" }).format(new Date(value));
+}
+
+function formatDuration(milliseconds) {
+  if (!Number.isFinite(milliseconds)) {
+    return "durée inconnue";
+  }
+  if (milliseconds < 1_000) {
+    return `${milliseconds} ms`;
+  }
+  const seconds = Math.round(milliseconds / 1_000);
+  return seconds < 60 ? `${seconds} s` : `${Math.floor(seconds / 60)} min ${seconds % 60} s`;
 }
 
 async function runModule(id, action) {
@@ -194,12 +304,15 @@ async function runPreset(name, action) {
   await mutate(`/api/presets/${encodeURIComponent(name)}/${action}`, "Preset exécuté.");
 }
 
+async function runQuality(path, successMessage) {
+  await mutate(path, successMessage);
+}
+
 async function mutate(path, successMessage) {
   if (actionInProgress) {
     return;
   }
   actionInProgress = true;
-  window.clearInterval(refreshTimer);
   try {
     const response = await fetch(path, {
       method: "POST",
@@ -219,7 +332,6 @@ async function mutate(path, successMessage) {
   } finally {
     actionInProgress = false;
     await refreshState();
-    refreshTimer = window.setInterval(refreshState, 2_000);
   }
 }
 
@@ -227,7 +339,8 @@ function showNotice(message, isError) {
   notice.hidden = false;
   notice.textContent = message;
   notice.classList.toggle("notice-error", isError);
-  window.setTimeout(() => {
+  window.clearTimeout(noticeTimer);
+  noticeTimer = window.setTimeout(() => {
     notice.hidden = true;
   }, 5_000);
 }
@@ -237,7 +350,7 @@ function element(tag, className, text) {
   if (className) {
     node.className = className;
   }
-  if (text) {
+  if (text !== undefined && text !== null) {
     node.textContent = text;
   }
   return node;

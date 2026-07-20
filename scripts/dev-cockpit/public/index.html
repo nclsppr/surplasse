@@ -11,34 +11,70 @@
   </head>
   <body>
     <div class="shell">
-      <header class="hero">
-        <div>
-          <p class="eyebrow">Surplasse · développement local</p>
-          <h1>Tout le projet, au même endroit.</h1>
-          <p class="intro">
-            Démarrez les applications utiles, ouvrez leurs bonnes adresses et gardez la propriété des processus visible.
-          </p>
-        </div>
-        <div class="local-badge" aria-label="Outil réservé au développement">
-          <span class="pulse"></span>
-          Local uniquement
-        </div>
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="Surplasse, cockpit local">
+          <span class="brand-mark" aria-hidden="true">S</span>
+          <span>Surplasse</span>
+          <small>Cockpit local</small>
+        </a>
+        <nav class="primary-nav" aria-label="Navigation du cockpit">
+          <a href="/" data-nav="modules">Modules</a>
+          <a href="/tests" data-nav="tests">État de la plateforme</a>
+        </nav>
+        <span class="environment"><span aria-hidden="true"></span>Développement</span>
       </header>
 
-      <section class="toolbar" aria-label="Actions globales">
-        <div class="toolbar-actions">
-          <button class="button button-primary" data-preset="core" data-action="start">Démarrer le parcours principal</button>
-          <button class="button button-secondary" data-preset="all" data-action="start">Tout démarrer</button>
-          <button class="button button-quiet" data-preset="all" data-action="stop">Tout arrêter</button>
-        </div>
-        <p id="configuration" class="configuration">Chargement de la configuration...</p>
-      </section>
-
       <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
-      <main id="groups" aria-busy="true"></main>
+
+      <main>
+        <section id="modules-view" class="view" aria-labelledby="modules-title">
+          <div class="page-heading">
+            <div>
+              <h1 id="modules-title">Modules locaux</h1>
+              <p>Démarrez le parcours, puis ouvrez chaque application par son adresse HTTPS canonique.</p>
+            </div>
+            <a class="quality-shortcut" href="/tests">
+              <span id="quality-shortcut-dot" class="state-dot state-not-run" aria-hidden="true"></span>
+              <span><strong id="quality-shortcut-label">Tests non exécutés</strong><small>Voir l’état de la plateforme</small></span>
+            </a>
+          </div>
+
+          <section class="toolbar" aria-label="Actions globales">
+            <div class="toolbar-actions">
+              <button class="button button-primary" data-preset="core" data-action="start">Démarrer le parcours principal</button>
+              <button class="button button-secondary" data-preset="all" data-action="start">Tout démarrer</button>
+              <button class="button button-quiet" data-preset="all" data-action="stop">Tout arrêter</button>
+            </div>
+            <p id="configuration" class="configuration">Chargement de la configuration...</p>
+          </section>
+
+          <div id="groups" aria-busy="true"></div>
+        </section>
+
+        <section id="tests-view" class="view" aria-labelledby="tests-title" hidden>
+          <div class="page-heading quality-heading">
+            <div>
+              <h1 id="tests-title">État de la plateforme</h1>
+              <p>Le dernier verdict local des contrôles qui protègent le parcours Surplasse.</p>
+            </div>
+            <button id="run-all-tests" class="button button-primary" type="button">Tout relancer</button>
+          </div>
+
+          <section id="quality-summary" class="quality-summary" aria-live="polite" aria-busy="true">
+            <span id="quality-summary-dot" class="state-dot state-not-run" aria-hidden="true"></span>
+            <div>
+              <h2 id="quality-summary-title">Lecture des résultats...</h2>
+              <p id="quality-summary-copy">Le cockpit rassemble les derniers résultats enregistrés.</p>
+            </div>
+          </section>
+
+          <div id="quality-suites" class="quality-suites"></div>
+          <p class="quality-note">Les relances utilisent uniquement des commandes définies dans le dépôt. Aucun argument libre n’est accepté depuis le navigateur.</p>
+        </section>
+      </main>
 
       <footer>
-        <p>Caddy, dnsmasq et mkcert ne sont jamais démarrés ni arrêtés ici.</p>
+        <p>Caddy, dnsmasq et mkcert restent en dehors du cockpit.</p>
         <button id="refresh" class="text-button" type="button">Actualiser maintenant</button>
       </footer>
     </div>

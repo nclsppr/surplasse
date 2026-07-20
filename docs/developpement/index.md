@@ -101,7 +101,7 @@ Le `npm ci` racine installe Retype, Spectral et OpenAPI Generator. Les frontends
 | `frontends/commande` | Application Vite ; `npm run dev` | Front statique Commande en production |
 | `frontends/onboarding` | Préfiguration HTML sans package npm ; le serveur local ajoute uniquement la session courte du pilote Connect | Pages publie la préfiguration sans secret ni session Stripe ; futur front Onboarding sur le VPS |
 | `frontends/dashboard` | Application Vite ; `npm run dev`, port strict 5174 | Exécutable localement, non déployée ; cible statique sur `dashboard.surplasse.com` |
-| `scripts/dev-cockpit` | Serveur Node sans dépendance ; `npm run local:cockpit`, port 4174 | Développement seulement, absent des builds et de la production |
+| `scripts/dev-cockpit` | Serveur Node sans dépendance ; `npm run local:cockpit`, port 4174 ; état des vérifications conservé dans `.surplasse/dev-cockpit/` | Développement seulement, absent des builds et de la production |
 | `infra/local` | Caddyfile et scripts de DNS et TLS local | Développement seulement ; la production recevra sa propre configuration Caddy |
 
 ## Cycle de vie des logiciels tiers
@@ -154,7 +154,7 @@ Chaque composant expose un petit jeu de commandes stables. Une ligne « vérific
 | racine | `npm run local:cockpit` | cockpit local et contrôle des modules, port 4174 |
 | racine | `npm run local:cockpit:test` | tests isolés du cockpit, sans lancer de module |
 | racine | `npm run backend:dev` | Backend en mode dev avec profil central injecté, rechargement à chaud, Dev Services et Dev UI |
-| racine | `npm run backend:verify` | compilation, tests et package Backend avec le profil central injecté |
+| racine | `npm run backend:verify` | compilation, tests et package Backend avec le profil central injecté ; utilise Java 21 local ou l'image `eclipse-temurin:21-jdk` via Docker |
 | racine | `scripts/run-with-domain-profile.sh development ./backend/mvnw -f backend/pom.xml -pl order -am test` | exemple de vérification ciblée avec le même profil |
 | racine | `scripts/run-with-domain-profile.sh development ./backend/mvnw -f backend/pom.xml -pl identity -am test` | tests du module `identity`, sans processus autonome |
 | `frontends/shared/` | `npm run check && npm test` | typecheck et tests de la bibliothèque, sans serveur |
@@ -340,6 +340,10 @@ npm run local:cockpit
 ```
 
 Ouvrir `https://local.surplasse.test`, puis utiliser « Démarrer le parcours principal ». Mailpit démarre d'abord, puis le Backend, Commande et le Dashboard. Les Dev Services créent PostgreSQL 17 sur le port interne 5432 et Flyway applique les migrations ainsi que le seed de démonstration. Le cockpit affiche la progression et les liens utiles.
+
+L'état synthétique de la plateforme est disponible sur `https://local.surplasse.test/tests`. Le cockpit y conserve le dernier verdict, l'horodatage, la durée et un extrait de sortie pour trois suites fixes : Backend intégré, frontends et contrat, plateforme locale. Chaque suite peut être relancée seule, ou toutes peuvent être mises en file avec « Tout relancer ». La requête HTTP ne reçoit aucun nom de commande ni argument libre. La liste exécutable reste définie côté serveur.
+
+La suite Backend intégré exige que le Backend en mode développement soit arrêté, car Maven et `quarkus:dev` partagent les répertoires `target/`. Elle utilise le Java 21 local lorsqu'il est disponible. Sinon, elle exécute la même commande dans l'image épinglée `eclipse-temurin:21-jdk`, monte le socket Docker requis par Testcontainers et place le cache Maven éphémère dans `.surplasse/maven/`. La suite plateforme locale exige Docker pour son contrôle CORS. Les résultats et ce cache sont des données locales éphémères, ignorées par git et absentes de la production. Supprimer `.surplasse/dev-cockpit/quality-results.json` réinitialise l'affichage. Aucune sauvegarde ni restauration n'est nécessaire.
 
 **4. Vérifier l'établissement de démonstration.**
 

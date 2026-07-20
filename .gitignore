@@ -13,6 +13,7 @@ build/
 !.env.example
 .certs/
 .venv-brand/
+.surplasse/
 
 # Système
 .DS_Store

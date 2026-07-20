@@ -3,6 +3,8 @@ import { dirname, resolve } from "node:path";
 
 import { loadDevelopmentUrls } from "./domains.mjs";
 import { CockpitManager } from "./manager.mjs";
+import { QualityRunner } from "./quality-runner.mjs";
+import { createQualitySuites } from "./quality-suites.mjs";
 import { createRegistry } from "./registry.mjs";
 import { createCockpitServer } from "./server.mjs";
 import { createPublicUrlProbe, MailpitController, ProcessController } from "./system.mjs";
@@ -16,6 +18,9 @@ assertNodeVersion();
 
 const developmentUrls = loadDevelopmentUrls(repoRoot);
 const registry = createRegistry(repoRoot, developmentUrls);
+const qualityRunner = new QualityRunner(createQualitySuites(repoRoot), {
+  stateFile: resolve(repoRoot, ".surplasse/dev-cockpit/quality-results.json"),
+});
 const manager = new CockpitManager(registry, {
   processController: new ProcessController(),
   mailpitController: new MailpitController(),
@@ -23,6 +28,7 @@ const manager = new CockpitManager(registry, {
     baseDomain: developmentUrls.baseDomain,
     certificateFile: registry.urlConfiguration.certificateFile,
   }),
+  qualityRunner,
 });
 const { server } = createCockpitServer({
   manager,
@@ -61,6 +67,7 @@ async function shutdown(signal) {
   shuttingDown = true;
   console.log(`Shutdown requested by ${signal}. Only owned processes will be stopped.`);
   server.close();
+  await qualityRunner.stop();
   await manager.stopAllOwned();
   process.exit(0);
 }

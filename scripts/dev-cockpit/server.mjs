@@ -29,6 +29,13 @@ export function createCockpitServer(options) {
         csrfToken,
       ),
     },
+    "/tests": {
+      contentType: "text/html; charset=utf-8",
+      body: readFileSync(join(publicDirectory, "index.html"), "utf8").replaceAll(
+        "__COCKPIT_CSRF_TOKEN__",
+        csrfToken,
+      ),
+    },
     "/app.js": {
       contentType: "text/javascript; charset=utf-8",
       body: readFileSync(join(publicDirectory, "app.js"), "utf8"),
@@ -70,7 +77,9 @@ export function createCockpitServer(options) {
 
       const moduleRoute = /^\/api\/modules\/([a-z][a-z0-9-]*)\/(start|stop)$/u.exec(requestUrl.pathname);
       const presetRoute = /^\/api\/presets\/([a-z][a-z0-9-]*)\/(start|stop)$/u.exec(requestUrl.pathname);
-      if (moduleRoute || presetRoute) {
+      const qualityRoute = /^\/api\/quality\/([a-z][a-z0-9-]*)\/run$/u.exec(requestUrl.pathname);
+      const allQualityRoute = requestUrl.pathname === "/api/quality/run";
+      if (moduleRoute || presetRoute || qualityRoute || allQualityRoute) {
         if (request.method !== "POST") {
           methodNotAllowed(response, "POST");
           return;
@@ -82,10 +91,15 @@ export function createCockpitServer(options) {
           const [, id, action] = moduleRoute;
           const result = action === "start" ? await manager.start(id) : await manager.stop(id);
           sendJson(response, 200, { ok: true, module: result });
-        } else {
+        } else if (presetRoute) {
           const [, name, action] = presetRoute;
           const result = await manager.runPreset(name, action);
           sendJson(response, 200, { ok: true, ...result });
+        } else {
+          const quality = qualityRoute
+            ? await manager.runQualitySuite(qualityRoute[1])
+            : await manager.runAllQualitySuites();
+          sendJson(response, 202, { ok: true, quality });
         }
         return;
       }

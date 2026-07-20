@@ -65,6 +65,7 @@ jobs:
           scripts/stop-local-proxy.sh
           scripts/remove-local-domain.sh
           scripts/run-with-domain-profile.sh
+          scripts/verify-backend.sh
       - name: Validate the local Caddyfile
         run: |
           source scripts/lib/local-domain.sh
