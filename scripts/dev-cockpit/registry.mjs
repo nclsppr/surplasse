@@ -66,8 +66,8 @@ export function createRegistry(repoRoot, developmentUrls) {
     }),
     processModule({
       id: "onboarding",
-      label: "Onboarding statique",
-      description: "Préfiguration actuelle de la vitrine et de la marque.",
+      label: "Onboarding local",
+      description: "Préfiguration de la vitrine et qualification Stripe Connect intégrée.",
       group: "applications",
       cwd: resolve(repoRoot, "scripts/dev-cockpit"),
       executable: process.execPath,
@@ -78,6 +78,7 @@ export function createRegistry(repoRoot, developmentUrls) {
       startupTimeoutMs: 20_000,
       links: [
         link("Onboarding", urls.onboarding),
+        link("Pilote Stripe intégré", appendPath(urls.onboarding, "/connect.html")),
         link("Planche de marque", localCompanionLink(urls.onboarding, "http://localhost:4173/brand/board.html")),
       ],
     }),

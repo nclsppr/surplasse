@@ -81,9 +81,10 @@ jobs:
           set -e
           mkdir -p site/brand site/docs
           # Landing et onboarding à la racine ; chemins d'assets réécrits pour la racine
-          for f in frontends/onboarding/index.html frontends/onboarding/creer.html; do
+          for f in frontends/onboarding/index.html frontends/onboarding/creer.html frontends/onboarding/connect.html; do
             sed 's|\.\./\.\./brand/|brand/|g' "$f" > "site/$(basename "$f")"
           done
+          cp frontends/onboarding/connect.js site/connect.js
           cp frontends/onboarding/runtime-config.js site/runtime-config.js
           # Assets de marque (polices, tokens, styles, composants, QR)
           cp -R brand/. site/brand/

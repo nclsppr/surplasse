@@ -99,7 +99,7 @@ Le `npm ci` racine installe Retype, Spectral et OpenAPI Generator. Les frontends
 | `backend/application` | Assemblage exécutable ; `npm run backend:dev` depuis la racine | Service Backend Quarkus en production |
 | `frontends/shared` | Bibliothèque TypeScript ; `npm run check` et `npm test`, aucun serveur | Compilée dans les frontends, aucun conteneur distinct |
 | `frontends/commande` | Application Vite ; `npm run dev` | Front statique Commande en production |
-| `frontends/onboarding` | Préfiguration HTML statique ; aucun package npm actuellement | Publiée avec GitHub Pages aujourd'hui, futur front statique Onboarding sur le VPS |
+| `frontends/onboarding` | Préfiguration HTML sans package npm ; le serveur local ajoute uniquement la session courte du pilote Connect | Pages publie la préfiguration sans secret ni session Stripe ; futur front Onboarding sur le VPS |
 | `frontends/dashboard` | Application Vite ; `npm run dev`, port strict 5174 | Exécutable localement, non déployée ; cible statique sur `dashboard.surplasse.com` |
 | `scripts/dev-cockpit` | Serveur Node sans dépendance ; `npm run local:cockpit`, port 4174 | Développement seulement, absent des builds et de la production |
 | `infra/local` | Caddyfile et scripts de DNS et TLS local | Développement seulement ; la production recevra sa propre configuration Caddy |
@@ -293,6 +293,8 @@ Les URL publiques sont centralisées dans `config/domains/development.env` et `c
 | Variable | Application | Rôle | Requise en dev |
 |---|---|---|---|
 | `STRIPE_SECRET_KEY` | Backend | clé secrète Stripe (mode test en dev : `sk_test_...`) | oui, pour les parcours de paiement |
+| `STRIPE_CONNECT_PILOT_ACCOUNT_ID` | Onboarding local | compte Accounts v2 utilisé uniquement par la qualification intégrée du pilote | oui, pour le pilote Connect |
+| `STRIPE_CONNECT_PILOT_ESTABLISHMENT_NAME` | Onboarding local | nom public affiché autour du composant Connect du pilote | oui, pour le pilote Connect |
 | `STRIPE_PAYMENT_WEBHOOK_SECRET` | Backend | signature de la destination d'événements de paiement Connect au format snapshot | oui, pour confirmer les paiements |
 | `STRIPE_ACCOUNT_WEBHOOK_SECRET` | Backend | signature de la destination d'événements fins Accounts v2 | oui, pour synchroniser les capacités |
 | `STRIPE_LIVE_MODE` | Backend | mode attendu des objets et webhooks Stripe ; `false` en développement et test, `true` en production | non, `false` en développement |
@@ -345,6 +347,8 @@ Ouvrir `https://local.surplasse.test`, puis utiliser « Démarrer le parcours pr
 Ouvrir `https://le-cormoran.surplasse.test/?table=tbl_2f8e6a4c0b9d7e1f`. Le hostname fournit le slug `le-cormoran`, la Table 4 ouvre une session anonyme et la carte du Cormoran s'affiche.
 
 Le routage Connect du seed est volontairement fictif et sert uniquement aux doublures automatisées. Le parcours réel de paiement reste fermé tant qu'un compte Connect de test encaissable n'a pas été rattaché à l'établissement. La [fiche de preuve Stripe Connect](../operations/preuve-stripe-connect-2026-07-20.md) décrit le blocage actuel et la reprise.
+
+Pour qualifier l'embarquement Connect intégré, renseigner dans `backend/.env` le compte test et son nom, puis démarrer le module Onboarding depuis le cockpit. La clé publique vient de `frontends/commande/.env`, la clé secrète de `backend/.env`. Ouvrir ensuite `https://surplasse.test/connect.html`. Le navigateur reçoit uniquement la clé publique et un secret de session court. La clé secrète reste dans le serveur Node local. Le même chemin publié sur GitHub Pages affiche seulement un état de démonstration et ne peut créer aucune session Stripe.
 
 **5. Vérifier le Dashboard et les magic links.**
 

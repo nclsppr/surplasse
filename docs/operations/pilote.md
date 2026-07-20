@@ -34,12 +34,12 @@ Les chemins logiciels des charges directes Stripe Connect, du remboursement int�
 
 ## Porte 1 : Stripe Connect en test
 
-Le pilote utilise un compte Accounts v2 avec configuration marchand, provisionné manuellement. L'automatisation par composants Connect intégrés reste en phase 3, mais le schéma financier est déjà celui de la cible, à savoir les charges directes fixées par l'[ADR-0020](../decisions/adr-0020-accounts-v2-onboarding-embarque.md).
+Le pilote utilise un compte Accounts v2 avec configuration marchand, provisionné manuellement. La qualification de phase 2 utilise déjà le composant Connect intégré dans une page Surplasse locale. L'automatisation de création et de rattachement des comptes reste en phase 3. Le schéma financier est celui de la cible, à savoir les charges directes fixées par l'[ADR-0020](../decisions/adr-0020-accounts-v2-onboarding-embarque.md).
 
 Le contrôle applicatif de prise de commandes est livré localement selon l'[ADR-0020](../decisions/adr-0020-accounts-v2-onboarding-embarque.md). Il ne fait pas passer cette porte à Go : l'activation du compte Connect test, le remboursement et le scénario complet de pause avec un Payment Intent réel restent à vérifier ensemble.
 
 !!! warning Constat du 2026-07-20
-Les clés de test authentifient correctement l'API Stripe. Après inscription de la plateforme, le compte Accounts v2 `acct_1TvJsYCvIDRh8N2N` a été créé avec `dashboard=full`, configuration `merchant`, `fees_collector=stripe` et `losses_collector=stripe`. Les capacités de carte et de virement restent `restricted` tant que l'embarquement Stripe n'est pas terminé. Aucun contournement par une charge plateforme n'est accepté. La [fiche de preuve](preuve-stripe-connect-2026-07-20.md) consigne le résultat et la reprise attendue.
+Le premier compte du Cormoran avec `dashboard=full` est abandonné. Le nouveau compte La Paprika `acct_1TvOQECvIDZfXjyu` utilise `dashboard=none`, la configuration `merchant`, `fees_collector=stripe` et `losses_collector=stripe`. Le composant intégré se rend dans Surplasse en français. Les capacités de carte et de virement restent `restricted` tant que le titulaire n'a pas terminé l'embarquement. Aucun contournement par une charge plateforme n'est accepté. La [fiche de preuve](preuve-stripe-connect-2026-07-20.md) consigne le résultat et la reprise attendue.
 !!!
 
 ### Critères Go

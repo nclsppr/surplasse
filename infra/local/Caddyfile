@@ -98,12 +98,14 @@ https://{$APP_BASE_DOMAIN}, https://*.{$APP_BASE_DOMAIN} {
 
 	@website_content {
 		host {$APP_BASE_DOMAIN}
-		path / /index.html /creer.html /runtime-config.js /brand/*
+		path / /index.html /creer.html /connect.html /connect.js /stripe-connect/config /stripe-connect/account-session /runtime-config.js /brand/*
 	}
 	handle @website_content {
 		rewrite / /frontends/onboarding/index.html
 		rewrite /index.html /frontends/onboarding/index.html
 		rewrite /creer.html /frontends/onboarding/creer.html
+		rewrite /connect.html /frontends/onboarding/connect.html
+		rewrite /connect.js /frontends/onboarding/connect.js
 		rewrite /runtime-config.js /frontends/onboarding/runtime-config.js
 		reverse_proxy 127.0.0.1:4173 {
 			import local_forwarded_headers

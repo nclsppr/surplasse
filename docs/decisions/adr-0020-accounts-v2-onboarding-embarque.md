@@ -21,6 +21,8 @@ Trois choix d'embarquement existent. Un formulaire hébergé par Stripe réduit 
 
 Le schéma financier reste celui d'un canal direct pour le restaurant. Le paiement doit être porté par le compte connecté de l'établissement, tandis que Surplasse prélève 0 % pendant les 3 premiers mois puis 1 %, hors frais Stripe. Un compte plateforme unique qui encaisse toutes les commandes puis déclenche des virements rendrait Surplasse plus central dans la chaîne financière, concentrerait les soldes et les pertes, et s'écarterait de ce positionnement.
 
+Le premier compte pilote créé avec `dashboard=full` a révélé une friction contraire au produit. Le formulaire hébergé demandait au titulaire de reprendre un compte Stripe autonome avec ses propres accès. Le Dashboard complet fournissait une voie de secours, mais faisait de Stripe une seconde application à administrer. Le pilote est donc recommencé avec un compte sans Dashboard Stripe et avec les composants Connect intégrés dans Surplasse.
+
 ## Options considérées
 
 ### Configuration du compte et des charges
@@ -45,16 +47,16 @@ Surplasse conserve **Stripe** et le **Payment Element** pour le paiement client.
 
 La configuration de référence est la suivante :
 
-- `dashboard=full`, afin que le restaurateur garde un accès de secours à ses finances et rapports Stripe ;
-- `fees_collector=stripe` et `losses_collector=stripe`, combinaison imposée par le Dashboard complet et cohérente avec les charges directes ;
+- `dashboard=none`, afin que le restaurateur gère le paiement depuis Surplasse sans compte Dashboard Stripe autonome ;
+- `fees_collector=stripe` et `losses_collector=stripe`, afin que Stripe facture ses frais au compte connecté, porte les soldes négatifs non résolus et reste collecteur des exigences réglementaires ;
 - capacité `card_payments` demandée sur la configuration marchand ;
 - vérification de `configuration.merchant.capabilities.card_payments.status=active` avant tout nouvel encaissement ;
 - suivi séparé de `configuration.merchant.capabilities.stripe_balance.payouts.status` pour vérifier que les fonds peuvent être versés ;
 - aucune utilisation de `charges_enabled`, `payouts_enabled` ou du type de compte v1 comme source de vérité.
 
-Le Backend crée le compte, génère les sessions nécessaires aux composants, traite les webhooks et rapproche les paiements. Le frontend Onboarding intègre en phase 3 au minimum les composants `account_onboarding`, `notification_banner` et `account_management`. Le restaurateur remplit ces surfaces depuis Surplasse, mais les informations d'identité, les documents et les coordonnées bancaires sont transmis directement à Stripe. Surplasse ne les persiste pas.
+Le Backend crée le compte, génère les sessions nécessaires aux composants, traite les webhooks et rapproche les paiements. L'Onboarding intègre au minimum les composants `account_onboarding`, `notification_banner` et `account_management`. Le Dashboard doit ensuite fournir les composants nécessaires aux versements, paiements, litiges, documents et rapports utiles. Le restaurateur remplit ces surfaces depuis Surplasse, mais les informations d'identité, les documents et les coordonnées bancaires sont transmis directement à Stripe. Surplasse ne les persiste pas.
 
-Le formulaire Stripe hébergé reste autorisé comme outil provisoire pour qualifier le compte du pilote de phase 2 et comme voie de secours. Il ne devient pas le parcours produit principal. L'embarquement entièrement construit avec l'API est exclu tant qu'une contrainte produit ou réglementaire démontrée ne justifie pas son coût continu.
+Le formulaire Stripe hébergé n'est plus utilisé pour le pilote. Il reste une voie de secours opérateur, jamais le parcours produit principal. L'embarquement entièrement construit avec l'API est exclu tant qu'une contrainte produit ou réglementaire démontrée ne justifie pas son coût continu.
 
 Les événements Accounts v2 sont des événements fins. Après vérification de la signature, le Backend récupère l'état courant du compte via Accounts v2 avant d'ouvrir la transaction qui applique le nouvel état. Une perte de capacité force la prise de commandes à `paused`. Le Backend revérifie aussi la capacité `card_payments` auprès de Stripe juste avant la création de chaque Payment Intent, afin qu'un cache local en retard n'autorise jamais un encaissement.
 
@@ -69,7 +71,7 @@ Le contrôle opérationnel décidé par l'ADR-0018 est conservé avec la nouvell
 - Le restaurateur reste dans l'expérience Surplasse pour l'essentiel du parcours sans que Surplasse collecte ses justificatifs.
 - Les exigences KYC, les traductions, les pièces et les validations évoluent chez Stripe sans reconstruction de nos formulaires.
 - La charge directe conserve le restaurant comme marchand et limite le rôle financier de Surplasse à sa commission.
-- Le Dashboard Stripe complet offre une voie de secours opérationnelle sans obliger Surplasse à reproduire immédiatement tous les rapports financiers.
+- Le restaurateur n'a pas à ouvrir ni administrer un Dashboard Stripe autonome.
 - La double vérification, événements puis contrôle juste avant paiement, ferme la fenêtre où un état local obsolète pourrait autoriser un encaissement.
 - Accounts v2 rend explicites les responsabilités et évite de bâtir une nouvelle intégration sur les types de comptes historiques.
 
@@ -77,7 +79,8 @@ Le contrôle opérationnel décidé par l'ADR-0018 est conservé avec la nouvell
 
 - Un compte connecté Stripe existe techniquement pour chaque établissement et le restaurateur doit accepter les conditions Stripe. La communication produit doit l'expliquer sans prétendre que Stripe est absent.
 - Le composant intégré impose un endpoint Backend de session, une politique d'autorisation stricte et des états de reprise lorsque des informations deviennent exigibles.
-- Le formulaire hébergé reste visible pendant la qualification du pilote, avant la livraison de la phase 3.
+- Surplasse doit fournir les surfaces de gestion financière que le Dashboard Stripe complet aurait couvertes. La dette inclut les versements, les paiements, les litiges, les documents et les rapports utiles.
+- Le formulaire hébergé ne peut servir que de repli opérateur explicite.
 - Une indisponibilité de l'API Accounts v2 bloque par sécurité la création d'un nouveau Payment Intent.
 - Le suivi des événements v1 de paiement et des événements v2 de compte impose deux destinations et deux secrets à configurer, faire tourner et superviser séparément.
 - La tarification, les responsabilités contractuelles et la disponibilité exacte des moyens de paiement doivent encore être vérifiées en live avant le pilote réel.

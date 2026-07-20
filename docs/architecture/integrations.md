@@ -32,7 +32,7 @@ Surplasse n'encaisse pas pour son propre compte : chaque paiement est une charge
 | Encaissement | `card_payments` demandé et `status=active` | Aucun Payment Intent n'est créé tant que la capacité n'est pas active |
 | Virements | `stripe_balance.payouts.status` suivi | La qualification vérifie séparément que les fonds peuvent être versés |
 
-Le parcours produit utilise les composants Connect intégrés `account_onboarding`, `notification_banner` et `account_management`. Le restaurateur reste dans l'Onboarding Surplasse, tandis que Stripe reçoit directement l'identité, les justificatifs, l'IBAN et l'acceptation de ses conditions. Le formulaire hébergé est conservé pour le pilote et comme voie de secours. Un formulaire réglementaire entièrement construit avec l'API est exclu : il transférerait à Surplasse la maintenance continue des exigences KYC.
+Le parcours produit utilise les composants Connect intégrés `account_onboarding`, `notification_banner` et `account_management`. Le restaurateur reste dans l'Onboarding Surplasse, tandis que Stripe reçoit directement l'identité, les justificatifs, l'IBAN et l'acceptation de ses conditions. Le pilote utilise lui aussi le composant intégré. Le formulaire hébergé reste seulement une voie de secours opérateur. Un formulaire réglementaire entièrement construit avec l'API est exclu : il transférerait à Surplasse la maintenance continue des exigences KYC.
 
 ### Payment Element côté Commande
 

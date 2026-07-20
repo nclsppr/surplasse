@@ -63,6 +63,8 @@ test("Onboarding static server serves only the explicit public asset allowlist",
     ["/frontends/onboarding/", "text/html; charset=utf-8"],
     ["/frontends/onboarding/index.html", "text/html; charset=utf-8"],
     ["/frontends/onboarding/creer.html", "text/html; charset=utf-8"],
+    ["/frontends/onboarding/connect.html", "text/html; charset=utf-8"],
+    ["/frontends/onboarding/connect.js", "text/javascript; charset=utf-8"],
     ["/frontends/onboarding/runtime-config.js", "text/javascript; charset=utf-8"],
     ["/brand/styles.css?v=1", "text/css; charset=utf-8"],
     ["/brand/logo.svg", "image/svg+xml"],
@@ -76,6 +78,84 @@ test("Onboarding static server serves only the explicit public asset allowlist",
     assert.equal(response.headers["content-type"], contentType, path);
     assert.notEqual(response.body.length, 0, path);
   }
+});
+
+test("Embedded Stripe onboarding exposes only public configuration and short sessions", async (t) => {
+  const stripeConfig = Object.freeze({
+    secretKey: "sk_test_example",
+    publishableKey: "pk_test_example",
+    accountId: "acct_test_pilot",
+    establishmentName: "La Paprika",
+  });
+  const calls = [];
+  const server = createOnboardingStaticServer({
+    repoRoot,
+    stripeConfig,
+    createAccountSession: async (receivedConfig) => {
+      calls.push(receivedConfig);
+      return { clientSecret: "account_session_secret" };
+    },
+  });
+  const port = await listen(server);
+  t.after(() => close(server));
+
+  const config = await request(port, { path: "/stripe-connect/config" });
+  const session = await request(port, {
+    path: "/stripe-connect/account-session",
+    method: "POST",
+    headers: { Host: `127.0.0.1:${port}`, Origin: `http://127.0.0.1:${port}` },
+  });
+
+  assert.equal(config.status, 200);
+  assert.deepEqual(JSON.parse(config.body), {
+    publishableKey: "pk_test_example",
+    establishmentName: "La Paprika",
+  });
+  assert.doesNotMatch(config.body, /sk_test|acct_test/);
+  assert.equal(session.status, 200);
+  assert.deepEqual(JSON.parse(session.body), { client_secret: "account_session_secret" });
+  assert.deepEqual(calls, [stripeConfig]);
+});
+
+test("Embedded Stripe onboarding fails closed outside its same origin", async (t) => {
+  const server = createOnboardingStaticServer({
+    repoRoot,
+    stripeConfig: {
+      secretKey: "sk_test_example",
+      publishableKey: "pk_test_example",
+      accountId: "acct_test_pilot",
+      establishmentName: "La Paprika",
+    },
+    createAccountSession: async () => {
+      throw new Error("must not be called");
+    },
+  });
+  const port = await listen(server);
+  t.after(() => close(server));
+
+  const response = await request(port, {
+    path: "/stripe-connect/account-session",
+    method: "POST",
+    headers: { Host: `127.0.0.1:${port}`, Origin: "https://attacker.example" },
+  });
+
+  assert.equal(response.status, 403);
+  assert.deepEqual(JSON.parse(response.body), { error: "origin_not_allowed" });
+});
+
+test("Embedded Stripe onboarding stays disabled when local credentials are absent", async (t) => {
+  const server = createOnboardingStaticServer({ repoRoot, stripeConfig: null });
+  const port = await listen(server);
+  t.after(() => close(server));
+
+  const config = await request(port, { path: "/stripe-connect/config" });
+  const session = await request(port, {
+    path: "/stripe-connect/account-session",
+    method: "POST",
+  });
+
+  assert.equal(config.status, 404);
+  assert.equal(session.status, 503);
 });
 
 test("Onboarding static server never exposes repository files or traversal targets", async (t) => {
