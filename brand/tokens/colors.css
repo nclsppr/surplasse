@@ -12,8 +12,8 @@
   --surface-raised: var(--bg-3);
   --surface-sunken: var(--bg-0);
 
-  /* Encre (espresso chaud) */
-  --fg-1: #2b2118;
+  /* Encre du symbole */
+  --fg-1: #181818;
   --fg-2: #55483a;
   --fg-3: #71604e;
   --fg-4: #796958;
@@ -21,13 +21,13 @@
   --text-muted: var(--fg-3);
   --text-faint: var(--fg-4);
 
-  /* Orange signature pour les grands titres, paprika pour les actions. */
-  --accent: #e8481c;
+  /* Orange signature du logo, paprika pour les actions. */
+  --accent: #fa550c;
   --accent-hover: #a83721;
   --accent-press: #b94226;
-  --accent-tint: rgba(232, 72, 28, 0.08);
-  --accent-tint-strong: rgba(232, 72, 28, 0.18);
-  --on-accent: #fff7ef;
+  --accent-tint: rgba(250, 85, 12, 0.08);
+  --accent-tint-strong: rgba(250, 85, 12, 0.18);
+  --on-accent: #faf7f2;
 
   /* Soutien : sable et argile, réservés aux aplats. */
   --peach: #f3d5bd;
@@ -40,7 +40,7 @@
   --structure-hover: #603624;
   --structure-tint: rgba(122, 73, 51, 0.08);
   --structure-tint-strong: rgba(122, 73, 51, 0.16);
-  --on-structure: #fff7ef;
+  --on-structure: #faf7f2;
   --line-structure: rgba(122, 73, 51, 0.42);
 
   /* Alias historiques pendant la migration des composants. */
@@ -60,13 +60,13 @@
   --danger-tint: oklch(0.5 0.15 30 / 0.12);
 
   /* Lignes */
-  --line-1: rgba(43, 33, 24, 0.12);
-  --line-2: rgba(43, 33, 24, 0.22);
-  --line-accent: rgba(232, 72, 28, 0.55);
+  --line-1: rgba(24, 24, 24, 0.12);
+  --line-2: rgba(24, 24, 24, 0.22);
+  --line-accent: rgba(250, 85, 12, 0.55);
 
   /* Ombres : discrètes, esprit imprimé */
-  --shadow-card: 0 1px 0 rgba(43,33,24,.04), 0 4px 16px rgba(43,33,24,.06);
-  --shadow-pop: 0 2px 4px rgba(43,33,24,.08), 0 16px 40px rgba(43,33,24,.18);
+  --shadow-card: 0 1px 0 rgba(24,24,24,.04), 0 4px 16px rgba(24,24,24,.06);
+  --shadow-pop: 0 2px 4px rgba(24,24,24,.08), 0 16px 40px rgba(24,24,24,.18);
 
   /* Focus */
   --focus-ring: 0 0 0 2px var(--bg-1), 0 0 0 4px var(--accent);
@@ -83,9 +83,9 @@
   --surface-card: var(--bg-2b);
   --surface-raised: var(--bg-3);
   --surface-sunken: var(--bg-0);
-  --line-1: rgba(43, 33, 24, 0.10);
-  --line-2: rgba(43, 33, 24, 0.20);
-  --shadow-card: 0 1px 0 rgba(43,33,24,.03), 0 4px 18px rgba(43,33,24,.05);
+  --line-1: rgba(24, 24, 24, 0.10);
+  --line-2: rgba(24, 24, 24, 0.20);
+  --shadow-card: 0 1px 0 rgba(24,24,24,.03), 0 4px 18px rgba(24,24,24,.05);
 }
 
 /* Nuit : scope sombre optionnel (menu du soir, mode cuisine) */
@@ -111,7 +111,7 @@
   --accent-press: #d45e3c;
   --accent-tint: rgba(241, 122, 80, 0.13);
   --accent-tint-strong: rgba(241, 122, 80, 0.26);
-  --on-accent: #2a0f05;
+  --on-accent: #faf7f2;
   --peach: #e0b28d;
   --peach-tint: rgba(224, 178, 141, 0.18);
   --structure: #d7a17c;

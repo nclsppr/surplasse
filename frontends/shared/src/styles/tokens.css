@@ -12,28 +12,28 @@
   --surface-sunken: #ebe1cc;
 
   /* Encre (espresso chaud) */
-  --text-body: #2b2118;
+  --text-body: #181818;
   --text-secondary: #55483a;
   --text-muted: #71604e;
   --text-faint: #796958;
 
   /* Accent : orange international / terracotta */
-  --accent: #e8481c;
+  --accent: #fa550c;
   --accent-hover: #a83721;
   --accent-press: #b94226;
-  --accent-tint: rgba(232, 72, 28, 0.08);
-  --on-accent: #fff7ef;
+  --accent-tint: rgba(250, 85, 12, 0.08);
+  --on-accent: #faf7f2;
 
   /* Structure : brun cannelle, distinct du vert de succès. */
   --structure: #7a4933;
   --structure-hover: #603624;
   --structure-tint: rgba(122, 73, 51, 0.08);
-  --on-structure: #fff7ef;
+  --on-structure: #faf7f2;
 
   /* Lignes et ombres */
-  --line-1: rgba(43, 33, 24, 0.12);
-  --line-2: rgba(43, 33, 24, 0.22);
-  --shadow-card: 0 1px 0 rgba(43, 33, 24, 0.04), 0 4px 16px rgba(43, 33, 24, 0.06);
+  --line-1: rgba(24, 24, 24, 0.12);
+  --line-2: rgba(24, 24, 24, 0.22);
+  --shadow-card: 0 1px 0 rgba(24, 24, 24, 0.04), 0 4px 16px rgba(24, 24, 24, 0.06);
 
   /* Focus */
   --focus-ring: 0 0 0 2px var(--surface-page), 0 0 0 4px var(--accent-press);

@@ -149,29 +149,10 @@ button:disabled {
   gap: var(--sp-3);
 }
 
-.brand-lockup {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.34rem;
-  color: var(--fg-1);
-  line-height: 1;
-}
-
-.brand-mark {
+.brand-logo {
   display: block;
-  width: 2.35rem;
+  width: auto;
   height: 2.35rem;
-}
-
-.brand-wordmark {
-  font-family: var(--font-brand);
-  font-size: 2.15rem;
-  font-kerning: normal;
-  font-optical-sizing: none;
-  font-variation-settings: "opsz" 72;
-  font-weight: 400;
-  letter-spacing: -0.045em;
-  line-height: 0.82;
 }
 
 .brand-tagline {
@@ -1214,13 +1195,9 @@ button:disabled {
     display: none;
   }
 
-  .brand-mark {
-    width: 2rem;
+  .brand-logo {
+    width: auto;
     height: 2rem;
-  }
-
-  .brand-wordmark {
-    font-size: 1.85rem;
   }
 
   .service-header {

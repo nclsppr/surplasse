@@ -8,7 +8,7 @@ description: Le symbole table et repère, le mot-symbole Bodoni Moda et leurs va
 
 ## Statut
 
-Accepté, 2026-07-20.
+Remplacé par ADR-0023, 2026-07-21.
 
 ## Contexte
 

@@ -71,7 +71,7 @@
           variables: {
             colorPrimary: "#b94226",
             colorBackground: "#ffffff",
-            colorText: "#2b2118",
+            colorText: "#181818",
             colorDanger: "#9d3025",
             fontFamily: "Archivo, system-ui, sans-serif",
             borderRadius: "2px",

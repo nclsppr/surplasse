@@ -1,11 +1,11 @@
 /* Surplasse : feuille de base : tokens de la marque. */
 /* Miroir du design system Claude Design (tokens), polices auto-hébergées. */
 /* La couche composants sera aussi synchronisée dans frontends/shared/ en phase 1. */
-@import './fonts/archivo.css?v=20260720d';
-@import './fonts/spacemono.css?v=20260720d';
-@import './fonts/parisienne.css?v=20260720d';
-@import './fonts/bodoni-moda.css?v=20260720d';
-@import './tokens/colors.css?v=20260720d';
-@import './tokens/typography.css?v=20260720d';
-@import './tokens/spacing.css?v=20260720d';
-@import './components.css?v=20260720d';
+@import './fonts/archivo.css?v=20260721a';
+@import './fonts/spacemono.css?v=20260721a';
+@import './fonts/parisienne.css?v=20260721a';
+@import './fonts/bodoni-moda.css?v=20260721a';
+@import './tokens/colors.css?v=20260721a';
+@import './tokens/typography.css?v=20260721a';
+@import './tokens/spacing.css?v=20260721a';
+@import './components.css?v=20260721a';

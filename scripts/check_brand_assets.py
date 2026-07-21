@@ -19,18 +19,17 @@ if not file_path:
     sys.exit(0)
 
 BRAND_SOURCES = {
-    "brand/logo.svg",
-    "brand/mark.svg",
-    "brand/mark-orange.svg",
-    "brand/mark-mono.svg",
+    "brand/surplasse-symbol.svg",
+    "brand/surplasse-wordmark.svg",
+    "brand/surplasse-app-icon.svg",
+    "brand/surplasse-logo-horizontal.svg",
 }
 
 if any(Path(file_path).as_posix().endswith(path) for path in BRAND_SOURCES):
     sys.stderr.write(
-        "Une source du logo Surplasse a change. Les assets derives sont "
-        "peut-etre perimes : regenere-les avec\n"
+        "A Surplasse logo source changed. Derived assets may be stale. Run\n"
         "    python3 scripts/generate_brand_assets.py\n"
-        "puis verifie brand/qr/ (QR a bords arrondis, logo centre).\n"
+        "then verify brand/qr/ (rounded QR modules, centered logo).\n"
     )
     sys.exit(2)
 

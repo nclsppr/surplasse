@@ -1,20 +1,20 @@
 <!doctype html><html lang=fr><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
 <title>Surplasse · planche de marque</title>
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=20260721a">
 <style>
   *{box-sizing:border-box;margin:0}
   body{background:var(--surface-page);color:var(--text-body);padding-bottom:64px}
-  .bar{background:var(--accent-press);color:var(--on-accent);padding:14px 40px;display:flex;justify-content:space-between;align-items:center;gap:24px;font:800 14px/1 var(--font-display);text-transform:uppercase;letter-spacing:.08em}
-  .bar .sp-brand{font-size:24px;text-transform:none}
+  .bar{background:var(--fg-1);color:var(--on-accent);padding:14px 40px;display:flex;justify-content:space-between;align-items:center;gap:24px;font:800 14px/1 var(--font-display);text-transform:uppercase;letter-spacing:.08em}
+  .bar .sp-brand__logo{height:24px}
   .wrap{max-width:1040px;margin:0 auto;padding:0 40px}
   section{padding:40px 0;border-bottom:1px solid var(--line-1)}
   .logo{display:block;width:min(100%,620px);height:auto;margin:20px 0 14px}
-  .mark-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:28px}
-  .mark-card{display:grid;place-items:center;min-height:190px;padding:24px;border:1px solid var(--line-1);background:var(--surface-card)}
-  .mark-card img{width:112px;height:112px}
-  .mark-card--orange{background:var(--peach)}
-  .mark-card--mono{background:var(--bg-3)}
-  .mark-label{margin-top:12px;font:700 10px/1.4 var(--font-mono);text-transform:uppercase;letter-spacing:.08em;color:var(--fg-3);text-align:center}
+  .asset-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:28px}
+  .asset-card{display:grid;place-items:center;min-height:190px;padding:24px;border:1px solid var(--line-1);background:var(--surface-card)}
+  .asset-card__app-icon{width:112px;height:112px}
+  .asset-card__symbol{width:112px;height:112px}
+  .asset-card__wordmark{width:min(100%,190px);height:auto}
+  .asset-label{margin-top:12px;font:700 10px/1.4 var(--font-mono);text-transform:uppercase;letter-spacing:.08em;color:var(--fg-3);text-align:center}
   .baseline{font:700 16px var(--font-ui);text-transform:uppercase;letter-spacing:.06em;color:var(--fg-1)}
   .spec{margin:20px 0}
   .role{font-family:var(--font-mono);font-size:11px;color:var(--fg-3);text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px}
@@ -22,7 +22,7 @@
   .ui{font:600 18px var(--font-ui)}
   .meta{font-family:var(--font-mono);color:var(--fg-3);font-size:15px}
   .script-demo{font-family:var(--font-script);font-size:44px;color:var(--fg-1)}
-  .brand-demo{font:400 52px/.9 var(--font-brand);font-optical-sizing:none;font-variation-settings:'opsz' 72;letter-spacing:-.045em;color:var(--fg-1)}
+  .brand-demo{display:block;width:min(100%,340px);height:auto}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start}
   .card{background:var(--surface-card);border:1px solid var(--line-1);border-radius:var(--radius-md);padding:24px 26px;box-shadow:var(--shadow-card)}
   .estab{font-family:var(--font-script);font-size:34px;color:var(--fg-1);line-height:1}
@@ -38,26 +38,26 @@
   .chip{height:56px;border-radius:var(--radius-md);border:1px solid var(--line-1)}
   .swatch div+div{font-family:var(--font-mono);font-size:11px;color:var(--fg-3);margin-top:6px}
   .swatch b{color:var(--fg-1);display:block;font-weight:700}
-  @media (max-width:700px){.bar{padding-inline:20px}.bar>span:last-child{display:none}.wrap{padding-inline:20px}.grid,.mark-grid{grid-template-columns:1fr}.mark-card{min-height:160px}}
+  @media (max-width:700px){.bar{padding-inline:20px}.bar>span:last-child{display:none}.wrap{padding-inline:20px}.grid,.asset-grid{grid-template-columns:1fr}.asset-card{min-height:160px}}
 </style></head>
 <body>
-<div class=bar><span class="sp-brand sp-brand--inverse" aria-label="Surplasse"><img class=sp-brand__mark src="mark.svg" alt=""><span class=sp-brand__wordmark>Surplasse</span></span><span>Le circuit court de la commande</span></div>
+<div class=bar><span class="sp-brand"><img class=sp-brand__logo src="surplasse-logo-horizontal.svg" alt="Surplasse"></span><span>Le circuit court de la commande</span></div>
 <div class=wrap>
 
 <section>
   <div class=eyebrow>Identité de marque · signature principale</div>
-  <img class=logo src="logo.svg" alt="Surplasse, logo horizontal">
+  <img class=logo src="surplasse-logo-horizontal.svg" alt="Surplasse, logo horizontal">
   <div class=baseline>Le circuit court de la commande.</div>
-  <div class=mark-grid>
-    <div><div class=mark-card><img src="mark.svg" alt="Symbole Surplasse sur fond espresso"></div><div class=mark-label>Icône principale</div></div>
-    <div><div class="mark-card mark-card--orange"><img src="mark-orange.svg" alt="Variante orange du symbole Surplasse"></div><div class=mark-label>Variante orange</div></div>
-    <div><div class="mark-card mark-card--mono"><img src="mark-mono.svg" alt="Version monochrome du symbole Surplasse"></div><div class=mark-label>Mini marque monochrome</div></div>
+  <div class=asset-grid>
+    <div><div class=asset-card><img class=asset-card__app-icon src="surplasse-app-icon.svg" alt="Icône d'application Surplasse"></div><div class=asset-label>Icône d'application</div></div>
+    <div><div class=asset-card><img class=asset-card__symbol src="surplasse-symbol.svg" alt="Symbole Surplasse"></div><div class=asset-label>Symbole compact</div></div>
+    <div><div class=asset-card><img class=asset-card__wordmark src="surplasse-wordmark.svg" alt="Mot-symbole Surplasse"></div><div class=asset-label>Mot-symbole indépendant</div></div>
   </div>
 </section>
 
 <section>
   <div class=rule-title>Système typographique</div>
-  <div class=spec><div class=role>Bodoni Moda 400 · mot-symbole Surplasse</div><div class=brand-demo>Surplasse</div></div>
+  <div class=spec><div class=role>Mot-symbole Surplasse vectorisé</div><img class=brand-demo src="surplasse-wordmark.svg" alt="Surplasse"></div>
   <div class=spec><div class=role>Archivo 800 capitales, orange · titres et noms de plats</div><div class=big>Créez votre restaurant</div></div>
   <div class=spec><div class=role>Archivo 600 · UI, boutons, corps</div><div class=ui>Ajouter au panier · Suivre ma commande · Régler l'addition</div></div>
   <div class=spec><div class=role>Space Mono · méta, prix, quantités, horodatages</div><div class="meta num">12,50 € · (33 cl) · Servie 12:47 · #A-14</div></div>
@@ -78,9 +78,9 @@
     <div>
       <div class=role style="margin-bottom:10px">Palette · Bistro premium</div>
       <div class=sw>
-        <div class=swatch><div class=chip style="background:#f6efe0"></div><div><b>Ivoire (page)</b>#f6efe0</div></div>
-        <div class=swatch><div class=chip style="background:#2b2118"></div><div><b>Encre espresso</b>#2b2118</div></div>
-        <div class=swatch><div class=chip style="background:#e8481c"></div><div><b>Accent orange</b>#e8481c</div></div>
+        <div class=swatch><div class=chip style="background:#faf7f2"></div><div><b>Ivoire du logo</b>#faf7f2</div></div>
+        <div class=swatch><div class=chip style="background:#181818"></div><div><b>Encre du logo</b>#181818</div></div>
+        <div class=swatch><div class=chip style="background:#fa550c"></div><div><b>Orange Surplasse</b>#fa550c</div></div>
         <div class=swatch><div class=chip style="background:#b94226"></div><div><b>Paprika fonctionnel</b>#b94226</div></div>
         <div class=swatch><div class=chip style="background:#7a4933"></div><div><b>Brun cannelle</b>#7a4933</div></div>
         <div class=swatch><div class=chip style="background:#c9926d"></div><div><b>Argile claire</b>#c9926d</div></div>

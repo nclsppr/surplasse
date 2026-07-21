@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Démonstration de l'embarquement et du Dashboard, Surplasse</title>
 <meta name="description" content="Explorez le parcours de création d'une carte Surplasse puis le Dashboard de service.">
-<link rel="icon" href="../../brand/mark.svg" type="image/svg+xml">
-<link rel="stylesheet" href="../../brand/styles.css?v=20260720d">
+<link rel="icon" href="../../brand/surplasse-app-icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../brand/styles.css?v=20260721a">
 <style>
   *{box-sizing:border-box}
   [hidden]{display:none!important}
@@ -14,7 +14,7 @@
   a{color:inherit}
   .topbar{border-bottom:1px solid var(--line-1);background:var(--bg-1)}
   .topbar .in{max-width:640px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:12px}
-  .topbar .sp-brand{font-size:26px}
+  .topbar .sp-brand__logo{height:26px}
   .topbar .back{display:inline-flex;align-items:center;min-height:44px;margin-left:auto;font:700 12px var(--font-ui);text-transform:uppercase;letter-spacing:.06em;color:var(--fg-3);text-decoration:none}
   .topbar .back:focus-visible{outline:none;box-shadow:var(--focus-ring)}
   .demo-banner{border-bottom:1px solid var(--line-1);background:var(--peach-tint)}
@@ -65,7 +65,7 @@
   .dashboard-step>.sub{max-width:68ch}
   .dashboard-preview{overflow:hidden;margin-top:28px;border:1px solid var(--line-2);border-radius:var(--radius-md);background:var(--surface-card)}
   .dashboard-preview-header{display:flex;min-height:58px;align-items:center;justify-content:space-between;gap:16px;padding:12px 18px;border-top:6px solid var(--accent);border-bottom:1px solid var(--line-1);background:var(--surface-raised)}
-  .dashboard-brand{font-size:28px}
+  .dashboard-brand .sp-brand__logo{height:28px}
   .dashboard-demo-label{font:700 10px/1.4 var(--font-mono);color:var(--fg-3);text-transform:uppercase;letter-spacing:.05em;text-align:right}
   .dashboard-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:32px;padding:22px 18px;border-bottom:1.5px solid var(--line-accent)}
   .dashboard-service-label{margin:0;color:var(--accent-press);font:700 10px/1.4 var(--font-mono);text-transform:uppercase;letter-spacing:.08em}
@@ -158,7 +158,7 @@
 </style>
 </head>
 <body>
-<div class="topbar"><div class="in"><a class="sp-brand" href="index.html" aria-label="Surplasse, accueil"><img class="sp-brand__mark" src="../../brand/mark.svg" alt=""><span class="sp-brand__wordmark">Surplasse</span></a><a href="index.html" class="back">Quitter la démo</a></div></div>
+<div class="topbar"><div class="in"><a class="sp-brand" href="index.html" aria-label="Surplasse, accueil"><img class="sp-brand__logo" src="../../brand/surplasse-logo-horizontal.svg" alt=""></a><a href="index.html" class="back">Quitter la démo</a></div></div>
 <div class="demo-banner"><p>Démonstration interactive. Aucun menu n'est publié.</p></div>
 <div class="progress" role="progressbar" aria-label="Progression de la démonstration" aria-valuemin="1" aria-valuemax="5" aria-valuenow="1">
   <div class="seg on" data-seg="1"></div><div class="seg" data-seg="2"></div><div class="seg" data-seg="3"></div><div class="seg" data-seg="4"></div><div class="seg" data-seg="5"></div>
@@ -229,7 +229,7 @@
 
     <article class="dashboard-preview" aria-labelledby="dashboard-preview-title">
       <header class="dashboard-preview-header">
-        <span class="sp-brand dashboard-brand" aria-label="Surplasse"><img class="sp-brand__mark" src="../../brand/mark.svg" alt=""><span class="sp-brand__wordmark">Surplasse</span></span>
+        <span class="sp-brand dashboard-brand"><img class="sp-brand__logo" src="../../brand/surplasse-logo-horizontal.svg" alt="Surplasse"></span>
         <span class="dashboard-demo-label">Simulation locale · Données de démonstration</span>
       </header>
       <div class="dashboard-toolbar">

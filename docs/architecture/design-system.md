@@ -2,7 +2,7 @@
 label: Design system
 order: 25
 icon: paintbrush
-description: "L'identité visuelle de Surplasse (Bistro premium) : logo, typographie, palette, thèmes et règles d'usage, d'après le design system Claude Design."
+description: "L'identité visuelle de Surplasse : système de logo vectoriel, typographie, palette, thèmes et règles d'usage."
 ---
 
 # Design system
@@ -19,15 +19,16 @@ Un menu typographique monochrome : **ivoire premium**, **encre espresso**, orang
 
 ## Logo
 
-Le logo associe un **repère de localisation**, une **table entourée de deux chaises** et le mot **« Surplasse » composé en Bodoni Moda 400**. Cette signature traduit directement la commande à table et distingue la marque produit des noms de restaurants. La décision complète est consignée dans l'[ADR-0021](../decisions/adr-0021-identite-logo-vectoriel.md).
+Le logo associe un **repère de localisation**, une **table entourée de deux chaises** et le mot **« Surplasse »**. Cette signature traduit directement la commande à table et distingue la marque produit des noms de restaurants. La décision complète est consignée dans l'[ADR-0023](../decisions/adr-0023-systeme-logo-vectoriel-fourni.md).
 
-- `brand/logo.svg` : verrouillage horizontal autonome, avec mot-symbole converti en tracés.
-- `brand/mark.svg` : icône principale, carré espresso, symbole ivoire et point orange.
-- `brand/mark-orange.svg` : variante orange avec point espresso.
-- `brand/mark-mono.svg` : symbole sans conteneur pour les petits formats et usages monochromes.
-- `.sp-brand` : composition HTML accessible utilisée dans les interfaces, avec texte réel et police auto-hébergée.
+| Asset canonique | Usage |
+|---|---|
+| `brand/surplasse-logo-horizontal.svg` | Navigation, en-têtes et identité principale |
+| `brand/surplasse-app-icon.svg` | Favicon et icône d'application |
+| `brand/surplasse-wordmark.svg` | Supports compacts ou imprimés qui demandent le nom seul |
+| `brand/surplasse-symbol.svg` | Centre des QR codes et petit repère de marque |
 
-La variante sombre est la signature principale sur les fonds clairs. La variante orange est réservée aux contextes où elle reste clairement détachée du fond. Sur une surface paprika, le mot-symbole passe en ivoire avec `.sp-brand--inverse` et le carré espresso reste intact. Les proportions, les couleurs internes et l'espacement entre le symbole et le nom ne doivent pas être modifiés au cas par cas.
+Les interfaces insèrent l'asset complet adapté au contexte. Elles ne recomposent pas le mot-symbole en HTML, ne déplacent pas le symbole et ne recolorent pas les tracés. Le logo horizontal reste sur un fond clair ou très sombre afin de préserver le contraste de son orange.
 
 ## Typographie
 
@@ -35,7 +36,7 @@ Quatre familles, quatre rôles nettement séparés. Les polices sont **auto-héb
 
 | Police | Variable | Rôle |
 |---|---|---|
-| **Bodoni Moda** | `--font-brand` (`.sp-brand__wordmark`) | Mot-symbole « Surplasse » en 400, avec axe optique fixé à 72 pour une signature stable. Aucun texte courant |
+| **Bodoni Moda** | `--font-brand` | Référence typographique du mot-symbole vectorisé. Aucun texte courant ne reconstitue le logo |
 | **Archivo** | `--font-display`, `--font-ui` | Titres en capitales grasses (800), **par défaut en orange** ; toute l'UI en 400 à 700. Les noms de plats sont aussi en Archivo 800 capitales |
 | **Space Mono** | `--font-mono` | La méta : descriptions de carte, quantités (« (33 cl) »), prix, horodatages, labels eyebrow. Chiffres tabulaires via `.num` |
 | **Parisienne** | `--font-script` (`.script`) | Noms d'établissements et accents éditoriaux. Jamais le mot-symbole Surplasse |
@@ -46,26 +47,26 @@ Signature : les titres `h1, h2, h3` sont en capitales Archivo 800 **couleur acce
 
 ## Palette
 
-Palette « Bistro premium », définie par les tokens de `brand/tokens/colors.css`. L'orange historique garde la vedette sur le point du symbole, les grands titres et les filets. Le paprika plus sombre porte les boutons et petits textes. Le brun cannelle structure les liens, labels et tags sans concurrencer le vert de succès sémantique.
+Palette « Bistro premium », définie par les tokens de `brand/tokens/colors.css`. L'orange Surplasse garde la vedette sur le symbole, les grands titres et les filets. Le paprika plus sombre porte les boutons et petits textes. Le brun cannelle structure les liens, labels et tags sans concurrencer le vert de succès sémantique.
 
 | Rôle | Token | Valeur |
 |---|---|---|
 | Fond page (ivoire) | `--bg-1` / `--surface-page` | `#f6efe0` |
 | Fond carte | `--surface-card` | `#fbf7ec` |
 | Fond creusé | `--surface-sunken` | `#ebe1cc` |
-| Encre (texte) | `--fg-1` / `--text-body` | `#2b2118` |
+| Encre (texte) | `--fg-1` / `--text-body` | `#181818` |
 | Texte secondaire | `--fg-3` / `--text-muted` | `#71604e` |
-| Orange signature (point du symbole, grands titres, filets) | `--accent` | `#e8481c` |
+| Orange signature (symbole, grands titres, filets) | `--accent` | `#FA550C` |
 | Paprika fonctionnel | `--accent-press` | `#b94226` |
 | Paprika profond au survol | `--accent-hover` | `#a83721` |
-| Sur accent (texte ivoire) | `--on-accent` | `#fff7ef` |
+| Sur accent (texte ivoire) | `--on-accent` | `#FAF7F2` |
 | Soutien (sable) | `--peach` | `#f3d5bd` |
 | Soutien (argile claire) | `--clay` | `#c9926d` |
 | Structure (brun cannelle) | `--structure` | `#7a4933` |
 | Succès | `--ok` | `#256b52` |
 | Ligne fine | `--line-1` | espresso 12% |
 
-Toute paire texte/fond destinée à de la lecture doit respecter le contraste WCAG 2.2 AA ([accessibilité](../produit/fonctionnalites.md)). L'encre, le texte secondaire, le paprika et la cannelle passent AA sur ivoire. L'orange `#e8481c` est réservé au point du symbole, aux grands titres, aux filets et aux grandes icônes. Pour un bouton ou un petit libellé, utiliser `--accent-press`. L'argile claire reste un aplat décoratif avec de l'encre espresso, jamais une couleur de texte.
+Toute paire texte/fond destinée à de la lecture doit respecter le contraste WCAG 2.2 AA ([accessibilité](../produit/fonctionnalites.md)). L'encre, le texte secondaire, le paprika et la cannelle passent AA sur ivoire. L'orange `#FA550C` est réservé au symbole, aux grands titres, aux filets et aux grandes icônes. Pour un bouton ou un petit libellé, utiliser `--accent-press`. L'argile claire reste un aplat décoratif avec l'encre du logo, jamais une couleur de texte.
 
 ### Thèmes
 
@@ -106,7 +107,7 @@ Deux règles de marque non négociables pour les QR codes de Surplasse :
 - **bords arrondis** (modules arrondis) ;
 - **logo Surplasse au centre**.
 
-Le verrouillage horizontal étant large, le centre du QR porte une simplification compacte du **symbole table et repère** sur un fond ivoire protégé. Le nom de l'établissement et l'URL se placent sous le QR sur les supports comme les stickers et sous-verres. Chaque QR encode `{APP_SCHEME}://{slug}.{APP_BASE_DOMAIN}/?table={jeton}`. Le profil de production donne `.com`, celui de développement `.test`.
+Le verrouillage horizontal étant large, le centre du QR porte exactement `brand/surplasse-symbol.svg` sur un fond ivoire protégé. Le nom de l'établissement et l'URL se placent sous le QR sur les supports comme les stickers et sous-verres. Chaque QR encode `{APP_SCHEME}://{slug}.{APP_BASE_DOMAIN}/?table={jeton}`. Le profil de production donne `.com`, celui de développement `.test`.
 
 Le générateur est un outil de build et de développement, absent de la production. Son installation et son exécution sont identiques sur macOS, Linux et Ubuntu sous WSL2 :
 
@@ -123,6 +124,6 @@ test -s brand/qr/qr-demo.png
 test -s brand/qr/qr-demo-development.png
 ```
 
-`deactivate` quitte l'environnement et `rm -rf .venv-brand` le supprime si aucune autre tâche ne l'utilise. Le script lit `config/domains/development.env` et `config/domains/production.env`, puis produit les QR `.test` et `.com` (modules arrondis espresso sur ivoire, correction d'erreur haute pour tolérer la marque centrale) dans `brand/qr/`. Le fichier `qr-demo-development.png` sert en local et `qr-demo.png` reste l'exemple de production. Un exemple de sticker de table est dans `brand/qr/sticker.html`.
+`deactivate` quitte l'environnement et `rm -rf .venv-brand` le supprime si aucune autre tâche ne l'utilise. Le script lit `config/domains/development.env` et `config/domains/production.env`, puis produit les QR `.test` et `.com` (modules arrondis encre sur ivoire, correction d'erreur haute pour tolérer la marque centrale) dans `brand/qr/`. Le fichier `qr-demo-development.png` sert en local et `qr-demo.png` reste l'exemple de production. Un exemple de sticker de table est dans `brand/qr/sticker.html`.
 
-Les SVG `brand/logo.svg`, `brand/mark.svg`, `brand/mark-orange.svg` et `brand/mark-mono.svg` sont les **sources** ; les QR et supports en sont dérivés. Un hook `PostToolUse` (`scripts/check_brand_assets.py`, branché dans `.claude/settings.json`) rappelle de régénérer ces assets dès que l'une de ces sources change, pour qu'ils ne se désynchronisent jamais du logo.
+Les SVG `brand/surplasse-logo-horizontal.svg`, `brand/surplasse-app-icon.svg`, `brand/surplasse-wordmark.svg` et `brand/surplasse-symbol.svg` sont les **sources** ; les QR et supports en sont dérivés. Un hook `PostToolUse` (`scripts/check_brand_assets.py`, branché dans `.claude/settings.json`) rappelle de régénérer ces assets dès que l'une de ces sources change, pour qu'ils ne se désynchronisent jamais du logo.

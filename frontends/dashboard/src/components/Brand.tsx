@@ -1,13 +1,10 @@
 import { fr } from "../i18n/fr";
-import markUrl from "../../../../brand/mark.svg";
+import logoUrl from "../../../../brand/surplasse-logo-horizontal.svg";
 
 export function Brand() {
   return (
     <div className="brand">
-      <span className="brand-lockup" aria-label={fr.brand.name}>
-        <img className="brand-mark" src={markUrl} alt="" />
-        <span className="brand-wordmark">{fr.brand.name}</span>
-      </span>
+      <img className="brand-logo" src={logoUrl} alt={fr.brand.name} />
       <small className="brand-tagline">{fr.brand.tagline}</small>
     </div>
   );

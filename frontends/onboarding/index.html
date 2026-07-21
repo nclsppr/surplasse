@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#b94226">
+<meta name="theme-color" content="#FA550C">
 <title>Surplasse, le circuit court de la commande</title>
 <meta name="description" content="Créez votre propre canal de commande directe, sans projet informatique. Une photo de la carte suffit pour commencer.">
-<link rel="icon" href="../../brand/mark.svg" type="image/svg+xml">
-<link rel="stylesheet" href="../../brand/styles.css?v=20260720d">
+<link rel="icon" href="../../brand/surplasse-app-icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../brand/styles.css?v=20260721a">
 <style>
   *{box-sizing:border-box}
   html{scroll-behavior:smooth;scroll-padding-top:88px}
@@ -27,7 +27,8 @@
   /* Header */
   header.site{position:sticky;top:0;z-index:40;background:var(--surface-page);border-bottom:1px solid var(--line-1)}
   header.site .bar{display:flex;align-items:center;gap:14px;min-height:68px}
-  header.site .sp-brand{min-height:44px;font-size:31px}
+  header.site .sp-brand{min-height:44px}
+  header.site .sp-brand__logo{height:31px}
   header.site nav{display:none;gap:2px;margin-left:18px}
   header.site .spacer{margin-left:auto}
   header.site .cta-connect{display:none}
@@ -97,9 +98,9 @@
 
   .qr-stage{margin:0;padding:clamp(26px,5vw,50px);border-radius:var(--radius-lg);background:var(--clay)}
   .table-card{width:min(100%,330px);margin:0 auto;padding:26px 24px 22px;background:var(--surface-raised);color:var(--fg-1);border:2px solid var(--fg-1);transform:rotate(-1.25deg);text-align:center}
-  .table-card-wordmark{font:400 34px/.9 var(--font-brand);font-optical-sizing:none;font-variation-settings:'opsz' 72;letter-spacing:-.045em;color:var(--fg-1)}
+  .table-card .table-card-wordmark{display:block;width:168px;height:auto;margin:0 auto}
   .table-number{margin:10px 0 18px;font:800 13px/1.4 var(--font-display);text-transform:uppercase;letter-spacing:.08em}
-  .table-card img{width:168px;margin:0 auto;border:8px solid var(--bg-3)}
+  .table-card .table-card-qr{display:block;width:168px;margin:0 auto;border:8px solid var(--bg-3)}
   .scan-copy{margin:18px 0 0;font:800 16px/1.25 var(--font-display);text-transform:uppercase;color:var(--fg-1)}
   .scan-detail{margin:7px 0 0;font:400 10px/1.5 var(--font-mono);color:var(--fg-3)}
   .qr-stage figcaption{margin:18px 0 0;color:var(--fg-1);font:700 10px/1.45 var(--font-mono);text-align:center}
@@ -131,10 +132,10 @@
   .question dt{font:800 17px/1.35 var(--font-display);text-transform:uppercase;color:var(--fg-1)}
   .question dd{margin:9px 0 0;font:400 14px/1.65 var(--font-ui);color:var(--fg-2)}
 
-  footer.site{background:var(--accent-press);color:var(--on-accent);padding:34px 0}
+  footer.site{background:var(--fg-1);color:var(--on-accent);padding:34px 0}
   footer.site .row{display:flex;flex-direction:column;gap:16px}
   footer.site .identity{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-  footer.site .sp-brand{font-size:30px}
+  footer.site .sp-brand__logo{height:30px}
   footer.site .tagline{font:400 11px/1.5 var(--font-mono);text-transform:uppercase;letter-spacing:.07em}
   footer.site .links{display:flex;flex-wrap:wrap;gap:18px;font:700 12px/1.4 var(--font-ui);text-transform:uppercase;letter-spacing:.05em}
   footer.site .links a{display:inline-flex;align-items:center;min-height:44px}
@@ -164,7 +165,7 @@
 
   @media (max-width:759px){
     header.site .bar{min-height:64px}
-    header.site .sp-brand{font-size:28px}
+    header.site .sp-brand__logo{height:28px}
     header.site .header-action{padding-inline:13px;font-size:11px}
     .hero .actions{display:grid}
     .hero .sp-btn{width:100%}
@@ -195,7 +196,7 @@
 
 <header class="site">
   <div class="wrap bar">
-    <a class="sp-brand" href="index.html" aria-label="Surplasse, accueil"><img class="sp-brand__mark" src="../../brand/mark.svg" alt=""><span class="sp-brand__wordmark">Surplasse</span></a>
+    <a class="sp-brand" href="index.html" aria-label="Surplasse, accueil"><img class="sp-brand__logo" src="../../brand/surplasse-logo-horizontal.svg" alt=""></a>
     <nav aria-label="Navigation principale">
       <a href="#fonctionnement" class="sp-btn sp-btn--ghost sp-btn--sm">Fonctionnement</a>
       <a href="#client" class="sp-btn sp-btn--ghost sp-btn--sm">Côté client</a>
@@ -316,9 +317,9 @@
     <div class="story">
       <figure class="qr-stage">
         <div class="table-card">
-          <div class="table-card-wordmark">Surplasse</div>
+          <img class="table-card-wordmark" src="../../brand/surplasse-wordmark.svg" alt="Surplasse">
           <div class="table-number">Table 12</div>
-          <img src="../../brand/qr/qr-demo.png" alt="QR code de démonstration pour la table 12" width="168" height="168">
+          <img class="table-card-qr" src="../../brand/qr/qr-demo.png" alt="QR code de démonstration pour la table 12" width="168" height="168">
           <div class="scan-copy">Scannez. Commandez. Profitez.</div>
           <p class="scan-detail">Aucune application. Aucun compte client.</p>
         </div>
@@ -393,7 +394,7 @@
 
 <footer class="site">
   <div class="wrap row">
-    <div class="identity"><span class="sp-brand sp-brand--inverse" aria-label="Surplasse"><img class="sp-brand__mark" src="../../brand/mark.svg" alt=""><span class="sp-brand__wordmark">Surplasse</span></span><span class="tagline">Le circuit court de la commande.</span></div>
+    <div class="identity"><span class="sp-brand"><img class="sp-brand__logo" src="../../brand/surplasse-logo-horizontal.svg" alt="Surplasse"></span><span class="tagline">Le circuit court de la commande.</span></div>
     <div class="links"><a href="#fonctionnement">Fonctionnement</a><a href="#tarif">Tarif</a><a href="#questions">Questions</a><a href="creer.html">Démonstration</a></div>
   </div>
 </footer>
