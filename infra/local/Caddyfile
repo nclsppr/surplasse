@@ -70,6 +70,17 @@ https://{$APP_BASE_DOMAIN}, https://*.{$APP_BASE_DOMAIN} {
 		}
 	}
 
+	@docs_pretty {
+		host {$SURPLASSE_DOCS_HOST}
+		not path /surplasse/docs /surplasse/docs/*
+	}
+	handle @docs_pretty {
+		rewrite * /surplasse/docs{uri}
+		reverse_proxy 127.0.0.1:5005 {
+			import local_forwarded_headers
+		}
+	}
+
 	@docs host {$SURPLASSE_DOCS_HOST}
 	handle @docs {
 		reverse_proxy 127.0.0.1:5005 {

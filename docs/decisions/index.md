@@ -85,7 +85,7 @@ Ne jamais « corriger » un ADR pour l'aligner sur une page plus récente. Soit 
 
 ## Registre des ADR
 
-Vingt-trois ADR sont consignés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'au système de logo vectoriel.
+Vingt-quatre ADR sont consignés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'aux deux registres visuels complémentaires.
 
 | Numéro | Titre | Statut | Lien |
 |---|---|---|---|
@@ -112,5 +112,6 @@ Vingt-trois ADR sont consignés à ce jour. Ils couvrent les choix structurants 
 | 0021 | Identité et logo vectoriel | Remplacé par ADR-0023 | [ADR-0021](adr-0021-identite-logo-vectoriel.md) |
 | 0022 | Remboursement intégral Stripe | Accepté | [ADR-0022](adr-0022-remboursement-integral-stripe.md) |
 | 0023 | Système de logo vectoriel fourni | Accepté | [ADR-0023](adr-0023-systeme-logo-vectoriel-fourni.md) |
+| 0024 | Deux registres visuels complémentaires | Accepté | [ADR-0024](adr-0024-deux-registres-visuels.md) |
 
 Les décisions encore ouvertes (par exemple le choix de la solution d'impression thermique ESC/POS mentionné dans la stack de référence) donneront lieu à de futurs ADR au fil de la [roadmap](../roadmap.md).

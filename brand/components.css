@@ -59,3 +59,44 @@ textarea.sp-input { height: auto; padding: 10px 12px; resize: vertical; }
 
 /* Filet net : séparateur d'items façon carte imprimée */
 .sp-rule { border: none; border-top: 1px solid var(--accent); margin: 0; opacity: .55; }
+
+/* Variante de service : géométrie nette pour les surfaces de marque Surplasse. */
+.theme-service .sp-btn,
+.theme-service .sp-card,
+.theme-service .sp-badge,
+.theme-service .sp-tag,
+.theme-service .sp-input {
+  border-radius: 0;
+}
+
+.theme-service .sp-btn {
+  border-width: 2px;
+  letter-spacing: 0.04em;
+}
+
+.theme-service .sp-btn--primary {
+  background: var(--accent);
+  color: var(--fg-1);
+  border-color: var(--fg-1);
+  box-shadow: 3px 3px 0 var(--fg-1);
+}
+
+.theme-service .sp-btn--primary:hover {
+  background: #ff6a27;
+  color: var(--fg-1);
+  text-decoration: none;
+}
+
+.theme-service .sp-btn--primary:active {
+  box-shadow: 1px 1px 0 var(--fg-1);
+  transform: translate(2px, 2px);
+}
+
+.theme-service .sp-btn--secondary {
+  color: var(--fg-1);
+  border-color: var(--fg-1);
+}
+
+.theme-service .sp-btn--ghost {
+  color: var(--fg-1);
+}

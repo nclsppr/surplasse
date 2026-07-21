@@ -88,6 +88,46 @@
   --shadow-card: 0 1px 0 rgba(24,24,24,.03), 0 4px 18px rgba(24,24,24,.05);
 }
 
+/* Service direct : surfaces Surplasse, marketing et pilotage opérationnel. */
+.theme-service {
+  --bg-0: #d8d8d2;
+  --bg-1: #f4f4f0;
+  --bg-2: #e8e8e2;
+  --bg-2b: #fafaf7;
+  --bg-3: #ffffff;
+  --surface-page: var(--bg-1);
+  --surface-card: var(--bg-2b);
+  --surface-raised: var(--bg-3);
+  --surface-sunken: var(--bg-0);
+  --fg-1: #11110f;
+  --fg-2: #343431;
+  --fg-3: #5f5f59;
+  --fg-4: #76766f;
+  --text-body: var(--fg-1);
+  --text-muted: var(--fg-3);
+  --text-faint: var(--fg-4);
+  --structure: #11110f;
+  --structure-hover: #343431;
+  --structure-tint: rgba(17, 17, 15, 0.07);
+  --structure-tint-strong: rgba(17, 17, 15, 0.14);
+  --on-structure: #f4f4f0;
+  --line-structure: rgba(17, 17, 15, 0.52);
+  --green: var(--structure);
+  --green-hover: var(--structure-hover);
+  --green-tint: var(--structure-tint);
+  --green-tint-strong: var(--structure-tint-strong);
+  --on-green: var(--on-structure);
+  --line-green: var(--line-structure);
+  --ok: #246d52;
+  --ok-tint: rgba(36, 109, 82, 0.13);
+  --line-1: rgba(17, 17, 15, 0.16);
+  --line-2: rgba(17, 17, 15, 0.36);
+  --line-accent: rgba(250, 85, 12, 0.72);
+  --shadow-card: 3px 3px 0 rgba(17, 17, 15, 0.9);
+  --shadow-pop: 7px 7px 0 rgba(17, 17, 15, 0.9);
+  --focus-ring: 0 0 0 2px var(--bg-1), 0 0 0 5px var(--accent);
+}
+
 /* Nuit : scope sombre optionnel (menu du soir, mode cuisine) */
 .theme-nuit {
   --bg-0: #150f0a;

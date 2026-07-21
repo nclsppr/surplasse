@@ -7,13 +7,21 @@ description: "L'identité visuelle de Surplasse : système de logo vectoriel, ty
 
 # Design system
 
-Cette page fixe l'identité visuelle de Surplasse. La **source de vérité** est le design system Claude Design « Restaurant management system design » (direction **« Bistro premium »**). Ses tokens sont mirrorés dans `brand/` (avec les polices auto-hébergées) et alimenteront le package partagé `frontends/shared/` ; les composants et UI kits seront synchronisés en phase 1.
+Cette page fixe l'identité visuelle de Surplasse. La **source de vérité** est `brand/`, avec ses polices auto-hébergées, ses tokens, ses composants et ses assets canoniques. Le système porte deux registres complémentaires, **Service direct** pour la marque produit et **Bistro premium** pour les établissements. Cette séparation est fixée par l'[ADR-0024](../decisions/adr-0024-deux-registres-visuels.md).
 
 !!! info Documentation de référence
 La marque est définie dans `brand/` et ses premières briques sont consommées par `frontends/shared/`, Commande et le premier Dashboard. L'Onboarding React l'intégrera à sa création selon la [roadmap](../roadmap.md).
 !!!
 
-## Direction : Bistro premium
+## Deux registres, une seule marque
+
+### Service direct
+
+Le registre de la vitrine Surplasse et des surfaces opérationnelles : **fond neutre**, **encre presque noire**, orange signature, bordures nettes et angles droits. Les titres sont en Archivo 800, en casse naturelle et avec une approche resserrée. Space Mono porte uniquement les statuts, numéros, horodatages et preuves courtes.
+
+La composition montre des flux concrets plutôt que des formes décoratives. Le pixel art peut représenter la chaîne photo, carte structurée, QR de table et ticket cuisine. Il reste sémantique, compréhensible sans animation et limité à un mouvement discret.
+
+### Bistro premium
 
 Un menu typographique monochrome : **ivoire premium**, **encre espresso**, orange signature, paprika fonctionnel et brun cannelle pour la structure fine. Le vert est réservé aux états de succès. Aplats, pas de dégradés. Coins quasi droits, esprit imprimé. Le produit s'efface, la carte parle.
 
@@ -37,11 +45,11 @@ Quatre familles, quatre rôles nettement séparés. Les polices sont **auto-héb
 | Police | Variable | Rôle |
 |---|---|---|
 | **Bodoni Moda** | `--font-brand` | Référence typographique du mot-symbole vectorisé. Aucun texte courant ne reconstitue le logo |
-| **Archivo** | `--font-display`, `--font-ui` | Titres en capitales grasses (800), **par défaut en orange** ; toute l'UI en 400 à 700. Les noms de plats sont aussi en Archivo 800 capitales |
+| **Archivo** | `--font-display`, `--font-ui` | Titres et interface. En Service direct, casse naturelle et encre noire. En Bistro premium, capitales grasses et orange par défaut. Les noms de plats restent en Archivo 800 capitales |
 | **Space Mono** | `--font-mono` | La méta : descriptions de carte, quantités (« (33 cl) »), prix, horodatages, labels eyebrow. Chiffres tabulaires via `.num` |
 | **Parisienne** | `--font-script` (`.script`) | Noms d'établissements et accents éditoriaux. Jamais le mot-symbole Surplasse |
 
-Signature : les titres `h1, h2, h3` sont en capitales Archivo 800 **couleur accent**. Le **filet titré** `.rule-title` encadre un titre de deux barres orange. Les labels et boutons sont toujours en capitales avec un tracking de 0.06 à 0.1em.
+Dans le registre Bistro premium, les titres `h1, h2, h3` sont en capitales Archivo 800 **couleur accent**. Le **filet titré** `.rule-title` encadre un titre de deux barres orange. Dans le scope `.theme-service`, les titres passent en casse naturelle, en encre noire et avec une approche maximale de `-0.03em`. Les labels et boutons restent en capitales avec une approche modérée.
 
 Échelle de type (`--text-*`, `--display-*`) : de `--text-xs` 12px à `--display-xl` 64px. Détail dans `brand/tokens/typography.css`.
 
@@ -68,14 +76,15 @@ Palette « Bistro premium », définie par les tokens de `brand/tokens/colors.cs
 
 Toute paire texte/fond destinée à de la lecture doit respecter le contraste WCAG 2.2 AA ([accessibilité](../produit/fonctionnalites.md)). L'encre, le texte secondaire, le paprika et la cannelle passent AA sur ivoire. L'orange `#FA550C` est réservé au symbole, aux grands titres, aux filets et aux grandes icônes. Pour un bouton ou un petit libellé, utiliser `--accent-press`. L'argile claire reste un aplat décoratif avec l'encre du logo, jamais une couleur de texte.
 
-### Thèmes
+### Thèmes et registres
 
-Trois scopes, mêmes tokens :
+Quatre scopes, mêmes tokens :
 
 | Scope | Usage | Surfaces |
 |---|---|---|
 | défaut | Carte et menu client | Ivoire profond `#f6efe0` |
 | `.theme-light` | Landing marketing, dashboard | Quasi blanc `#faf8f3`, cartes blanches |
+| `.theme-service` | Vitrine Surplasse, surfaces opérationnelles | Gris papier `#f4f4f0`, encre `#11110f`, ombres franches |
 | `.theme-nuit` | Menu du soir, mode cuisine plein écran | Espresso profond, orange éclairci |
 
 Sur les mini-sites, ces variables de base sont **surchargées par le thème de l'établissement** (couleurs extraites à l'embarquement), sur le mécanisme décrit dans [les frontends](frontends.md).
@@ -86,6 +95,7 @@ Sur les mini-sites, ces variables de base sont **surchargées par le thème de l
 - **Motif signature** : barres pleines accent (header, barre d'onglets de carte, barre panier/CTA en bas, footer), texte ivoire en capitales.
 - **Bordures** : 1px `--line-1` pour la structure ; filets orange (`--line-accent`, 1 à 1.5px) entre items de carte ; 1.5px accent pour boutons secondaires et modales.
 - **Ombres** discrètes (`--shadow-card`), esprit imprimé. Beaucoup de contenus se posent à plat, en listes à filets, sans carte.
+- **Service direct** : bordures 1 à 2px, angles droits et ombres franches de 3 à 8px uniquement pour faire ressortir une action ou un objet produit.
 - **Hover / press / focus** : `--accent-tint`, `--accent-hover`, `scale(0.98)` au press, double anneau `--focus-ring`. Transitions 150ms ease-out, pas de bounce.
 - **Espacement** : échelle de 4px (`--sp-1` à `--sp-9`). Marketing aéré (sections 96px, conteneur 1120px) ; dashboard dense (12 à 16px).
 
@@ -93,6 +103,8 @@ Sur les mini-sites, ces variables de base sont **surchargées par le thème de l
 
 - **Icônes : Lucide**, trait 1.75px arrondi, 16/20px, `currentColor`. Pas d'emoji, pas d'unicode en guise d'icônes (sauf « € » et « · »).
 - **Photos** chaudes, appétissantes, lumière naturelle. Placeholders rayés avec note monospace en attendant les vraies photos. Les visuels de plats générés (voir [ADR-0011](../decisions/adr-0011-visuels-plats.md)) suivent cette direction chaude.
+- **Illustrations de flux** : pixel art ou schémas géométriques qui montrent une transformation produit réelle. Pas de bruit, de grille décorative, d'effet terminal ou d'animation continue sans sens.
+- **Marques de paiement** : assets officiels Apple Pay, Google Pay et Stripe conservés sous `brand/payments/`. Les tracés et couleurs ne sont pas modifiés. La composition adapte seulement la taille, le fond et la zone de protection.
 
 ## Tokens et intégration frontend
 

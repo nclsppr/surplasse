@@ -85,6 +85,8 @@ jobs:
             sed 's|\.\./\.\./brand/|brand/|g' "$f" > "site/$(basename "$f")"
           done
           cp frontends/onboarding/connect.js site/connect.js
+          cp frontends/onboarding/index.css site/brand/onboarding.css
+          cp frontends/onboarding/index.js site/brand/onboarding.js
           cp frontends/onboarding/runtime-config.js site/runtime-config.js
           # Assets de marque (polices, tokens, styles, composants, QR)
           cp -R brand/. site/brand/

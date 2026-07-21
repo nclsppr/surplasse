@@ -43,6 +43,22 @@ h1, h2, h3, .display {
   text-wrap: balance;
 }
 
+/* Le registre de service parle comme un produit, pas comme une affiche de restaurant. */
+.theme-service h1,
+.theme-service h2,
+.theme-service h3,
+.theme-service .display {
+  color: var(--fg-1);
+  text-transform: none;
+  letter-spacing: -0.03em;
+  line-height: 0.98;
+}
+
+.theme-service .eyebrow {
+  color: var(--fg-1);
+  letter-spacing: 0.08em;
+}
+
 /* Script is reserved for restaurant names and editorial accents. */
 .script {
   font-family: var(--font-script);

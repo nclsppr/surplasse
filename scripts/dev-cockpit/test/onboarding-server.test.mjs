@@ -21,11 +21,30 @@ test("Onboarding landing keeps truthful pilot terms and product evidence", async
     /0 % de commission pendant les 3 premiers mois, puis 1 % par commande\./,
   );
   assert.match(html, /Les frais Stripe sont distincts/);
-  assert.match(html, /Surplasse n'est pas une marketplace\./);
-  assert.match(html, /Prototype produit, données d'exemple\./);
+  assert.match(html, /Surplasse n[’']est pas une marketplace\./);
+  assert.match(html, /Simulation locale, données d’exemple\./);
   assert.match(html, /\.\.\/\.\.\/brand\/qr\/qr-demo\.png/);
+  assert.match(html, /brand\/illustrations\/service-line\.svg/);
+  assert.match(html, /brand\/payments\/apple-pay\.svg/);
+  assert.match(html, /brand\/payments\/google-pay\.svg/);
+  assert.match(html, /brand\/payments\/stripe\.svg/);
+  assert.match(html, /data-order-console/);
+  assert.match(html, /data-doc-path="\/roadmap\/"/);
   assert.doesNotMatch(html, /repeating-linear-gradient/);
   assert.doesNotMatch(html, /capture :|téléphone :/);
+});
+
+test("Onboarding landing interaction follows the canonical order states", async () => {
+  const script = await readFile(`${repoRoot}/frontends/onboarding/index.js`, "utf8");
+
+  assert.match(script, /id: "paid", label: "Nouvelle commande"/);
+  assert.match(script, /id: "accepted", label: "Commande acceptée"/);
+  assert.match(script, /id: "preparing", label: "En préparation"/);
+  assert.match(script, /id: "ready", label: "Commande prête"/);
+  assert.match(script, /id: "served", label: "Commande servie"/);
+  assert.match(script, /domainConfig\.DASHBOARD_URL/);
+  assert.match(script, /domainConfig\.DOCS_URL/);
+  assert.doesNotMatch(script, /https:\/\/(?:dashboard\.|docs\.)?surplasse\.(?:com|test)/);
 });
 
 test("Onboarding demonstration ends with a truthful Dashboard service preview", async () => {
@@ -75,6 +94,12 @@ test("Onboarding static server serves only the explicit public asset allowlist",
     ["/brand/surplasse-wordmark.svg", "image/svg+xml"],
     ["/brand/surplasse-app-icon.svg", "image/svg+xml"],
     ["/brand/surplasse-logo-horizontal.svg", "image/svg+xml"],
+    ["/brand/onboarding.css", "text/css; charset=utf-8"],
+    ["/brand/onboarding.js", "text/javascript; charset=utf-8"],
+    ["/brand/illustrations/service-line.svg", "image/svg+xml"],
+    ["/brand/payments/apple-pay.svg", "image/svg+xml"],
+    ["/brand/payments/google-pay.svg", "image/svg+xml"],
+    ["/brand/payments/stripe.svg", "image/svg+xml"],
     ["/brand/fonts/bodoni-moda.css", "text/css; charset=utf-8"],
     ["/brand/qr/qr-demo.png", "image/png"],
   ];
