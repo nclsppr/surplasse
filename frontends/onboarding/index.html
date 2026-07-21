@@ -8,7 +8,7 @@
   <meta name="description" content="Un canal de commande directe pour relier chaque table à votre cuisine, sans marketplace ni projet informatique.">
   <link rel="icon" href="../../brand/surplasse-app-icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../../brand/styles.css?v=20260721b">
-  <link rel="stylesheet" href="../../brand/onboarding.css?v=20260721b">
+  <link rel="stylesheet" href="../../brand/onboarding.css?v=20260722a">
 </head>
 <body>
   <a class="skip sp-btn sp-btn--primary" href="#contenu">Aller au contenu</a>
@@ -34,26 +34,71 @@
     <section class="hero" aria-labelledby="hero-title">
       <div class="wrap hero-grid">
         <div class="hero-copy">
-          <p class="eyebrow">Canal direct pour restaurants indépendants</p>
-          <h1 id="hero-title">La commande prend le chemin le plus court.</h1>
-          <p class="hero-intro">Surplasse relie la table à votre cuisine, sans marketplace. Le client scanne, choisit et paie. Votre équipe reçoit une commande nette. Vous gardez vos prix et votre relation client.</p>
+          <p class="eyebrow">Le circuit court de la commande</p>
+          <h1 id="hero-title">Vos commandes. Vos clients. Votre restaurant.</h1>
+          <p class="hero-intro">Un canal de commande directe aux couleurs de votre établissement. Le client scanne, choisit et paie sans compte. Vous gardez vos prix, vos clients et votre relation.</p>
           <div class="hero-actions">
             <a href="creer.html" class="sp-btn sp-btn--primary sp-btn--lg">Tester la démo</a>
-            <a class="text-link" href="#service-live">Voir une commande circuler <span aria-hidden="true">↓</span></a>
-          </div>
-          <div class="proof-strip" aria-label="Informations sur la démonstration">
-            <span><strong>03 min</strong> pour comprendre</span>
-            <span><strong>Local</strong> dans le navigateur</span>
-            <span><strong>0 envoi</strong> de votre photo</span>
+            <a class="text-link" href="#client">Voir le parcours client <span aria-hidden="true">↓</span></a>
           </div>
         </div>
 
-        <figure class="hero-visual">
-          <img src="../../brand/illustrations/service-line.svg" alt="Une carte photographiée devient un menu structuré, rejoint un QR de table puis une commande en cuisine">
-          <figcaption>
-            <span>Circuit produit visé</span>
-            <span>Photo → carte → table → cuisine</span>
-          </figcaption>
+        <figure class="product-stage">
+          <div class="stage-label">Du QR à la cuisine</div>
+          <article class="menu-screen" aria-label="Aperçu de la carte client Fiorella">
+            <div class="menu-screen-top">
+              <div class="restaurant-name">Fiorella</div>
+              <div class="service-status">Ouvert<br>Table 12</div>
+            </div>
+            <div class="menu-category">Pizze</div>
+            <div class="menu-row">
+              <div><div class="menu-row-name">Margherita</div><div class="menu-row-detail">tomate, mozzarella, basilic</div></div>
+              <div class="menu-row-price">12,00 €</div>
+            </div>
+            <div class="menu-row">
+              <div><div class="menu-row-name">Diavola</div><div class="menu-row-detail">salami piquant, mozzarella</div></div>
+              <div class="menu-row-price">14,00 €</div>
+            </div>
+            <div class="menu-row">
+              <div><div class="menu-row-name">Burrata</div><div class="menu-row-detail">tomates confites, basilic</div></div>
+              <div class="menu-row-price">13,00 €</div>
+            </div>
+            <div class="menu-action"><span>Voir le panier</span><span>2</span></div>
+          </article>
+          <aside class="ticket" aria-label="Ticket restaurant de la table 12">
+            <div class="ticket-head"><span>Commande 1042</span><span>19:12</span></div>
+            <div class="ticket-line">Table 12<span>2 × Margherita<br>1 × Burrata</span></div>
+            <div class="ticket-state"><span>Payée</span><span>À accepter</span></div>
+          </aside>
+          <figcaption>Une commande nette, de la table à la cuisine.</figcaption>
+        </figure>
+
+        <div class="hero-offer" id="tarif-hero">
+          <div>
+            <span>Tarif Surplasse</span>
+            <strong>0 % de commission pendant les 3 premiers mois, puis 1 % par commande.</strong>
+            <p>Les frais Stripe sont distincts et s’appliquent dès le premier paiement.</p>
+          </div>
+          <div>
+            <span>Votre relation client</span>
+            <strong>Surplasse n’est pas une marketplace.</strong>
+            <p>Votre établissement garde son identité, ses prix et ses clients.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="fonctionnement" class="section pixel-section" aria-labelledby="pixel-title">
+      <div class="wrap pixel-grid">
+        <div class="pixel-copy">
+          <p class="eyebrow eyebrow-light">La ligne de service Surplasse</p>
+          <h2 id="pixel-title">Votre carte devient un service complet.</h2>
+          <p>Une photo suffit pour structurer votre carte. Le QR l’ouvre à la bonne table, le client paie depuis son téléphone et la commande arrive directement en cuisine.</p>
+          <a class="pixel-link" href="#service-live">Suivre une commande <span aria-hidden="true">↘</span></a>
+        </div>
+        <figure class="pixel-visual">
+          <img src="../../brand/illustrations/service-line.svg" alt="Une carte photographiée devient une carte structurée, rejoint un QR de table puis une commande en cuisine">
+          <figcaption><span>Photo</span><span>Carte</span><span>Table</span><span>Cuisine</span></figcaption>
         </figure>
       </div>
       <div class="service-ticker" aria-label="Parcours de la commande">
@@ -63,36 +108,36 @@
       </div>
     </section>
 
-    <section id="fonctionnement" class="section section-process">
+    <section class="section section-process" aria-labelledby="process-title">
       <div class="wrap">
         <div class="section-heading split-heading">
           <div>
             <p class="eyebrow">Le circuit, sans détour</p>
-            <h2>Un seul flux. Quatre moments utiles.</h2>
+            <h2 id="process-title">Un seul flux. Quatre moments utiles.</h2>
           </div>
-          <p>La démo actuelle permet déjà de tester la photo et la relecture localement. L’extraction assistée, la publication et la prise de commandes seront activées progressivement pendant le pilote.</p>
+          <p>Surplasse transforme votre carte, génère l’accès à table et fait arriver chaque commande payée dans le Dashboard. Votre équipe garde la main à chaque étape.</p>
         </div>
 
         <ol class="process-list">
           <li>
             <span class="step-label">Carte</span>
             <div><h3>Partir de votre carte</h3><p>Photographiez ce que vous utilisez déjà. Pas de fichier à reformater avant de commencer.</p></div>
-            <span class="step-status">Démo locale</span>
+            <span class="step-status">Point de départ</span>
           </li>
           <li>
             <span class="step-label">Structure</span>
-            <div><h3>Relire la structure</h3><p>Catégories, plats, prix et incertitudes seront proposés à la vérification. Vous gardez le dernier mot.</p></div>
-            <span class="step-status">Pilote prévu</span>
+            <div><h3>Relire la structure</h3><p>Surplasse propose les catégories, les plats, les prix et les éléments à vérifier. Vous gardez le dernier mot.</p></div>
+            <span class="step-status">Validé par vous</span>
           </li>
           <li>
             <span class="step-label">Table</span>
             <div><h3>Ouvrir la table</h3><p>Un QR mène directement à la carte de l’établissement, sans application et sans compte client.</p></div>
-            <span class="step-status">Parcours cible</span>
+            <span class="step-status">Accès direct</span>
           </li>
           <li>
             <span class="step-label">Cuisine</span>
             <div><h3>Servir la commande</h3><p>Table, options et paiement arrivent ensemble. L’équipe accepte, prépare, sert et garde le rythme.</p></div>
-            <span class="step-status">Parcours cible</span>
+            <span class="step-status">Équipe synchronisée</span>
           </li>
         </ol>
       </div>
@@ -102,9 +147,9 @@
       <div class="wrap live-grid">
         <div class="live-copy">
           <p class="eyebrow eyebrow-light">Service live</p>
-          <h2 id="live-title">Faites avancer la commande&nbsp;#1042.</h2>
-          <p>Un bon outil de service ne demande pas un mode d’emploi. Essayez le geste central du futur dashboard.</p>
-          <p class="simulation-note">Simulation locale, données d’exemple. Aucune commande réelle n’est créée ou mise à jour.</p>
+          <h2 id="live-title">Faites avancer la commande #1042.</h2>
+          <p>Un bon outil de service ne demande pas de mode d’emploi. Essayez le geste central du Dashboard, du paiement confirmé à la commande servie.</p>
+          <p class="feature-note">Aperçu interactif du cycle de service.</p>
         </div>
 
         <div class="order-console" data-order-console data-state="paid">
@@ -145,7 +190,7 @@
             <p class="eyebrow">Votre canal, pas notre marketplace</p>
             <h2>Une relation directe vaut mieux qu’une place dans une liste.</h2>
           </div>
-          <p>Surplasse est conçu comme l’infrastructure discrète de votre restaurant. Votre enseigne reste au premier plan.</p>
+          <p>Surplasse est l’infrastructure discrète de votre restaurant. Votre enseigne reste au premier plan.</p>
         </div>
 
         <div class="direct-grid">
@@ -166,9 +211,9 @@
           </article>
         </div>
 
-        <div class="payment-rail" aria-label="Paiements prévus">
+        <div class="payment-rail" aria-label="Moyens de paiement">
           <div class="payment-intro">
-            <span class="eyebrow">Paiement prévu</span>
+            <span class="eyebrow">Paiement intégré</span>
             <strong>Les habitudes du client, intégrées proprement.</strong>
           </div>
           <div class="payment-marks" role="list">
@@ -177,7 +222,7 @@
             <div class="payment-mark card-mark" role="listitem" aria-label="Cartes bancaires"><span aria-hidden="true"></span><strong>Cartes</strong></div>
           </div>
           <div class="stripe-provider">
-            <span>Infrastructure de paiement prévue</span>
+            <span>Paiements avec</span>
             <img src="../../brand/payments/stripe.svg" alt="Stripe">
           </div>
         </div>
@@ -208,21 +253,21 @@
       </div>
     </section>
 
-    <section id="pilote" class="section pilot-section">
+    <section id="restaurant" class="section restaurant-section">
       <div class="wrap">
-        <div class="pilot-frame">
-          <div class="pilot-title">
-            <p class="eyebrow">Contrat de démo</p>
-            <h2>Vous savez toujours ce qui est réel.</h2>
+        <div class="restaurant-frame">
+          <div class="restaurant-title">
+            <p class="eyebrow">Conçu pour le plein service</p>
+            <h2>Moins d’interruptions. Plus de maîtrise.</h2>
           </div>
-          <div class="pilot-columns">
+          <div class="restaurant-columns">
             <div>
-              <h3>Ce que vous testez aujourd’hui</h3>
-              <ul role="list"><li>Le nom de votre établissement</li><li>Le choix d’une ou plusieurs photos</li><li>Une relecture sur des données d’exemple</li></ul>
+              <h3>En salle</h3>
+              <ul role="list"><li>Le client commande sans attendre l’équipe.</li><li>La table accompagne automatiquement la commande.</li><li>Les options et le paiement restent lisibles.</li></ul>
             </div>
             <div>
-              <h3>Ce que la démo ne fait pas</h3>
-              <ul role="list"><li>Aucun fichier envoyé à un serveur</li><li>Aucun mini-site ou paiement activé</li><li>Aucune commande réelle ouverte</li></ul>
+              <h3>En cuisine</h3>
+              <ul role="list"><li>Les nouvelles commandes arrivent au même endroit.</li><li>Chaque statut est partagé avec toute l’équipe.</li><li>Le service avance sans perdre le fil.</li></ul>
             </div>
           </div>
         </div>
@@ -236,8 +281,8 @@
           <h2>Les réponses avant le premier clic.</h2>
         </div>
         <div class="faq-list">
-          <details open><summary>Est-ce une vraie activation ?</summary><p>Non. La démonstration ne crée aucun établissement, mini-site, paiement ou commande.</p></details>
-          <details><summary>Que devient la photo ?</summary><p>Elle reste dans votre navigateur. Le pilote demandera votre consentement avant tout envoi au service en ligne.</p></details>
+          <details open><summary>Comment démarrer avec Surplasse ?</summary><p>Photographiez votre carte, relisez la structure proposée puis publiez-la. Vous pouvez ensuite installer les QR aux tables et ouvrir la prise de commandes.</p></details>
+          <details><summary>Le client doit-il installer une application ?</summary><p>Non. Le QR ouvre directement la carte de votre établissement dans le navigateur du téléphone, sans compte client.</p></details>
           <details><summary>Quel est le coût ?</summary><p>0 % de commission pendant les 3 premiers mois, puis 1 % par commande. Les frais Stripe restent distincts et s’appliquent dès le premier paiement.</p></details>
           <details><summary>Qui garde la relation client ?</summary><p>Le restaurant. Surplasse n’est pas une marketplace. Votre établissement n’est jamais placé dans une liste de concurrents.</p></details>
         </div>
@@ -250,7 +295,7 @@
         <h2 id="final-title">Trois minutes pour voir si le circuit vous ressemble.</h2>
         <div class="final-action">
           <a href="creer.html" class="sp-btn sp-btn--primary sp-btn--lg">Tester avec ma carte</a>
-          <span>Démo locale. Rien n’est publié.</span>
+          <span>Une démonstration guidée à partir de votre carte.</span>
         </div>
       </div>
     </section>
@@ -273,7 +318,7 @@
           <a href="#tarif">Tarification</a>
         </div>
         <div>
-          <h2>À venir</h2>
+          <h2>Capacités</h2>
           <a href="#fonctionnement" data-doc-path="/roadmap/">Carte depuis une photo</a>
           <a href="#client" data-doc-path="/produit/parcours/commande-client/">Commande par QR</a>
           <a href="#service-live" data-doc-path="/produit/parcours/dashboard-restaurateur/">Dashboard restaurant</a>
@@ -283,13 +328,13 @@
           <h2>Ressources</h2>
           <a href="#fonctionnement" data-doc-path="/produit/vision/">Vision produit</a>
           <a href="#fonctionnement" data-doc-path="/produit/fonctionnalites/">Fonctionnalités</a>
-          <a href="#pilote" data-doc-path="/roadmap/">Roadmap</a>
+          <a href="#fonctionnement" data-doc-path="/roadmap/">Roadmap</a>
           <a href="#questions" data-doc-path="/architecture/securite/">Sécurité</a>
         </div>
         <div>
           <h2>Accès</h2>
           <a href="creer.html">Démonstration</a>
-          <a id="footer-dashboard-url" href="#pilote">Espace restaurant</a>
+          <a id="footer-dashboard-url" href="#restaurant">Espace restaurant</a>
           <a id="footer-docs-url" href="#fonctionnement">Documentation</a>
           <a href="#questions">Questions fréquentes</a>
         </div>
@@ -298,7 +343,7 @@
     <div class="wrap footer-bottom">
       <span>Surplasse © 2026</span>
       <div>
-        <a href="#pilote">Phase pilote</a>
+        <a href="#tarif">Tarif transparent</a>
         <a href="#questions" data-doc-path="/operations/rgpd/">Données et confidentialité</a>
         <a href="#questions" data-doc-path="/architecture/securite/">Sécurité</a>
       </div>
@@ -306,8 +351,8 @@
     </div>
   </footer>
 
-  <div class="config-notice" data-config-notice hidden>Les accès externes sont indisponibles dans cette prévisualisation.</div>
+  <div class="config-notice" data-config-notice hidden>Les accès externes sont temporairement indisponibles.</div>
   <script src="runtime-config.js" defer></script>
-  <script src="../../brand/onboarding.js?v=20260721b" defer></script>
+  <script src="../../brand/onboarding.js?v=20260722a" defer></script>
 </body>
 </html>

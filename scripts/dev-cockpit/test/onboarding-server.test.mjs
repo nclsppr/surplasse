@@ -13,16 +13,18 @@ import { close, listen, repoRoot, request } from "./helpers.mjs";
 const PUBLIC_ORIGIN = "https://surplasse.test";
 const PUBLIC_HEADERS = Object.freeze({ Host: "surplasse.test" });
 
-test("Onboarding landing keeps truthful pilot terms and product evidence", async () => {
+test("Onboarding landing presents production-ready product evidence", async () => {
   const html = await readFile(`${repoRoot}/frontends/onboarding/index.html`, "utf8");
 
+  assert.match(html, /Vos commandes\. Vos clients\. Votre restaurant\./);
+  assert.match(html, /Votre carte devient un service complet\./);
   assert.match(
     html,
     /0 % de commission pendant les 3 premiers mois, puis 1 % par commande\./,
   );
   assert.match(html, /Les frais Stripe sont distincts/);
   assert.match(html, /Surplasse n[’']est pas une marketplace\./);
-  assert.match(html, /Simulation locale, données d’exemple\./);
+  assert.match(html, /class="product-stage"/);
   assert.match(html, /\.\.\/\.\.\/brand\/qr\/qr-demo\.png/);
   assert.match(html, /brand\/illustrations\/service-line\.svg/);
   assert.match(html, /brand\/payments\/apple-pay\.svg/);
@@ -30,6 +32,10 @@ test("Onboarding landing keeps truthful pilot terms and product evidence", async
   assert.match(html, /brand\/payments\/stripe\.svg/);
   assert.match(html, /data-order-console/);
   assert.match(html, /data-doc-path="\/roadmap\/"/);
+  assert.doesNotMatch(
+    html,
+    /Circuit produit visé|pendant le pilote|Démo locale|Pilote prévu|Parcours cible|futur dashboard|Simulation locale|Paiement prévu|Infrastructure de paiement prévue|Contrat de démo|Phase pilote/,
+  );
   assert.doesNotMatch(html, /repeating-linear-gradient/);
   assert.doesNotMatch(html, /capture :|téléphone :/);
 });
@@ -42,6 +48,8 @@ test("Onboarding landing interaction follows the canonical order states", async 
   assert.match(script, /id: "preparing", label: "En préparation"/);
   assert.match(script, /id: "ready", label: "Commande prête"/);
   assert.match(script, /id: "served", label: "Commande servie"/);
+  assert.match(script, /action: "Rejouer le parcours"/);
+  assert.doesNotMatch(script, /simulation/i);
   assert.match(script, /domainConfig\.DASHBOARD_URL/);
   assert.match(script, /domainConfig\.DOCS_URL/);
   assert.doesNotMatch(script, /https:\/\/(?:dashboard\.|docs\.)?surplasse\.(?:com|test)/);

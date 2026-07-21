@@ -3,7 +3,7 @@ const orderStates = Object.freeze([
   { id: "accepted", label: "Commande acceptée", action: "Lancer la préparation" },
   { id: "preparing", label: "En préparation", action: "Marquer comme prête" },
   { id: "ready", label: "Commande prête", action: "Marquer comme servie" },
-  { id: "served", label: "Commande servie", action: "Rejouer la simulation" },
+  { id: "served", label: "Commande servie", action: "Rejouer le parcours" },
 ]);
 
 function configureDomainLinks() {
