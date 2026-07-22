@@ -60,7 +60,7 @@ En attendant un outil dédié, le tableau ci-dessous tient lieu de registre des 
 | Envoi du magic link de connexion | Restaurateurs | Adresse email, jeton haché horodaté | Exécution du contrat (l'authentification est nécessaire pour fournir le service au titulaire du compte) |
 | Marketing et fidélité | Clients ayant opté | Adresse email, historique de commandes rattaché | Consentement explicite, retirable à tout moment |
 | Collecte et publication d'avis | Clients ayant opté | Note, texte de l'avis, prénom éventuel | Consentement |
-| Amélioration des photos et extraction de carte | Restaurateurs | Photos de la carte et de l'établissement, carte structurée produite | Exécution du contrat (côté restaurateur) |
+| Amélioration des photos, extraction de carte et génération de visuels de plats | Restaurateurs | Photos de la carte, de l'établissement et des plats, carte structurée et visuels candidats produits | Exécution du contrat (côté restaurateur) |
 | Pré-génération des espaces et prise de contact pour la revendication | Restaurateurs prospectés | Données professionnelles publiques de l'établissement (nom, adresse, carte publiée), email professionnel de contact | Intérêt légitime (proposer le service à des professionnels identifiés publiquement) |
 | Journalisation et sécurité de la plateforme | Tous | Logs techniques sans donnée personnelle (voir [observabilité](observabilite.md)), adresses IP pour la limitation de débit | Intérêt légitime (sécurité et continuité du service) |
 
@@ -81,7 +81,7 @@ Le modèle de données complet, entité par entité, vit dans la page [données]
 | Jetons de magic link (hachés) | Restaurateur | 15 minutes de validité | Purge automatique par la tâche horaire d'identité |
 | Refresh tokens restaurateur (hachés) | Restaurateur | 30 jours au plus, anciennes rotations conservées pour détecter le rejeu | Purge automatique après expiration de la famille |
 | Session client anonyme | Session | 2 heures glissantes | Purge sous 24 heures ; ne contient aucune donnée personnelle |
-| Photos de la carte et de l'établissement | Établissement | Vie de l'établissement | Effacement à la clôture ; données professionnelles, pas personnelles |
+| Photos de la carte, des plats et de l'établissement | Établissement | Sources et visuels sélectionnés pendant la vie de l'établissement ; candidats écartés selon une durée à trancher | Effacement à la clôture ; données professionnelles, pas personnelles, métadonnées EXIF retirées |
 | Adresses IP de limitation des magic links | Aucune entité métier | Fenêtre de 15 minutes, en mémoire | Expiration de la fenêtre ou remise à zéro au redémarrage |
 | Adresses IP des futurs journaux d'accès de production | Aucune entité métier | 30 jours au maximum | Rotation des logs (voir [observabilité](observabilite.md)) |
 
@@ -112,7 +112,7 @@ Point pratique assumé : un client qui n'a rien fourni n'est pas identifiable, e
 | Stripe | Paiement | Données de carte bancaire (collectées directement par Stripe Elements, jamais vues par Surplasse), montant, référence de commande | Périmètre PCI DSS porté par Stripe (voir [sécurité](../architecture/securite.md#posture-générale)) ; transferts encadrés par ses clauses contractuelles |
 | Hébergeur du VPS (à trancher) | Hébergement du Backend et de PostgreSQL | L'ensemble des données en base | Hébergeur européen exigé, données localisées dans l'Union européenne |
 | Fournisseur d'emails (à trancher) | Envoi des magic links, reçus et notifications | Adresses email des destinataires, contenu des messages | Fournisseur européen privilégié ; décision consignée dans un ADR |
-| OpenAI (API OpenAI) | Extraction de carte depuis photo, enrichissement de données publiques | Photos de cartes de restaurant, données publiques d'établissements | Aucune donnée de client final, jamais (voir ci-dessous) ; accord de traitement des données et absence d'entraînement sur les contenus soumis à vérifier à la contractualisation |
+| OpenAI (API OpenAI) | Extraction de carte depuis photo, enrichissement de données publiques, génération de visuels de plats | Photos de cartes et de plats fournies par le restaurateur, données publiques d'établissements | Aucune donnée de client final, jamais (voir ci-dessous) ; accord de traitement des données et absence d'entraînement sur les contenus soumis à vérifier à la contractualisation |
 
 Chaque sous-traitant fait l'objet d'un accord de traitement des données (DPA) avant toute mise en production ; la liste ci-dessus est publiée dans la politique de confidentialité du produit et tenue à jour dans cette page.
 
@@ -120,8 +120,8 @@ Mailpit n'est pas un sous-traitant : il s'exécute uniquement en local, sans vol
 
 ## L'IA et les données personnelles
 
-!!! warning Aucune donnée de client final vers l'API d'extraction
-Le pipeline d'extraction (voir [intégrations](../architecture/integrations.md)) ne transmet à l'API OpenAI que des photos de cartes de restaurant et des données publiques d'établissements : des données professionnelles, par nature destinées à être affichées publiquement. Aucune donnée de client final (email, prénom, contenu de commande, historique) ne doit jamais transiter par un appel à l'API d'extraction ou d'enrichissement, quelle qu'en soit la raison. Cette règle est structurelle : le module `generation` du Backend n'a tout simplement pas accès aux données des commandes (voir [les règles de dépendances entre modules](../architecture/backend.md#un-monolithe-modulaire)), et elle est vérifiée en revue de code.
+!!! warning Aucune donnée de client final vers l'API OpenAI
+Le pipeline IA (voir [intégrations](../architecture/integrations.md)) ne transmet à l'API OpenAI que des photos de cartes ou de plats fournies par le restaurateur et des données publiques d'établissements : des données professionnelles destinées à composer sa présence publique. Aucune donnée de client final (email, prénom, contenu de commande, historique) ne doit jamais transiter par un appel d'extraction, de génération ou d'enrichissement, quelle qu'en soit la raison. Cette règle est structurelle : le module `generation` du Backend n'a tout simplement pas accès aux données des commandes (voir [les règles de dépendances entre modules](../architecture/backend.md#un-monolithe-modulaire)), et elle est vérifiée en revue de code.
 !!!
 
 Les photos passent en outre par le pipeline de réécriture décrit dans la page [sécurité](../architecture/securite.md#televersements), qui détruit les métadonnées EXIF (dont la géolocalisation) avant tout envoi.
@@ -152,7 +152,7 @@ Ces stockages relèvent de l'exemption de consentement prévue par les lignes di
 | Qualification des rôles (responsable ou sous-traitant selon les traitements) | Validation juridique | Avant la rédaction des conditions générales |
 | Absence de bandeau cookies sur le front Commande | Validation juridique | Avant le lancement |
 | Hébergeur du VPS et fournisseur d'emails (européens) | Décision, ADR | Avant le premier déploiement |
-| Conditions du DPA OpenAI (entraînement, localisation) | Vérification contractuelle | Avant la mise en production de l'extraction |
+| Conditions du DPA OpenAI (entraînement, localisation) | Vérification contractuelle | Avant la mise en production de l'extraction ou de la génération de visuels |
 | Adresse de contact définitive et politique de confidentialité publiée | Rédaction | Avant le lancement |
 
 ## Pour aller plus loin

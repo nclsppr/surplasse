@@ -102,7 +102,7 @@ Sur les mini-sites, ces variables de base sont **surchargées par le thème de l
 ## Icônes et imagerie
 
 - **Icônes : Lucide**, trait 1.75px arrondi, 16/20px, `currentColor`. Pas d'emoji, pas d'unicode en guise d'icônes (sauf « € » et « · »).
-- **Photos** chaudes, appétissantes, lumière naturelle. Placeholders rayés avec note monospace en attendant les vraies photos. Les visuels de plats générés (voir [ADR-0011](../decisions/adr-0011-visuels-plats.md)) suivent cette direction chaude.
+- **Photos** chaudes, appétissantes, lumière naturelle. Placeholders rayés avec note monospace en attendant les vraies photos. Les visuels de plats générés (voir [ADR-0025](../decisions/adr-0025-visuels-plats-a-la-demande.md)) suivent cette direction chaude.
 - **Illustrations de flux** : pixel art ou schémas géométriques qui montrent une transformation produit réelle. Pas de bruit, de grille décorative, d'effet terminal ou d'animation continue sans sens.
 - **Marques de paiement** : assets officiels Apple Pay, Google Pay et Stripe conservés sous `brand/payments/`. Les tracés et couleurs ne sont pas modifiés. La composition adapte seulement la taille, le fond et la zone de protection.
 

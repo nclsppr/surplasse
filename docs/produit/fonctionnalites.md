@@ -37,8 +37,8 @@ Le cœur de la promesse : un restaurateur passe d'une photo de sa carte à un mi
 | Génération du mini-site | À partir des données extraites et de quelques photos, Surplasse génère le mini-site public de l'établissement sur `{slug}.surplasse.com`. | Must | Onboarding, Commande, Backend |
 | Activation du compte par magic link | Le restaurateur active son compte et accède au Dashboard via un lien envoyé par email, sans mot de passe. | Must | Onboarding, Dashboard, Backend |
 | Thème visuel extrait | L'IA dérive une palette de couleurs et une ambiance typographique depuis le logo et les photos fournies, pour que le mini-site ressemble au restaurant. | Should | Onboarding, Commande, Backend |
-| Harmonisation des photos de plats | Les photos de plats fournies par le restaurateur sont harmonisées par un traitement d'image serveur (cadrage, normalisation de la lumière, miniatures) pour un rendu homogène sur la carte. | Should | Onboarding, Backend |
-| Génération de visuels de plats | À partir des photos de plats fournies à l'embarquement, l'IA produit des visuels candidats, présentés comme suggestions de présentation. Sources maîtrisées uniquement, jamais de photos de tiers. Voir [ADR-0011](../decisions/adr-0011-visuels-plats.md). | Should | Onboarding, Backend |
+| Harmonisation des photos de plats | Les photos de plats fournies par le restaurateur sont harmonisées par un traitement d'image serveur (cadrage, normalisation de la lumière, miniatures) pour un rendu homogène sur la carte, pendant l'embarquement comme lors des mises à jour. | Should | Onboarding, Dashboard, Backend |
+| Génération de visuels de plats | À l'embarquement ou depuis la fiche d'un produit dans le Dashboard, l'IA produit à partir de la photo du plat réel des visuels candidats privés. Le restaurateur choisit la photo fournie, un rendu généré ou aucune image ; rien n'est publié automatiquement. Sources maîtrisées uniquement, jamais de photos de tiers. Voir [ADR-0025](../decisions/adr-0025-visuels-plats-a-la-demande.md). | Must | Onboarding, Dashboard, Backend |
 
 ## 2. Espaces à revendiquer
 
@@ -61,7 +61,7 @@ La carte est la donnée centrale du produit : ce que le client consulte côté C
 | Fonctionnalité | Description | Priorité | Applications |
 |---|---|---|---|
 | Catégories et produits | La carte est organisée en catégories ordonnées (entrées, plats, desserts, boissons) contenant des produits avec nom, description, photo et prix. | Must | Commande, Dashboard, Backend |
-| Image par produit | Pour chaque produit, le restaurateur choisit son image depuis le Dashboard : téléverser sa propre photo, retenir un visuel proposé par Surplasse, ou aucune image. | Must | Dashboard, Backend |
+| Image par produit | Pour chaque produit, le restaurateur choisit son image depuis le Dashboard : téléverser, recadrer, remplacer ou retirer sa propre photo, demander des rendus IA depuis celle-ci, retenir un candidat ou n'afficher aucune image. | Must | Dashboard, Backend |
 | Options de produits | Un produit porte des options : variantes exclusives (cuisson, taille) ou suppléments cumulables, avec impact sur le prix. | Must | Commande, Dashboard, Backend |
 | Édition de la carte | Le restaurateur modifie la carte depuis le Dashboard : ajout, retrait, réorganisation, changement de prix, sans délai de publication. | Must | Dashboard, Backend |
 | Disponibilités | Un produit peut être marqué indisponible en un geste (rupture du jour) ; il reste visible ou masqué selon le choix du restaurateur. | Must | Commande, Dashboard, Backend |
@@ -132,10 +132,12 @@ Le Dashboard donne au restaurateur une lecture simple de son activité, sans jar
 
 | Fonctionnalité | Description | Priorité | Applications |
 |---|---|---|---|
-| Vue du service en cours | Chiffre d'affaires du jour, commandes en cours et terminées, temps de préparation moyen, en temps réel. | Should | Dashboard, Backend |
+| Vue du service en cours | Chiffre d'affaires, nombre de commandes et temps de préparation moyen du service, en temps réel. | Should | Dashboard, Backend |
 | Historique des commandes | Liste consultable et filtrable de toutes les commandes passées, avec détail et statut de paiement. | Must | Dashboard, Backend |
-| Top produits | Classement des produits les plus commandés sur une période, pour éclairer les choix de carte. | Should | Dashboard, Backend |
+| Analyse de période | Chiffre d'affaires, nombre de commandes et panier moyen par jour, semaine ou mois, avec comparaison à la période précédente et répartition par service configuré. | Should | Dashboard, Backend |
+| Top produits | Deux classements des produits sur une période, par quantités vendues et par chiffre d'affaires généré, pour éclairer les choix de carte. | Should | Dashboard, Backend |
 | Heures de pointe | Répartition des commandes par jour et par heure, pour ajuster les équipes et les stocks. | Could | Dashboard, Backend |
+| Répartition par canal | Part des commandes sur place et à emporter, en nombre de commandes, lorsque l'à emporter est actif. | Should | Dashboard, Backend |
 | Multi-établissements | Un restaurateur gère plusieurs établissements depuis le même compte, avec bascule entre eux dans le Dashboard. | Could | Dashboard, Backend |
 | Export comptable | Export CSV des commandes et paiements sur une période, pour le comptable. | Could | Dashboard, Backend |
 
@@ -163,6 +165,7 @@ Toutes les fonctionnalités Must ci-dessus sont indispensables au produit *fini*
 | Génération des QR codes par table | Phase 2 |
 | Activation du compte par magic link | Phase 2 |
 | Extraction de carte depuis photo, relecture et correction | Phase 3 |
+| Génération et choix des visuels de plats | Phase 3 pendant l'embarquement, phase 4 dans la vie courante |
 | Génération du mini-site | Phase 3 |
 | Édition de la carte depuis le Dashboard | Phase 4 |
 | Historique des commandes | Phase 4 |

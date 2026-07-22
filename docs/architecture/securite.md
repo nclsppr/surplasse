@@ -185,14 +185,14 @@ Tout le trafic est chiffré, sans exception ni période de transition :
 
 ## Téléversements {#televersements}
 
-Les seuls fichiers téléversés sont des images : photo de la carte à l'embarquement, photos de l'établissement et des produits. Le pipeline de traitement neutralise le risque :
+Les seuls fichiers téléversés sont des images : photo de la carte à l'embarquement, photos de l'établissement et photos des produits ajoutées pendant l'embarquement ou depuis le Dashboard. Le pipeline de traitement neutralise le risque :
 
 1. Validation du type réel du fichier (par les octets de signature, pas seulement l'extension ni le `Content-Type` déclaré) : formats d'image bitmap acceptés uniquement, SVG refusé.
 2. Validation de la taille (plafond par fichier, à trancher, de l'ordre de 10 Mo) et du nombre de fichiers par requête.
 3. Réécriture systématique : chaque image acceptée est décodée puis réencodée dans un format de sortie contrôlé, ce qui détruit métadonnées, charges utiles annexes et données EXIF (y compris la géolocalisation, un point RGPD autant que sécurité).
 4. Aucune exécution ni interprétation : les fichiers sont stockés hors de toute racine servie directement, servis avec un `Content-Type` image forcé et `Content-Disposition` neutre, jamais depuis le domaine de l'API.
 
-Les photos de carte transmises à l'API OpenAI pour extraction suivent le même pipeline avant envoi (voir [intégrations](integrations.md)).
+Les photos de carte transmises à l'API OpenAI pour extraction et les photos de plats utilisées pour générer un visuel suivent le même pipeline avant envoi (voir [intégrations](integrations.md)).
 
 ## Limitation de débit {#limitation-de-debit}
 
@@ -204,7 +204,7 @@ Une limitation de débit s'applique par IP et par session sur les endpoints sens
 | Échange de jeton de magic link | IP | Cible : empêcher la recherche exhaustive de jetons |
 | Création de Commande | Session client et IP | Cible : limiter les commandes en rafale et la nuisance en salle |
 | Lecture de la carte | IP | Cible : freiner le scraping massif sans gêner l'usage normal |
-| Endpoints d'embarquement (génération IA) | IP | Cible : protéger le budget d'appels à l'API OpenAI |
+| Création de jobs IA depuis l'Onboarding ou le Dashboard | Compte restaurateur, établissement et IP | Cible : protéger le budget d'appels à l'API OpenAI, avec quota par établissement et par période |
 
 Les compteurs de magic link sont locaux au processus et conservés en mémoire. Ils sont remis à zéro à chaque redémarrage et ne seraient pas partagés entre plusieurs instances. Cette limite est acceptable sur le VPS unique du MVP. Une persistance ou un magasin partagé devra précéder tout passage à plusieurs instances. Les dépassements répondent en 429 avec `Retry-After`. Les seuils des protections encore cibles restent à calibrer.
 

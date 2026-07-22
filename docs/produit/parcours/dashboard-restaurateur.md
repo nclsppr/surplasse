@@ -106,11 +106,13 @@ La carte se modifie sans intermédiaire et sans délai de publication :
 | Produits | Créer, modifier le nom et la description, archiver |
 | Prix | Modifier à l'unité ; l'historique des prix est conservé |
 | Options | Définir des groupes d'options (choix unique ou multiple), suppléments tarifés |
-| Photos | Ajouter, recadrer, remplacer ; une photo par produit |
+| Photos | Téléverser, recadrer, remplacer ou retirer une photo ; demander des rendus IA depuis la photo du plat réel ; choisir la photo fournie, un candidat généré ou aucune image |
 | Horaires | Plages d'ouverture de la commande, par jour de la semaine |
 | Disponibilités | Restreindre un produit à un créneau (formule du midi) ou à un jour |
 
-Toute modification est visible sur le mini-site dès l'enregistrement. La carte initiale provient de l'extraction par IA faite pendant l'embarquement ; le Dashboard est ensuite la seule source de modification.
+Toute modification de contenu est visible sur le mini-site dès l'enregistrement. Pour un visuel, la photo déjà publiée reste affichée pendant la génération et en cas d'échec. Les candidats IA restent privés jusqu'à ce que le restaurateur compare les rendus et en sélectionne explicitement un ; il peut aussi conserver la photo fournie ou choisir de ne rien afficher. La génération exige une photo du plat réellement servi dont il détient les droits, jamais une photo issue d'une plateforme ou d'un tiers. Le rendu retenu porte la mention « suggestion de présentation ». Ce workflow est fixé par l'[ADR-0025](../../decisions/adr-0025-visuels-plats-a-la-demande.md).
+
+La carte initiale provient de l'extraction par IA faite pendant l'embarquement ; le Dashboard devient ensuite la source de ses modifications courantes, sans intervention de Surplasse.
 
 ### QR codes et tables
 
@@ -135,9 +137,10 @@ L'onglet d'analyse répond aux questions que le restaurateur se pose en fin de s
 - **Périodes** : par jour, par semaine, par mois, avec comparaison à la période précédente.
 - **Top produits** : classement par quantités vendues et par chiffre d'affaires généré.
 - **Heures de pointe** : répartition des commandes par tranche de 30 minutes, pour dimensionner l'équipe.
+- **Services** : comparaison des plages configurées, par exemple midi et soir.
 - **Panier moyen** : évolution dans le temps.
 - **Sur place et à emporter** : part de chaque mode dans les commandes.
-- **Pourboires et avis** : évolution du total des pourboires et de la note moyenne.
+- **Pourboires et avis** : évolution du total des pourboires et de la note moyenne, à partir de la phase 5.
 
 Les données brutes ne sont jamais agrégées entre établissements de restaurateurs différents : les chiffres d'un établissement n'appartiennent qu'à lui. La télémétrie technique de la plateforme, distincte de ces métriques métier, est décrite dans la page [observabilité](../../operations/observabilite.md).
 
@@ -180,14 +183,18 @@ Pour éviter toute ambiguïté de calcul entre le Dashboard, le backend et la do
 
 | Indicateur | Définition exacte |
 |---|---|
-| Chiffre d'affaires | Somme des montants TTC des commandes payées de la période, pourboires exclus, commandes remboursées déduites à la date du remboursement |
-| Nombre de commandes | Nombre de commandes payées de la période ; les paniers non validés et les paiements échoués ne comptent pas |
+| Chiffre d'affaires | Somme des montants TTC des commandes payées pendant la période et non remboursées intégralement, pourboires exclus |
+| Nombre de commandes | Nombre de commandes payées pendant la période et non remboursées intégralement ; les paniers non validés et les paiements échoués ne comptent pas |
 | Panier moyen | Chiffre d'affaires de la période divisé par le nombre de commandes de la période ; non affiché si le nombre de commandes est nul |
-| Temps moyen de préparation | Moyenne, sur les commandes servies de la période, du délai entre l'acceptation et le passage à « Prête » |
-| Top produits | Classement des produits par quantité vendue dans les commandes payées de la période ; les options ne forment pas de ligne propre, leur montant est rattaché au produit porteur |
-| Heures de pointe | Nombre de commandes payées par tranche de 30 minutes, la commande étant rattachée à l'heure de sa validation par le client |
-| Part sur place et à emporter | Répartition en pourcentage du nombre de commandes payées par mode ; calculée en nombre de commandes, pas en valeur |
-| Pourboires | Somme des pourboires des commandes payées de la période ; jamais inclus dans le chiffre d'affaires ni dans le panier moyen |
+| Temps moyen de préparation | Moyenne, sur les commandes servies et non remboursées intégralement de la période, du délai entre l'acceptation et le passage à « Prête » |
+| Top produits par quantité | Classement des produits par quantité vendue dans les commandes payées et non remboursées intégralement de la période ; les options ne forment pas de ligne propre |
+| Top produits par chiffre d'affaires | Classement des produits par somme de leurs montants de ligne figés à la commande, options comprises et pourboires exclus, dans les commandes payées et non remboursées intégralement de la période |
+| Heures de pointe | Nombre de commandes payées et non remboursées intégralement par tranche de 30 minutes, la commande étant rattachée à l'heure de sa validation par le client |
+| Répartition par service | Nombre et chiffre d'affaires des commandes payées et non remboursées intégralement rattachées à chaque plage de service configurée |
+| Part sur place et à emporter | Répartition en pourcentage du nombre de commandes payées et non remboursées intégralement par mode ; calculée en nombre de commandes, pas en valeur |
+| Pourboires | Somme des pourboires des commandes payées et non remboursées intégralement de la période ; jamais inclus dans le chiffre d'affaires ni dans le panier moyen |
 | Note moyenne des avis | Moyenne arithmétique des notes (sur 5) des avis publiés pendant la période, réponses du restaurateur sans effet sur le calcul |
 
-Le rattachement d'une commande à une période se fait sur l'heure de validation du paiement, dans le fuseau horaire de l'établissement. Un service « du midi » ou « du soir » est une plage horaire configurable par établissement ; les valeurs par défaut de ces plages restent à définir.
+Le rattachement d'une commande à une période se fait sur l'heure de validation du paiement, dans le fuseau horaire de l'établissement. Un remboursement intégral retire rétroactivement la commande de la période de son paiement et de tous les indicateurs fondés sur les commandes ; une période passée peut donc être recalculée. Une modification ultérieure de la carte ne change jamais le nom, les options ou le prix figés dans ses lignes.
+
+Un service « du midi » ou « du soir » est une plage horaire configurable par établissement. La configuration refuse les chevauchements. Chaque commande rejoint l'unique service qui contient son heure de validation ; une commande en dehors de toute plage apparaît dans « Hors service ». Les valeurs par défaut de ces plages restent à définir.

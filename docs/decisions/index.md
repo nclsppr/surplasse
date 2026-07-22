@@ -85,7 +85,7 @@ Ne jamais « corriger » un ADR pour l'aligner sur une page plus récente. Soit 
 
 ## Registre des ADR
 
-Vingt-quatre ADR sont consignés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'aux deux registres visuels complémentaires.
+Vingt-cinq ADR sont consignés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'aux visuels de plats générés à la demande.
 
 | Numéro | Titre | Statut | Lien |
 |---|---|---|---|
@@ -99,7 +99,7 @@ Vingt-quatre ADR sont consignés à ce jour. Ils couvrent les choix structurants
 | 0008 | Magic link pour l'authentification des restaurateurs | Accepté | [ADR-0008](adr-0008-magic-link.md) |
 | 0009 | Retype pour la documentation | Accepté | [ADR-0009](adr-0009-retype.md) |
 | 0010 | Fournisseur IA (OpenAI derrière interface) | Accepté | [ADR-0010](adr-0010-fournisseur-ia.md) |
-| 0011 | Visuels de plats générés | Accepté | [ADR-0011](adr-0011-visuels-plats.md) |
+| 0011 | Visuels de plats générés | Remplacé par ADR-0025 | [ADR-0011](adr-0011-visuels-plats.md) |
 | 0012 | Tailwind et shadcn/ui | Accepté | [ADR-0012](adr-0012-tailwind-shadcn.md) |
 | 0013 | Générateurs OpenAPI (jaxrs-spec et typescript-fetch) | Accepté | [ADR-0013](adr-0013-generateurs-openapi.md) |
 | 0014 | Liaison de frontends/shared (file:, source TypeScript) | Accepté | [ADR-0014](adr-0014-liaison-shared.md) |
@@ -113,5 +113,6 @@ Vingt-quatre ADR sont consignés à ce jour. Ils couvrent les choix structurants
 | 0022 | Remboursement intégral Stripe | Accepté | [ADR-0022](adr-0022-remboursement-integral-stripe.md) |
 | 0023 | Système de logo vectoriel fourni | Accepté | [ADR-0023](adr-0023-systeme-logo-vectoriel-fourni.md) |
 | 0024 | Deux registres visuels complémentaires | Accepté | [ADR-0024](adr-0024-deux-registres-visuels.md) |
+| 0025 | Visuels de plats à la demande | Accepté | [ADR-0025](adr-0025-visuels-plats-a-la-demande.md) |
 
 Les décisions encore ouvertes (par exemple le choix de la solution d'impression thermique ESC/POS mentionné dans la stack de référence) donneront lieu à de futurs ADR au fil de la [roadmap](../roadmap.md).

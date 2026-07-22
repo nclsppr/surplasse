@@ -92,9 +92,9 @@ Le délai perçu est un enjeu à part entière. L'écran d'attente affiche des �
 
 **Objectif** : produire l'effet déclencheur : le restaurateur voit son mini-site, avec sa carte, avant tout engagement.
 
-**Actions du restaurateur** : il parcourt la prévisualisation comme le ferait un client : page d'accueil du mini-site, carte par catégories, fiches produit. Il peut basculer entre le rendu mini-site et la vue structurée de la carte.
+**Actions du restaurateur** : il parcourt la prévisualisation comme le ferait un client : page d'accueil du mini-site, carte par catégories, fiches produit. Il peut basculer entre le rendu mini-site et la vue structurée de la carte. Une fois les produits extraits, il associe chaque photo de plat au bon produit et peut demander des rendus IA candidats depuis cette photo.
 
-**Ce que fait le système** : l'application Onboarding embarque un rendu de l'application Commande en mode prévisualisation, sur le slug provisoire. Le mini-site n'est pas public à ce stade : rien n'est indexé, rien n'est commandable. Si l'harmonisation des photos a été proposée, la prévisualisation permet de comparer avant et après et de choisir.
+**Ce que fait le système** : l'application Onboarding embarque un rendu de l'application Commande en mode prévisualisation, sur le slug provisoire. Le mini-site n'est pas public à ce stade : rien n'est indexé, rien n'est commandable. La génération demandée démarre alors en tâche de fond, après l'association explicite entre produit et photo source. La photo source reste disponible pendant le traitement. Quand les candidats sont prêts, la prévisualisation permet de les comparer. Pour chaque produit, le restaurateur choisit explicitement la photo originale, un candidat généré ou aucune image. Le workflow et ses garanties sont fixés par l'[ADR-0025](../../decisions/adr-0025-visuels-plats-a-la-demande.md).
 
 **Erreurs possibles** : le principal échec est un rendu décevant (photos absentes ou hétérogènes, carte trop marquée « à vérifier »). Le traitement est éditorial autant que technique : proposer l'ajout de photos, l'harmonisation, et enchaîner sans friction sur la relecture plutôt que de laisser le restaurateur sur une mauvaise impression.
 
@@ -110,6 +110,7 @@ Le délai perçu est un enjeu à part entière. L'écran d'attente affiche des �
 - il ajoute les produits manquants et supprime ceux qui n'existent plus ;
 - il complète les options que la photo ne pouvait pas révéler (cuissons, suppléments, tailles) ;
 - il ordonne les catégories si l'ordre extrait ne correspond pas à sa carte.
+- il vérifie le visuel de chaque produit et peut téléverser une autre photo, demander de nouveaux candidats ou ne conserver aucune image.
 
 **Ce que fait le système** : l'interface d'édition met en avant les éléments marqués « à vérifier » et sauvegarde en continu. La carte reste en brouillon jusqu'à validation explicite. Si le restaurateur relance une extraction avec une meilleure photo, la stratégie de fusion avec les corrections manuelles déjà faites reste à trancher (règle envisagée : une correction manuelle n'est jamais écrasée par une extraction).
 

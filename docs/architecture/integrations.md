@@ -154,19 +154,20 @@ Deux traitements distincts s'appliquent aux photos de plats, à ne pas confondre
 
 L'**harmonisation** est un traitement d'image serveur classique (recadrage, normalisation de l'exposition, génération de miniatures) appliqué aux photos existantes, pour une cohérence visuelle entre les photos d'une même carte. Le modèle vision peut, en amont, repérer les photos inexploitables (floues, mal cadrées) et suggérer un recadrage.
 
-La **génération de visuels de plats** est une capacité assumée de l'API OpenAI (génération d'images) : à l'embarquement, à partir des photos de plats fournies par le restaurateur (ou la personne qui l'embarque), Surplasse produit des visuels harmonisés candidats. Elle est cadrée par l'[ADR-0011 : visuels de plats générés](../decisions/adr-0011-visuels-plats.md) :
+La **génération de visuels de plats** est une capacité assumée de l'API OpenAI (génération d'images) : pendant l'embarquement ou depuis la fiche d'un produit dans le Dashboard, Surplasse produit des visuels candidats à partir d'une photo du plat réellement servi. Elle est cadrée par l'[ADR-0025 : visuels de plats à la demande](../decisions/adr-0025-visuels-plats-a-la-demande.md) :
 
 - **Sources maîtrisées uniquement** : la génération part des photos fournies par le restaurateur, jamais de photos de tiers (touristes, plateformes), pour des raisons de droits.
-- **Choix produit par produit** : à la configuration de la carte, chaque produit peut porter une photo téléversée, un visuel proposé par Surplasse, ou aucune image. Le restaurateur décide ; rien de généré n'est publié sans son choix explicite.
+- **Choix produit par produit** : chaque produit peut porter une photo téléversée, un visuel proposé par Surplasse, ou aucune image. Le restaurateur décide ; rien de généré n'est publié sans son choix explicite.
 - **Fidélité** : un visuel illustre un plat réellement servi (il part d'une photo de ce plat), il ne l'invente pas ; il est présenté comme une suggestion de présentation, jamais comme la photo littérale de l'assiette servie.
 
-Les visuels générés sont stockés comme des `MediaAsset` (`source = generated`, `status = proposed`) que le restaurateur sélectionne ou écarte (voir [le modèle de données](donnees.md)).
+Les visuels générés sont stockés comme des `MediaAsset` privés (`source = generated`, `status = proposed`) que le restaurateur compare, sélectionne ou écarte (voir [le modèle de données](donnees.md)). L'image publique actuelle reste inchangée pendant le job et en cas d'échec ; son remplacement est atomique au moment du choix explicite.
 
 ### Coûts et limites
 
 | Aspect | Situation | Parade |
 |---|---|---|
 | Coût par extraction | Quelques appels vision par embarquement, coût unitaire faible mais à suivre | Métrique de coût par job, plafond par établissement |
+| Coût des visuels récurrents | Chaque mise à jour de carte peut déclencher une nouvelle génération | Quota par établissement et par période, coût suivi par job, blocage lisible avant dépassement |
 | Photos floues ou mal cadrées | L'extraction se dégrade fortement | Contrôle qualité de l'image avant de lancer le job, demande de reprise de la photo |
 | Cartes manuscrites | Fiabilité variable selon l'écriture | Signalées comme « à relire attentivement », relecture renforcée |
 | Cartes multilingues ou en langue étrangère | Extraction possible mais structure parfois ambiguë | La langue de la carte est confirmée à la relecture |
@@ -174,7 +175,7 @@ Les visuels générés sont stockés comme des `MediaAsset` (`source = generated
 
 ### Statut de la décision
 
-L'API OpenAI comme moteur d'extraction et de génération de visuels est actée ([ADR-0010](../decisions/adr-0010-fournisseur-ia.md) et [ADR-0011](../decisions/adr-0011-visuels-plats.md)), derrière une interface qui la garde interchangeable. Le choix du modèle exact, les seuils de qualité d'image et le plafond de coût par embarquement restent à affiner pendant la construction du MVP.
+L'API OpenAI comme moteur d'extraction et de génération de visuels est actée ([ADR-0010](../decisions/adr-0010-fournisseur-ia.md) et [ADR-0025](../decisions/adr-0025-visuels-plats-a-la-demande.md)), derrière une interface qui la garde interchangeable. Le choix du modèle exact, les seuils de qualité d'image, le plafond de coût de l'embarquement et le quota de génération récurrent restent à affiner pendant la construction des phases 3 et 4.
 
 ## Enrichissement depuis les données publiques
 
@@ -276,7 +277,7 @@ Certains établissements veulent un ticket cuisine papier à chaque commande, en
 
 ### Rôle
 
-Trois familles d'images à héberger : les photos de cartes téléversées à l'embarquement (entrée du pipeline d'extraction), les photos de plats (affichées sur les mini-sites) et les photos du lieu (vitrine du mini-site).
+Trois familles d'images à héberger : les photos de cartes téléversées à l'embarquement (entrée du pipeline d'extraction), les photos et visuels de plats ajoutés pendant l'embarquement ou depuis le Dashboard (affichés sur les mini-sites après choix explicite) et les photos du lieu (vitrine du mini-site).
 
 ### Mode d'intégration
 
@@ -329,7 +330,7 @@ Pas de décision structurante : implémentation backend standard, prévue avec l
 | Stripe | Accounts v2, charges directes, composants Connect intégrés, Payment Element et webhooks sources de vérité | Acté : [ADR-0020](../decisions/adr-0020-accounts-v2-onboarding-embarque.md) |
 | Fournisseur IA | API OpenAI derrière interface (vision et génération d'images) | Acté : [ADR-0010](../decisions/adr-0010-fournisseur-ia.md) |
 | Extraction de carte | API OpenAI en vision, relecture humaine obligatoire | Acté dans la stack ; modèle et seuils à affiner |
-| Visuels de plats générés | Sources maîtrisées, choix produit par produit, fidélité | Acté : [ADR-0011](../decisions/adr-0011-visuels-plats.md) |
+| Visuels de plats générés | Sources maîtrisées, choix produit par produit, fidélité, disponibilité dans le Dashboard | Acté : [ADR-0025](../decisions/adr-0025-visuels-plats-a-la-demande.md) |
 | Données publiques | Sources, preuve de revendication, rétention | À trancher (ADR à venir) |
 | Emails | SMTP via quarkus-mailer | Mode acté ; fournisseur à trancher (ADR à venir) |
 | Impression thermique | Imprimante cloud ou application compagnon | Reportée, hors MVP (ADR à venir) |

@@ -9,7 +9,7 @@ description: "La politique de génération de visuels de plats : sources maîtri
 
 ## Statut
 
-Accepté, 2026-07-18.
+Remplacé par [ADR-0025](adr-0025-visuels-plats-a-la-demande.md), 2026-07-22.
 
 ## Contexte
 

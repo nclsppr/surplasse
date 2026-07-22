@@ -142,6 +142,10 @@ GÉNÉRATION                                    MÉDIAS
 | `activated_at` | timestamptz | non nul si `active` | Départ des trois mois sans commission Surplasse |
 | `created_at`, `updated_at` | timestamptz | non nuls | |
 
+!!! warning Dimensions temporelles à préciser avant la phase 4
+Les métriques du Dashboard exigent un fuseau horaire IANA par établissement et des plages de service configurables sans chevauchement, avec un libellé comme « Midi » ou « Soir ». Ces données ne sont pas encore représentées dans le modèle cible ci-dessus. Elles devront être ajoutées au modèle et au contrat avant l'implémentation des analyses, afin que chaque commande soit rattachée de manière déterministe à sa journée et à son service.
+!!!
+
 **Space** : les métadonnées de pré-génération d'un établissement identifié en ligne, et son statut de revendication. Un espace correspond à exactement un établissement.
 
 | Attribut | Type | Contraintes | Commentaire |
@@ -189,7 +193,7 @@ GÉNÉRATION                                    MÉDIAS
 | `deleted_at` | timestamptz | nullable | Soft delete |
 | `created_at`, `updated_at` | timestamptz | non nuls | |
 
-**MediaAsset** : une image stockée (objet dans le stockage S3-compatible), qu'elle soit téléversée par le restaurateur ou générée par l'IA à l'embarquement. Un produit référence au plus un `MediaAsset` comme image affichée ; les visuels générés non retenus restent en base au statut `proposed` tant que le restaurateur ne les a pas écartés.
+**MediaAsset** : une image stockée (objet dans le stockage S3-compatible), qu'elle soit téléversée par le restaurateur ou générée par l'IA pendant l'embarquement ou depuis le Dashboard. Un produit référence au plus un `MediaAsset` comme image affichée ; les visuels générés non retenus restent privés au statut `proposed` tant que le restaurateur ne les a pas écartés.
 
 | Attribut | Type | Contraintes | Commentaire |
 |---|---|---|---|
@@ -201,6 +205,10 @@ GÉNÉRATION                                    MÉDIAS
 | `storage_key` | text | non nul | Clé de l'objet dans le stockage S3-compatible |
 | `source_asset_id` | uuid | FK MediaAsset, nullable | Pour un `generated`, la photo fournie qui a servi de source |
 | `created_at`, `updated_at` | timestamptz | non nuls | |
+
+!!! warning Contrat média à préciser avant la phase 3
+L'[ADR-0025](../decisions/adr-0025-visuels-plats-a-la-demande.md) exige un rattachement explicite entre le produit ciblé, la photo source, le job et chaque candidat, ainsi qu'un remplacement atomique de l'image publiée. Les attributs et statuts ci-dessus décrivent la cible actuelle, mais devront être affinés avec le contrat OpenAPI avant l'implémentation. Aucun lien métier ne doit être enfoui uniquement dans un payload JSON.
+!!!
 
 **OptionGroup** : un ensemble d'options d'un produit (cuisson, taille, suppléments), avec ses règles de choix.
 
@@ -409,7 +417,7 @@ Un index unique partiel interdit deux remboursements actifs ou réussis sur le m
 
 ### Génération
 
-**ExtractionJob** : un travail asynchrone confié à l'API OpenAI, qu'il s'agisse d'extraction (carte depuis photo, enrichissement depuis données publiques) ou de génération de visuels de plats à partir des photos fournies. Le résultat est une proposition que le restaurateur valide dans le Dashboard, jamais une écriture directe dans le Catalogue : une extraction produit une carte structurée à relire, une génération produit des `MediaAsset` au statut `proposed` à retenir ou écarter.
+**ExtractionJob** : un travail asynchrone confié à l'API OpenAI, qu'il s'agisse d'extraction (carte depuis photo, enrichissement depuis données publiques) ou de génération de visuels de plats à partir des photos fournies. Le résultat est une proposition que le restaurateur valide dans l'Onboarding ou le Dashboard, jamais une écriture directe dans le Catalogue : une extraction produit une carte structurée à relire, une génération produit des `MediaAsset` au statut `proposed` à retenir ou écarter.
 
 | Attribut | Type | Contraintes | Commentaire |
 |---|---|---|---|
@@ -423,7 +431,7 @@ Un index unique partiel interdit deux remboursements actifs ou réussis sur le m
 | `attempts` | integer | non nul, défaut 0 | |
 | `created_at`, `updated_at` | timestamptz | non nuls | |
 
-La durée de conservation des payloads et des photos sources après validation de la carte reste à trancher (purge candidate : 30 jours).
+La durée de conservation des payloads, des photos sources et des candidats écartés après validation de la carte ou choix d'un visuel reste à trancher (purge candidate : 30 jours).
 
 ## Machine à états de la commande
 
@@ -579,6 +587,6 @@ Le tableau ci-dessous résume la politique par entité. Les procédures détaill
 | Review | Indirectes (via CustomerContact) | Vie du compte de l'établissement, anonymisation sur demande |
 | Tip | Non | Alignée sur Payment |
 | MarketingConsent | Oui (preuve de consentement) | Conservée comme preuve, y compris après retrait |
-| ExtractionJob | Non a priori (photos de carte) | Purge des payloads après validation, délai à trancher |
+| ExtractionJob | Non a priori (photos de carte ou de plats) | Purge des payloads après validation ou choix du visuel, délai à trancher |
 
 Les durées exactes d'anonymisation du prénom sur les commandes et de purge des payloads de génération restent à arbitrer avec la page RGPD : elles seront fixées ensemble pour rester cohérentes.

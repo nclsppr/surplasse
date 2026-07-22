@@ -21,7 +21,7 @@ Les phases décrivent dans quel ordre les problèmes sont attaqués, pas quand i
 | 1 | Le contrat et les squelettes | Établir le contrat OpenAPI et les squelettes générés des applications | Une carte statique de démonstration s'affiche de bout en bout depuis l'API |
 | 2 | Commander et payer | Faire fonctionner le cœur du produit dans un vrai restaurant | Un service du midi réel géré via Surplasse dans un restaurant pilote |
 | 3 | L'embarquement magique | Automatiser la création d'un établissement depuis une photo de la carte | Un restaurateur inconnu de l'équipe s'embarque seul en moins de 30 minutes |
-| 4 | Piloter | Donner au restaurateur les moyens de suivre et gérer son activité | Un restaurateur consulte ses métriques chaque semaine sans qu'on le lui demande |
+| 4 | Piloter | Donner au restaurateur les moyens de suivre et gérer son activité | Pendant quatre semaines, un restaurateur consulte ses métriques et met sa carte à jour sans aide |
 | 5 | La relation | Transformer les commandes en relation client durable | Un restaurant convertit des commandes en clients fidèles identifiés |
 
 Les fonctionnalités visées par chaque phase sont détaillées dans [le catalogue des fonctionnalités](produit/fonctionnalites.md). Les choix structurants pris en chemin sont consignés dans [les ADR](decisions/index.md).
@@ -173,6 +173,7 @@ Faire disparaître le coût d'entrée. Un restaurateur photographie sa carte, Su
 ### Livrables
 
 - Extraction IA de la carte depuis une photo (API OpenAI, vision) : catégories, produits, options, prix, avec écran de relecture et correction avant publication.
+- Pour chaque plat photographié, harmonisation classique et génération facultative de visuels candidats par IA. Le restaurateur choisit explicitement la photo fournie, un rendu généré ou aucune image, sans publication automatique, conformément à l'[ADR-0025](decisions/adr-0025-visuels-plats-a-la-demande.md).
 - Génération du mini-site de l'établissement avec choix d'un thème, **SEO compris** : chaque mini-site généré embarque son référencement (balises, données structurées schema.org du menu, sitemap) pour que chaque nouveau restaurant et sa carte soient indexables dès l'activation.
 - Automatisation de Stripe Connect Accounts v2 dans l'Onboarding : création du compte par le Backend, KYC et gestion des exigences dans les composants Connect intégrés, activation et reprise du parcours. Le schéma de charges directes a déjà été validé manuellement avec le pilote en phase 2.
 - Tunnel d'embarquement complet dans le front Onboarding : de la photo de la carte à la première commande encaissable.
@@ -183,6 +184,7 @@ Faire disparaître le coût d'entrée. Un restaurateur photographie sa carte, Su
 |---|---|
 | L'extraction IA se trompe et publie des prix faux | La relecture par le restaurateur est une étape bloquante du tunnel ; rien n'est publié sans validation explicite |
 | Les cartes réelles (manuscrites, plastifiées, mal éclairées) résistent à l'extraction | Constituer un jeu de photos de cartes réelles variées et mesurer le taux d'extraction correcte avant d'ouvrir le tunnel |
+| Un visuel généré embellit ou invente le plat servi | Exiger une photo du plat réel dont le restaurateur détient les droits, garder les candidats privés et publier uniquement son choix explicite avec la mention « suggestion de présentation » |
 | Le KYC Stripe bloque des restaurateurs en cours de tunnel | Placer l'activation Stripe en fin de tunnel, afficher les exigences via `notification_banner`, permettre de finir l'embarquement et d'y revenir ; documenter les pièces attendues |
 | Le tunnel est magique en démonstration et frustrant en vrai | Le critère de sortie impose un test avec un restaurateur inconnu de l'équipe, sans assistance |
 
@@ -193,7 +195,7 @@ Faire disparaître le coût d'entrée. Un restaurateur photographie sa carte, Su
 
 ### Critère de sortie
 
-Un restaurateur inconnu de l'équipe s'embarque seul en moins de 30 minutes : photo de la carte, relecture, génération du mini-site, activation Stripe, sans intervention humaine de Surplasse.
+Un restaurateur inconnu de l'équipe s'embarque seul en moins de 30 minutes : photo de la carte, relecture, génération réussie de candidats pour au moins un plat photographié, comparaison puis choix explicite entre photo fournie, rendu généré ou aucune image, génération du mini-site et activation Stripe, sans intervention humaine de Surplasse et sans publication automatique d'un candidat IA.
 
 ## Phase 4 : Piloter
 
@@ -204,8 +206,10 @@ Le restaurateur ne subit plus son activité, il la pilote. Le Dashboard devient 
 ### Livrables
 
 - Dashboard complet : historique des commandes, recherche, filtres.
-- Métriques : chiffre d'affaires, produits les plus commandés, répartition par service, tendances.
-- Gestion de carte avancée depuis le Dashboard : édition des produits et options, disponibilité en temps réel, réorganisation des catégories.
+- Vue du service en cours : chiffre d'affaires, nombre de commandes et temps moyen de préparation, mis à jour en temps réel.
+- Analyse par jour, semaine ou mois, avec comparaison à la période précédente : chiffre d'affaires, nombre de commandes, panier moyen, produits classés par quantités et par chiffre d'affaires, heures de pointe, répartition par service et répartition entre sur place et à emporter lorsque ce canal est actif.
+- Gestion autonome de la carte depuis le Dashboard : création, édition, archivage et réorganisation des catégories, produits et options, changement de prix, horaires et disponibilités, sans intervention de Surplasse.
+- Gestion des visuels produit : téléverser, recadrer, remplacer ou retirer une photo, puis demander depuis cette photo des rendus IA candidats, les comparer et choisir explicitement la photo originale, un rendu généré ou aucune image. L'image publiée reste en place jusqu'au choix, conformément à l'[ADR-0025](decisions/adr-0025-visuels-plats-a-la-demande.md).
 - Multi-établissements : un restaurateur gère plusieurs établissements depuis le même compte.
 - À emporter avec créneaux : le client commande à l'avance et choisit un créneau de retrait.
 
@@ -214,6 +218,9 @@ Le restaurateur ne subit plus son activité, il la pilote. Le Dashboard devient 
 | Risque | Parade |
 |---|---|
 | Des métriques que personne ne regarde | Partir des questions que les restaurateurs pilotes posent réellement, pas d'un catalogue de graphiques |
+| Des chiffres difficiles à croire | Définir chaque indicateur une seule fois, le calculer dans le fuseau de l'établissement et le rapprocher de l'historique des commandes et paiements |
+| Une modification de carte altère l'historique | Figer le libellé, les options et le prix dans les lignes de chaque commande ; les modifications futures ne réécrivent jamais une commande payée |
+| Un visuel généré trompe le client ou dépasse le budget prévu | Imposer une photo du plat réel, un choix explicite, un étiquetage visible, des candidats privés et un quota de génération par établissement et par période |
 | L'à emporter perturbe le flux en cuisine aux heures de pointe | Les créneaux sont bornés en capacité, réglable par le restaurateur |
 | Le multi-établissements complexifie le modèle de données tardivement | Le modèle distingue restaurateur et établissement depuis le contrat de la phase 1 ; la phase 4 ne fait qu'ouvrir l'interface |
 
@@ -224,7 +231,7 @@ Le restaurateur ne subit plus son activité, il la pilote. Le Dashboard devient 
 
 ### Critère de sortie
 
-Un restaurateur consulte ses métriques chaque semaine sans qu'on le lui demande : le Dashboard a prouvé qu'il répond à de vraies questions.
+Pendant quatre semaines consécutives, un restaurateur consulte chaque semaine des métriques rapprochées de l'historique des commandes et paiements. Sur la même période, il publie sans intervention de Surplasse au moins une modification réelle de produit et un changement de visuel, puis mène un cycle complet de génération récurrente : demande, résultat réussi, comparaison et décision explicite.
 
 ## Phase 5 : La relation
 

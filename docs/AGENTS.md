@@ -57,7 +57,7 @@ Les domaines sont des données de configuration. `config/domains/production.env`
 | Contrat | OpenAPI | 3.1 | Contract-first, générateurs de clients TS et d'interfaces Java |
 | Paiement | Stripe | API courante | CB, Apple Pay, Google Pay ; PayPal en roadmap |
 | Auth restaurateur | Magic link par email, session JWT en cookie HttpOnly | MVP | Le client final n'a jamais de compte |
-| IA | API OpenAI (derrière interface) | modèles courants | Extraction de carte et données publiques (vision) ; génération de visuels de plats à l'embarquement |
+| IA | API OpenAI (derrière interface) | modèles courants | Extraction de carte et données publiques (vision) ; génération de visuels de plats à l'embarquement et depuis le Dashboard |
 | Impression | Imprimante thermique ESC/POS | à trancher (ADR) | Tickets cuisine optionnels |
 | Docs | Retype | 4.6+ | Ce site ; déployé sur GitHub Pages |
 | Reverse proxy | Caddy | 2.x | Local avec mkcert ; production cible avec TLS wildcard par défi DNS-01 ; routage par nom d'hôte |
@@ -180,18 +180,18 @@ La session du restaurateur est un **JWT court porté par un cookie hôte uniquem
 
 ### Séquencement (référence : `roadmap.md`)
 
-La roadmap est la source unique de l'ordre de livraison (les phases). La priorisation MoSCoW de `produit/fonctionnalites.md` exprime l'importance intrinsèque des fonctionnalités pour le produit cible, pas un calendrier. Le premier MVP réellement livrable correspond à la **phase 2** de la roadmap (commander et payer). L'extraction IA de la carte, la génération du mini-site, l'édition de carte au Dashboard et l'historique arrivent après (phases 3 et 4) ; les espaces à revendiquer relèvent de la phase 5. Aucune page ne doit présenter ces éléments comme faisant partie du premier MVP.
+La roadmap est la source unique de l'ordre de livraison (les phases). La priorisation MoSCoW de `produit/fonctionnalites.md` exprime l'importance intrinsèque des fonctionnalités pour le produit cible, pas un calendrier. Le premier MVP réellement livrable correspond à la **phase 2** de la roadmap (commander et payer). L'extraction IA de la carte, la génération du mini-site et le premier choix de visuels arrivent en phase 3. L'édition autonome de la carte, la génération récurrente de visuels, l'historique et les métriques arrivent en phase 4. Les espaces à revendiquer relèvent de la phase 5. Aucune page ne doit présenter ces éléments comme faisant partie du premier MVP.
 
 ### Fournisseur IA
 
 L'IA (extraction de carte et de données publiques par vision, et génération de visuels de plats) passe par l'**API OpenAI**, validée par un test d'amorçage. Elle est toujours placée derrière une interface du domaine `generation` (par exemple `MenuExtractor`, `DishImageGenerator`) pour rester interchangeable. Voir `decisions/adr-0010-fournisseur-ia.md`. Ne jamais transmettre de données de client final à l'IA (une carte de restaurant est une donnée professionnelle).
 
-### Visuels de plats générés (référence : `decisions/adr-0011-visuels-plats.md`)
+### Visuels de plats générés (référence : `decisions/adr-0025-visuels-plats-a-la-demande.md`)
 
 La génération de visuels de plats est **dans le périmètre**, sous conditions strictes :
 
-- **Sources maîtrisées uniquement.** Les images générées partent des photos fournies à l'embarquement par le restaurateur (ou la personne qui l'embarque), jamais de photos de tiers (touristes, plateformes) : ces dernières posent un problème de droits.
-- **Choix du restaurateur, produit par produit.** À la configuration de la carte, chaque produit peut porter soit une photo téléversée, soit un visuel proposé par Surplasse, soit aucune image. Le restaurateur décide ; rien de généré n'est publié sans son choix explicite.
+- **Sources maîtrisées uniquement.** Les images générées partent des photos d'un plat réellement servi, fournies pendant l'embarquement ou depuis le Dashboard par le restaurateur (ou la personne qui l'embarque), jamais de photos de tiers (touristes, plateformes) : ces dernières posent un problème de droits.
+- **Choix du restaurateur, produit par produit.** Pendant l'embarquement puis à chaque mise à jour de la carte, chaque produit peut porter soit une photo téléversée, soit un visuel proposé par Surplasse, soit aucune image. Le restaurateur décide ; rien de généré n'est publié sans son choix explicite et l'image actuelle reste visible pendant le traitement.
 - **Fidélité.** Un visuel n'illustre qu'un plat réellement servi (il part d'une photo de ce plat) ; il ne l'invente pas et ne crée pas une attente que la cuisine ne tiendra pas. Il est présenté comme une suggestion de présentation, jamais comme la photo littérale de l'assiette servie.
 
 Distinguer toujours l'**harmonisation** (recadrage, exposition, miniatures des photos existantes, traitement d'image serveur classique) de la **génération** (nouveau visuel produit par l'IA à partir des photos fournies).
