@@ -8,11 +8,13 @@ services:
       GRAFANA_UPSTREAM: grafana:3000
       LOCAL_CONTROL_UPSTREAM: host.docker.internal:4174
       LOCAL_CONTROL_TOKEN: ${LOCAL_CONTROL_TOKEN:?LOCAL_CONTROL_TOKEN is required}
+      SSL_CERT_FILE: /etc/caddy/tls/root-ca.pem
     volumes:
       - ./infra/caddy/tls/development.caddy:/etc/caddy/tls/profile.caddy:ro
       - ./infra/caddy/routes/development.caddy:/etc/caddy/routes/profile.caddy:ro
       - ${LOCAL_TLS_CERTIFICATE_FILE:?LOCAL_TLS_CERTIFICATE_FILE is required}:/etc/caddy/tls/certificate.pem:ro
       - ${LOCAL_TLS_PRIVATE_KEY_FILE:?LOCAL_TLS_PRIVATE_KEY_FILE is required}:/etc/caddy/tls/private-key.pem:ro
+      - ${LOCAL_TLS_CA_FILE:?LOCAL_TLS_CA_FILE is required}:/etc/caddy/tls/root-ca.pem:ro
     extra_hosts:
       - host.docker.internal:host-gateway
     networks:

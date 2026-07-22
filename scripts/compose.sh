@@ -137,6 +137,20 @@ if [[ "$PROFILE" == development ]]; then
   }
   export LOCAL_TLS_CERTIFICATE_FILE="${REPOSITORY_ROOT}/.certs/${APP_BASE_DOMAIN}.pem"
   export LOCAL_TLS_PRIVATE_KEY_FILE="${REPOSITORY_ROOT}/.certs/${APP_BASE_DOMAIN}-key.pem"
+  if [[ -z "${LOCAL_TLS_CA_FILE:-}" ]]; then
+    LOCAL_TLS_CA_FILE="$LOCAL_TLS_CERTIFICATE_FILE"
+    if command -v mkcert >/dev/null 2>&1; then
+      MKCERT_CA_ROOT="$(mkcert -CAROOT 2>/dev/null || true)"
+      if [[ -n "$MKCERT_CA_ROOT" && -f "${MKCERT_CA_ROOT}/rootCA.pem" ]]; then
+        LOCAL_TLS_CA_FILE="${MKCERT_CA_ROOT}/rootCA.pem"
+      fi
+    fi
+  fi
+  [[ "$LOCAL_TLS_CA_FILE" == /* ]] || {
+    printf 'Error: LOCAL_TLS_CA_FILE must use an absolute path.\n' >&2
+    exit 1
+  }
+  export LOCAL_TLS_CA_FILE
   LOCAL_CONTROL_TOKEN_FILE="${REPOSITORY_ROOT}/.surplasse/dev-cockpit/upstream-token"
   node -e '
     const { randomBytes } = require("node:crypto");
@@ -244,6 +258,10 @@ if [[ "$PROFILE" == development && "${1:-}" =~ ^(up|start|restart)$ ]]; then
   }
   [[ -f "$LOCAL_TLS_PRIVATE_KEY_FILE" ]] || {
     printf 'Error: missing local private key. Run npm run local:setup first.\n' >&2
+    exit 1
+  }
+  [[ -f "$LOCAL_TLS_CA_FILE" ]] || {
+    printf 'Error: missing local certificate authority: %s\n' "$LOCAL_TLS_CA_FILE" >&2
     exit 1
   }
 fi

@@ -45,7 +45,7 @@ npm run local:up
 npm run local:ps
 ```
 
-`local:setup` installe `dnsmasq`, `nss` et `mkcert`. Caddy n'est pas installé sur l'hôte : son image épinglée tourne dans Compose. Le script crée la zone wildcard vers `127.0.0.1`, installe l'autorité mkcert et écrit la feuille sous `.certs/`.
+`local:setup` installe `dnsmasq`, `nss` et `mkcert`. Caddy n'est pas installé sur l'hôte : son image épinglée tourne dans Compose. Le script crée la zone wildcard vers `127.0.0.1`, installe l'autorité mkcert et écrit la feuille sous `.certs/`. Le wrapper monte aussi la racine publique mkcert dans le conteneur Caddy afin que son healthcheck HTTPS valide la chaîne. `LOCAL_TLS_CA_FILE` permet à la CI Ubuntu de fournir l'autorité éphémère du runner. Cette variable technique reste un chemin absolu vers un certificat public, jamais une URL ni un secret.
 
 Le premier `local:up` télécharge les images de base, compile le Backend, construit les fronts et crée le volume PostgreSQL. Les appels suivants réutilisent le cache. Pour garder les logs attachés au terminal :
 

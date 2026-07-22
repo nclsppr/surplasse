@@ -120,12 +120,26 @@ jobs:
             -subj "/CN=${BASE_DOMAIN}" \
             -addext "subjectAltName=DNS:${BASE_DOMAIN},DNS:*.${BASE_DOMAIN}"
           chmod 0600 ".certs/${BASE_DOMAIN}-key.pem"
+          echo "LOCAL_TLS_CA_FILE=$GITHUB_WORKSPACE/.certs/${BASE_DOMAIN}.pem" >> "$GITHUB_ENV"
 
       - name: Install Chromium and Linux dependencies
         run: npm --prefix e2e exec -- playwright install --with-deps chromium
 
       - name: Start the local Compose cluster
+        id: cluster
+        continue-on-error: true
         run: npm run local:up
+
+      - name: Show cluster startup diagnostics
+        if: steps.cluster.outcome == 'failure'
+        continue-on-error: true
+        run: |
+          bash scripts/compose.sh development ps
+          bash scripts/compose.sh development logs --no-color --tail 200
+
+      - name: Propagate the cluster startup failure
+        if: steps.cluster.outcome == 'failure'
+        run: exit 1
 
       - name: Run the development smoke tests
         id: tests
