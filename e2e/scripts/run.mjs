@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
   acquireTargetLock,
+  exportCurrentReport,
   prepareRunWorkspace,
   publishRunArtifacts,
   removeRunWorkspace,
@@ -38,10 +39,10 @@ async function main() {
 
   if (!action || !targetName) {
     throw new Error(
-      "Usage: node scripts/run.mjs <test|open|id> <development|production|custom>",
+      "Usage: node scripts/run.mjs <test|open|export|id> <development|production|custom>",
     );
   }
-  if (!new Set(["test", "open", "id"]).has(action)) {
+  if (!new Set(["test", "open", "export", "id"]).has(action)) {
     throw new Error(`Unknown E2E action: ${action}`);
   }
 
@@ -58,6 +59,17 @@ async function main() {
   }
   if (action === "open") {
     return openReport(publishedPaths, target.storageId);
+  }
+  if (action === "export") {
+    if (passthroughArguments.length !== 1) {
+      throw new Error(
+        "The export action requires exactly one destination file path.",
+      );
+    }
+    const destination = resolve(passthroughArguments[0]);
+    exportCurrentReport(publishedPaths, destination);
+    process.stdout.write(`Allure report exported to ${destination}\n`);
+    return 0;
   }
 
   return runTests({

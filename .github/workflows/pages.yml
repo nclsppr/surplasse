@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+  schedule:
+    - cron: "37 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -15,6 +17,7 @@ concurrency:
 
 jobs:
   quality:
+    if: github.event_name != 'schedule'
     name: UI quality gate
     runs-on: ubuntu-latest
     steps:
@@ -61,8 +64,128 @@ jobs:
           python -m pip install -r scripts/requirements.txt
           python scripts/generate_brand_assets.py --check
 
+  local-tests:
+    name: Local Compose smoke and Allure report
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      tests_outcome: ${{ steps.tests.outcome }}
+    env:
+      CI: "true"
+      SURPLASSE_E2E_TARGET: development
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Install the E2E package
+        run: npm ci --prefix e2e
+
+      - name: Resolve the development profile
+        id: target
+        run: |
+          target_id="$(node e2e/scripts/run.mjs id development)"
+          base_domain="$(node --input-type=module -e '
+            import { loadDomainConfig } from "./config/domains/load-domain-config.mjs";
+            process.stdout.write(loadDomainConfig("development").APP_BASE_DOMAIN);
+          ')"
+          echo "id=$target_id" >> "$GITHUB_OUTPUT"
+          echo "base_domain=$base_domain" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the development history
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .surplasse/e2e/${{ steps.target.outputs.id }}/current.json
+            .surplasse/e2e/${{ steps.target.outputs.id }}/releases/*/history.jsonl
+          key: allure-history-${{ steps.target.outputs.id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            allure-history-${{ steps.target.outputs.id }}-
+
+      - name: Prepare development DNS and TLS
+        env:
+          BASE_DOMAIN: ${{ steps.target.outputs.base_domain }}
+        run: |
+          set -euo pipefail
+          hosts="$BASE_DOMAIN api.$BASE_DOMAIN dashboard.$BASE_DOMAIN www.$BASE_DOMAIN app.$BASE_DOMAIN"
+          printf '127.0.0.1 %s\n' "$hosts" | sudo tee -a /etc/hosts >/dev/null
+          mkdir -p .certs
+          openssl req -x509 -newkey rsa:2048 -nodes -days 2 \
+            -keyout ".certs/${BASE_DOMAIN}-key.pem" \
+            -out ".certs/${BASE_DOMAIN}.pem" \
+            -subj "/CN=${BASE_DOMAIN}" \
+            -addext "subjectAltName=DNS:${BASE_DOMAIN},DNS:*.${BASE_DOMAIN}"
+          chmod 0600 ".certs/${BASE_DOMAIN}-key.pem"
+
+      - name: Install Chromium and Linux dependencies
+        run: npm --prefix e2e exec -- playwright install --with-deps chromium
+
+      - name: Start the local Compose cluster
+        run: npm run local:up
+
+      - name: Run the development smoke tests
+        id: tests
+        continue-on-error: true
+        run: npm run e2e:test -- development
+
+      - name: Export the public single-file report
+        env:
+          REPORT_ROOT: ${{ runner.temp }}/pages-local-tests
+        run: >-
+          node e2e/scripts/run.mjs export development
+          "$REPORT_ROOT/local-tests/index.html"
+
+      - name: Save the updated development history
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .surplasse/e2e/${{ steps.target.outputs.id }}/current.json
+            .surplasse/e2e/${{ steps.target.outputs.id }}/releases/*/history.jsonl
+          key: allure-history-${{ steps.target.outputs.id }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Upload the report for the Pages build
+        uses: actions/upload-artifact@v4
+        with:
+          name: pages-local-tests-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pages-local-tests
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Upload the replayable report and diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-${{ steps.target.outputs.id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .surplasse/e2e/${{ steps.target.outputs.id }}/current.json
+            .surplasse/e2e/${{ steps.target.outputs.id }}/releases
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 30
+
+      - name: Show cluster diagnostics after a smoke failure
+        if: steps.tests.outcome == 'failure'
+        continue-on-error: true
+        run: |
+          bash scripts/compose.sh development ps
+          bash scripts/compose.sh development logs --no-color --tail 200
+
+      - name: Stop the local Compose cluster
+        if: always()
+        continue-on-error: true
+        run: bash scripts/compose.sh development down --volumes
+
   build:
-    needs: quality
+    needs:
+      - quality
+      - local-tests
+    if: >-
+      always() &&
+      needs.local-tests.result == 'success' &&
+      (needs.quality.result == 'success' || needs.quality.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -95,6 +218,11 @@ jobs:
           rm -f site/brand/qr/qr-demo-development.png
           # Documentation Retype sous /docs
           cp -R docs-site/. site/docs/
+      - name: Add the latest local Allure report
+        uses: actions/download-artifact@v4
+        with:
+          name: pages-local-tests-${{ github.run_id }}-${{ github.run_attempt }}
+          path: site
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
@@ -113,3 +241,17 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  local-tests-status:
+    name: Propagate the local smoke failure
+    needs:
+      - local-tests
+      - deploy
+    if: >-
+      always() &&
+      needs.local-tests.result == 'success' &&
+      needs.deploy.result == 'success' &&
+      needs.local-tests.outputs.tests_outcome == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - run: exit 1

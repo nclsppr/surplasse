@@ -14,6 +14,7 @@ import { setTimeout as delay } from "node:timers/promises";
 
 import {
   acquireTargetLock,
+  exportCurrentReport,
   prepareRunWorkspace,
   publishRunArtifacts,
   removeRunWorkspace,
@@ -203,6 +204,31 @@ test("valid single-file report, summary, history and diagnostics become one rele
     version: 1,
     runId: RUN_ID,
   });
+});
+
+test("current single-file report can be exported for static hosting", (context) => {
+  const directory = temporaryDirectory(context);
+  const published = publishedPaths(directory);
+  const staged = runPaths(published, RUN_ID);
+  const destination = join(directory, "pages", "local-tests", "index.html");
+  createGeneratedRun(staged);
+  publishRunArtifacts(published, staged);
+
+  assert.equal(exportCurrentReport(published, destination), destination);
+  assert.equal(
+    readFileSync(destination, "utf8"),
+    "<!doctype html><html>new report</html>",
+  );
+});
+
+test("report export rejects a missing publication", (context) => {
+  const directory = temporaryDirectory(context);
+  const published = publishedPaths(directory);
+
+  assert.throws(
+    () => exportCurrentReport(published, join(directory, "index.html")),
+    /No published Allure report/u,
+  );
 });
 
 test("failed report is publishable when Allure omits the zero passed counter", (context) => {

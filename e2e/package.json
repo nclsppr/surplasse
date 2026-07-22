@@ -9,6 +9,7 @@
   "scripts": {
     "browser:install": "playwright install chromium",
     "check": "node --test unit/*.test.mjs",
+    "report:export": "node scripts/run.mjs export",
     "report:open": "node scripts/run.mjs open",
     "target:id": "node scripts/run.mjs id",
     "test": "node scripts/run.mjs test"

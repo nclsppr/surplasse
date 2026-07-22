@@ -81,6 +81,8 @@ Ouvrir [https://local.surplasse.test](https://local.surplasse.test). Les boutons
 
 La page [https://local.surplasse.test/tests](https://local.surplasse.test/tests) lance les suites fixes, dont le smoke Playwright development. Son dernier rapport Allure 3 est publié sur [https://reports.surplasse.test](https://reports.surplasse.test). Cette URL répond 404 avant le premier rapport et dépend du cockpit pour être servie. Arrêter le cockpit ne stoppe pas les conteneurs.
 
+GitHub Actions lance aussi un cluster Compose development jetable à chaque push et chaque heure. Son dernier rapport Allure 3 est public sur [https://nclsppr.github.io/surplasse/local-tests/](https://nclsppr.github.io/surplasse/local-tests/). Il est distinct du rapport créé sur le poste local.
+
 ## URL et sous-domaines réservés
 
 | URL | Usage |

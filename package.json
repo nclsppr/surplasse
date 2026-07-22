@@ -27,6 +27,7 @@
     "compose:config:test": "bash scripts/test-compose-config.sh",
     "e2e:install": "npm --prefix e2e run browser:install",
     "e2e:check": "npm --prefix e2e run check",
+    "e2e:report:export": "npm --prefix e2e run report:export --",
     "e2e:test": "npm --prefix e2e test --",
     "e2e:report": "npm --prefix e2e run report:open --",
     "domains:generate": "node config/domains/generate-onboarding-config.mjs",

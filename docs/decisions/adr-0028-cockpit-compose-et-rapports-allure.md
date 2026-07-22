@@ -39,7 +39,7 @@ Le cluster est démarré avant le cockpit avec `npm run local:up`. Cette command
 
 La page de tests expose une seule suite E2E fixe : `npm run e2e:test -- development`. Son lancement exige que Caddy, le Backend, Commande, le Dashboard et l'Onboarding soient sains. Le cockpit ne propose ni `production`, ni `custom`, ni argument libre. Ces cibles restent lancées par la CLI ou par `.github/workflows/e2e.yml`.
 
-Le dernier rapport Allure 3 de la cible `development` est servi en lecture seule sur `REPORTS_URL`. Il reste stocké sur l'hôte sous `.surplasse/e2e/development/`, avec son historique, et n'entre dans aucun conteneur. L'URL de rapports existe seulement dans le profil development et le sous-domaine `reports` reste réservé dans tous les profils. Avant la première génération, cette URL répond qu'aucun rapport n'est disponible. Les rapports de production et d'une future UAT restent des artefacts de CI ou des fichiers rejoués par la CLI. Le cockpit ne les synchronise ni ne les publie.
+Le dernier rapport Allure 3 de la cible `development` est servi en lecture seule sur `REPORTS_URL`. Il reste stocké sur l'hôte sous `.surplasse/e2e/development/`, avec son historique, et n'entre dans aucun conteneur. L'URL de rapports existe seulement dans le profil development et le sous-domaine `reports` reste réservé dans tous les profils. Avant la première génération, cette URL répond qu'aucun rapport n'est disponible. Le workflow Pages publie séparément son propre smoke development de CI sous `/local-tests/`. Il ne lit ni ne synchronise le rapport du poste. Les rapports de production et d'une future UAT restent des artefacts de CI ou des fichiers rejoués par la CLI. Le cockpit ne les synchronise ni ne les publie.
 
 Cette décision remplace les clauses de l'ADR-0016 relatives au cycle de vie et à la propriété des processus dans le cockpit, puis ajoute `reports` aux sous-domaines réservés. Les principes de l'ADR-0016 sur les domaines, dnsmasq, mkcert, Caddy, les cookies et CORS restent applicables.
 
@@ -50,6 +50,7 @@ Conséquences positives :
 - l'interface montre et pilote le même cluster development que les commandes terminal ;
 - Caddy reste observable sans pouvoir couper l'accès HTTPS du cockpit depuis lui-même ;
 - la suite Playwright locale et son dernier rapport Allure sont accessibles sans paramètre libre ni URL loopback ;
+- le rapport development de CI reste public sans élargir l'autorité du cockpit ;
 - la production et une future UAT conservent un lancement explicite, traçable par CLI ou CI ;
 - le cockpit n'a ni socket Docker monté, ni présence dans la pile de production.
 
@@ -59,4 +60,4 @@ Conséquences négatives et dettes assumées :
 - le cockpit ne remplace pas les boucles natives à chaud, qui restent des commandes terminal séparées ;
 - `down`, la suppression des volumes et la réinitialisation de PostgreSQL restent volontairement absents de l'interface ;
 - le rapport local dépend du processus cockpit et de Caddy pour être consultable par son URL canonique ;
-- consulter un rapport de CI exige encore de télécharger l'artefact et de le rejouer localement.
+- consulter un rapport CI de production ou d'UAT exige encore de télécharger l'artefact et de le rejouer localement.

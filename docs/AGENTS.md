@@ -292,4 +292,4 @@ npm run docs:build   # build de vérification (sortie dans docs-site/)
 npm run docs:watch   # serveur local avec rechargement
 ```
 
-Le déploiement est automatique : chaque push sur `main` publie le site (documentation, landing statique, tunnel avec aperçu du Dashboard et assets de marque) sur GitHub Pages via `.github/workflows/pages.yml`.
+Le déploiement est automatique : chaque push sur `main` publie le site (documentation, landing statique, tunnel avec aperçu du Dashboard, assets de marque et dernier rapport Allure development de CI) sur GitHub Pages via `.github/workflows/pages.yml`. Le workflow actualise aussi ce rapport chaque heure sous `/local-tests/`.

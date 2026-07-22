@@ -35,6 +35,8 @@ Chaque lancement sélectionne explicitement `development`, `production` ou `cust
 
 Résultats, traces, rapport et `history.jsonl` vivent dans des publications immuables sous `.surplasse/e2e/{history-id}/releases/{run-id}/`. Un fichier `current.json` désigne la publication visible par une bascule atomique. Le cockpit et la commande d'ouverture ne lisent jamais un répertoire de génération ni une publication orpheline. Les profils connus conservent les identifiants `development` et `production`. Une cible `custom` ajoute à son identifiant une empreinte déterministe de son domaine racine. Réutiliser un nom d'UAT pour un autre serveur ne peut donc ni fusionner leurs historiques, ni croiser leurs caches. En CI, le pointeur et l'historique de la cible sont restaurés puis sauvegardés par le cache GitHub. L'artefact de chaque lancement contient aussi les publications avec le rapport, les résultats bruts, les diagnostics Playwright et l'historique afin de rester rejouable après une éviction du cache.
 
+Le workflow Pages lance aussi la cible `development` contre un cluster Compose jetable à chaque push, sur demande et chaque heure à la minute 37. Il exporte uniquement le rapport Awesome HTML autonome courant vers `local-tests/index.html` dans l'artefact GitHub Pages. Ce rapport est public sur [nclsppr.github.io/surplasse/local-tests/](https://nclsppr.github.io/surplasse/local-tests/). Les résultats bruts, captures, vidéos et traces restent dans l'artefact Actions privé au workflow, conservé 30 jours. Le rapport public vient du runner CI et ne synchronise jamais les résultats du poste d'un développeur.
+
 Le workflow horaire exécute uniquement des lectures : identité Caddy, readiness du Backend, redirection canonique, fermeture d'un sous-domaine réservé, landing Onboarding, écran de connexion Dashboard et carte publique d'un établissement témoin facultatif. Il ne demande pas de magic link, ne crée pas de session de table, de commande, de paiement ou de remboursement. Les parcours complets restent des tests de qualification sur une pile éphémère ou une UAT utilisant Stripe en mode test.
 
 ## Conséquences
@@ -45,11 +47,13 @@ Conséquences positives :
 - un échec conserve sa capture, sa vidéo, sa trace, les résultats bruts et un rapport HTML ;
 - les tendances et changements de statut restent propres à chaque cible ;
 - la quality gate Allure marque le rapport et le lanceur transmet un test rouge au workflow après avoir généré les preuves ;
+- le dernier smoke development de CI reste consultable sans télécharger ni rejouer un artefact ;
 - les sondes horaires restent sans effet métier.
 
 Conséquences négatives et dettes assumées :
 
 - Chromium et les dépendances Linux de Playwright augmentent le temps d'installation de la CI ;
+- le rapport development est public, donc les smokes publiés ne doivent joindre aucun cookie, jeton, secret ou contenu métier sensible ;
 - le cache GitHub peut être évincé, donc l'artefact reste nécessaire comme sauvegarde rejouable ;
 - une exécution planifiée GitHub peut être retardée et ne remplace pas une sonde de disponibilité dédiée ;
 - le smoke de Commande reste ignoré tant qu'aucun slug témoin n'est configuré pour la cible ;

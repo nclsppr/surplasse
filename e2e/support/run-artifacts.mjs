@@ -213,6 +213,23 @@ export function resolveCurrentPublication(
   });
 }
 
+export function exportCurrentReport(publishedPaths, destination) {
+  const publication = resolveCurrentPublication(publishedPaths);
+  if (!publication) {
+    throw new Error("No published Allure report is available for export.");
+  }
+
+  const source = join(publication.report, "index.html");
+  const report = readBoundedRegularFile(source, MAX_REPORT_BYTES);
+  if (!report.subarray(0, 4_096).toString("utf8").toLowerCase().includes("<html")) {
+    throw new Error("The published Allure single-file report is not valid HTML.");
+  }
+
+  mkdirSync(dirname(destination), { recursive: true });
+  copyFileSync(source, destination);
+  return destination;
+}
+
 export function removeRunWorkspace(publishedPaths, runPaths) {
   rmSync(runPaths.root, { recursive: true, force: true });
   try {
