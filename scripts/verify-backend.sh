@@ -14,21 +14,24 @@ run_verification() {
     "$@"
 }
 
-if command -v java >/dev/null 2>&1 && java -version 2>&1 | head -n 1 | grep -Eq 'version "21([."]|$)'; then
+if command -v java >/dev/null 2>&1 && java -version 2>&1 | head -n 1 | grep -Eq 'version "25([."]|$)'; then
   run_verification
 fi
 
 if ! command -v docker >/dev/null 2>&1 || ! docker info >/dev/null 2>&1; then
-  echo "Backend verification requires Java 21 or a running Docker daemon." >&2
+  echo "Backend verification requires Java 25 or a running Docker daemon." >&2
   exit 1
 fi
+
+source "$SURPLASSE_REPO_ROOT/config/deployment/images.env"
+: "${TEMURIN_BUILD_IMAGE:?TEMURIN_BUILD_IMAGE is required}"
 
 mkdir -p "$SURPLASSE_REPO_ROOT/.surplasse/maven"
 
 SURPLASSE_DOCKER_SOCKET_GROUP="$(
   docker run --rm \
     --volume /var/run/docker.sock:/var/run/docker.sock \
-    eclipse-temurin:21-jdk \
+    "$TEMURIN_BUILD_IMAGE" \
     stat -c '%g' /var/run/docker.sock
 )"
 if [[ ! "$SURPLASSE_DOCKER_SOCKET_GROUP" =~ ^[0-9]+$ ]]; then
@@ -44,7 +47,7 @@ exec docker run --rm \
   --volume "$SURPLASSE_REPO_ROOT:/workspace" \
   --volume /var/run/docker.sock:/var/run/docker.sock \
   --workdir /workspace \
-  eclipse-temurin:21-jdk \
+  "$TEMURIN_BUILD_IMAGE" \
   bash scripts/run-with-domain-profile.sh \
   development \
   ./backend/mvnw \

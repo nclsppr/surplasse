@@ -57,7 +57,7 @@ curl --fail https://api.surplasse.test/q/health/ready
 
 | Composant | Version | Rôle | Exposition |
 |---|---:|---|---|
-| Registre Micrometer Prometheus | fourni par Quarkus 3.25.4 | Produit les métriques automatiques et métier dans le processus Backend | `/q/metrics` sur le réseau Compose, refusé par Caddy depuis le domaine API |
+| Registre Micrometer Prometheus | fourni par Quarkus 3.37.3 | Produit les métriques automatiques et métier dans le processus Backend | `/q/metrics` sur le réseau Compose, refusé par Caddy depuis le domaine API |
 | Prometheus | 3.13.1, variante `busybox` | Collecte, conserve et évalue les règles | Réseau Compose seulement, aucune route Caddy ni port hôte |
 | Grafana | 13.1.1 | Affiche le tableau de bord provisionné | `GRAFANA_URL` derrière Caddy en développement ; port loopback et tunnel SSH en production |
 

@@ -9,7 +9,7 @@ description: Quarkus est le framework du Backend, retenu pour sa boucle de déve
 
 ## Statut
 
-Accepté, 2026-07-18.
+Remplacé par [ADR-0030](adr-0030-java-25-quarkus-courant.md), 2026-07-22.
 
 ## Contexte
 

@@ -182,7 +182,7 @@ Le magic link actuel suit une voie plus simple : le jeton haché est persisté, 
 
 Temporal n'entre ni dans le MVP ni dans la phase 2. Il orchestre des workflows durables, mais n'est ni le bus d'événements général du Backend, ni la source de vérité métier, ni un remplacement de PostgreSQL ou d'un éventuel broker de transport. Son adoption ajouterait un service, des magasins de persistance et de visibilité, des workers et un modèle de programmation supplémentaire.
 
-La première marche reste composée de transactions locales, d'événements persistés quand un rejeu est nécessaire, d'une outbox transactionnelle au premier effet durable hors processus et de jobs courts en PostgreSQL. Temporal sera réévalué seulement si un parcours réel cumule plusieurs besoins : exécution sur des heures ou des jours, temporisations et attentes externes durables, nombreuses étapes et compensations, ou visibilité opérationnelle devenue coûteuse à construire localement. L'[ADR-0019](../decisions/adr-0019-maintien-java-temporal-differe.md) fixe ce seuil et confirme le maintien de Java 21 avec Quarkus.
+La première marche reste composée de transactions locales, d'événements persistés quand un rejeu est nécessaire, d'une outbox transactionnelle au premier effet durable hors processus et de jobs courts en PostgreSQL. Temporal sera réévalué seulement si un parcours réel cumule plusieurs besoins : exécution sur des heures ou des jours, temporisations et attentes externes durables, nombreuses étapes et compensations, ou visibilité opérationnelle devenue coûteuse à construire localement. L'[ADR-0030](../decisions/adr-0030-java-25-quarkus-courant.md) conserve ce seuil et fixe le Backend sur Java 25 avec la version stable courante de Quarkus.
 
 ## Les extensions Quarkus
 

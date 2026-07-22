@@ -27,13 +27,13 @@ Les trois fronts utilisent chacun un NGINX non privilégié en production pour s
 
 ## Versions et images
 
-`config/deployment/images.env` centralise les images de base. Chaque référence porte un tag lisible et un digest multi-plateforme. Au 2026-07-22, le catalogue contient Caddy 2.11.4, PostgreSQL 17.10, Node 24.18.0, NGINX non privilégié 1.29.4, Eclipse Temurin 21, Mailpit 1.30.4, Prometheus 3.13.1 `busybox` et Grafana 13.1.1.
+`config/deployment/images.env` centralise les images de base. Chaque référence porte un tag lisible et un digest multi-plateforme. Au 2026-07-22, le catalogue contient Caddy 2.11.4, PostgreSQL 17.10, Node 24.18.0, NGINX non privilégié 1.29.4, Eclipse Temurin 25.0.3, Mailpit 1.30.4, Prometheus 3.13.1 `busybox` et Grafana 13.1.1.
 
 Les images applicatives sont :
 
 | Image | Construction | Exécution |
 |---|---|---|
-| `backend` | Maven et JDK Temurin 21, sélection du profil de domaine | JRE Temurin 21, utilisateur `10001` |
+| `backend` | Maven et JDK Temurin 25, sélection du profil de domaine | JRE Temurin 25, utilisateur `10001` |
 | `onboarding` | Configuration JavaScript générée pour le profil choisi | Node 24 en développement, NGINX non privilégié et utilisateur `101` en production |
 | `commande` | TypeScript et Vite avec le profil choisi | NGINX non privilégié, utilisateur `101` |
 | `dashboard` | TypeScript et Vite avec le profil choisi | NGINX non privilégié, utilisateur `101` |

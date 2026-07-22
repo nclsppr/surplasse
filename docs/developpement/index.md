@@ -25,8 +25,8 @@ L'environnement de développement repose sur des gestionnaires de versions (nvm,
 |---|---|---|---|
 | git | 2.40 ou plus | livré avec les Command Line Tools (`xcode-select --install`) | paquet de la distribution (`apt install git`, `dnf install git`) |
 | Node.js | 24 | [nvm](https://github.com/nvm-sh/nvm) puis `nvm install 24` | nvm, identique |
-| Java (JDK) | 21 (LTS) | [SDKMAN](https://sdkman.io/) puis `sdk install java 21.0.x-tem` (dernière 21 Temurin de `sdk list java`) | SDKMAN, identique |
-| Maven | 3.9 ou plus | non requis : le wrapper `mvnw` est committé dans `backend/` | idem, le wrapper suffit |
+| Java (JDK) | 25 (LTS) | [SDKMAN](https://sdkman.io/) puis `sdk env install` depuis la racine | SDKMAN, identique |
+| Maven | 3.9.16 | non requis : le wrapper `mvnw` est committé dans `backend/` | idem, le wrapper suffit |
 | Docker | Docker Engine 27 ou plus | Docker Desktop ou [OrbStack](https://orbstack.dev/) | Docker Engine + plugin Compose (paquets officiels Docker) |
 | Docker Compose | v2 (plugin `docker compose`) | inclus dans Docker Desktop et OrbStack | inclus dans les paquets officiels |
 | Compte Stripe | mode test | création sur [stripe.com](https://stripe.com), aucune donnée bancaire réelle requise | identique |
@@ -41,7 +41,7 @@ L'environnement de développement repose sur des gestionnaires de versions (nvm,
 Précisions :
 
 - **Node 24 via nvm** : un fichier `.nvmrc` à la racine fixe la version. `nvm use` dans un terminal ouvert à la racine suffit à basculer.
-- **Java 21 via SDKMAN** : la distribution Temurin (identifiant du type `21.0.x-tem`, listé par `sdk list java`) est la référence. Toute LTS 21 fonctionne, mais la CI utilise Temurin.
+- **Java 25 via SDKMAN** : `.sdkmanrc` fixe Temurin 25.0.3. `sdk env install` installe cette version et `sdk env` l'active. La CI et les images utilisent aussi Temurin 25.
 - **Maven** : ne jamais dépendre d'un Maven global. Toutes les commandes backend passent par `./mvnw`, qui télécharge la bonne version de Maven au premier appel.
 - **Docker et Compose** : indispensables au cluster d'intégration. Compose démarre PostgreSQL, Caddy et tous les services avec la topologie destinée au VPS. Les Dev Services de Quarkus restent disponibles uniquement pour la boucle native `backend:dev`.
 - **Stripe en mode test** : les clés de test (`sk_test_...`, `pk_test_...`) suffisent pour tout le développement. Aucun paiement réel ne transite en local.
@@ -179,7 +179,7 @@ Chaque composant expose un petit jeu de commandes stables. Une ligne « vérific
 | racine | `npm run e2e:test -- production` | même smoke en lecture seule sur le profil production |
 | racine | `npm run e2e:report -- <target>` | ouverture directe du rapport HTML autonome d'une cible, sans serveur permanent |
 | racine | `npm run backend:dev` | Backend en mode dev avec profil central injecté, rechargement à chaud, Dev Services et Dev UI |
-| racine | `npm run backend:verify` | compilation, tests et package Backend avec le profil central injecté ; utilise Java 21 local ou l'image `eclipse-temurin:21-jdk` via Docker |
+| racine | `npm run backend:verify` | compilation, tests et package Backend avec le profil central injecté ; utilise Java 25 local ou l'image Temurin 25 épinglée via Docker |
 | racine | `scripts/run-with-domain-profile.sh development ./backend/mvnw -f backend/pom.xml -pl order -am test` | exemple de vérification ciblée avec le même profil |
 | racine | `scripts/run-with-domain-profile.sh development ./backend/mvnw -f backend/pom.xml -pl identity -am test` | tests du module `identity`, sans processus autonome |
 | `frontends/shared/` | `npm run check && npm test` | typecheck et tests de la bibliothèque, sans serveur |
@@ -364,7 +364,7 @@ Grafana ouvre le tableau de bord provisionné `Surplasse / Vue opérationnelle`.
 
 Le cockpit reste facultatif. Après `local:up`, `npm run local:cockpit` charge le jeton amont créé par le wrapper et l'expose à travers Caddy sur `https://local.surplasse.test`. Il affiche les liens, les sondes et l'état Compose, puis peut démarrer ou arrêter les services autorisés, y compris Prometheus et Grafana. Caddy reste visible en lecture seule. La page `/tests` lance les suites fixes, dont Playwright uniquement sur development, et lie le dernier rapport sur `https://reports.surplasse.test`. Arrêter le cockpit ne stoppe pas le cluster.
 
-La suite Backend intégré exige que `quarkus:dev` soit arrêté, car Maven et ce mode partagent les répertoires `target/`. Elle utilise Java 21 local lorsqu'il est disponible, sinon l'image Temurin épinglée. Les résultats et le cache `.surplasse/` sont locaux, ignorés par git et absents de la production. L'historique E2E y reste conservé jusqu'à sa suppression volontaire.
+La suite Backend intégré exige que `quarkus:dev` soit arrêté, car Maven et ce mode partagent les répertoires `target/`. Elle utilise Java 25 local lorsqu'il est disponible, sinon l'image Temurin épinglée. Les résultats et le cache `.surplasse/` sont locaux, ignorés par git et absents de la production. L'historique E2E y reste conservé jusqu'à sa suppression volontaire.
 
 **4. Vérifier l'établissement de démonstration.**
 
@@ -413,7 +413,7 @@ Les modules peuvent toujours être lancés dans des terminaux séparés pour une
 | `Bind for 127.0.0.1:443 failed` | un autre reverse proxy occupe le port public local | identifier le processus avec `lsof -nP -iTCP:443 -sTCP:LISTEN`, l'arrêter, puis relancer `npm run local:up` |
 | un service reste `unhealthy` | son démarrage, une migration ou une configuration a échoué | lire `scripts/compose.sh development logs --tail 200 <service>` puis corriger la cause, sans changer son port interne |
 | erreurs de build frontend étranges, syntaxe non reconnue | mauvaise version de Node active | `node -v` doit afficher 24 ; sinon `nvm use` à la racine du repo |
-| `OpenAPI generation requires JDK 21`, `release version 21 not supported` ou erreur de compilation Java | JDK absent ou mauvaise version active | `java -version` doit afficher 21 ; relever la dernière Temurin 21 avec `sdk list java`, puis exécuter `sdk install java <identifiant>` et `sdk use java <identifiant>` |
+| `OpenAPI generation requires JDK 25`, `release version 25 not supported` ou erreur de compilation Java | JDK absent ou mauvaise version active | `java -version` doit afficher 25 ; à la racine, exécuter `sdk env install`, puis `sdk env` |
 | Compose ou les Dev Services échouent avec `Could not connect to Docker` | le démon Docker n'est pas démarré | lancer Docker Desktop ou OrbStack, vérifier avec `docker info`, puis relancer la commande |
 | `docs:watch` ou `docs:build` échoue, binaire `retype` introuvable dans `.bin` | le lien `node_modules/.bin/retype` n'a pas été créé par npm | appeler Retype directement : `node node_modules/retypeapp/retype.js start --port 5005` (ou `build`) ; c'est d'ailleurs la forme utilisée par les scripts npm du `package.json` racine |
 | le front affiche des erreurs réseau vers l'API | le Backend ou Caddy est malsain, ou l'image du profil est périmée | lancer `npm run domains:check`, `npm run local:ps`, puis reconstruire avec `npm run local:up` |

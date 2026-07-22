@@ -85,13 +85,13 @@ Ne jamais « corriger » un ADR pour l'aligner sur une page plus récente. Soit 
 
 ## Registre des ADR
 
-Vingt-neuf ADR sont consignés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'au déploiement commun par Docker Compose, à son cockpit local, à sa surveillance fonctionnelle et à son observabilité technique.
+Trente ADR sont consignés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'au déploiement commun par Docker Compose, à son cockpit local, à sa surveillance fonctionnelle et à son observabilité technique.
 
 | Numéro | Titre | Statut | Lien |
 |---|---|---|---|
 | 0001 | Un monorepo unique | Accepté | [ADR-0001](adr-0001-monorepo.md) |
 | 0002 | Contract-first : le contrat OpenAPI comme source de vérité | Accepté | [ADR-0002](adr-0002-contract-first.md) |
-| 0003 | Quarkus pour le Backend | Accepté | [ADR-0003](adr-0003-quarkus.md) |
+| 0003 | Quarkus pour le Backend | Remplacé par ADR-0030 | [ADR-0003](adr-0003-quarkus.md) |
 | 0004 | Trois frontends React distincts | Accepté | [ADR-0004](adr-0004-trois-frontends-react.md) |
 | 0005 | PostgreSQL comme unique base de données | Accepté | [ADR-0005](adr-0005-postgresql.md) |
 | 0006 | SSE pour le temps réel | Accepté | [ADR-0006](adr-0006-sse.md) |
@@ -107,7 +107,7 @@ Vingt-neuf ADR sont consignés à ce jour. Ils couvrent les choix structurants d
 | 0016 | Topologie des domaines locaux | Remplacé par ADR-0028 | [ADR-0016](adr-0016-topologie-domaines-locaux.md) |
 | 0017 | Charges directes Stripe Connect | Remplacé par ADR-0020 | [ADR-0017](adr-0017-charges-directes-stripe-connect.md) |
 | 0018 | Contrôle opérationnel de la prise de commandes | Remplacé par ADR-0020 | [ADR-0018](adr-0018-controle-prise-commandes.md) |
-| 0019 | Maintien de Java et Temporal différé | Accepté | [ADR-0019](adr-0019-maintien-java-temporal-differe.md) |
+| 0019 | Maintien de Java et Temporal différé | Remplacé par ADR-0030 | [ADR-0019](adr-0019-maintien-java-temporal-differe.md) |
 | 0020 | Accounts v2 et embarquement Stripe intégré | Accepté | [ADR-0020](adr-0020-accounts-v2-onboarding-embarque.md) |
 | 0021 | Identité et logo vectoriel | Remplacé par ADR-0023 | [ADR-0021](adr-0021-identite-logo-vectoriel.md) |
 | 0022 | Remboursement intégral Stripe | Accepté | [ADR-0022](adr-0022-remboursement-integral-stripe.md) |
@@ -118,5 +118,6 @@ Vingt-neuf ADR sont consignés à ce jour. Ils couvrent les choix structurants d
 | 0027 | Playwright et Allure 3 pour les tests E2E | Accepté | [ADR-0027](adr-0027-playwright-allure-3.md) |
 | 0028 | Cockpit Compose et rapports Allure | Accepté | [ADR-0028](adr-0028-cockpit-compose-et-rapports-allure.md) |
 | 0029 | Observabilité Prometheus et Grafana non bloquante | Accepté | [ADR-0029](adr-0029-observabilite-prometheus-grafana.md) |
+| 0030 | Java 25 et Quarkus courant | Accepté | [ADR-0030](adr-0030-java-25-quarkus-courant.md) |
 
 Les décisions encore ouvertes (par exemple le choix de la solution d'impression thermique ESC/POS mentionné dans la stack de référence) donneront lieu à de futurs ADR au fil de la [roadmap](../roadmap.md).

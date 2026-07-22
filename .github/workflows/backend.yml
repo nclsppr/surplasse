@@ -27,7 +27,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 21
+          java-version: 25
           cache: maven
       # verify enchaîne compilation, tests unitaires, tests d'intégration
       # (@QuarkusTest sur PostgreSQL 17 via Testcontainers, réponses

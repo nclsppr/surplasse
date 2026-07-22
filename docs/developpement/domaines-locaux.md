@@ -30,7 +30,7 @@ Un seul Caddy est exposé. Les NGINX de Commande, Dashboard et de la documentati
 
 ## Démarrage rapide sur macOS
 
-Prérequis : Homebrew, Docker Desktop ou OrbStack démarré, Node 24 et les dépendances npm du dépôt. Java local n'est pas requis pour lancer le cluster, car le build Backend utilise l'image Temurin 21. Il reste requis pour la boucle Quarkus native et les tests locaux hors conteneur.
+Prérequis : Homebrew, Docker Desktop ou OrbStack démarré, Node 24 et les dépendances npm du dépôt. Java local n'est pas requis pour lancer le cluster, car le build Backend utilise l'image Temurin 25. Il reste requis pour la boucle Quarkus native et les tests locaux hors conteneur.
 
 ```bash
 npm ci

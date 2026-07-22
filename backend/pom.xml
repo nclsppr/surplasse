@@ -21,11 +21,12 @@
   </modules>
 
   <properties>
+    <argLine/>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.release>21</maven.compiler.release>
-    <quarkus.platform.version>3.25.4</quarkus.platform.version>
-    <surefire-plugin.version>3.5.2</surefire-plugin.version>
-    <spotless-plugin.version>2.44.0</spotless-plugin.version>
+    <maven.compiler.release>25</maven.compiler.release>
+    <quarkus.platform.version>3.37.3</quarkus.platform.version>
+    <surefire-plugin.version>3.5.4</surefire-plugin.version>
+    <spotless-plugin.version>3.8.0</spotless-plugin.version>
     <swagger-request-validator.version>2.44.1</swagger-request-validator.version>
     <stripe-java.version>33.1.1</stripe-java.version>
   </properties>
@@ -95,6 +96,7 @@
           <artifactId>maven-surefire-plugin</artifactId>
           <version>${surefire-plugin.version}</version>
           <configuration>
+            <argLine>@{argLine} --add-opens=java.base/java.lang.invoke=ALL-UNNAMED</argLine>
             <systemPropertyVariables>
               <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
               <maven.home>${maven.home}</maven.home>

@@ -142,7 +142,7 @@ surplasse/
 |---|---|
 | `docs/` | La présente documentation, construite avec Retype et publiée sur GitHub Pages |
 | `api/openapi.yaml` | Le contrat OpenAPI 3.1, point de départ de tout changement d'API |
-| `backend/` | L'API Quarkus en Java 21, un module Maven par domaine métier |
+| `backend/` | L'API Quarkus 3.37.3 en Java 25, un module Maven par domaine métier |
 | `frontends/shared/` | Le package partagé : design system, client TypeScript généré depuis le contrat, utilitaires communs |
 | `frontends/onboarding/` | La vitrine produit et le tunnel d'embarquement des restaurateurs |
 | `frontends/commande/` | Le mini-site de l'établissement : carte numérique, commande et paiement client |

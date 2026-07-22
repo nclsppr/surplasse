@@ -9,7 +9,7 @@ description: "Pourquoi le Backend transactionnel reste en Java 21 avec Quarkus e
 
 ## Statut
 
-Accepté, 2026-07-20.
+Remplacé par [ADR-0030](adr-0030-java-25-quarkus-courant.md), 2026-07-22.
 
 ## Contexte
 

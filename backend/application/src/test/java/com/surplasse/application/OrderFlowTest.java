@@ -46,8 +46,7 @@ class OrderFlowTest {
                 {"type":"on_site","lines":[
                   {"productId":"%s","quantity":2,"optionIds":["%s","%s"],"note":"Sauce à part."},
                   {"productId":"%s","quantity":1}
-                ]}"""
-                .formatted(BURGER, RARE, GOAT_CHEESE, PANISSES);
+                ]}""".formatted(BURGER, RARE, GOAT_CHEESE, PANISSES);
     }
 
     @Test

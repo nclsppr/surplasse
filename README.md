@@ -23,7 +23,7 @@ La documentation complète vit dans [`docs/`](docs/). La procédure détaillée 
 
 ## Prérequis
 
-Le chemin automatisé cible macOS avec Homebrew. Il demande Node.js 24, Java 21 et Docker. Python 3 est requis seulement pour régénérer les QR de marque. Windows est supporté via Ubuntu sous WSL2, avec une configuration DNS et certificat supplémentaire côté Windows si le navigateur tourne sur l'hôte. Linux suit la procédure manuelle documentée.
+Le chemin automatisé cible macOS avec Homebrew. Il demande Node.js 24, Java 25 et Docker. Python 3 est requis seulement pour régénérer les QR de marque. Windows est supporté via Ubuntu sous WSL2, avec une configuration DNS et certificat supplémentaire côté Windows si le navigateur tourne sur l'hôte. Linux suit la procédure manuelle documentée.
 
 Installer les dépendances du dépôt une fois :
 
