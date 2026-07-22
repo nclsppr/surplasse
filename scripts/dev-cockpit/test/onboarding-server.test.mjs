@@ -83,6 +83,12 @@ test("Onboarding demonstration ends with a truthful Dashboard service preview", 
   assert.doesNotMatch(html, /Temps réel actif/);
 });
 
+test("Onboarding photo upload stays in a single block formatting context", async () => {
+  const html = await readFile(`${repoRoot}/frontends/onboarding/creer.html`, "utf8");
+
+  assert.match(html, /\.drop\{[^}]*display:(?:block|flex|grid)/);
+});
+
 test("Onboarding static server serves only the explicit public asset allowlist", async (t) => {
   assert.equal(ONBOARDING_HOST, "127.0.0.1");
   assert.equal(ONBOARDING_PORT, 4173);
