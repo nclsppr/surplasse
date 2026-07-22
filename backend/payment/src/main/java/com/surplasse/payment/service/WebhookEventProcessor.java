@@ -1,6 +1,8 @@
 package com.surplasse.payment.service;
 
 import com.surplasse.common.event.OrderPaid;
+import com.surplasse.common.event.PaymentFailed;
+import com.surplasse.common.event.PaymentRefundFailed;
 import com.surplasse.common.event.PaymentRefunded;
 import com.surplasse.common.event.StripeAccountUpdated;
 import com.surplasse.common.order.OrderGateway;
@@ -33,7 +35,9 @@ public class WebhookEventProcessor {
     private final PaymentRefundRepository refundRepository;
     private final OrderGateway orderGateway;
     private final Event<OrderPaid> orderPaid;
+    private final Event<PaymentFailed> paymentFailed;
     private final Event<PaymentRefunded> paymentRefunded;
+    private final Event<PaymentRefundFailed> paymentRefundFailed;
     private final Event<StripeAccountUpdated> stripeAccountUpdated;
 
     WebhookEventProcessor(
@@ -42,14 +46,18 @@ public class WebhookEventProcessor {
             PaymentRefundRepository refundRepository,
             OrderGateway orderGateway,
             Event<OrderPaid> orderPaid,
+            Event<PaymentFailed> paymentFailed,
             Event<PaymentRefunded> paymentRefunded,
+            Event<PaymentRefundFailed> paymentRefundFailed,
             Event<StripeAccountUpdated> stripeAccountUpdated) {
         this.processedEvents = processedEvents;
         this.paymentRepository = paymentRepository;
         this.refundRepository = refundRepository;
         this.orderGateway = orderGateway;
         this.orderPaid = orderPaid;
+        this.paymentFailed = paymentFailed;
         this.paymentRefunded = paymentRefunded;
+        this.paymentRefundFailed = paymentRefundFailed;
         this.stripeAccountUpdated = stripeAccountUpdated;
     }
 
@@ -101,6 +109,7 @@ public class WebhookEventProcessor {
                 // Payment Element can retry and a later succeeded event is
                 // still authoritative.
                 LOG.infof("Payment intent %s failed and remains retryable", event.paymentIntentId());
+                paymentFailed.fire(new PaymentFailed(payment.getOrderId(), payment.getEstablishmentId()));
             }
         });
     }
@@ -172,6 +181,9 @@ public class WebhookEventProcessor {
             }
             payment.markRefunded();
             paymentRefunded.fire(new PaymentRefunded(refund.getOrderId(), refund.getEstablishmentId()));
+        }
+        if (previous != RefundStatus.FAILED && refund.getStatus() == RefundStatus.FAILED) {
+            paymentRefundFailed.fire(new PaymentRefundFailed(refund.getOrderId(), refund.getEstablishmentId()));
         }
     }
 

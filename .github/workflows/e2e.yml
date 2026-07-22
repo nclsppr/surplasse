@@ -1,0 +1,141 @@
+name: E2E monitoring
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "e2e/**"
+      - "config/domains/**"
+      - "package.json"
+      - ".github/workflows/e2e.yml"
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Target profile
+        required: true
+        default: production
+        type: choice
+        options:
+          - production
+          - custom
+      target_id:
+        description: Lowercase history ID required for a custom target
+        required: false
+        type: string
+      base_domain:
+        description: Base hostname required for a custom target
+        required: false
+        type: string
+      establishment_slug:
+        description: Optional read-only restaurant smoke-test slug
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  configuration:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: e2e
+    env:
+      SURPLASSE_E2E_TARGET: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      - run: npm ci
+      - run: npm run check
+      - name: Load every smoke specification
+        run: npm exec -- playwright test --config=playwright.config.mjs --list
+
+  smoke:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && vars.E2E_MONITORING_ENABLED == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: >-
+        e2e-monitor-${{
+          github.event_name == 'schedule' && 'production' ||
+          inputs.target == 'custom' && inputs.target_id ||
+          inputs.target
+        }}
+      cancel-in-progress: false
+    env:
+      CI: "true"
+      SURPLASSE_E2E_TARGET: ${{ github.event_name == 'workflow_dispatch' && inputs.target || 'production' }}
+      SURPLASSE_E2E_TARGET_ID: ${{ inputs.target_id }}
+      SURPLASSE_E2E_BASE_DOMAIN: ${{ inputs.base_domain }}
+      SURPLASSE_E2E_ESTABLISHMENT_SLUG: ${{ github.event_name == 'schedule' && vars.E2E_PRODUCTION_ESTABLISHMENT_SLUG || inputs.establishment_slug }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Install the E2E package
+        run: npm ci --prefix e2e
+
+      - name: Resolve and validate the target
+        id: target
+        run: |
+          target_id="$(node e2e/scripts/run.mjs id "$SURPLASSE_E2E_TARGET")"
+          echo "id=$target_id" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the target history
+        id: history
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .surplasse/e2e/${{ steps.target.outputs.id }}/current.json
+            .surplasse/e2e/${{ steps.target.outputs.id }}/releases/*/history.jsonl
+          key: allure-history-${{ steps.target.outputs.id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            allure-history-${{ steps.target.outputs.id }}-
+
+      - name: Install Chromium and Linux dependencies
+        run: npm --prefix e2e exec -- playwright install --with-deps chromium
+
+      - name: Run non-destructive smoke tests
+        id: tests
+        continue-on-error: true
+        run: npm run e2e:test -- "$SURPLASSE_E2E_TARGET"
+
+      - name: Save the updated target history
+        if: always() && steps.tests.outcome != 'skipped'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .surplasse/e2e/${{ steps.target.outputs.id }}/current.json
+            .surplasse/e2e/${{ steps.target.outputs.id }}/releases/*/history.jsonl
+          key: allure-history-${{ steps.target.outputs.id }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Upload the replayable report and diagnostics
+        if: always() && steps.tests.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-${{ steps.target.outputs.id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .surplasse/e2e/${{ steps.target.outputs.id }}/current.json
+            .surplasse/e2e/${{ steps.target.outputs.id }}/releases
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 30
+
+      - name: Propagate the smoke-test failure
+        if: steps.tests.outcome == 'failure'
+        run: exit 1

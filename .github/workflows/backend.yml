@@ -8,6 +8,9 @@ on:
       - "backend/**"
       - "api/**"
       - "config/domains/**"
+      - "config/deployment/images.env"
+      - "infra/images/backend.Dockerfile"
+      - "infra/images/backend-entrypoint.sh"
       - "scripts/run-with-domain-profile.sh"
       - "package.json"
       - ".github/workflows/backend.yml"
@@ -30,3 +33,13 @@ jobs:
       # (@QuarkusTest sur PostgreSQL 17 via Testcontainers, réponses
       # validées contre le contrat) et le contrôle de formatage Spotless.
       - run: npm run backend:verify
+      - name: Build the production Backend image without demo seed resources
+        run: |
+          source config/deployment/images.env
+          docker build \
+            --file infra/images/backend.Dockerfile \
+            --build-arg TEMURIN_BUILD_IMAGE="$TEMURIN_BUILD_IMAGE" \
+            --build-arg TEMURIN_RUNTIME_IMAGE="$TEMURIN_RUNTIME_IMAGE" \
+            --build-arg DOMAIN_PROFILE=production \
+            --tag surplasse/backend:production-check \
+            .

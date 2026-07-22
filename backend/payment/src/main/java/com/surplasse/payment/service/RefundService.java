@@ -3,6 +3,7 @@ package com.surplasse.payment.service;
 import com.surplasse.common.error.BusinessRuleException;
 import com.surplasse.common.error.ConflictException;
 import com.surplasse.common.error.NotFoundException;
+import com.surplasse.common.event.PaymentRefundFailed;
 import com.surplasse.common.event.PaymentRefunded;
 import com.surplasse.common.identity.RestaurateurIdentityGateway;
 import com.surplasse.common.order.OrderGateway;
@@ -35,6 +36,7 @@ public class RefundService {
     private final RefundRequestRepository requests;
     private final RefundProvider provider;
     private final Event<PaymentRefunded> paymentRefunded;
+    private final Event<PaymentRefundFailed> paymentRefundFailed;
 
     RefundService(
             RestaurateurIdentityGateway identityGateway,
@@ -43,7 +45,8 @@ public class RefundService {
             PaymentRefundRepository refunds,
             RefundRequestRepository requests,
             RefundProvider provider,
-            Event<PaymentRefunded> paymentRefunded) {
+            Event<PaymentRefunded> paymentRefunded,
+            Event<PaymentRefundFailed> paymentRefundFailed) {
         this.identityGateway = identityGateway;
         this.orderGateway = orderGateway;
         this.payments = payments;
@@ -51,6 +54,7 @@ public class RefundService {
         this.requests = requests;
         this.provider = provider;
         this.paymentRefunded = paymentRefunded;
+        this.paymentRefundFailed = paymentRefundFailed;
     }
 
     /** Reserves locally, calls Stripe without a transaction, then reconciles the authoritative result. */
@@ -146,6 +150,9 @@ public class RefundService {
             payment.markRefunded();
             paymentRefunded.fire(new PaymentRefunded(refund.getOrderId(), refund.getEstablishmentId()));
         }
+        if (previous != RefundStatus.FAILED && refund.getStatus() == RefundStatus.FAILED) {
+            paymentRefundFailed.fire(new PaymentRefundFailed(refund.getOrderId(), refund.getEstablishmentId()));
+        }
         refunds.flush();
         return refund;
     }
@@ -155,6 +162,7 @@ public class RefundService {
                 .orElseThrow(
                         () -> new IllegalStateException("A reserved refund disappeared after provider rejection."));
         refund.markCreationFailed(failureReason);
+        paymentRefundFailed.fire(new PaymentRefundFailed(refund.getOrderId(), refund.getEstablishmentId()));
     }
 
     private static void requireSettledPayment(Payment payment, PaymentRefund refund) {

@@ -233,6 +233,11 @@ h1 {
   color: var(--failure);
 }
 
+.configuration-error {
+  max-width: 48ch;
+  color: var(--failure);
+}
+
 .button {
   min-height: 40px;
   border: 0;
@@ -439,8 +444,10 @@ h1 {
 .status-badge.status-failed,
 .status-badge.status-conflict,
 .status-badge.status-degraded,
+.status-badge.status-unavailable,
 .quality-badge.quality-failed,
-.quality-badge.quality-interrupted {
+.quality-badge.quality-interrupted,
+.quality-badge.quality-broken {
   background: #f0d9d3;
   color: #873322;
 }
@@ -542,6 +549,83 @@ h1 {
   color: rgba(255, 255, 255, 0.76);
   font-size: 0.82rem;
   line-height: 1.45;
+}
+
+.report-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 28px;
+  align-items: center;
+  margin-top: 18px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.report-card.report-passed {
+  border-color: #b9cabb;
+  background: #f5f8f5;
+}
+
+.report-card.report-failed,
+.report-card.report-broken {
+  border-color: #dcb8ad;
+  background: #fbf5f3;
+}
+
+.report-copy h2 {
+  margin: 3px 0 6px;
+  font-size: 1.06rem;
+}
+
+.report-copy p {
+  max-width: 72ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.eyebrow {
+  color: var(--paprika-dark);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.report-result,
+.report-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.report-result {
+  max-width: 360px;
+}
+
+.report-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  text-decoration: none;
+}
+
+.report-link::after {
+  content: " ↗";
+}
+
+.empty-state {
+  margin: 28px 0 0;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--muted);
 }
 
 .state-dot {
@@ -741,6 +825,16 @@ footer p {
 
   .quality-heading .button {
     width: 100%;
+  }
+
+  .report-card {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .report-result,
+  .report-facts {
+    justify-content: flex-start;
   }
 
   .quality-suite {

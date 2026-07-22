@@ -6,40 +6,46 @@
     "APP_BASE_DOMAIN": "surplasse.test",
     "PROBLEM_TYPE_BASE": "https://surplasse.com/problems/",
     "COOKIE_DOMAIN": "",
-    "RESERVED_SUBDOMAINS": "www,api,dashboard,docs,app,admin,local,mail",
+    "RESERVED_SUBDOMAINS": "www,api,dashboard,docs,app,admin,local,mail,reports,grafana",
     "APP_BASE_URL": "https://surplasse.test",
     "ONBOARDING_URL": "https://surplasse.test",
     "DASHBOARD_URL": "https://dashboard.surplasse.test",
     "API_URL": "https://api.surplasse.test",
     "LOCAL_CONTROL_URL": "https://local.surplasse.test",
     "DOCS_URL": "https://docs.surplasse.test",
-    "MAILPIT_URL": "https://mail.surplasse.test"
+    "MAILPIT_URL": "https://mail.surplasse.test",
+    "REPORTS_URL": "https://reports.surplasse.test",
+    "GRAFANA_URL": "https://grafana.surplasse.test"
   },
   "production": {
     "APP_SCHEME": "https",
     "APP_BASE_DOMAIN": "surplasse.com",
     "PROBLEM_TYPE_BASE": "https://surplasse.com/problems/",
     "COOKIE_DOMAIN": "",
-    "RESERVED_SUBDOMAINS": "www,api,dashboard,docs,app,admin,local,mail",
+    "RESERVED_SUBDOMAINS": "www,api,dashboard,docs,app,admin,local,mail,reports,grafana",
     "APP_BASE_URL": "https://surplasse.com",
     "ONBOARDING_URL": "https://surplasse.com",
     "DASHBOARD_URL": "https://dashboard.surplasse.com",
     "API_URL": "https://api.surplasse.com",
     "LOCAL_CONTROL_URL": "",
     "DOCS_URL": "https://docs.surplasse.com",
-    "MAILPIT_URL": ""
+    "MAILPIT_URL": "",
+    "REPORTS_URL": "",
+    "GRAFANA_URL": ""
   }
 });
   const hostname = window.location.hostname.toLowerCase().replace(/\.$/u, "");
-  const developmentDomain = profiles.development.APP_BASE_DOMAIN;
   const loopbackHosts = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
   if (loopbackHosts.has(hostname)) {
     throw new Error("Direct loopback previews are forbidden. Use the configured HTTPS development domain.");
   }
-  const isDevelopment =
-    hostname === developmentDomain ||
-    hostname.endsWith(`.${developmentDomain}`);
-  const selectedProfile = isDevelopment ? "development" : "production";
+  const selectedProfile = Object.keys(profiles).find((profile) => {
+    const domain = profiles[profile].APP_BASE_DOMAIN;
+    return hostname === domain || hostname.endsWith(`.${domain}`);
+  });
+  if (!selectedProfile) {
+    throw new Error("Hostname does not belong to a configured domain profile.");
+  }
 
   window.SURPLASSE_DOMAIN_CONFIG = Object.freeze(
     { ...profiles[selectedProfile], PROFILE: selectedProfile },

@@ -2,196 +2,322 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { CockpitOperationError } from "../system.mjs";
-import { createManagerHarness } from "./helpers.mjs";
+import {
+  composeService,
+  createManagerHarness,
+  FakeReportStore,
+  waitUntil,
+} from "./helpers.mjs";
 
-test("stopped module starts as an owned process and becomes ready after health succeeds", async () => {
-  const harness = createManagerHarness();
-  const starting = await harness.manager.start("commande");
-
-  assert.equal(starting.status, "starting");
-  assert.equal(starting.ownership, "cockpit");
-  assert.equal(harness.processController.starts.length, 1);
-  assert.equal(harness.processController.starts[0].definition.id, "commande");
-
-  harness.health.set("http://127.0.0.1:5173/", true);
-  const state = await harness.manager.state();
-  const commande = state.modules.find((module) => module.id === "commande");
-  assert.equal(commande.status, "ready");
-  assert.equal(commande.canStop, true);
-});
-
-test("healthy service without owned handle is external and can never be stopped", async () => {
-  const harness = createManagerHarness();
-  harness.health.set("http://127.0.0.1:5174/", true);
+test("healthy Compose project is reflected as ready without cockpit ownership handles", async () => {
+  const reportStore = new FakeReportStore({
+    available: true,
+    status: "passed",
+    createdAt: "2026-07-22T02:00:00.000Z",
+    durationMs: 2_338,
+    total: 7,
+    passed: 7,
+  });
+  const harness = createManagerHarness({ reportStore });
+  harness.composeController.setAllReady();
 
   const state = await harness.manager.state();
-  const dashboard = state.modules.find((module) => module.id === "dashboard");
-  assert.equal(dashboard.status, "external");
-  assert.equal(dashboard.ownership, "external");
-  assert.equal(dashboard.canStop, false);
+  const backend = moduleById(state, "backend");
+  const edge = moduleById(state, "edge");
+  const postgresql = moduleById(state, "postgresql");
 
-  await assert.rejects(() => harness.manager.stop("dashboard"), CockpitOperationError);
-  assert.equal(harness.processController.stops.length, 0);
-});
-
-test("occupied port with failing health is a conflict and cannot spawn", async () => {
-  const harness = createManagerHarness();
-  harness.occupiedPorts.add(5173);
-
-  const state = await harness.manager.state();
-  assert.equal(state.modules.find((module) => module.id === "commande").status, "conflict");
-  await assert.rejects(() => harness.manager.start("commande"), /déjà occupé/u);
-  assert.equal(harness.processController.starts.length, 0);
-});
-
-test("owned process is the only process sent to stop", async () => {
-  const harness = createManagerHarness();
-  await harness.manager.start("docs");
-  await harness.manager.stop("docs");
-
-  assert.equal(harness.processController.stops.length, 1);
-  const state = await harness.manager.state();
-  assert.equal(state.modules.find((module) => module.id === "docs").status, "stopped");
-});
-
-test("unexpected child exit marks failure and stale generation cannot break replacement", async () => {
-  const harness = createManagerHarness();
-  await harness.manager.start("commande");
-  const firstHandle = harness.processController.starts[0].handle;
-  harness.processController.exit(firstHandle, { code: 7, signal: null, error: null });
-
-  let state = await harness.manager.state();
-  assert.equal(state.modules.find((module) => module.id === "commande").status, "failed");
-
-  await harness.manager.start("commande");
-  const secondHandle = harness.processController.starts[1].handle;
-  harness.processController.exit(firstHandle, { code: 9, signal: null, error: null });
-  harness.health.set("http://127.0.0.1:5173/", true);
-
-  state = await harness.manager.state();
-  const commande = state.modules.find((module) => module.id === "commande");
-  assert.equal(commande.status, "ready");
-  assert.equal(secondHandle.running, true);
-});
-
-test("living process whose startup deadline elapsed becomes degraded", async () => {
-  const harness = createManagerHarness();
-  await harness.manager.start("onboarding");
-  harness.advance(20_001);
-
-  const state = await harness.manager.state();
-  assert.equal(state.modules.find((module) => module.id === "onboarding").status, "degraded");
-});
-
-test("PostgreSQL state is derived and never exposes controls", async () => {
-  const harness = createManagerHarness();
-  harness.health.set("http://127.0.0.1:8080/q/health/ready", true);
-
-  const state = await harness.manager.state();
-  const postgresql = state.modules.find((module) => module.id === "postgresql");
+  assert.deepEqual(state.compose, {
+    available: true,
+    running: false,
+    action: null,
+    moduleIds: [],
+    error: null,
+  });
+  assert.equal(backend.status, "ready");
+  assert.equal(backend.ownership, "compose");
+  assert.equal(backend.canStart, false);
+  assert.equal(backend.canStop, true);
+  assert.equal(edge.status, "ready");
+  assert.equal(edge.canStart, false);
+  assert.equal(edge.canStop, false);
   assert.equal(postgresql.status, "ready");
-  assert.equal(postgresql.ownership, "derived");
-  assert.equal(postgresql.canStart, false);
-  assert.equal(postgresql.canStop, false);
-  await assert.rejects(() => harness.manager.stop("postgresql"), /non pilotable/u);
+  assert.equal(postgresql.canStop, true);
+  assert.deepEqual(state.reports.allureDevelopment, reportStore.reportState);
+  assert.equal(state.urlConfiguration.reportsUrl, "https://reports.surplasse.test");
 });
 
-test("backend refuses to start when Docker is unavailable and never installs it", async () => {
-  const harness = createManagerHarness();
-  harness.mailpitController.available = false;
+test("Compose container states map to stable cockpit statuses and controls", async (t) => {
+  const cases = [
+    [{ exists: false }, "stopped", true, false],
+    [{ state: "running", health: "starting" }, "starting", false, true],
+    [{ state: "running", health: "unhealthy" }, "degraded", false, true],
+    [{ state: "running", health: "" }, "ready", false, true],
+    [{ state: "created", health: "" }, "starting", false, true],
+    [{ state: "exited", health: "", exitCode: 0 }, "stopped", true, false],
+    [{ state: "exited", health: "", exitCode: 9 }, "failed", true, false],
+    [{ state: "dead", health: "", exitCode: 9 }, "failed", true, false],
+    [{ state: "paused", health: "", exitCode: null }, "degraded", false, true],
+  ];
 
-  await assert.rejects(() => harness.manager.start("backend"), /Docker doit être démarré/u);
-  assert.equal(harness.processController.starts.length, 0);
+  for (const [container, expectedStatus, canStart, canStop] of cases) {
+    await t.test(expectedStatus, async () => {
+      const harness = createManagerHarness();
+      if (container.exists === false) {
+        // Missing is the default fake state.
+      } else {
+        harness.composeController.set("backend", container);
+      }
+      const backend = moduleById(await harness.manager.state(), "backend");
+      assert.equal(backend.status, expectedStatus);
+      assert.equal(backend.canStart, canStart);
+      assert.equal(backend.canStop, canStop);
+    });
+  }
 });
 
-test("Mailpit loses ownership when immutable container metadata changes", async () => {
+test("ready container becomes degraded when its canonical HTTPS route fails", async () => {
   const harness = createManagerHarness();
-  await harness.manager.start("mailpit");
-  harness.health.set("http://127.0.0.1:8025/readyz", true);
-  harness.mailpitController.container.image = "unexpected/mailpit:latest";
-
-  const state = await harness.manager.state();
-  const mailpit = state.modules.find((module) => module.id === "mailpit");
-  assert.equal(mailpit.status, "external");
-  assert.equal(mailpit.ownership, "external");
-  assert.equal(mailpit.canStop, false);
-
-  await assert.rejects(() => harness.manager.stop("mailpit"), /n'appartient pas/u);
-  assert.equal(harness.mailpitController.stops.length, 0);
-});
-
-test("internally ready module is degraded when its public HTTPS route is broken", async () => {
-  const harness = createManagerHarness();
-  await harness.manager.start("backend");
-  harness.health.set("http://127.0.0.1:8080/q/health/ready", true);
+  harness.composeController.set("backend");
   harness.publicUrls.set("https://api.surplasse.test/q/health/ready", {
     state: "gateway-error",
     detail: "Caddy répond, mais la destination renvoie HTTP 502.",
     statusCode: 502,
   });
 
-  const state = await harness.manager.state();
-  const backend = state.modules.find((module) => module.id === "backend");
+  const backend = moduleById(await harness.manager.state(), "backend");
+
   assert.equal(backend.status, "degraded");
-  assert.equal(backend.ownership, "cockpit");
   assert.equal(backend.canStop, true);
   assert.equal(backend.publicUrl.state, "gateway-error");
-  assert.match(backend.detail, /Service interne prêt, accès public indisponible/u);
+  assert.match(backend.detail, /Conteneur sain, accès HTTPS indisponible/u);
 });
 
-test("state exposes expected reserved, cockpit and www public URL diagnostics", async () => {
+test("Compose inspection failure disables every lifecycle control", async () => {
   const harness = createManagerHarness();
+  harness.composeController.inspectError = new Error("docker socket unavailable");
 
   const state = await harness.manager.state();
-  const app = state.modules.find((module) => module.id === "app");
-  assert.equal(app.status, "reserved");
-  assert.equal(app.publicUrl.state, "reserved");
-  assert.equal(app.publicUrl.statusCode, 503);
-  assert.equal(state.urlConfiguration.publicUrl.state, "available");
-  assert.equal(state.urlConfiguration.wwwUrl, "https://www.surplasse.test");
-  assert.equal(state.urlConfiguration.wwwPublicUrl.state, "redirect");
-  assert.equal(state.urlConfiguration.wwwPublicUrl.statusCode, 308);
+
+  assert.equal(state.compose.available, false);
+  assert.equal(state.compose.error, "L'état du projet Docker Compose est indisponible.");
+  for (const module of state.modules.filter((item) => item.kind === "compose")) {
+    assert.equal(module.status, "unavailable");
+    assert.equal(module.canStart, false);
+    assert.equal(module.canStop, false);
+  }
+  await assert.rejects(
+    () => harness.manager.start("backend"),
+    (error) => error instanceof CockpitOperationError && error.statusCode === 503,
+  );
 });
 
-test("preset skips external services, starts allowlisted modules and stops only owned modules", async () => {
+test("module start is asynchronous, globally serialized and delegated to Compose", async () => {
   const harness = createManagerHarness();
-  harness.health.set("http://127.0.0.1:8025/readyz", true);
+  const operation = harness.composeController.deferNextOperation();
 
-  const started = await harness.manager.runPreset("core", "start");
+  const accepted = await harness.manager.start("backend");
+  await waitUntil(() => harness.composeController.starts.length === 1);
+  const during = await harness.manager.state();
+
+  assert.equal(accepted.status, "starting");
+  assert.deepEqual(harness.composeController.starts, [["backend"]]);
+  assert.equal(during.compose.running, true);
+  assert.equal(during.compose.action, "start");
+  assert.deepEqual(during.compose.moduleIds, ["backend"]);
+  assert.equal(moduleById(during, "backend").status, "starting");
+  assert.equal(moduleById(during, "commande").canStart, false);
+  await assert.rejects(
+    () => harness.manager.stop("commande"),
+    (error) => error instanceof CockpitOperationError && error.statusCode === 409,
+  );
+
+  operation.resolve();
+  await waitUntil(async () => !(await harness.manager.state()).compose.running);
+  const completed = await harness.manager.state();
+  assert.equal(moduleById(completed, "backend").status, "ready");
+  assert.equal(moduleById(completed, "backend").canStop, true);
+});
+
+test("module stop is asynchronous and delegates the exact service to Compose", async () => {
+  const harness = createManagerHarness();
+  harness.composeController.set("dashboard");
+  const operation = harness.composeController.deferNextOperation();
+
+  const accepted = await harness.manager.stop("dashboard");
+  await waitUntil(() => harness.composeController.stops.length === 1);
+
+  assert.equal(accepted.status, "stopping");
+  assert.deepEqual(harness.composeController.stops, [["dashboard"]]);
+  operation.resolve();
+  await waitUntil(async () => !(await harness.manager.state()).compose.running);
+  assert.equal(moduleById(await harness.manager.state(), "dashboard").status, "stopped");
+});
+
+test("lifecycle failure is sanitized, persisted and exposed as a retryable module failure", async () => {
+  const harness = createManagerHarness();
+  harness.composeController.startError = new Error("build failed\nexit 1");
+
+  await harness.manager.start("commande");
+  await waitUntil(async () => !(await harness.manager.state()).compose.running);
+  const commande = moduleById(await harness.manager.state(), "commande");
+
+  assert.equal(commande.status, "failed");
+  assert.equal(commande.canStart, true);
+  assert.equal(commande.lastError, "build failed exit 1");
+});
+
+test("start preset skips ready services and submits remaining services in registry order", async () => {
+  const harness = createManagerHarness();
+  harness.composeController.set("postgresql");
+  harness.composeController.set("backend");
+  const operation = harness.composeController.deferNextOperation();
+
+  const accepted = await harness.manager.runPreset("all", "start");
+  await waitUntil(() => harness.composeController.starts.length === 1);
+
   assert.deepEqual(
-    started.results.map((result) => [result.id, result.ok, result.skipped]),
+    accepted.results.map((result) => [result.id, result.skipped]),
     [
-      ["mailpit", true, true],
-      ["backend", true, false],
-      ["commande", true, false],
-      ["dashboard", true, false],
+      ["postgresql", true],
+      ["mailpit", false],
+      ["backend", true],
+      ["commande", false],
+      ["dashboard", false],
+      ["onboarding", false],
+      ["docs", false],
+      ["prometheus", false],
+      ["grafana", false],
     ],
   );
-  assert.equal(harness.mailpitController.starts.length, 0);
-
-  const stopped = await harness.manager.runPreset("core", "stop");
-  assert.equal(stopped.results.every((result) => result.ok), true);
-  assert.equal(harness.mailpitController.stops.length, 0);
-  assert.equal(harness.processController.stops.length, 3);
+  assert.deepEqual(harness.composeController.starts, [[
+    "mailpit",
+    "commande",
+    "dashboard",
+    "onboarding",
+    "docs",
+    "prometheus",
+    "grafana",
+  ]]);
+  operation.resolve();
+  await waitUntil(async () => !(await harness.manager.state()).compose.running);
 });
 
-test("state response never exposes commands, paths, handles, pids or Docker owner", async () => {
+test("stop preset submits running services in reverse dependency order", async () => {
   const harness = createManagerHarness();
-  await harness.manager.start("commande");
+  harness.composeController.setAllReady();
+  const operation = harness.composeController.deferNextOperation();
+
+  await harness.manager.runPreset("all", "stop");
+  await waitUntil(() => harness.composeController.stops.length === 1);
+
+  assert.deepEqual(harness.composeController.stops, [[
+    "grafana",
+    "prometheus",
+    "docs",
+    "onboarding",
+    "dashboard",
+    "commande",
+    "backend",
+    "mailpit",
+    "postgresql",
+  ]]);
+  operation.resolve();
+  await waitUntil(async () => !(await harness.manager.state()).compose.running);
+});
+
+test("unknown, reserved and read-only modules cannot reach Compose", async () => {
+  const harness = createManagerHarness();
+
+  for (const id of ["unknown", "app", "edge"]) {
+    await assert.rejects(
+      () => harness.manager.start(id),
+      (error) => error instanceof CockpitOperationError && error.statusCode === 404,
+    );
+  }
+  assert.deepEqual(harness.composeController.starts, []);
+});
+
+test("running quality checks and Compose lifecycle operations exclude each other", async () => {
+  const qualityHarness = createManagerHarness();
+  qualityHarness.qualityRunner.running = true;
+  await assert.rejects(
+    () => qualityHarness.manager.start("backend"),
+    (error) => error instanceof CockpitOperationError && error.statusCode === 409,
+  );
+
+  const lifecycleHarness = createManagerHarness();
+  const operation = lifecycleHarness.composeController.deferNextOperation();
+  await lifecycleHarness.manager.start("backend");
+  await waitUntil(() => lifecycleHarness.composeController.starts.length === 1);
+  await assert.rejects(
+    () => lifecycleHarness.manager.runQualitySuite("backend-integration"),
+    (error) => error instanceof CockpitOperationError && error.statusCode === 409,
+  );
+  operation.resolve();
+  await waitUntil(async () => !(await lifecycleHarness.manager.state()).compose.running);
+});
+
+test("Playwright suite and full quality run require the complete smoke platform to be healthy", async () => {
+  const blocked = createManagerHarness();
+  for (const service of ["edge", "backend", "commande", "dashboard"]) {
+    blocked.composeController.set(service);
+  }
+
+  await assert.rejects(
+    () => blocked.manager.runQualitySuite("e2e-development"),
+    (error) =>
+      error instanceof CockpitOperationError &&
+      error.statusCode === 409 &&
+      error.message.includes("onboarding"),
+  );
+  assert.deepEqual(blocked.qualityRunner.suiteStarts, []);
+
+  const ready = createManagerHarness();
+  ready.composeController.setAllReady();
+  const suiteState = await ready.manager.runQualitySuite("e2e-development");
+  assert.equal(suiteState.running, true);
+  assert.deepEqual(ready.qualityRunner.suiteStarts, ["e2e-development"]);
+
+  const all = createManagerHarness();
+  all.composeController.setAllReady();
+  await all.manager.runAllQualitySuites();
+  assert.equal(all.qualityRunner.allStarts, 1);
+});
+
+test("manager shutdown aborts cockpit operations without stopping Compose services", async () => {
+  const harness = createManagerHarness();
+  const operation = harness.composeController.deferNextOperation();
+  await harness.manager.start("backend");
+  await waitUntil(() => harness.composeController.starts.length === 1);
+
+  await harness.manager.shutdown();
+
+  assert.equal(harness.composeController.aborted, true);
+  assert.equal(harness.qualityRunner.stops, 1);
+  assert.deepEqual(harness.composeController.stops, []);
+  operation.resolve();
+});
+
+test("state never exposes Compose commands, service identifiers or controller internals", async () => {
+  const harness = createManagerHarness();
+  harness.composeController.set("backend", composeService("backend"));
+
   const serialized = JSON.stringify(await harness.manager.state());
 
   for (const forbidden of [
+    '"composeService":',
     '"command":',
     '"environment":',
-    '"env":',
     '"cwd":',
-    "mvnw",
-    "--host",
-    "COOKIE_DOMAIN",
-    "container-current",
-    "current-owner",
-    '"pid":',
+    "scripts/compose.sh",
+    "docker compose",
+    '"signal":',
   ]) {
     assert.equal(serialized.includes(forbidden), false, forbidden);
   }
+  assert.equal(serialized.includes("https://reports.surplasse.test"), true);
 });
+
+function moduleById(state, id) {
+  return state.modules.find((module) => module.id === id);
+}

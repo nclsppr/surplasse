@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 import com.surplasse.common.error.BusinessRuleException;
 import com.surplasse.common.error.ConflictException;
 import com.surplasse.common.error.DependencyUnavailableException;
+import com.surplasse.common.event.PaymentRefundFailed;
 import com.surplasse.common.event.PaymentRefunded;
 import com.surplasse.common.identity.RestaurateurIdentityGateway;
 import com.surplasse.common.order.OrderGateway;
@@ -55,6 +56,7 @@ class RefundServiceTest {
     private RefundRequestRepository requests;
     private RefundProvider provider;
     private Event<PaymentRefunded> paymentRefunded;
+    private Event<PaymentRefundFailed> paymentRefundFailed;
     private RefundService service;
     private Payment payment;
     private AtomicReference<PaymentRefund> reservedRefund;
@@ -70,8 +72,16 @@ class RefundServiceTest {
         requests = mock(RefundRequestRepository.class);
         provider = mock(RefundProvider.class);
         paymentRefunded = mock(Event.class);
+        paymentRefundFailed = mock(Event.class);
         service = new RefundService(
-                identityGateway, orderGateway, payments, refunds, requests, provider, paymentRefunded);
+                identityGateway,
+                orderGateway,
+                payments,
+                refunds,
+                requests,
+                provider,
+                paymentRefunded,
+                paymentRefundFailed);
 
         transactions = Mockito.mockStatic(QuarkusTransaction.class);
         TransactionRunnerOptions runner = mock(TransactionRunnerOptions.class);
@@ -242,5 +252,6 @@ class RefundServiceTest {
 
         assertEquals(RefundStatus.FAILED, reservedRefund.get().getStatus());
         verify(paymentRefunded, never()).fire(any());
+        verify(paymentRefundFailed).fire(new PaymentRefundFailed(ORDER, ESTABLISHMENT));
     }
 }

@@ -1,219 +1,254 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { MailpitController, ProcessController } from "../system.mjs";
-import { createRegistry } from "../registry.mjs";
-import { configuredDevelopmentUrls, FakeChild, repoRoot } from "./helpers.mjs";
+import {
+  CockpitOperationError,
+  ComposeController,
+  parseComposePs,
+  runFixedCommand,
+} from "../system.mjs";
+import { repoRoot } from "./helpers.mjs";
 
-test("process controller spawns fixed command detached and without shell", async () => {
-  const definition = createRegistry(repoRoot, configuredDevelopmentUrls()).modules.find(
-    (module) => module.id === "commande",
-  );
-  const child = new FakeChild();
-  let invocation;
-  const controller = new ProcessController({
-    spawnImpl: (executable, args, options) => {
-      invocation = { executable, args, options };
-      queueMicrotask(() => child.emit("spawn"));
-      return child;
-    },
-    stdout: null,
-    stderr: null,
-  });
+const SCRIPT = `${repoRoot}/scripts/compose.sh`;
+const SERVICES = Object.freeze(["edge", "backend", "commande"]);
 
-  const handle = await controller.start(definition, () => {});
+test("Compose state parser returns an explicit missing record for every allowlisted service", () => {
+  const statuses = parseComposePs("", parseOptions());
 
-  assert.equal(handle.pid, child.pid);
-  assert.equal(invocation.executable, "npm");
-  assert.deepEqual(invocation.args, ["run", "dev", "--", "--host", "127.0.0.1"]);
-  assert.equal(invocation.options.detached, true);
-  assert.equal(invocation.options.shell, false);
-  assert.deepEqual(invocation.options.stdio, ["ignore", "pipe", "pipe"]);
-  assert.equal(invocation.options.cwd, definition.command.cwd);
-});
-
-test("process controller resolves Java 21 for the Backend without relying on its parent PATH", async () => {
-  const definition = createRegistry(repoRoot, configuredDevelopmentUrls()).modules.find(
-    (module) => module.id === "backend",
-  );
-  const child = new FakeChild();
-  let invocation;
-  const controller = new ProcessController({
-    baseEnvironment: { PATH: "/usr/bin" },
-    javaEnvironmentResolver: async () => ({
-      JAVA_HOME: "/opt/jdks/temurin-21",
-      PATH: "/opt/jdks/temurin-21/bin:/usr/bin",
-    }),
-    spawnImpl: (executable, args, options) => {
-      invocation = { executable, args, options };
-      queueMicrotask(() => child.emit("spawn"));
-      return child;
-    },
-    stdout: null,
-    stderr: null,
-  });
-
-  await controller.start(definition, () => {});
-
-  assert.equal(invocation.options.env.JAVA_HOME, "/opt/jdks/temurin-21");
-  assert.equal(invocation.options.env.PATH, "/opt/jdks/temurin-21/bin:/usr/bin");
-});
-
-test("process controller prevents Backend launch when Java 21 is unavailable", async () => {
-  const definition = createRegistry(repoRoot, configuredDevelopmentUrls()).modules.find(
-    (module) => module.id === "backend",
-  );
-  let spawned = false;
-  const controller = new ProcessController({
-    javaEnvironmentResolver: async () => {
-      throw new Error("Java 21 is unavailable.");
-    },
-    spawnImpl: () => {
-      spawned = true;
-      return new FakeChild();
-    },
-    stdout: null,
-    stderr: null,
-  });
-
-  await assert.rejects(() => controller.start(definition, () => {}), /Java 21 is unavailable/u);
-  assert.equal(spawned, false);
-});
-
-test("process controller stops only owned process group with SIGTERM", async () => {
-  const definition = createRegistry(repoRoot, configuredDevelopmentUrls()).modules.find(
-    (module) => module.id === "docs",
-  );
-  const child = new FakeChild(7890);
-  const signals = [];
-  const controller = new ProcessController({
-    spawnImpl: () => {
-      queueMicrotask(() => child.emit("spawn"));
-      return child;
-    },
-    killImpl: (pid, signal) => {
-      signals.push([pid, signal]);
-      queueMicrotask(() => child.emit("exit", 0, signal));
-    },
-    stdout: null,
-    stderr: null,
-  });
-  const handle = await controller.start(definition, () => {});
-
-  await controller.stop(handle);
-
-  assert.deepEqual(signals, [[-7890, "SIGTERM"]]);
-});
-
-test("process controller escalates the same owned group when SIGTERM is ignored", async () => {
-  const definition = createRegistry(repoRoot, configuredDevelopmentUrls()).modules.find(
-    (module) => module.id === "docs",
-  );
-  const child = new FakeChild(7891);
-  const signals = [];
-  const controller = new ProcessController({
-    spawnImpl: () => {
-      queueMicrotask(() => child.emit("spawn"));
-      return child;
-    },
-    killImpl: (pid, signal) => {
-      signals.push([pid, signal]);
-      if (signal === "SIGKILL") {
-        queueMicrotask(() => child.emit("exit", null, signal));
-      }
-    },
-    setTimer: (callback) => {
-      queueMicrotask(callback);
-      return 1;
-    },
-    clearTimer: () => {},
-    stdout: null,
-    stderr: null,
-  });
-  const handle = await controller.start(definition, () => {});
-
-  await controller.stop(handle);
-
-  assert.deepEqual(signals, [
-    [-7891, "SIGTERM"],
-    [-7891, "SIGKILL"],
+  assert.deepEqual([...statuses], [
+    ["edge", missing("edge")],
+    ["backend", missing("backend")],
+    ["commande", missing("commande")],
   ]);
 });
 
-test("Mailpit start uses immutable image, loopback ports and two ownership labels", async () => {
-  const definition = createRegistry(repoRoot, configuredDevelopmentUrls()).modules.find(
-    (module) => module.id === "mailpit",
+test("Compose state parser accepts array JSON and normalizes state and health", () => {
+  const statuses = parseComposePs(
+    JSON.stringify([
+      composeEntry("edge", { State: "RUNNING", Health: "HEALTHY" }),
+      composeEntry("backend", { State: "EXITED", Health: "", ExitCode: 17 }),
+    ]),
+    parseOptions(),
   );
-  const calls = [];
-  const controller = new MailpitController({
-    instanceId: "owner-123",
-    execFile: async (file, args) => {
-      calls.push([file, args]);
-      if (args[0] === "inspect") {
-        throw new Error("not found");
-      }
-      return { stdout: "container-id\n", stderr: "" };
-    },
+
+  assert.deepEqual(statuses.get("edge"), {
+    service: "edge",
+    exists: true,
+    state: "running",
+    health: "healthy",
+    exitCode: 0,
   });
-
-  const handle = await controller.start(definition);
-  const runArgs = calls.find(([, args]) => args[0] === "run")[1];
-
-  assert.deepEqual(handle, { containerId: "container-id" });
-  assert.ok(runArgs.includes("axllent/mailpit:v1.30.4"));
-  assert.ok(runArgs.includes("127.0.0.1:1025:1025"));
-  assert.ok(runArgs.includes("127.0.0.1:8025:8025"));
-  assert.ok(runArgs.includes("com.surplasse.dev-cockpit.managed=true"));
-  assert.ok(runArgs.includes("com.surplasse.dev-cockpit.owner=owner-123"));
-  assert.equal(runArgs.includes("--volume"), false);
-  assert.equal(runArgs.includes("--env"), false);
+  assert.deepEqual(statuses.get("backend"), {
+    service: "backend",
+    exists: true,
+    state: "exited",
+    health: "",
+    exitCode: 17,
+  });
+  assert.deepEqual(statuses.get("commande"), missing("commande"));
 });
 
-test("Mailpit stop rechecks immutable id and never stops a replacement", async () => {
-  const definition = createRegistry(repoRoot, configuredDevelopmentUrls()).modules.find(
-    (module) => module.id === "mailpit",
-  );
-  const calls = [];
-  const controller = new MailpitController({
-    instanceId: "owner-123",
-    execFile: async (file, args) => {
-      calls.push([file, args]);
-      if (args[0] === "inspect") {
-        return {
-          stdout: "replacement|/surplasse-mailpit|axllent/mailpit:v1.30.4|true|other-owner|true\n",
-          stderr: "",
-        };
-      }
-      throw new Error("docker stop must never be called");
-    },
-  });
+test("Compose state parser accepts newline-delimited JSON emitted by Docker Compose", () => {
+  const output = [composeEntry("edge"), composeEntry("commande")]
+    .map((entry) => JSON.stringify(entry))
+    .join("\n");
+  const statuses = parseComposePs(output, parseOptions());
 
-  await assert.rejects(() => controller.stop(definition, { containerId: "original" }), /ne sera pas arrêté/u);
-  assert.equal(calls.some(([, args]) => args[0] === "stop"), false);
-  assert.equal(calls[0][1].at(-1), "original");
+  assert.equal(statuses.get("edge").state, "running");
+  assert.equal(statuses.get("commande").health, "healthy");
+  assert.equal(statuses.get("backend").exists, false);
 });
 
-test("Mailpit stop addresses the verified container id, never its reusable name", async () => {
-  const definition = createRegistry(repoRoot, configuredDevelopmentUrls()).modules.find(
-    (module) => module.id === "mailpit",
-  );
+test("Compose state parser rejects malformed, foreign, unknown and duplicate entries", () => {
+  const invalidOutputs = [
+    "not-json",
+    JSON.stringify(composeEntry("backend", { Project: "foreign-project" })),
+    JSON.stringify(composeEntry("unknown")),
+    `${JSON.stringify(composeEntry("backend"))}\n${JSON.stringify(composeEntry("backend"))}`,
+  ];
+
+  for (const output of invalidOutputs) {
+    assert.throws(
+      () => parseComposePs(output, parseOptions()),
+      (error) => error instanceof CockpitOperationError && error.statusCode === 503,
+      output,
+    );
+  }
+});
+
+test("Compose controller inspects only the fixed development project", async () => {
   const calls = [];
-  const controller = new MailpitController({
-    instanceId: "owner-123",
-    execFile: async (file, args) => {
-      calls.push([file, args]);
-      if (args[0] === "inspect") {
-        return {
-          stdout: "original|/surplasse-mailpit|axllent/mailpit:v1.30.4|true|owner-123|true\n",
-          stderr: "",
-        };
-      }
-      return { stdout: "original\n", stderr: "" };
-    },
+  const controller = createController(async (executable, args, options) => {
+    calls.push({ executable, args, options });
+    return {
+      exitCode: 0,
+      stdout: JSON.stringify(composeEntry("backend")),
+      stderr: "",
+      aborted: false,
+    };
   });
 
-  await controller.stop(definition, { containerId: "original" });
+  const statuses = await controller.inspectAll();
 
-  const stopArgs = calls.find(([, args]) => args[0] === "stop")[1];
-  assert.deepEqual(stopArgs, ["stop", "--time", "5", "original"]);
+  assert.equal(statuses.get("backend").exists, true);
+  assert.equal(statuses.get("edge").exists, false);
+  assert.deepEqual(calls, [
+    {
+      executable: SCRIPT,
+      args: ["development", "ps", "--all", "--format", "json"],
+      options: { cwd: repoRoot, timeoutMs: 20_000 },
+    },
+  ]);
 });
+
+test("Compose controller starts and stops only allowlisted services with fixed arguments", async () => {
+  const calls = [];
+  const controller = createController(async (executable, args, options) => {
+    calls.push({ executable, args, options });
+    return { exitCode: 0, stdout: "", stderr: "", aborted: false };
+  });
+  const controllerSignal = new AbortController();
+
+  await controller.start(["backend", "commande"], { signal: controllerSignal.signal });
+  await controller.stop(["commande", "backend"], { signal: controllerSignal.signal });
+
+  assert.deepEqual(calls, [
+    {
+      executable: SCRIPT,
+      args: [
+        "development",
+        "up",
+        "--detach",
+        "--build",
+        "--wait",
+        "backend",
+        "commande",
+      ],
+      options: {
+        cwd: repoRoot,
+        signal: controllerSignal.signal,
+        timeoutMs: 10 * 60_000,
+      },
+    },
+    {
+      executable: SCRIPT,
+      args: ["development", "stop", "--timeout", "10", "commande", "backend"],
+      options: {
+        cwd: repoRoot,
+        signal: controllerSignal.signal,
+        timeoutMs: 2 * 60_000,
+      },
+    },
+  ]);
+});
+
+test("Compose controller refuses empty, duplicate and unknown service selections before execution", async () => {
+  let executions = 0;
+  const controller = createController(async () => {
+    executions += 1;
+    return { exitCode: 0, stdout: "", stderr: "", aborted: false };
+  });
+
+  for (const selection of [[], ["backend", "backend"], ["backend", "unknown"], "backend"]) {
+    await assert.rejects(
+      () => controller.start(selection),
+      (error) => error instanceof CockpitOperationError && [400, 404].includes(error.statusCode),
+    );
+  }
+  assert.equal(executions, 0);
+});
+
+test("Compose controller translates command and abort failures without exposing command output", async (t) => {
+  t.mock.method(console, "error", () => {});
+  const secret = "POSTGRES_PASSWORD=should-not-leak";
+  const failed = createController(async () => ({
+    exitCode: 1,
+    stdout: "",
+    stderr: secret,
+    aborted: false,
+  }));
+  const aborted = createController(async () => ({
+    exitCode: null,
+    stdout: "",
+    stderr: "",
+    aborted: true,
+  }));
+
+  await assert.rejects(
+    () => failed.inspectAll(),
+    (error) =>
+      error instanceof CockpitOperationError &&
+      error.statusCode === 503 &&
+      !error.message.includes(secret),
+  );
+  await assert.rejects(
+    () => aborted.stop(["backend"]),
+    (error) => error instanceof CockpitOperationError && error.statusCode === 409,
+  );
+});
+
+test("fixed command runner treats shell syntax as a literal argument", async () => {
+  const shellText = "$(printf unsafe);`printf unsafe`;value|other";
+  const result = await runFixedCommand(
+    process.execPath,
+    ["-e", "process.stdout.write(process.argv[1])", shellText],
+    { cwd: repoRoot, timeoutMs: 5_000 },
+  );
+
+  assert.equal(result.exitCode, 0);
+  assert.equal(result.stdout, shellText);
+  assert.equal(result.stderr, "");
+  assert.equal(result.aborted, false);
+});
+
+test("fixed command runner preserves a complete Compose-sized response", async () => {
+  const output = `${"x".repeat(32_000)}\n`;
+  const result = await runFixedCommand(
+    process.execPath,
+    ["-e", "process.stdout.write(process.argv[1])", output],
+    { cwd: repoRoot, timeoutMs: 5_000 },
+  );
+
+  assert.equal(result.exitCode, 0);
+  assert.equal(result.stdout, output);
+  assert.equal(result.stderr, "");
+});
+
+function createController(executeCommand) {
+  return new ComposeController({
+    script: SCRIPT,
+    cwd: repoRoot,
+    profile: "development",
+    project: "surplasse",
+    services: SERVICES,
+    executeCommand,
+  });
+}
+
+function parseOptions() {
+  return {
+    allowedServices: new Set(SERVICES),
+    project: "surplasse",
+  };
+}
+
+function composeEntry(service, overrides = {}) {
+  return {
+    Project: "surplasse",
+    Service: service,
+    State: "running",
+    Health: "healthy",
+    ExitCode: 0,
+    ...overrides,
+  };
+}
+
+function missing(service) {
+  return {
+    service,
+    exists: false,
+    state: "",
+    health: "",
+    exitCode: null,
+  };
+}

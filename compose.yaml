@@ -1,0 +1,271 @@
+name: ${COMPOSE_PROJECT_NAME:?COMPOSE_PROJECT_NAME is required}
+
+services:
+  edge:
+    image: ${CADDY_IMAGE:?CADDY_IMAGE is required}
+    environment:
+      APP_BASE_DOMAIN: ${APP_BASE_DOMAIN:?APP_BASE_DOMAIN is required}
+      APP_BASE_URL: ${APP_BASE_URL:?APP_BASE_URL is required}
+      ONBOARDING_URL: ${ONBOARDING_URL:?ONBOARDING_URL is required}
+      DASHBOARD_URL: ${DASHBOARD_URL:?DASHBOARD_URL is required}
+      BACKEND_UPSTREAM: backend:8080
+      ONBOARDING_UPSTREAM: onboarding:4173
+      COMMANDE_UPSTREAM: commande:8080
+      DASHBOARD_UPSTREAM: dashboard:8080
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      backend:
+        condition: service_healthy
+      onboarding:
+        condition: service_healthy
+      commande:
+        condition: service_healthy
+      dashboard:
+        condition: service_healthy
+    networks:
+      default:
+        ipv4_address: ${CADDY_INTERNAL_IP:?CADDY_INTERNAL_IP is required}
+        aliases:
+          - ${APP_BASE_DOMAIN:?APP_BASE_DOMAIN is required}
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null
+          && test "$$(wget -q -O - "https://$${APP_BASE_DOMAIN}/.well-known/surplasse-edge")" = surplasse-edge-v1
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  backend:
+    image: ${IMAGE_REGISTRY:?IMAGE_REGISTRY is required}/backend:${IMAGE_TAG:?IMAGE_TAG is required}
+    build:
+      context: .
+      dockerfile: infra/images/backend.Dockerfile
+      args:
+        TEMURIN_BUILD_IMAGE: ${TEMURIN_BUILD_IMAGE:?TEMURIN_BUILD_IMAGE is required}
+        TEMURIN_RUNTIME_IMAGE: ${TEMURIN_RUNTIME_IMAGE:?TEMURIN_RUNTIME_IMAGE is required}
+        DOMAIN_PROFILE: ${DEPLOYMENT_PROFILE:?DEPLOYMENT_PROFILE is required}
+    environment:
+      DEPLOYMENT_PROFILE: ${DEPLOYMENT_PROFILE:?DEPLOYMENT_PROFILE is required}
+      QUARKUS_HTTP_HOST: 0.0.0.0
+      TRUSTED_PROXIES: ${CADDY_INTERNAL_IP:?CADDY_INTERNAL_IP is required}
+      QUARKUS_DATASOURCE_DEVSERVICES_ENABLED: "false"
+      QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://postgresql:5432/${POSTGRES_DB:?POSTGRES_DB is required}
+      QUARKUS_DATASOURCE_USERNAME: ${POSTGRES_USER:?POSTGRES_USER is required}
+      QUARKUS_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_PAYMENT_WEBHOOK_SECRET: ${STRIPE_PAYMENT_WEBHOOK_SECRET:-}
+      STRIPE_ACCOUNT_WEBHOOK_SECRET: ${STRIPE_ACCOUNT_WEBHOOK_SECRET:-}
+      STRIPE_LIVE_MODE: ${STRIPE_LIVE_MODE:-false}
+      AUTH_JWT_AUDIENCE: ${AUTH_JWT_AUDIENCE:-surplasse-dashboard}
+      SMTP_HOST: ${SMTP_HOST:?SMTP_HOST is required}
+      SMTP_PORT: ${SMTP_PORT:?SMTP_PORT is required}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_TLS: ${SMTP_TLS:?SMTP_TLS is required}
+      SMTP_START_TLS: ${SMTP_START_TLS:?SMTP_START_TLS is required}
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=75.0 -Djava.util.logging.manager=org.jboss.logmanager.LogManager}
+    depends_on:
+      postgresql:
+        condition: service_healthy
+        restart: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/q/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - default
+      - observability
+
+  postgresql:
+    image: ${POSTGRES_IMAGE:?POSTGRES_IMAGE is required}
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  onboarding:
+    image: ${IMAGE_REGISTRY:?IMAGE_REGISTRY is required}/onboarding:${IMAGE_TAG:?IMAGE_TAG is required}
+    build:
+      context: .
+      dockerfile: infra/images/onboarding.Dockerfile
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:?NODE_IMAGE is required}
+        NGINX_IMAGE: ${NGINX_IMAGE:?NGINX_IMAGE is required}
+        DOMAIN_PROFILE: ${DEPLOYMENT_PROFILE:?DEPLOYMENT_PROFILE is required}
+    environment:
+      DEPLOYMENT_PROFILE: ${DEPLOYMENT_PROFILE:?DEPLOYMENT_PROFILE is required}
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4173/__health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+
+  commande:
+    image: ${IMAGE_REGISTRY:?IMAGE_REGISTRY is required}/commande:${IMAGE_TAG:?IMAGE_TAG is required}
+    build:
+      context: .
+      dockerfile: infra/images/frontend.Dockerfile
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:?NODE_IMAGE is required}
+        NGINX_IMAGE: ${NGINX_IMAGE:?NGINX_IMAGE is required}
+        FRONTEND_NAME: commande
+        DOMAIN_PROFILE: ${DEPLOYMENT_PROFILE:?DEPLOYMENT_PROFILE is required}
+        VITE_STRIPE_PUBLISHABLE_KEY: ${VITE_STRIPE_PUBLISHABLE_KEY:-}
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+
+  dashboard:
+    image: ${IMAGE_REGISTRY:?IMAGE_REGISTRY is required}/dashboard:${IMAGE_TAG:?IMAGE_TAG is required}
+    build:
+      context: .
+      dockerfile: infra/images/frontend.Dockerfile
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:?NODE_IMAGE is required}
+        NGINX_IMAGE: ${NGINX_IMAGE:?NGINX_IMAGE is required}
+        FRONTEND_NAME: dashboard
+        DOMAIN_PROFILE: ${DEPLOYMENT_PROFILE:?DEPLOYMENT_PROFILE is required}
+        VITE_STRIPE_PUBLISHABLE_KEY: ""
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+
+  prometheus:
+    profiles: [observability]
+    image: ${PROMETHEUS_IMAGE:?PROMETHEUS_IMAGE is required}
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-15d}
+      - --web.listen-address=0.0.0.0:9090
+    volumes:
+      - ./infra/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/observability/prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus_data:/prometheus
+    networks:
+      - observability
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:9090/-/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  grafana:
+    profiles: [observability]
+    image: ${GRAFANA_IMAGE:?GRAFANA_IMAGE is required}
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-observability-not-configured}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-grafana-admin-not-configured-use-compose-wrapper}
+      GF_SECURITY_SECRET_KEY: ${GRAFANA_SECRET_KEY:-grafana-secret-not-configured-use-compose-wrapper}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
+      GF_PLUGINS_PLUGIN_ADMIN_ENABLED: "false"
+      GF_PLUGINS_CHECK_FOR_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+      GF_LOG_MODE: console
+    volumes:
+      - ./infra/observability/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./infra/observability/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./infra/observability/grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    networks:
+      - observability
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+      - /var/log/grafana:size=32m,mode=0755
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 384M
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: ${COMPOSE_NETWORK_SUBNET:?COMPOSE_NETWORK_SUBNET is required}
+  observability:
+    internal: true
+
+volumes:
+  caddy_config:
+  caddy_data:
+  postgresql_data:
+  prometheus_data:
+  grafana_data:

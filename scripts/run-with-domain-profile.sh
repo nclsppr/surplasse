@@ -51,9 +51,13 @@ export DOCS_URL="${APP_SCHEME}://docs.${APP_BASE_DOMAIN}"
 if [[ "$PROFILE" == "development" ]]; then
   export LOCAL_CONTROL_URL="${APP_SCHEME}://local.${APP_BASE_DOMAIN}"
   export MAILPIT_URL="${APP_SCHEME}://mail.${APP_BASE_DOMAIN}"
+  export REPORTS_URL="${APP_SCHEME}://reports.${APP_BASE_DOMAIN}"
+  export GRAFANA_URL="${APP_SCHEME}://grafana.${APP_BASE_DOMAIN}"
 else
   export LOCAL_CONTROL_URL=""
   export MAILPIT_URL=""
+  export REPORTS_URL=""
+  export GRAFANA_URL=""
 fi
 
 [[ "$APP_SCHEME" == "https" ]] || {

@@ -7,12 +7,16 @@ const modulesView = document.querySelector("#modules-view");
 const testsView = document.querySelector("#tests-view");
 const qualitySuitesRoot = document.querySelector("#quality-suites");
 const runAllTestsButton = document.querySelector("#run-all-tests");
+const allureReport = document.querySelector("#allure-report");
+const allureReportCopy = document.querySelector("#allure-report-copy");
+const allureReportResult = document.querySelector("#allure-report-result");
 const isTestsView = window.location.pathname === "/tests";
 
 const groupLabels = {
-  applications: ["Applications", "Les processus du parcours local."],
-  tools: ["Outils locaux", "Les aides de développement sans rôle en production."],
-  dependencies: ["Dépendances", "Leur cycle de vie appartient à une application."],
+  infrastructure: ["Infrastructure", "L’entrée HTTPS du cluster, visible ici en lecture seule."],
+  applications: ["Applications", "Les modules du parcours local dans Docker Compose."],
+  tools: ["Outils locaux", "Les aides de développement exécutées dans le cluster."],
+  dependencies: ["Dépendances", "Les services persistants gérés par Docker Compose."],
   reserved: ["Domaines réservés", "Ces adresses n'ont encore aucun module."],
 };
 
@@ -26,6 +30,7 @@ const statusLabels = {
   conflict: "Conflit",
   stopping: "Arrêt",
   reserved: "Réservé",
+  unavailable: "Indisponible",
 };
 
 const qualityLabels = {
@@ -35,6 +40,15 @@ const qualityLabels = {
   passed: "Validé",
   failed: "Échec",
   interrupted: "Interrompu",
+};
+
+const reportLabels = {
+  "not-run": "Non publié",
+  passed: "Validé",
+  failed: "Échec",
+  broken: "Incomplet",
+  skipped: "Ignoré",
+  unknown: "État inconnu",
 };
 
 const publicUrlLabels = {
@@ -57,10 +71,11 @@ const publicUrlLabels = {
 };
 
 let actionInProgress = false;
+let lastRenderedStateSignature = null;
 let refreshTimer;
 let noticeTimer;
 
-document.title = isTestsView ? "État de la plateforme · Surplasse" : "Cockpit local · Surplasse";
+document.title = isTestsView ? "Tests et rapports · Surplasse" : "Cockpit local · Surplasse";
 modulesView.hidden = isTestsView;
 testsView.hidden = !isTestsView;
 document.querySelector(`[data-nav="${isTestsView ? "tests" : "modules"}"]`).setAttribute("aria-current", "page");
@@ -82,20 +97,33 @@ async function refreshState() {
     }
     renderState(await response.json());
   } catch (error) {
+    renderLoadError();
     showNotice(error.message, true);
   }
 }
 
 function renderState(state) {
-  if (!isTestsView) {
-    renderModules(state);
+  const { updatedAt: _updatedAt, ...stableState } = state;
+  const signature = JSON.stringify(stableState);
+  if (signature === lastRenderedStateSignature) {
+    return;
   }
-  renderQuality(state.quality);
+  lastRenderedStateSignature = signature;
+  const controlsBusy = actionInProgress || Boolean(state.compose?.running) || Boolean(state.quality?.running);
+  if (!isTestsView) {
+    renderModules(state, controlsBusy);
+  }
+  renderQuality(state.quality, controlsBusy);
+  renderAllureReport(state.reports?.allureDevelopment, state.quality);
 }
 
-function renderModules(state) {
+function renderModules(state, controlsBusy) {
   groupsRoot.replaceChildren();
   groupsRoot.setAttribute("aria-busy", "false");
+
+  document.querySelectorAll("[data-preset]").forEach((button) => {
+    button.disabled = controlsBusy || !state.compose?.available;
+  });
 
   for (const [groupId, [title, description]] of Object.entries(groupLabels)) {
     const modules = state.modules.filter((module) => module.group === groupId);
@@ -106,22 +134,34 @@ function renderModules(state) {
     const headingRow = element("div", "section-heading");
     headingRow.append(element("h2", null, title), element("p", null, description));
     const grid = element("div", "module-grid");
-    modules.forEach((module) => grid.append(renderModule(module)));
+    modules.forEach((module) => grid.append(renderModule(module, controlsBusy)));
     section.append(headingRow, grid);
     groupsRoot.append(section);
   }
 
   configuration.replaceChildren(element("span", null, `Adresses chargées depuis ${state.urlConfiguration.source}`));
+  configuration.append(element(
+    "span",
+    `configuration-route ${state.compose?.available ? "public-state-available" : "public-state-unavailable"}`,
+    state.compose?.running
+      ? "Docker Compose : opération en cours"
+      : state.compose?.available
+        ? "Docker Compose : connecté"
+        : "Docker Compose : indisponible",
+  ));
   if (state.urlConfiguration.publicUrl) {
     const control = state.urlConfiguration.publicUrl;
     configuration.append(element("span", `configuration-route public-state-${control.state}`, `Cockpit HTTPS : ${publicUrlLabels[control.state] ?? control.state}`));
+  }
+  if (state.compose?.error) {
+    configuration.append(element("span", "configuration-error", state.compose.error));
   }
   if (state.urlConfiguration.warnings.length) {
     showNotice(state.urlConfiguration.warnings.join(" "), true);
   }
 }
 
-function renderQuality(quality) {
+function renderQuality(quality, controlsBusy) {
   if (!quality) {
     return;
   }
@@ -141,11 +181,11 @@ function renderQuality(quality) {
   summaryDot.className = `state-dot state-${quality.status}`;
   document.querySelector("#quality-summary-title").textContent = overallLabel(quality);
   document.querySelector("#quality-summary-copy").textContent = summaryCopy(quality);
-  runAllTestsButton.disabled = quality.running || actionInProgress;
+  runAllTestsButton.disabled = controlsBusy;
   runAllTestsButton.textContent = quality.running ? "Vérification en cours..." : "Tout relancer";
 
   qualitySuitesRoot.replaceChildren();
-  quality.suites.forEach((suite) => qualitySuitesRoot.append(renderQualitySuite(suite, quality.running)));
+  quality.suites.forEach((suite) => qualitySuitesRoot.append(renderQualitySuite(suite, controlsBusy)));
 }
 
 function renderQualitySuite(suite, anyRunning) {
@@ -175,7 +215,7 @@ function renderQualitySuite(suite, anyRunning) {
   return row;
 }
 
-function renderModule(module) {
+function renderModule(module, controlsBusy) {
   const card = element("article", `module-card status-${module.status}`);
   const header = element("div", "card-header");
   const titleBlock = element("div");
@@ -184,10 +224,10 @@ function renderModule(module) {
 
   const metadata = element("div", "metadata");
   if (module.ports.length) {
-    metadata.append(element("span", "metadata-item", `Ports ${module.ports.join(", ")}`));
+    metadata.append(element("span", "metadata-item", `Ports internes ${module.ports.join(", ")}`));
   }
-  if (module.ownership === "cockpit") {
-    metadata.append(element("span", "metadata-item ownership", "Piloté ici"));
+  if (module.ownership === "compose") {
+    metadata.append(element("span", "metadata-item ownership", "Docker Compose"));
   } else if (module.ownership === "external") {
     metadata.append(element("span", "metadata-item ownership-external", "Lancé ailleurs"));
   }
@@ -203,10 +243,10 @@ function renderModule(module) {
 
   const actions = element("div", "card-actions");
   if (module.canStart) {
-    actions.append(moduleButton(module.id, "start", "Démarrer", "button-primary"));
+    actions.append(moduleButton(module.id, "start", "Démarrer", "button-primary", controlsBusy));
   }
   if (module.canStop) {
-    actions.append(moduleButton(module.id, "stop", "Arrêter", "button-quiet"));
+    actions.append(moduleButton(module.id, "stop", "Arrêter", "button-quiet", controlsBusy));
   }
   if (module.lastError) {
     actions.append(element("p", "last-error", module.lastError));
@@ -220,12 +260,72 @@ function renderModule(module) {
   return card;
 }
 
-function moduleButton(id, action, label, variant) {
+function moduleButton(id, action, label, variant, controlsBusy) {
   const button = element("button", `button button-small ${variant}`, label);
   button.type = "button";
-  button.disabled = actionInProgress;
+  button.disabled = controlsBusy;
   button.addEventListener("click", () => runModule(id, action));
   return button;
+}
+
+function renderAllureReport(report, quality) {
+  if (!isTestsView) {
+    return;
+  }
+  const e2eSuite = quality?.suites?.find((suite) => suite.id === "e2e-development");
+  const generating = ["queued", "running"].includes(e2eSuite?.status);
+  const status = report?.available ? report.status : "not-run";
+  allureReport.className = `report-card report-${status}`;
+  allureReport.setAttribute("aria-busy", generating ? "true" : "false");
+  allureReportResult.replaceChildren();
+
+  if (!report?.available) {
+    allureReportCopy.textContent = generating
+      ? "Le premier rapport est en cours de génération. Il sera publié à la fin du parcours."
+      : "Aucun rapport development n’a encore été publié. Lancez la suite Parcours Playwright.";
+    allureReportResult.append(element("span", `quality-badge quality-${status}`, reportLabels[status]));
+    return;
+  }
+
+  const total = Number.isInteger(report.total) ? report.total : 0;
+  const passed = Number.isInteger(report.passed) ? report.passed : 0;
+  const skipped = Number.isInteger(report.skipped) ? report.skipped : 0;
+  const freshness = report.createdAt ? ` Publié ${formatDate(report.createdAt)}.` : "";
+  const progress = total > 0
+    ? skipped > 0
+      ? `${passed} réussi${passed > 1 ? "s" : ""}, ${skipped} ignoré${skipped > 1 ? "s" : ""} sur ${total} scénario${total > 1 ? "s" : ""}.`
+      : `${passed}/${total} scénarios validés.`
+    : "Résultats détaillés disponibles.";
+  allureReportCopy.textContent = generating
+    ? `${progress}${freshness} Un nouveau parcours s’exécute, ce rapport reste consultable jusqu’à sa publication.`
+    : `${progress}${freshness}`;
+
+  const facts = element("div", "report-facts");
+  facts.append(element("span", `quality-badge quality-${status}`, reportLabels[status] ?? status));
+  if (Number.isFinite(report.durationMs)) {
+    facts.append(element("span", "quality-facts", formatDuration(report.durationMs)));
+  }
+  allureReportResult.append(facts);
+
+  const reportUrl = safeReportUrl(report.url);
+  if (reportUrl) {
+    const link = element("a", "button button-secondary report-link", "Ouvrir le dernier rapport");
+    link.href = reportUrl;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    allureReportResult.append(link);
+  } else {
+    allureReportResult.append(element("p", "last-error", "L’adresse du rapport est invalide."));
+  }
+}
+
+function safeReportUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password ? url.href : null;
+  } catch {
+    return null;
+  }
 }
 
 function renderPublicRoute(publicUrl) {
@@ -247,6 +347,10 @@ function overallLabel(quality) {
     const failures = quality.suites.filter((suite) => ["failed", "interrupted"].includes(suite.status)).length;
     return `${failures} ${failures > 1 ? "suites à corriger" : "suite à corriger"}`;
   }
+  const pending = quality.suites.filter((suite) => suite.status === "not-run").length;
+  if (pending > 0 && pending < quality.suites.length) {
+    return `${pending} ${pending > 1 ? "suites à exécuter" : "suite à exécuter"}`;
+  }
   return "Tests non exécutés";
 }
 
@@ -262,6 +366,10 @@ function summaryCopy(quality) {
   }
   if (quality.status === "failed") {
     return `${passed} sur ${quality.suites.length} suites sont validées. Ouvrez le détail de la suite en échec.${update}`;
+  }
+  if (passed > 0) {
+    const pending = quality.suites.length - passed;
+    return `${passed} sur ${quality.suites.length} suites sont validées. ${pending} ${pending > 1 ? "restent à exécuter" : "reste à exécuter"}.${update}`;
   }
   return "Lancez toutes les suites pour établir un premier état de référence.";
 }
@@ -297,11 +405,11 @@ function formatDuration(milliseconds) {
 }
 
 async function runModule(id, action) {
-  await mutate(`/api/modules/${encodeURIComponent(id)}/${action}`, `${action === "start" ? "Démarrage" : "Arrêt"} demandé.`);
+  await mutate(`/api/modules/${encodeURIComponent(id)}/${action}`, `${action === "start" ? "Démarrage" : "Arrêt"} lancé dans Docker Compose.`);
 }
 
 async function runPreset(name, action) {
-  await mutate(`/api/presets/${encodeURIComponent(name)}/${action}`, "Preset exécuté.");
+  await mutate(`/api/presets/${encodeURIComponent(name)}/${action}`, "Opération Docker Compose lancée.");
 }
 
 async function runQuality(path, successMessage) {
@@ -313,6 +421,7 @@ async function mutate(path, successMessage) {
     return;
   }
   actionInProgress = true;
+  setInteractiveBusy(true);
   try {
     const response = await fetch(path, {
       method: "POST",
@@ -331,7 +440,30 @@ async function mutate(path, successMessage) {
     showNotice(error.message, true);
   } finally {
     actionInProgress = false;
+    lastRenderedStateSignature = null;
     await refreshState();
+  }
+}
+
+function setInteractiveBusy(busy) {
+  document
+    .querySelectorAll("button[data-preset], .module-card button, #run-all-tests, .quality-suite button")
+    .forEach((button) => {
+      button.disabled = busy;
+    });
+}
+
+function renderLoadError() {
+  if (!isTestsView && groupsRoot.childElementCount === 0) {
+    groupsRoot.setAttribute("aria-busy", "false");
+    groupsRoot.append(element("p", "empty-state", "L’état Docker Compose ne peut pas être chargé pour le moment."));
+  }
+  if (isTestsView && qualitySuitesRoot.childElementCount === 0) {
+    document.querySelector("#quality-summary").setAttribute("aria-busy", "false");
+    document.querySelector("#quality-summary-title").textContent = "Résultats indisponibles";
+    document.querySelector("#quality-summary-copy").textContent = "Réessayez après avoir vérifié le terminal du cockpit.";
+    allureReport.setAttribute("aria-busy", "false");
+    allureReportCopy.textContent = "Le dernier rapport ne peut pas être lu pour le moment.";
   }
 }
 

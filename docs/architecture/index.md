@@ -29,7 +29,7 @@ Le monorepo contient l'intégralité du système : le contrat, le backend, les t
 
 ### La simplicité opérationnelle prime
 
-La cible de déploiement est un VPS unique piloté par Docker Compose, décrit dans `infra/`. Pas de Kubernetes, pas de services managés propriétaires au-delà de Stripe et de l'API OpenAI, pas d'autoscaling. Un restaurant indépendant génère quelques dizaines de commandes par service : la charge se mesure en requêtes par seconde à un chiffre, et un VPS correctement dimensionné la tient avec une marge confortable. Chaque brique ajoutée doit justifier son coût d'exploitation, pas seulement son intérêt technique.
+La cible de déploiement est un VPS unique piloté par Docker Compose. Le graphe commun vit dans `compose.yaml`, ses différences explicites dans `compose.development.yaml` et `compose.production.yaml`, et les recettes d'image dans `infra/`. Pas de Kubernetes, pas de services managés propriétaires au-delà de Stripe et de l'API OpenAI, pas d'autoscaling. Un restaurant indépendant génère quelques dizaines de commandes par service : la charge se mesure en requêtes par seconde à un chiffre, et un VPS correctement dimensionné la tient avec une marge confortable. Chaque brique ajoutée doit justifier son coût d'exploitation, pas seulement son intérêt technique. L'[ADR-0026](../decisions/adr-0026-compose-commun.md) et le [runbook Compose](../operations/deploiement-compose.md) détaillent ce choix.
 
 ### Le client final ne subit jamais la complexité
 
@@ -94,8 +94,8 @@ Le détail de ce qui tourne sur le VPS :
 │          ▼                   ▼                   ▼              ▼            │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐  ┌─────────────┐  │
 │  │  Onboarding  │    │   Commande   │    │  Dashboard   │  │ API Quarkus │  │
-│  │   (fichiers  │    │   (fichiers  │    │   (fichiers  │  │  (backend/) │  │
-│  │   statiques) │    │   statiques) │    │   statiques) │  │             │  │
+│  │  (fichiers   │    │   (fichiers  │    │   (fichiers  │  │  (backend/) │  │
+│  │  statiques)  │    │   statiques) │    │   statiques) │  │             │  │
 │  └──────────────┘    └──────┬───────┘    └──────┬───────┘  └──┬───────┬──┘  │
 │                             │    REST + SSE     │    REST     │       │     │
 │                             │  (suivi commande) │   + SSE ────┘       │     │
@@ -105,19 +105,19 @@ Le détail de ce qui tourne sur le VPS :
 │                                                ┌──────────────┐  ┌────────┐ │
 │                                                │ PostgreSQL 17│  │Stockage│ │
 │                                                │   (Flyway)   │  │ objet  │ │
-│                                                └──────────────┘  │(images)│ │
+│                                                └──────────────┘  │phase 3 │ │
 │                                                                  └────────┘ │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 Points saillants :
 
-- **Les trois frontends sont des builds statiques.** Vite produit des fichiers servis par un conteneur statique minimal par application, derrière le reverse proxy, sans serveur Node en production (voir [l'exploitation](../operations/index.md)). Le mini-site Commande est une seule application : le reverse proxy route tout `{slug}.surplasse.com` vers le même bundle, qui lit le slug dans l'hôte.
-- **L'API Quarkus est le seul processus applicatif.** Elle porte la logique métier, les jobs asynchrones (extraction IA) et les flux SSE ouverts par le Dashboard (nouvelles commandes) et par la page de suivi de Commande (changement de statut).
+- **Les trois fronts sont servis comme des fichiers statiques en production.** NGINX non privilégié sert leurs fichiers derrière Caddy. Le mini-site Commande est une seule application : Caddy route tout `{slug}.surplasse.com` vers le même bundle, qui lit le slug dans l'hôte. Le petit processus Node allowlisté de l'Onboarding reste limité au développement pour la session Stripe test locale.
+- **L'API Quarkus est le seul processus qui porte la logique métier.** Elle porte aussi les futurs jobs asynchrones d'extraction IA et les flux SSE ouverts par le Dashboard et par la page de suivi de Commande.
 - **PostgreSQL 17 est l'unique base**, migrée par Flyway, avec des schémas par domaine si besoin.
-- **Le stockage objet** héberge les images (photos de cartes envoyées, visuels des produits, ressources des mini-sites). La cible de référence est MinIO, auto-hébergé sur le VPS derrière l'API S3, avec migration possible vers un service S3 compatible ; ce choix sera confirmé par un ADR avec la mise en place de `infra/` (voir [les intégrations](integrations.md)).
+- **Le stockage objet est une cible de phase 3.** MinIO n'entre pas dans Compose avant l'implémentation du domaine `generation`. Son ajout exigera un ADR, un volume, une sauvegarde et une restauration documentés (voir [les intégrations](integrations.md)).
 - **Les webhooks Stripe entrent par `api.surplasse.com`**, signés, et sont le seul déclencheur de la confirmation d'une commande payée.
-- Le reverse proxy de référence est Caddy, qui obtient et renouvelle le certificat wildcard par défi DNS-01 ; ce choix sera consigné en ADR avec la mise en place de `infra/` (voir [l'exploitation](../operations/index.md)).
+- Le reverse proxy de référence est Caddy. Son routage commun est livré ; la production construit son image avec le module du fournisseur DNS retenu afin d'obtenir et renouveler le certificat wildcard par défi DNS-01.
 
 ## Arborescence cible du monorepo
 
@@ -127,12 +127,14 @@ surplasse/
 ├── api/
 │   └── openapi.yaml         # Le contrat, source de vérité de l'API
 ├── backend/                 # Quarkus (Maven multi-modules)
+├── compose.yaml             # Graphe commun
+├── compose.*.yaml           # Surcharges par environnement
 ├── frontends/
 │   ├── shared/              # Design system, client API généré, utilitaires
 │   ├── onboarding/          # surplasse.com
 │   ├── commande/            # {slug}.surplasse.com
 │   └── dashboard/           # dashboard.surplasse.com
-├── infra/                   # Docker Compose, configuration VPS
+├── infra/                   # Images et configuration Caddy
 └── .github/workflows/       # CI/CD
 ```
 
@@ -145,10 +147,11 @@ surplasse/
 | `frontends/onboarding/` | La vitrine produit et le tunnel d'embarquement des restaurateurs |
 | `frontends/commande/` | Le mini-site de l'établissement : carte numérique, commande et paiement client |
 | `frontends/dashboard/` | Le suivi des commandes en temps réel, la gestion de la carte et les métriques |
-| `infra/` | Les fichiers Docker Compose et la configuration du VPS |
+| `compose*.yaml` | Le graphe de services commun et ses surcharges d'environnement |
+| `infra/` | Les Dockerfiles, la configuration Caddy et les recettes d'exécution |
 | `.github/workflows/` | Les pipelines GitHub Actions : build, tests, déploiement, publication des docs |
 
-Seuls `docs/` et la configuration racine existent aujourd'hui. Le reste est créé au fil de la [roadmap](../roadmap.md).
+Le Backend, Commande, le Dashboard, la préfiguration de l'Onboarding et le cluster Compose sont livrés localement. Les modules encore absents sont créés au fil de la [roadmap](../roadmap.md).
 
 ## Les deux flux critiques
 

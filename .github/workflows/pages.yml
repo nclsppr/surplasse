@@ -87,9 +87,12 @@ jobs:
           cp frontends/onboarding/connect.js site/connect.js
           cp frontends/onboarding/index.css site/brand/onboarding.css
           cp frontends/onboarding/index.js site/brand/onboarding.js
-          cp frontends/onboarding/runtime-config.js site/runtime-config.js
+          node config/domains/generate-onboarding-config.mjs \
+            --profile production \
+            --output site/runtime-config.js
           # Assets de marque (polices, tokens, styles, composants, QR)
           cp -R brand/. site/brand/
+          rm -f site/brand/qr/qr-demo-development.png
           # Documentation Retype sous /docs
           cp -R docs-site/. site/docs/
       - uses: actions/upload-pages-artifact@v3

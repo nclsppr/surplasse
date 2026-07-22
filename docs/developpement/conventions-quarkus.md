@@ -202,6 +202,26 @@ Le Backend journalise avec **JBoss Logging**, le socle natif de Quarkus, via un 
 Aucun email, nom, téléphone ou jeton (magic link, jeton de suivi de commande, clé Stripe) n'apparaît dans un log, à aucun niveau. Le contexte est porté par des identifiants internes opaques, qui suffisent au diagnostic. Cette règle conditionne la conformité RGPD des journaux (voir [operations](../operations/)).
 !!!
 
+## Métriques opérationnelles
+
+Les services métier n'importent ni client Prometheus, ni adresse de supervision. Ils émettent des événements internes. Le bean `OperationalMetrics` du module `application` les observe et met à jour le registre Micrometer en mémoire. Prometheus collecte ensuite `/q/metrics` en pull. Une instrumentation qui envoie sur le réseau, modifie la readiness ou ajoute une dépendance Compose du Backend vers sa supervision est refusée.
+
+Pour un fait transactionnel, l'observateur utilise `@Observes(during = TransactionPhase.AFTER_SUCCESS)`. Le compteur ne change que si le commit aboutit. Les signaux hors transaction, comme le résultat du mailer ou l'ouverture et la fermeture d'un flux SSE, sont mesurés au moment où leur composant connaît le résultat.
+
+Les conventions de nommage et de labels sont strictes :
+
+- un compteur est monotone et mesure un nombre d'événements ; il ne sert jamais à représenter un stock courant ;
+- un timer mesure une durée et déclare son unité, ses buckets et son parcours précis ; il n'est ajouté que lorsque les percentiles seront réellement exploités ;
+- une jauge représente un état courant qui peut monter et descendre, comme les connexions SSE, et ne doit jamais devenir négative ;
+- préfixe Micrometer `surplasse.` dans le code, traduit en `surplasse_` par le registre Prometheus ;
+- unité ou nature dans le nom, suffixe `_total` ajouté par Prometheus aux compteurs ;
+- description anglaise stable ;
+- labels uniquement sur un ensemble fermé et très court, comme `outcome="succeeded|failed"` ou `channel="order|establishment"` ;
+- aucun identifiant, slug, email, URL libre, montant, message d'exception ou autre valeur à cardinalité non bornée ;
+- aucune métrique exacte par établissement : ces chiffres viennent de PostgreSQL par le contrat.
+
+Un ajout de métrique comporte un test avec `SimpleMeterRegistry`, vérifie les deux branches si un label de résultat existe, et contrôle qu'une décrémentation de jauge ne peut pas la rendre négative. Une modification de l'endpoint ou de la configuration Prometheus complète aussi le test intégré qui lit `/q/metrics`.
+
 ## Les interdits
 
 Le condensé de ce que la revue refuse systématiquement :
@@ -217,6 +237,8 @@ Le condensé de ce que la revue refuse systématiquement :
 | `@Transactional` sur une resource ou un repository | frontière transactionnelle au mauvais niveau | `@Transactional` sur la méthode de service |
 | `@ConfigProperty` hors `@ConfigMapping` | configuration éparpillée, invérifiable au démarrage | le `@ConfigMapping` du domaine |
 | Appel externe (Stripe, API OpenAI) en transaction ouverte | connexion et verrous retenus pendant des secondes | motif en trois temps, worker de jobs |
+| Identifiant métier ou texte libre dans un label Micrometer | cardinalité non bornée, consommation mémoire et copie de données sensibles | compteur global et labels issus d'un enum fermé |
+| Envoi de métrique depuis le Backend | panne de supervision couplée au chemin métier | registre en mémoire et collecte pull Prometheus |
 
 ## Pour aller plus loin
 

@@ -10,13 +10,14 @@ Surplasse est un canal de commande directe pour les restaurants indépendants : 
 |---|---|---|
 | `docs/` | Documentation Retype et roadmap | Disponible |
 | `api/` | Contrat OpenAPI, source de vérité de l'API | Disponible |
-| `backend/` | Backend Quarkus, PostgreSQL Dev Services et modules métier | Disponible localement |
-| `frontends/commande/` | Mini-site client React | Disponible localement |
-| `frontends/dashboard/` | Dashboard React avec suivi temps réel et avancement des commandes | Disponible localement |
+| `backend/` | Backend Quarkus et modules métier | Image Compose disponible |
+| `frontends/commande/` | Mini-site client React | Image Compose disponible |
+| `frontends/dashboard/` | Dashboard React avec suivi temps réel et avancement des commandes | Image Compose disponible |
 | `frontends/onboarding/` | Préfiguration HTML de la vitrine | Disponible |
 | `frontends/shared/` | Design system et client API TypeScript | Disponible |
-| `infra/local/` | DNS wildcard, HTTPS mkcert et routage Caddy | Disponible sur le poste de développement |
-| `scripts/dev-cockpit/` | Supervision et contrôle des modules locaux | Disponible, absent de la production |
+| `compose.yaml`, `infra/` | Pile commune, images et routage Caddy pour le local et la production | Cluster local disponible, VPS non provisionné |
+| `scripts/dev-cockpit/` | Pilotage du profil Compose development, vérifications locales et dernier rapport Allure | Disponible, absent de la production |
+| `e2e/` | Smokes Playwright et rapports Allure 3 avec historique par cible | Disponible, exécution locale et GitHub Actions |
 
 La documentation complète vit dans [`docs/`](docs/). La procédure détaillée des domaines et du cockpit est dans [`docs/developpement/domaines-locaux.md`](docs/developpement/domaines-locaux.md).
 
@@ -32,6 +33,7 @@ npm ci
 (cd frontends/shared && npm ci)
 (cd frontends/commande && npm ci)
 (cd frontends/dashboard && npm ci)
+(cd e2e && npm ci && npx playwright install chromium)
 ```
 
 ## Installer les domaines locaux
@@ -40,7 +42,7 @@ npm ci
 npm run local:setup
 ```
 
-Le script installe les formules Homebrew manquantes `dnsmasq`, `nss`, `mkcert` et `caddy`, exécute `mkcert -install`, configure la zone wildcard `surplasse.test` et génère :
+Le script installe les formules Homebrew manquantes `dnsmasq`, `nss` et `mkcert`, exécute `mkcert -install`, configure la zone wildcard `surplasse.test` et génère :
 
 ```text
 .certs/surplasse.test.pem
@@ -51,20 +53,33 @@ Il détecte le préfixe Homebrew au lieu de supposer `/opt/homebrew` ou `/usr/lo
 
 ## Démarrer
 
-Dans un premier terminal :
+Construire et démarrer tout le cluster, puis attendre les healthchecks :
 
 ```bash
-npm run local:proxy
-npm run local:cockpit
+npm run local:up
+npm run local:ps
 ```
 
-Ouvrir [https://local.surplasse.test](https://local.surplasse.test), puis démarrer le parcours principal ou chaque module avec son bouton. Le cockpit montre en permanence les URL, les ports, les sondes et les états. Il n'arrête que les processus qu'il a lui-même lancés.
+Ouvrir [https://surplasse.test](https://surplasse.test). Compose exécute Caddy, PostgreSQL, le Backend, les trois fronts, Mailpit et la documentation. Seul Caddy publie un port sur l'hôte.
 
-La commande combinée existe aussi :
+Pour garder les logs au premier plan :
 
 ```bash
 npm run local:start
 ```
+
+## Piloter le cluster avec le cockpit
+
+Le cockpit exige un cluster déjà créé. Dans un autre terminal :
+
+```bash
+npm run local:up
+npm run local:cockpit
+```
+
+Ouvrir [https://local.surplasse.test](https://local.surplasse.test). Les boutons lisent et pilotent les services autorisés du projet Compose development. Caddy reste visible en lecture seule, car son arrêt couperait l'accès au cockpit. Les opérations `down`, la suppression des volumes et les boucles natives restent des commandes terminal.
+
+La page [https://local.surplasse.test/tests](https://local.surplasse.test/tests) lance les suites fixes, dont le smoke Playwright development. Son dernier rapport Allure 3 est publié sur [https://reports.surplasse.test](https://reports.surplasse.test). Cette URL répond 404 avant le premier rapport et dépend du cockpit pour être servie. Arrêter le cockpit ne stoppe pas les conteneurs.
 
 ## URL et sous-domaines réservés
 
@@ -77,11 +92,12 @@ npm run local:start
 | `https://docs.surplasse.test` | documentation locale |
 | `https://local.surplasse.test` | cockpit local |
 | `https://mail.surplasse.test` | Mailpit |
+| `https://reports.surplasse.test` | dernier rapport Allure development |
 | `https://app.surplasse.test` | réservé, non implémenté |
 | `https://admin.surplasse.test` | réservé, non implémenté |
 | `https://{slug}.surplasse.test` | Commande pour un établissement |
 
-Les noms réservés sont `www`, `api`, `dashboard`, `docs`, `app`, `admin`, `local` et `mail`. Tout autre sous-domaine direct valide est un candidat `slug` d'établissement.
+Les noms réservés sont `www`, `api`, `dashboard`, `docs`, `app`, `admin`, `local`, `mail` et `reports`. Tout autre sous-domaine direct valide est un candidat `slug` d'établissement.
 
 ## Vérifier le DNS et HTTPS
 
@@ -98,7 +114,7 @@ curl -I https://app.surplasse.test
 curl -I https://admin.surplasse.test
 ```
 
-Une réponse 502 indique que DNS, certificat et Caddy fonctionnent, mais que le module est arrêté. `app` et `admin` répondent volontairement 503 tant qu'aucune application ne leur est affectée.
+Les applications actives répondent 200 et l'API est prête. `app` et `admin` répondent volontairement 503 tant qu'aucune application ne leur est affectée. Utiliser `npm run local:ps` et `npm run local:logs` si un service reste malsain.
 
 ## Tester un nouveau restaurant
 
@@ -115,17 +131,18 @@ Le premier existe dans les données de démonstration. Le second vérifie le wil
 
 ```bash
 npm run local:certificates:regenerate
-npm run local:proxy
+npm run local:up
 ```
 
 Le certificat couvre déjà l'apex et `*.surplasse.test`. La création d'un restaurant ne nécessite donc aucune régénération.
 
 ## Arrêter et désinstaller
 
-`Ctrl+C` ferme le cockpit et arrête les processus qu'il possède. Caddy se gère séparément :
+`local:stop` conserve les conteneurs et volumes. `local:down` retire les conteneurs et le réseau en conservant les volumes :
 
 ```bash
-npm run local:proxy:stop
+npm run local:stop
+npm run local:down
 npm run local:remove
 ```
 
@@ -138,7 +155,9 @@ Les sources publiques et sans secret sont :
 - `config/domains/development.env` pour `.test` ;
 - `config/domains/production.env` pour `.com`.
 
-Les frontends, le Backend, Caddy, l'Onboarding statique et le cockpit partent de ces valeurs. `COOKIE_DOMAIN` reste volontairement vide : les cookies restaurateur sont hôte uniquement sur l'API et ne sont jamais partagés avec les mini-sites.
+Les frontends, le Backend, Caddy, l'Onboarding statique et le cockpit partent de ces valeurs. Le chargeur dérive `LOCAL_CONTROL_URL`, `MAILPIT_URL` et `REPORTS_URL` uniquement pour development. `COOKIE_DOMAIN` reste volontairement vide : les cookies restaurateur sont hôte uniquement sur l'API et ne sont jamais partagés avec les mini-sites.
+
+`config/deployment/development.env` porte uniquement les paramètres Compose locaux. Le modèle de secrets de production est `config/deployment/production.env.example`, mais il ne peut redéfinir aucun domaine ni aucune URL. Le wrapper `scripts/compose.sh` sélectionne toujours explicitement `development` ou `production`.
 
 Le Backend se lance avec `npm run backend:dev` ou se vérifie avec `npm run backend:verify`. Ces commandes sourcent le profil avant Maven et dérivent toutes les URL applicatives, le CORS et l'expéditeur Mailpit depuis `APP_BASE_DOMAIN`. Quarkus construit ensuite le magic link depuis `DASHBOARD_URL`, l'émetteur JWT depuis `API_URL` et garde les cookies `Secure`. Le code Java et `application.properties` ne contiennent aucune URL Surplasse de repli.
 
@@ -148,9 +167,16 @@ Le Backend se lance avec `npm run backend:dev` ou se vérifie avec `npm run back
 npm run domains:test
 npm run domains:check
 npm run brand:check
+npm run local:config
+npm run compose:config:test
+npm run local:cors:test
 npm run local:cockpit:test
 npm run docs:watch
 npm run docs:build
+npm run e2e:check
+npm run e2e:test -- development
 ```
+
+La suite E2E exige toujours une cible explicite. Le cockpit expose seulement la commande fixe `development` et son rapport sur `REPORTS_URL`. `production` et `custom` se lancent par la CLI ou par `.github/workflows/e2e.yml` ; une cible `custom` exige son identifiant et son domaine racine. Les résultats, rapports et historiques Allure restent séparés sous `.surplasse/e2e/{history-id}/`. Pour une cible personnalisée, cet identifiant interne ajoute automatiquement une empreinte du domaine afin que deux serveurs ne partagent jamais leur historique. Le test mobile de Commande s'active avec `SURPLASSE_E2E_ESTABLISHMENT_SLUG` et reste en lecture seule.
 
 Les règles de contribution et la terminologie canonique sont dans [`docs/AGENTS.md`](docs/AGENTS.md). Tout nouveau module ou logiciel documente, dans le même commit, son installation, son lancement, son arrêt, sa vérification, les plateformes supportées et sa présence ou son absence en production.

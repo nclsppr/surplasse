@@ -1,74 +1,193 @@
-import { CockpitOperationError, probeHttp, probePorts } from "./system.mjs";
+import { CockpitOperationError } from "./system.mjs";
 
-const MANAGED_KINDS = new Set(["process", "docker"]);
+const E2E_SUITE_ID = "e2e-development";
+const E2E_REQUIRED_MODULES = Object.freeze([
+  "edge",
+  "backend",
+  "commande",
+  "dashboard",
+  "onboarding",
+]);
 
 export class CockpitManager {
   constructor(registry, options) {
     this.registry = registry;
-    this.processController = options.processController;
-    this.mailpitController = options.mailpitController;
-    this.healthProbe = options.healthProbe ?? probeHttp;
-    this.portProbe = options.portProbe ?? probePorts;
+    this.composeController = options.composeController;
     this.publicProbe = options.publicProbe ?? (async () => ({
       state: "not-configured",
       detail: "Aucune sonde HTTPS publique configurée.",
       statusCode: null,
     }));
     this.qualityRunner = options.qualityRunner ?? null;
+    this.reportStore = options.reportStore ?? null;
     this.now = options.now ?? Date.now;
     this.definitions = new Map(registry.modules.map((definition) => [definition.id, definition]));
+    this.composeState = new Map();
+    this.composeAvailable = false;
+    this.composeError = null;
     this.records = new Map(
       registry.modules
-        .filter((definition) => MANAGED_KINDS.has(definition.kind))
+        .filter((definition) => definition.kind === "compose")
         .map((definition) => [definition.id, createRecord()]),
     );
-    this.operations = new Map();
+    this.lifecycleOperation = null;
+    this.actionReserved = false;
     this.publicResults = new Map();
   }
 
   async state() {
     await this.refreshAll();
+    const [quality, report] = await Promise.all([
+      this.qualityRunner ? this.qualityRunner.state() : null,
+      this.reportStore ? this.reportStore.state() : null,
+    ]);
     return {
       updatedAt: new Date(this.now()).toISOString(),
       urlConfiguration: {
         source: this.registry.urlConfiguration.source,
         warnings: this.registry.urlConfiguration.warnings,
         cockpitUrl: this.registry.urlConfiguration.cockpitUrl,
+        reportsUrl: this.registry.urlConfiguration.reportsUrl,
         wwwUrl: this.registry.urlConfiguration.wwwUrl,
         publicUrl: this.publicResults.get("@control") ?? null,
         wwwPublicUrl: this.publicResults.get("@www") ?? null,
       },
+      compose: {
+        available: this.composeAvailable,
+        running: this.lifecycleOperation !== null,
+        action: this.lifecycleOperation?.action ?? null,
+        moduleIds: this.lifecycleOperation?.ids ?? [],
+        error: this.composeError,
+      },
       modules: this.registry.modules.map((definition) => this.publicModule(definition)),
       presets: Object.keys(this.registry.presets),
-      quality: this.qualityRunner ? await this.qualityRunner.state() : null,
+      quality,
+      reports: report ? { allureDevelopment: report } : null,
     };
   }
 
   async runQualitySuite(id) {
-    if (!this.qualityRunner) {
-      throw new CockpitOperationError("Les vérifications ne sont pas configurées.", 503);
-    }
-    return this.qualityRunner.startSuite(id);
+    return this.withActionReservation(async () => {
+      this.requireQualityRunner();
+      this.assertLifecycleIdle();
+      if (id === E2E_SUITE_ID) {
+        await this.assertE2ePlatformReady();
+      }
+      return this.qualityRunner.startSuite(id);
+    });
   }
 
   async runAllQualitySuites() {
-    if (!this.qualityRunner) {
-      throw new CockpitOperationError("Les vérifications ne sont pas configurées.", 503);
+    return this.withActionReservation(async () => {
+      this.requireQualityRunner();
+      this.assertLifecycleIdle();
+      await this.assertE2ePlatformReady();
+      return this.qualityRunner.startAll();
+    });
+  }
+
+  async start(id) {
+    return this.withActionReservation(async () => {
+      await this.assertQualityIdle();
+      this.assertLifecycleIdle();
+      const definition = this.requireControllable(id);
+      await this.refreshCompose();
+      this.requireComposeAvailable();
+      const current = this.composeState.get(definition.composeService);
+      if (["ready", "starting", "degraded"].includes(composeStatus(current))) {
+        return this.publicModule(definition);
+      }
+      this.beginLifecycle("start", [definition]);
+      return this.publicModule(definition);
+    });
+  }
+
+  async stop(id) {
+    return this.withActionReservation(async () => {
+      await this.assertQualityIdle();
+      this.assertLifecycleIdle();
+      const definition = this.requireControllable(id);
+      await this.refreshCompose();
+      this.requireComposeAvailable();
+      const current = composeStatus(this.composeState.get(definition.composeService));
+      if (["stopped", "failed"].includes(current)) {
+        return this.publicModule(definition);
+      }
+      this.beginLifecycle("stop", [definition]);
+      return this.publicModule(definition);
+    });
+  }
+
+  async runPreset(name, action) {
+    return this.withActionReservation(async () => {
+      await this.assertQualityIdle();
+      this.assertLifecycleIdle();
+      const ids = this.registry.presets[name];
+      if (!ids || !["start", "stop"].includes(action)) {
+        throw new CockpitOperationError("Preset inconnu.", 404);
+      }
+      await this.refreshCompose();
+      this.requireComposeAvailable();
+
+      const definitions = ids.map((id) => this.requireControllable(id));
+      const selected = definitions.filter((definition) => {
+        const status = composeStatus(this.composeState.get(definition.composeService));
+        return action === "start"
+          ? ["stopped", "failed"].includes(status)
+          : ["ready", "starting", "degraded"].includes(status);
+      });
+      const selectedIds = new Set(selected.map((definition) => definition.id));
+      const results = definitions.map((definition) => ({
+        id: definition.id,
+        ok: true,
+        skipped: !selectedIds.has(definition.id),
+      }));
+      if (selected.length > 0) {
+        this.beginLifecycle(action, action === "stop" ? [...selected].reverse() : selected);
+      }
+      return { preset: name, action, results };
+    });
+  }
+
+  async shutdown() {
+    const operations = [];
+    if (this.lifecycleOperation) {
+      this.lifecycleOperation.controller.abort();
+      operations.push(this.lifecycleOperation.promise);
     }
-    return this.qualityRunner.startAll();
+    if (this.qualityRunner) {
+      operations.push(this.qualityRunner.stop());
+    }
+    await Promise.allSettled(operations);
   }
 
   async refreshAll() {
-    const managed = this.registry.modules.filter((definition) => MANAGED_KINDS.has(definition.kind));
-    const publicDefinitions = this.registry.modules.filter((definition) => definition.kind !== "derived");
+    const publicDefinitions = this.registry.modules.filter((definition) => definition.publicHealth);
     await Promise.all([
-      ...managed.map((definition) => this.refreshManaged(definition)),
+      this.refreshCompose(),
       ...publicDefinitions.map((definition) =>
         this.refreshPublic(definition.id, definition.publicHealth),
       ),
       this.refreshPublic("@control", this.registry.urlConfiguration.controlHealth),
       this.refreshPublic("@www", this.registry.urlConfiguration.wwwHealth),
     ]);
+  }
+
+  async refreshCompose() {
+    try {
+      this.composeState = await this.composeController.inspectAll();
+      this.composeAvailable = true;
+      this.composeError = null;
+      for (const definition of this.registry.modules.filter((item) => item.kind === "compose")) {
+        const status = composeStatus(this.composeState.get(definition.composeService));
+        if (["ready", "starting", "degraded"].includes(status)) {
+          this.records.get(definition.id).lastError = null;
+        }
+      }
+    } catch {
+      this.composeAvailable = false;
+      this.composeError = "L'état du projet Docker Compose est indisponible.";
+    }
   }
 
   async refreshPublic(key, health) {
@@ -92,246 +211,32 @@ export class CockpitManager {
     }
   }
 
-  async start(id) {
-    return this.withOperation(id, async () => {
-      const definition = this.requireManaged(id);
-      await this.refreshManaged(definition, true);
-      const record = this.records.get(id);
-
-      if (record.owned && ["starting", "ready", "degraded"].includes(record.status)) {
-        return this.publicModule(definition);
-      }
-      if (record.status === "external") {
-        throw new CockpitOperationError(`${definition.label} est déjà lancé hors de ce cockpit.`, 409);
-      }
-      if (record.status === "conflict") {
-        throw new CockpitOperationError(`Un port de ${definition.label} est déjà occupé.`, 409);
-      }
-      if (definition.requiresDocker && !(await this.mailpitController.isDockerAvailable())) {
-        throw new CockpitOperationError("Docker doit être démarré avant le Backend.", 409);
-      }
-
-      record.status = "starting";
-      record.detail = "Démarrage en cours.";
+  beginLifecycle(action, definitions) {
+    const controller = new AbortController();
+    const ids = definitions.map((definition) => definition.id);
+    for (const definition of definitions) {
+      const record = this.records.get(definition.id);
+      record.intent = action === "start" ? "starting" : "stopping";
       record.lastError = null;
-      record.startedAt = this.now();
-      const generation = record.generation + 1;
-      record.generation = generation;
+    }
 
-      try {
-        if (definition.kind === "process") {
-          const handle = await this.processController.start(definition, (exit) =>
-            this.processExited(id, generation, exit),
-          );
-          if (record.generation !== generation || !handle.running) {
-            throw new Error(`${definition.label} s'est arrêté pendant son démarrage.`);
-          }
-          record.handle = handle;
-        } else {
-          if (!(await this.mailpitController.isDockerAvailable())) {
-            throw new CockpitOperationError("Docker doit être démarré avant Mailpit.", 409);
-          }
-          record.handle = await this.mailpitController.start(definition);
+    const services = definitions.map((definition) => definition.composeService);
+    const promise = Promise.resolve()
+      .then(() => this.composeController[action](services, { signal: controller.signal }))
+      .catch((error) => {
+        const message = safeError(error);
+        for (const definition of definitions) {
+          this.records.get(definition.id).lastError = message;
         }
-        record.owned = true;
-      } catch (error) {
-        record.status = "failed";
-        record.detail = "Le démarrage a échoué.";
-        record.lastError = safeError(error);
-        record.owned = false;
-        record.handle = null;
-        throw error;
-      }
-
-      return this.publicModule(definition);
-    });
-  }
-
-  async stop(id) {
-    return this.withOperation(id, async () => {
-      const definition = this.requireManaged(id);
-      await this.refreshManaged(definition, true);
-      const record = this.records.get(id);
-
-      if (!record.owned) {
-        if (record.status === "stopped" || record.status === "failed") {
-          return this.publicModule(definition);
+      })
+      .finally(async () => {
+        for (const definition of definitions) {
+          this.records.get(definition.id).intent = null;
         }
-        throw new CockpitOperationError(`${definition.label} ne sera pas arrêté car il n'appartient pas à ce cockpit.`, 409);
-      }
-
-      record.stopping = true;
-      record.status = "stopping";
-      record.detail = "Arrêt en cours.";
-      try {
-        if (definition.kind === "process") {
-          await this.processController.stop(record.handle);
-        } else {
-          await this.mailpitController.stop(definition, record.handle);
-        }
-        record.handle = null;
-        record.owned = false;
-        record.status = "stopped";
-        record.detail = "Arrêté.";
-        record.startedAt = null;
-      } finally {
-        record.stopping = false;
-      }
-      return this.publicModule(definition);
-    });
-  }
-
-  async runPreset(name, action) {
-    const ids = this.registry.presets[name];
-    if (!ids || !["start", "stop"].includes(action)) {
-      throw new CockpitOperationError("Preset inconnu.", 404);
-    }
-
-    const orderedIds = action === "stop" ? [...ids].reverse() : [...ids];
-    const results = [];
-    for (const id of orderedIds) {
-      const definition = this.definitions.get(id);
-      await this.refreshManaged(definition, true);
-      const record = this.records.get(id);
-      try {
-        if (action === "start") {
-          if (record.status === "external" || (record.owned && ["starting", "ready", "degraded"].includes(record.status))) {
-            results.push({ id, ok: true, skipped: true });
-            continue;
-          }
-          await this.start(id);
-        } else {
-          if (!record.owned) {
-            results.push({ id, ok: true, skipped: true });
-            continue;
-          }
-          await this.stop(id);
-        }
-        results.push({ id, ok: true, skipped: false });
-      } catch (error) {
-        results.push({ id, ok: false, error: safeError(error) });
-      }
-    }
-    return { preset: name, action, results };
-  }
-
-  async stopAllOwned() {
-    const allIds = [...this.registry.presets.all].reverse();
-    for (const id of allIds) {
-      const record = this.records.get(id);
-      if (!record?.owned) {
-        continue;
-      }
-      try {
-        await this.stop(id);
-      } catch {
-        // Shutdown remains best-effort while preserving the ownership checks.
-      }
-    }
-  }
-
-  async refreshManaged(definition, force = false) {
-    if (!definition || !MANAGED_KINDS.has(definition.kind)) {
-      return;
-    }
-    const record = this.records.get(definition.id);
-    if ((!force && this.operations.has(definition.id)) || record.status === "stopping") {
-      return;
-    }
-
-    const healthy = await this.healthProbe(definition.health);
-    if (definition.kind === "process" && record.owned && record.handle?.running) {
-      if (healthy) {
-        record.status = "ready";
-        record.detail = "Prêt et piloté par ce cockpit.";
-      } else if (this.now() - record.startedAt <= definition.startupTimeoutMs) {
-        record.status = "starting";
-        record.detail = "Le processus tourne, la sonde attend encore.";
-      } else {
-        record.status = "degraded";
-        record.detail = "Le processus tourne mais sa sonde ne répond pas.";
-      }
-      return;
-    }
-
-    if (definition.kind === "docker") {
-      const container = record.handle?.containerId
-        ? await this.mailpitController.inspect(definition, record.handle.containerId)
-        : await this.mailpitController.inspect(definition);
-      if (
-        container.exists &&
-        container.managedByCockpit &&
-        container.ownedByCurrent &&
-        container.id === record.handle?.containerId &&
-        container.name === definition.docker.name &&
-        container.image === definition.docker.image &&
-        container.running
-      ) {
-        record.owned = true;
-        record.status = healthy ? "ready" : "starting";
-        record.detail = healthy ? "Prêt et piloté par ce cockpit." : "Le conteneur démarre.";
-        return;
-      }
-      if (record.handle?.containerId && !container.exists) {
-        record.handle = null;
-        record.owned = false;
-      }
-
-      const namedContainer = record.handle?.containerId ? await this.mailpitController.inspect(definition) : container;
-      if (namedContainer.exists) {
-        record.owned = false;
-        const recognizedExternal = namedContainer.managedByCockpit && namedContainer.running && healthy;
-        record.status = recognizedExternal ? "external" : "conflict";
-        record.detail = recognizedExternal
-          ? "Conteneur d'un autre cockpit, arrêt interdit."
-          : "Le nom de conteneur est déjà utilisé hors de ce cockpit.";
-        return;
-      }
-      record.owned = false;
-    }
-
-    if (healthy) {
-      record.owned = false;
-      record.status = "external";
-      record.detail = "Service lancé hors de ce cockpit, arrêt interdit.";
-      return;
-    }
-
-    const occupied = await this.portProbe(definition.ports);
-    if (occupied) {
-      record.owned = false;
-      record.status = "conflict";
-      record.detail = "Un port attendu est occupé par un autre service.";
-      return;
-    }
-
-    record.owned = false;
-    record.handle = null;
-    if (record.status !== "failed") {
-      record.status = "stopped";
-      record.detail = "Arrêté.";
-      record.startedAt = null;
-    }
-  }
-
-  processExited(id, generation, exit) {
-    const record = this.records.get(id);
-    if (!record || record.generation !== generation) {
-      return;
-    }
-    record.handle = null;
-    record.owned = false;
-    if (record.stopping) {
-      record.status = "stopped";
-      record.detail = "Arrêté.";
-      record.startedAt = null;
-      return;
-    }
-    record.status = "failed";
-    record.detail = "Le processus s'est arrêté de façon inattendue.";
-    record.lastError = exit.error
-      ? safeError(exit.error)
-      : `Sortie ${exit.code ?? "inconnue"}${exit.signal ? `, signal ${exit.signal}` : ""}.`;
+        await this.refreshCompose();
+        this.lifecycleOperation = null;
+      });
+    this.lifecycleOperation = { action, ids: Object.freeze(ids), controller, promise };
   }
 
   publicModule(definition) {
@@ -345,66 +250,144 @@ export class CockpitManager {
         canStop: false,
       });
     }
-    if (definition.kind === "derived") {
-      const source = this.records.get(definition.derivedFrom);
-      const status = deriveStatus(source?.status);
-      return publicShape(definition, {
-        status,
-        detail: status === "ready" ? "Disponible avec le Backend, sans processus autonome." : definition.description,
-        publicUrl: null,
-        ownership: "derived",
-        canStart: false,
-        canStop: false,
-      });
-    }
 
     const record = this.records.get(definition.id);
+    const container = this.composeState.get(definition.composeService);
+    const internalStatus = !this.composeAvailable
+      ? "unavailable"
+      : record.intent ?? (record.lastError && !container?.exists ? "failed" : composeStatus(container));
     const publicUrl = this.publicResults.get(definition.id) ?? null;
     const routeUnavailable =
-      record.status === "ready" && publicUrl !== null && publicUrl.state !== "available";
+      internalStatus === "ready" && publicUrl !== null && publicUrl.state !== "available";
+    const status = routeUnavailable ? "degraded" : internalStatus;
     return publicShape(definition, {
-      status: routeUnavailable ? "degraded" : record.status,
+      status,
       detail: routeUnavailable
-        ? `Service interne prêt, accès public indisponible. ${publicUrl.detail}`
-        : record.detail,
+        ? `Conteneur sain, accès HTTPS indisponible. ${publicUrl.detail}`
+        : composeDetail(status, definition.controllable),
       publicUrl,
-      ownership: record.owned ? "cockpit" : record.status === "external" ? "external" : "none",
-      canStart: ["stopped", "failed"].includes(record.status),
-      canStop: record.owned && ["starting", "ready", "degraded"].includes(record.status),
-      startedAt: record.startedAt ? new Date(record.startedAt).toISOString() : null,
+      ownership: "compose",
+      canStart:
+        this.composeAvailable &&
+        definition.controllable &&
+        !this.lifecycleOperation &&
+        ["stopped", "failed"].includes(internalStatus),
+      canStop:
+        this.composeAvailable &&
+        definition.controllable &&
+        !this.lifecycleOperation &&
+        ["ready", "starting", "degraded"].includes(internalStatus),
+      startedAt: null,
       lastError: record.lastError,
     });
   }
 
-  requireManaged(id) {
+  async assertE2ePlatformReady() {
+    await this.refreshCompose();
+    this.requireComposeAvailable();
+    const unavailable = E2E_REQUIRED_MODULES.filter((id) => {
+      const definition = this.definitions.get(id);
+      return composeStatus(this.composeState.get(definition.composeService)) !== "ready";
+    });
+    if (unavailable.length > 0) {
+      throw new CockpitOperationError(
+        `Le smoke Playwright exige un cluster sain. Modules indisponibles : ${unavailable.join(", ")}.`,
+        409,
+      );
+    }
+  }
+
+  requireControllable(id) {
     const definition = this.definitions.get(id);
-    if (!definition || !MANAGED_KINDS.has(definition.kind)) {
+    if (!definition || definition.kind !== "compose" || !definition.controllable) {
       throw new CockpitOperationError("Module inconnu ou non pilotable.", 404);
     }
     return definition;
   }
 
-  withOperation(id, operation) {
-    if (this.operations.has(id)) {
-      throw new CockpitOperationError("Une opération est déjà en cours pour ce module.", 409);
+  requireComposeAvailable() {
+    if (!this.composeAvailable) {
+      throw new CockpitOperationError(
+        "Docker Compose est indisponible. Démarrez Docker puis actualisez le cockpit.",
+        503,
+      );
     }
-    const promise = Promise.resolve().then(operation);
-    this.operations.set(id, promise);
-    return promise.finally(() => this.operations.delete(id));
+  }
+
+  requireQualityRunner() {
+    if (!this.qualityRunner) {
+      throw new CockpitOperationError("Les vérifications ne sont pas configurées.", 503);
+    }
+  }
+
+  assertLifecycleIdle() {
+    if (this.lifecycleOperation) {
+      throw new CockpitOperationError("Une opération Docker Compose est déjà en cours.", 409);
+    }
+  }
+
+  async assertQualityIdle() {
+    if (this.qualityRunner && (await this.qualityRunner.state()).running) {
+      throw new CockpitOperationError(
+        "Une vérification est en cours. Attendez son résultat avant de modifier le cluster.",
+        409,
+      );
+    }
+  }
+
+  async withActionReservation(operation) {
+    if (this.actionReserved) {
+      throw new CockpitOperationError("Une action du cockpit est déjà en préparation.", 409);
+    }
+    this.actionReserved = true;
+    try {
+      return await operation();
+    } finally {
+      this.actionReserved = false;
+    }
   }
 }
 
 function createRecord() {
   return {
-    status: "stopped",
-    detail: "Arrêté.",
-    owned: false,
-    handle: null,
-    stopping: false,
-    startedAt: null,
+    intent: null,
     lastError: null,
-    generation: 0,
   };
+}
+
+function composeStatus(container) {
+  if (!container?.exists) {
+    return "stopped";
+  }
+  if (container.state === "running") {
+    if (container.health === "unhealthy") return "degraded";
+    if (container.health === "starting") return "starting";
+    return "ready";
+  }
+  if (container.state === "restarting" || container.state === "created") {
+    return "starting";
+  }
+  if (container.state === "exited") {
+    return container.exitCode === 0 ? "stopped" : "failed";
+  }
+  if (container.state === "dead" || container.state === "removing") {
+    return "failed";
+  }
+  return "degraded";
+}
+
+function composeDetail(status, controllable) {
+  const suffix = controllable ? " Piloté par Docker Compose." : " Lecture seule dans ce cockpit.";
+  const labels = {
+    stopped: "Conteneur arrêté.",
+    starting: "Opération Docker Compose en cours.",
+    ready: "Conteneur sain.",
+    degraded: "Conteneur démarré mais dégradé.",
+    failed: "Le dernier conteneur s'est arrêté en échec.",
+    stopping: "Arrêt Docker Compose en cours.",
+    unavailable: "État Docker Compose indisponible.",
+  };
+  return `${labels[status] ?? "État inconnu."}${suffix}`;
 }
 
 function publicShape(definition, state) {
@@ -418,19 +401,6 @@ function publicShape(definition, state) {
     links: definition.links.filter((item) => item.url),
     ...state,
   };
-}
-
-function deriveStatus(sourceStatus) {
-  if (["ready", "external"].includes(sourceStatus)) {
-    return "ready";
-  }
-  if (["starting", "stopping"].includes(sourceStatus)) {
-    return sourceStatus;
-  }
-  if (["failed", "degraded", "conflict"].includes(sourceStatus)) {
-    return "degraded";
-  }
-  return "stopped";
 }
 
 function safeError(error) {

@@ -1,128 +1,121 @@
-import { resolve } from "node:path";
-
 const DEMO_TABLE_CODE = "tbl_2f8e6a4c0b9d7e1f";
 
-export function createRegistry(repoRoot, developmentUrls) {
+export function createRegistry(_repoRoot, developmentUrls) {
   const urls = developmentUrls.urls;
   const modules = [
-    processModule({
+    composeModule({
+      id: "edge",
+      service: "edge",
+      label: "Caddy",
+      description: "Entrée HTTPS du cluster et routage vers les modules.",
+      group: "infrastructure",
+      ports: [443],
+      controllable: false,
+      publicHealth: publicHealth(appendPath(urls.onboarding, "/.well-known/surplasse-edge")),
+      links: [],
+    }),
+    composeModule({
       id: "backend",
+      service: "backend",
       label: "Backend",
-      description: "API Quarkus et PostgreSQL Dev Services.",
+      description: "API Quarkus connectée au PostgreSQL du cluster.",
       group: "applications",
-      cwd: resolve(repoRoot, "backend"),
-      executable: resolve(repoRoot, "scripts/run-with-domain-profile.sh"),
-      args: [
-        "development",
-        "./mvnw",
-        "quarkus:dev",
-        "-Ddebug=5006",
-        "-Dquarkus.http.host=127.0.0.1",
-      ],
-      ports: [8080, 5006, 5432],
-      healthUrl: "http://127.0.0.1:8080/q/health/ready",
+      ports: [8080],
       publicHealth: publicHealth(appendPath(urls.backend, "/q/health/ready"), {
         bodyExpectation: "quarkus-up",
       }),
-      startupTimeoutMs: 180_000,
-      requiresDocker: true,
-      requiresJava21: true,
       links: [
         link("API", urls.backend),
         link("Santé", appendPath(urls.backend, "/q/health/ready")),
-        link("Dev UI", appendPath(urls.backend, "/q/dev-ui")),
         link("Swagger UI", appendPath(urls.backend, "/q/swagger-ui")),
       ],
     }),
-    processModule({
+    composeModule({
       id: "commande",
+      service: "commande",
       label: "Commande",
       description: "Mini-site de commande du Cormoran.",
       group: "applications",
-      cwd: resolve(repoRoot, "frontends/commande"),
-      executable: "npm",
-      args: ["run", "dev", "--", "--host", "127.0.0.1"],
-      ports: [5173],
-      healthUrl: "http://127.0.0.1:5173/",
+      ports: [8080],
       publicHealth: publicHealth(urls.commande),
-      startupTimeoutMs: 45_000,
       links: [link("Ouvrir avec la table de démo", withQuery(urls.commande, "table", DEMO_TABLE_CODE))],
     }),
-    processModule({
+    composeModule({
       id: "dashboard",
+      service: "dashboard",
       label: "Dashboard",
       description: "Connexion restaurateur et service en salle.",
       group: "applications",
-      cwd: resolve(repoRoot, "frontends/dashboard"),
-      executable: "npm",
-      args: ["run", "dev", "--", "--host", "127.0.0.1"],
-      ports: [5174],
-      healthUrl: "http://127.0.0.1:5174/",
+      ports: [8080],
       publicHealth: publicHealth(appendPath(urls.dashboard, "/auth/login")),
-      startupTimeoutMs: 45_000,
       links: [
         link("Connexion", appendPath(urls.dashboard, "/auth/login")),
         link("Service", appendPath(urls.dashboard, "/service")),
       ],
     }),
-    processModule({
+    composeModule({
       id: "onboarding",
-      label: "Onboarding local",
-      description: "Préfiguration de la vitrine et qualification Stripe Connect intégrée.",
+      service: "onboarding",
+      label: "Onboarding",
+      description: "Vitrine et qualification Stripe Connect locale.",
       group: "applications",
-      cwd: resolve(repoRoot, "scripts/dev-cockpit"),
-      executable: process.execPath,
-      args: [resolve(repoRoot, "scripts/dev-cockpit/onboarding-server.mjs")],
       ports: [4173],
-      healthUrl: "http://127.0.0.1:4173/__health",
       publicHealth: publicHealth(urls.onboarding),
-      startupTimeoutMs: 20_000,
       links: [
         link("Onboarding", urls.onboarding),
         link("Pilote Stripe intégré", appendPath(urls.onboarding, "/connect.html")),
         link("Planche de marque", localCompanionLink(urls.onboarding)),
       ],
     }),
-    processModule({
+    composeModule({
       id: "docs",
+      service: "docs",
       label: "Documentation",
-      description: "Documentation Retype avec rechargement local.",
+      description: "Documentation Retype construite et servie par le cluster.",
       group: "tools",
-      cwd: repoRoot,
-      executable: "npm",
-      args: ["run", "docs:watch"],
-      ports: [5005],
-      healthUrl: "http://127.0.0.1:5005/surplasse/docs/",
+      ports: [8080],
       publicHealth: publicHealth(urls.docs),
-      startupTimeoutMs: 45_000,
       links: [link("Documentation", urls.docs)],
     }),
-    Object.freeze({
+    composeModule({
       id: "mailpit",
+      service: "mailpit",
       label: "Mailpit",
       description: "Boîte email jetable pour les magic links.",
       group: "tools",
-      kind: "docker",
-      ports: Object.freeze([1025, 8025]),
-      health: Object.freeze({ url: "http://127.0.0.1:8025/readyz", timeoutMs: 1_500 }),
+      ports: [1025, 8025],
       publicHealth: publicHealth(appendPath(urls.mailpit, "/readyz")),
-      links: Object.freeze([link("Boîte de réception", urls.mailpit)]),
-      docker: Object.freeze({
-        name: "surplasse-mailpit",
-        image: "axllent/mailpit:v1.30.4",
-        managedLabel: "com.surplasse.dev-cockpit.managed",
-        ownershipLabel: "com.surplasse.dev-cockpit.owner",
-      }),
+      links: [link("Boîte de réception", urls.mailpit)],
     }),
-    Object.freeze({
+    composeModule({
+      id: "prometheus",
+      service: "prometheus",
+      label: "Prometheus",
+      description: "Collecte interne des métriques opérationnelles du Backend.",
+      group: "tools",
+      ports: [9090],
+      publicHealth: null,
+      links: [],
+    }),
+    composeModule({
+      id: "grafana",
+      service: "grafana",
+      label: "Grafana",
+      description: "Tableau de bord local des métriques opérationnelles.",
+      group: "tools",
+      ports: [3000],
+      publicHealth: publicHealth(appendPath(urls.grafana, "/api/health")),
+      links: [link("Tableau de bord", urls.grafana)],
+    }),
+    composeModule({
       id: "postgresql",
+      service: "postgresql",
       label: "PostgreSQL",
-      description: "Démarré et arrêté avec les Dev Services du Backend.",
+      description: "Base persistante du cluster local.",
       group: "dependencies",
-      kind: "derived",
-      derivedFrom: "backend",
-      ports: Object.freeze([5432]),
-      links: Object.freeze([]),
+      ports: [5432],
+      publicHealth: null,
+      links: [],
     }),
     reservedModule("app", "Application app", urls.app),
     reservedModule("admin", "Administration", urls.admin),
@@ -131,14 +124,28 @@ export function createRegistry(repoRoot, developmentUrls) {
   assertRegistry(modules);
   return Object.freeze({
     modules: Object.freeze(modules),
+    composeServices: Object.freeze(
+      modules.filter((module) => module.kind === "compose").map((module) => module.composeService),
+    ),
     presets: Object.freeze({
-      core: Object.freeze(["mailpit", "backend", "commande", "dashboard"]),
-      all: Object.freeze(["mailpit", "backend", "commande", "dashboard", "onboarding", "docs"]),
+      core: Object.freeze(["postgresql", "mailpit", "backend", "commande", "dashboard"]),
+      all: Object.freeze([
+        "postgresql",
+        "mailpit",
+        "backend",
+        "commande",
+        "dashboard",
+        "onboarding",
+        "docs",
+        "prometheus",
+        "grafana",
+      ]),
     }),
     urlConfiguration: Object.freeze({
       source: developmentUrls.source,
       warnings: developmentUrls.warnings,
       cockpitUrl: urls.cockpit,
+      reportsUrl: urls.reports,
       wwwUrl: withSubdomain(urls.onboarding, "www"),
       controlHealth: publicHealth(appendPath(urls.cockpit, "/styles.css")),
       wwwHealth: publicHealth(withSubdomain(urls.onboarding, "www"), {
@@ -150,26 +157,18 @@ export function createRegistry(repoRoot, developmentUrls) {
   });
 }
 
-function processModule(definition) {
+function composeModule(definition) {
   return Object.freeze({
-    ...definition,
-    kind: "process",
+    id: definition.id,
+    composeService: definition.service,
+    label: definition.label,
+    description: definition.description,
+    group: definition.group,
+    kind: "compose",
+    controllable: definition.controllable ?? true,
     ports: Object.freeze(definition.ports),
-    command: Object.freeze({
-      executable: definition.executable,
-      args: Object.freeze(definition.args),
-      cwd: definition.cwd,
-    }),
-    health: Object.freeze({ url: definition.healthUrl, timeoutMs: 1_500 }),
     publicHealth: definition.publicHealth,
     links: Object.freeze(definition.links),
-    startupTimeoutMs: definition.startupTimeoutMs,
-    requiresDocker: definition.requiresDocker ?? false,
-    requiresJava21: definition.requiresJava21 ?? false,
-    executable: undefined,
-    args: undefined,
-    cwd: undefined,
-    healthUrl: undefined,
   });
 }
 
@@ -244,30 +243,34 @@ function localCompanionLink(configuredOnboardingUrl) {
 
 function assertRegistry(modules) {
   const ids = new Set();
-  const managedPorts = new Set();
+  const composeServices = new Set();
   for (const module of modules) {
     if (!/^[a-z][a-z0-9-]*$/u.test(module.id) || ids.has(module.id)) {
       throw new Error(`Invalid or duplicate module id: ${module.id}`);
     }
     ids.add(module.id);
-    if (module.kind === "process" || module.kind === "docker") {
-      for (const port of module.ports) {
-        if (managedPorts.has(port)) {
-          throw new Error(`Duplicate managed port: ${port}`);
-        }
-        managedPorts.add(port);
+    if (module.kind === "compose") {
+      if (
+        !/^[a-z][a-z0-9-]*$/u.test(module.composeService) ||
+        composeServices.has(module.composeService)
+      ) {
+        throw new Error(`Invalid or duplicate Compose service: ${module.composeService}`);
       }
+      composeServices.add(module.composeService);
     }
   }
 }
 
 export const EXPECTED_MODULE_IDS = Object.freeze([
+  "edge",
   "backend",
   "commande",
   "dashboard",
   "onboarding",
   "docs",
   "mailpit",
+  "prometheus",
+  "grafana",
   "postgresql",
   "app",
   "admin",

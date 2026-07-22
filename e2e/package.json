@@ -1,0 +1,24 @@
+{
+  "name": "@surplasse/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "browser:install": "playwright install chromium",
+    "check": "node --test unit/*.test.mjs",
+    "report:open": "node scripts/run.mjs open",
+    "target:id": "node scripts/run.mjs id",
+    "test": "node scripts/run.mjs test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.1",
+    "allure": "3.14.3",
+    "allure-playwright": "3.10.2"
+  },
+  "overrides": {
+    "adm-zip": "0.6.0"
+  }
+}

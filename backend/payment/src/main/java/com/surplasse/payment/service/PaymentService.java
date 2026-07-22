@@ -4,6 +4,7 @@ import com.surplasse.common.catalog.CatalogGateway;
 import com.surplasse.common.error.BusinessRuleException;
 import com.surplasse.common.error.ConflictException;
 import com.surplasse.common.error.NotFoundException;
+import com.surplasse.common.event.PaymentSessionOpened;
 import com.surplasse.common.order.OrderGateway;
 import com.surplasse.payment.entity.Payment;
 import com.surplasse.payment.entity.PaymentRequest;
@@ -13,6 +14,7 @@ import com.surplasse.payment.repository.PaymentRepository;
 import com.surplasse.payment.repository.PaymentRequestRepository;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Map;
@@ -27,18 +29,21 @@ public class PaymentService {
     private final CatalogGateway catalogGateway;
     private final PaymentProvider paymentProvider;
     private final PaymentRequestRepository paymentRequestRepository;
+    private final Event<PaymentSessionOpened> paymentSessionOpened;
 
     PaymentService(
             PaymentRepository paymentRepository,
             OrderGateway orderGateway,
             CatalogGateway catalogGateway,
             PaymentProvider paymentProvider,
-            PaymentRequestRepository paymentRequestRepository) {
+            PaymentRequestRepository paymentRequestRepository,
+            Event<PaymentSessionOpened> paymentSessionOpened) {
         this.paymentRepository = paymentRepository;
         this.orderGateway = orderGateway;
         this.catalogGateway = catalogGateway;
         this.paymentProvider = paymentProvider;
         this.paymentRequestRepository = paymentRequestRepository;
+        this.paymentSessionOpened = paymentSessionOpened;
     }
 
     /**
@@ -129,6 +134,7 @@ public class PaymentService {
                 .orElseThrow(() -> new IllegalStateException("A reserved payment disappeared before activation."));
         payment.activate(intent.externalReference(), intent.clientSecret());
         paymentRepository.flush();
+        paymentSessionOpened.fire(new PaymentSessionOpened(payment.getOrderId(), payment.getEstablishmentId()));
         return payment;
     }
 

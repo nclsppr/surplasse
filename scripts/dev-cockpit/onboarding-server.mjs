@@ -3,10 +3,10 @@ import http from "node:http";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { loadDevelopmentUrls } from "./domains.mjs";
+import { loadDomainConfig } from "../../config/domains/load-domain-config.mjs";
 
-const ONBOARDING_HOST = "127.0.0.1";
-const ONBOARDING_PORT = 4173;
+const ONBOARDING_HOST = process.env.ONBOARDING_HOST?.trim() || "127.0.0.1";
+const ONBOARDING_PORT = parseListenerPort(process.env.ONBOARDING_PORT, 4173);
 const INTERNAL_HEALTH_PATH = "/__health";
 
 const PUBLIC_FILES = Object.freeze({
@@ -288,6 +288,15 @@ function firstConfigured(...values) {
   return values.find((value) => typeof value === "string" && value.trim() !== "")?.trim();
 }
 
+function parseListenerPort(value, fallback) {
+  if (value === undefined || value === "") return fallback;
+  const port = Number(value);
+  if (!Number.isInteger(port) || port < 1 || port > 65_535) {
+    throw new Error("ONBOARDING_PORT must be an integer between 1 and 65535.");
+  }
+  return port;
+}
+
 function sameOrigin(request, publicOrigin) {
   const origin = request.headers.origin;
   return typeof origin === "string" && origin === publicOrigin.origin;
@@ -345,9 +354,20 @@ function readAllowedAsset(absolutePath) {
 function start() {
   const currentDirectory = dirname(fileURLToPath(import.meta.url));
   const repoRoot = resolve(currentDirectory, "../..");
-  const stripeConfig = loadStripePilotConfig(repoRoot);
-  const developmentUrls = loadDevelopmentUrls(repoRoot);
-  const publicOrigin = developmentUrls.urls.onboarding;
+  const profile = process.env.DEPLOYMENT_PROFILE?.trim() || "development";
+  if (profile !== "development" && profile !== "production") {
+    throw new Error("DEPLOYMENT_PROFILE must be development or production.");
+  }
+  const pilotSetting = process.env.ONBOARDING_STRIPE_PILOT_ENABLED?.trim();
+  if (pilotSetting !== undefined && pilotSetting !== "true" && pilotSetting !== "false") {
+    throw new Error("ONBOARDING_STRIPE_PILOT_ENABLED must be true or false.");
+  }
+  const pilotEnabled = pilotSetting === undefined ? profile === "development" : pilotSetting === "true";
+  if (pilotEnabled && profile !== "development") {
+    throw new Error("The embedded Stripe pilot can run only with the development profile.");
+  }
+  const stripeConfig = pilotEnabled ? loadStripePilotConfig(repoRoot) : null;
+  const publicOrigin = loadDomainConfig(profile).ONBOARDING_URL;
   const server = createOnboardingStaticServer({ repoRoot, stripeConfig, publicOrigin });
   server.on("error", (error) => {
     console.error("The Onboarding static server could not start.", error);

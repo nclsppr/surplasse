@@ -6,7 +6,7 @@ export function createQualitySuites(repoRoot) {
       id: "backend-integration",
       label: "Backend intégré",
       description: "Compile le Backend et exécute ses tests unitaires, d'intégration et de contrat.",
-      hint: "Arrêter le Backend en mode développement avant cette vérification.",
+      hint: "Cette vérification s'exécute hors des conteneurs et ne modifie pas le cluster.",
       commands: [command("Vérification Maven", "npm", ["run", "backend:verify"], repoRoot)],
     }),
     suite({
@@ -36,6 +36,15 @@ export function createQualitySuites(repoRoot) {
         command("Configuration générée", "npm", ["run", "domains:check"], repoRoot),
         command("Cockpit", "npm", ["run", "local:cockpit:test"], repoRoot),
         command("Frontière CORS", "npm", ["run", "local:cors:test"], repoRoot),
+      ],
+    }),
+    suite({
+      id: "e2e-development",
+      label: "Parcours Playwright",
+      description: "Rejoue les smokes Chromium sur le cluster development et publie le rapport Allure 3.",
+      hint: "Caddy, Backend, Commande, Dashboard et Onboarding doivent être sains dans Docker Compose.",
+      commands: [
+        command("Smokes Playwright et rapport Allure 3", "npm", ["run", "e2e:test", "--", "development"], repoRoot),
       ],
     }),
   ]);

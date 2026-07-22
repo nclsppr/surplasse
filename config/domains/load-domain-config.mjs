@@ -13,6 +13,8 @@ export const DOMAIN_CONFIG_KEYS = Object.freeze([
   "LOCAL_CONTROL_URL",
   "DOCS_URL",
   "MAILPIT_URL",
+  "REPORTS_URL",
+  "GRAFANA_URL",
   "PROBLEM_TYPE_BASE",
   "COOKIE_DOMAIN",
   "RESERVED_SUBDOMAINS",
@@ -34,6 +36,13 @@ const URL_KEYS = Object.freeze([
   "LOCAL_CONTROL_URL",
   "DOCS_URL",
   "MAILPIT_URL",
+  "REPORTS_URL",
+  "GRAFANA_URL",
+]);
+
+const FORBIDDEN_FRONTEND_TOPOLOGY_OVERRIDES = Object.freeze([
+  ...DOMAIN_CONFIG_KEYS.map((key) => `VITE_${key}`),
+  "VITE_API_BASE_URL",
 ]);
 
 const RESERVED_SUBDOMAIN_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
@@ -51,49 +60,14 @@ export function loadDomainConfig(profile) {
 
 export function loadFrontendDomainConfig(mode, viteEnvironment = {}) {
   const profile = mode === "production" ? "production" : "development";
-  const base = loadDomainConfig(profile);
-  return configureFrontendDomainConfig(base, viteEnvironment, profile);
-}
-
-export function configureFrontendDomainConfig(
-  base,
-  viteEnvironment = {},
-  source = "custom",
-) {
-  const scheme = base.APP_SCHEME;
-  const baseDomain = normalizeDomain(
-    override(viteEnvironment, "VITE_APP_BASE_DOMAIN", base.APP_BASE_DOMAIN),
-  );
-  const topologyChanged = scheme !== base.APP_SCHEME || baseDomain !== base.APP_BASE_DOMAIN;
-  const profileTopology = topologyChanged
-    ? {
-        APP_BASE_URL: `${scheme}://${baseDomain}`,
-        ONBOARDING_URL: `${scheme}://${baseDomain}`,
-        DASHBOARD_URL: `${scheme}://dashboard.${baseDomain}`,
-        API_URL: `${scheme}://api.${baseDomain}`,
-        LOCAL_CONTROL_URL:
-          base.LOCAL_CONTROL_URL === "" ? "" : `${scheme}://local.${baseDomain}`,
-        DOCS_URL: `${scheme}://docs.${baseDomain}`,
-        MAILPIT_URL: base.MAILPIT_URL === "" ? "" : `${scheme}://mail.${baseDomain}`,
-      }
-    : base;
-
-  const derived = {
-    ...base,
-    APP_SCHEME: scheme,
-    APP_BASE_DOMAIN: baseDomain,
-    APP_BASE_URL: profileTopology.APP_BASE_URL,
-    ONBOARDING_URL: profileTopology.ONBOARDING_URL,
-    DASHBOARD_URL: profileTopology.DASHBOARD_URL,
-    API_URL: profileTopology.API_URL,
-    LOCAL_CONTROL_URL: profileTopology.LOCAL_CONTROL_URL,
-    DOCS_URL: profileTopology.DOCS_URL,
-    MAILPIT_URL: profileTopology.MAILPIT_URL,
-    COOKIE_DOMAIN: "",
-  };
-
-  validateDomainConfig(derived, `${source} frontend`);
-  return Object.freeze(derived);
+  for (const key of FORBIDDEN_FRONTEND_TOPOLOGY_OVERRIDES) {
+    if (Object.hasOwn(viteEnvironment, key)) {
+      throw new Error(
+        `${key} cannot override the ${profile} domain profile`,
+      );
+    }
+  }
+  return loadDomainConfig(profile);
 }
 
 export function frontendEnvironmentDefinitions(config) {
@@ -154,6 +128,8 @@ function deriveDomainConfig(profileConfig, profile) {
     LOCAL_CONTROL_URL: development ? `${scheme}://local.${domain}` : "",
     DOCS_URL: `${scheme}://docs.${domain}`,
     MAILPIT_URL: development ? `${scheme}://mail.${domain}` : "",
+    REPORTS_URL: development ? `${scheme}://reports.${domain}` : "",
+    GRAFANA_URL: development ? `${scheme}://grafana.${domain}` : "",
   };
 }
 
@@ -174,7 +150,7 @@ function validateDomainConfig(config, source) {
   for (const key of URL_KEYS) {
     const value = config[key];
     if (value === "") {
-      if (key !== "LOCAL_CONTROL_URL" && key !== "MAILPIT_URL") {
+      if (!["LOCAL_CONTROL_URL", "MAILPIT_URL", "REPORTS_URL", "GRAFANA_URL"].includes(key)) {
         throw new Error(`${source}: ${key} cannot be empty`);
       }
       continue;
@@ -212,9 +188,4 @@ function validateDomainConfig(config, source) {
 
 function normalizeDomain(value) {
   return value.trim().toLowerCase().replace(/\.$/u, "");
-}
-
-function override(environment, name, fallback) {
-  const value = environment[name];
-  return typeof value === "string" && value.trim() !== "" ? value.trim() : fallback;
 }

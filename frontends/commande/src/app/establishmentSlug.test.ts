@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { resolveEstablishmentSlug } from "./establishmentSlug";
 
-const RESERVED = "www,api,dashboard,docs,app,admin,local,mail";
+const RESERVED = "www,api,dashboard,docs,app,admin,local,mail,reports,grafana";
 
 function resolve(hostname: string, baseDomain = "surplasse.test"): string {
   return resolveEstablishmentSlug(hostname, {
@@ -28,7 +28,7 @@ describe("resolveEstablishmentSlug", () => {
     expect(() => resolve("preview.example")).toThrow(/outside the configured platform domain/u);
   });
 
-  it.each(["dashboard", "api", "app", "admin", "local", "mail"])(
+  it.each(["dashboard", "api", "app", "admin", "local", "mail", "reports", "grafana"])(
     "does not treat the reserved %s subdomain as an establishment",
     (reserved) => {
       expect(() => resolve(`${reserved}.surplasse.test`)).toThrow(/invalid or reserved/u);

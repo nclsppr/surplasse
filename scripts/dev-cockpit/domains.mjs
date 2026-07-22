@@ -12,12 +12,14 @@ export function loadDevelopmentUrls(repoRoot, options = {}) {
 
   const configLoader = options.loadDomainConfig ?? loadDomainConfig;
   const config = configLoader("development");
-  if (!config.LOCAL_CONTROL_URL || !config.MAILPIT_URL) {
-    throw new Error("development.env must define LOCAL_CONTROL_URL and MAILPIT_URL for the local cockpit.");
+  if (!config.LOCAL_CONTROL_URL || !config.MAILPIT_URL || !config.REPORTS_URL || !config.GRAFANA_URL) {
+    throw new Error(
+      "development.env must define LOCAL_CONTROL_URL, MAILPIT_URL, REPORTS_URL and GRAFANA_URL for the local cockpit.",
+    );
   }
 
   const reserved = new Set(config.RESERVED_SUBDOMAINS.split(","));
-  for (const required of ["app", "admin", "local", "mail"]) {
+  for (const required of ["app", "admin", "local", "mail", "reports", "grafana"]) {
     if (!reserved.has(required)) {
       throw new Error(`development.env must reserve the ${required} subdomain.`);
     }
@@ -31,6 +33,8 @@ export function loadDevelopmentUrls(repoRoot, options = {}) {
     onboarding: config.ONBOARDING_URL,
     docs: config.DOCS_URL,
     mailpit: config.MAILPIT_URL,
+    reports: config.REPORTS_URL,
+    grafana: config.GRAFANA_URL,
     app: `${config.APP_SCHEME}://app.${config.APP_BASE_DOMAIN}`,
     admin: `${config.APP_SCHEME}://admin.${config.APP_BASE_DOMAIN}`,
   });

@@ -17,6 +17,7 @@ import com.surplasse.common.catalog.CatalogGateway;
 import com.surplasse.common.error.BusinessRuleException;
 import com.surplasse.common.error.ConflictException;
 import com.surplasse.common.error.NotFoundException;
+import com.surplasse.common.event.OrderCreated;
 import com.surplasse.order.entity.Order;
 import com.surplasse.order.entity.OrderLine;
 import com.surplasse.order.entity.OrderType;
@@ -25,6 +26,7 @@ import com.surplasse.order.repository.OrderRepository;
 import com.surplasse.order.service.OrderService.LineDraft;
 import com.surplasse.order.service.OrderService.OrderDraft;
 import com.surplasse.order.service.TableSessionService.ActiveSession;
+import jakarta.enterprise.event.Event;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -51,6 +53,7 @@ class OrderServiceTest {
     private OrderRepository orderRepository;
     private OrderLineRepository orderLineRepository;
     private CatalogGateway catalogGateway;
+    private Event<OrderCreated> orderCreated;
     private OrderService service;
     private final ActiveSession session = new ActiveSession(UUID.randomUUID(), ESTABLISHMENT, TABLE);
 
@@ -59,7 +62,8 @@ class OrderServiceTest {
         orderRepository = mock(OrderRepository.class, RETURNS_DEEP_STUBS);
         orderLineRepository = mock(OrderLineRepository.class);
         catalogGateway = mock(CatalogGateway.class);
-        service = new OrderService(orderRepository, orderLineRepository, catalogGateway);
+        orderCreated = mock(Event.class);
+        service = new OrderService(orderRepository, orderLineRepository, catalogGateway, orderCreated);
         when(orderRepository.findByIdempotencyKey(any())).thenReturn(Optional.empty());
         when(catalogGateway.findTableLabel(TABLE)).thenReturn(Optional.of("Table 4"));
         when(catalogGateway.priceProducts(any(), anyCollection())).thenReturn(demoPricing());
@@ -129,6 +133,7 @@ class OrderServiceTest {
         assertEquals(650, panissesLine.getLineTotalCents());
         assertNull(panissesLine.getNote());
         assertEquals("Table 4", view.tableLabel());
+        verify(orderCreated).fire(new OrderCreated(order.getId(), ESTABLISHMENT));
     }
 
     @Test
@@ -216,6 +221,7 @@ class OrderServiceTest {
 
         assertSame(existing, view.order());
         verify(orderRepository, never()).persist(any(Order.class));
+        verify(orderCreated, never()).fire(any());
         verify(catalogGateway, never()).lockOrderIntake(any());
     }
 

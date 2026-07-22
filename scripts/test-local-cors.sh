@@ -12,6 +12,10 @@ surplasse_local_load_config "$REPOSITORY_ROOT"
 TEST_DIRECTORY="$(mktemp -d)"
 CONTAINER_NAME="surplasse-cors-test-${RANDOM}-$$"
 
+# This versioned catalog uses simple Bash-compatible assignments.
+# shellcheck disable=SC1091
+source "${REPOSITORY_ROOT}/config/deployment/images.env"
+
 cleanup() {
   docker rm --force "$CONTAINER_NAME" >/dev/null 2>&1 || true
   rm -rf "$TEST_DIRECTORY"
@@ -24,8 +28,12 @@ openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
   -keyout "${TEST_DIRECTORY}/key.pem" \
   -out "${TEST_DIRECTORY}/cert.pem" >/dev/null 2>&1
 
-sed 's/^\tbind 127\.0\.0\.1$/\tbind 0.0.0.0/' \
-  "${REPOSITORY_ROOT}/infra/local/Caddyfile" >"${TEST_DIRECTORY}/Caddyfile"
+cp "${REPOSITORY_ROOT}/infra/caddy/Caddyfile" "${TEST_DIRECTORY}/Caddyfile"
+mkdir -p "${TEST_DIRECTORY}/tls" "${TEST_DIRECTORY}/routes"
+printf '%s\n' \
+  'tls /test/cert.pem /test/key.pem' >"${TEST_DIRECTORY}/tls/profile.caddy"
+printf '%s\n' \
+  '# No environment-specific route is required by the CORS test.' >"${TEST_DIRECTORY}/routes/profile.caddy"
 printf '%s\n' \
   '' \
   ':8080 {' \
@@ -42,15 +50,14 @@ docker run --detach --rm \
   --env APP_BASE_URL="$APP_BASE_URL" \
   --env ONBOARDING_URL="$ONBOARDING_URL" \
   --env DASHBOARD_URL="$DASHBOARD_URL" \
-  --env SURPLASSE_LOCAL_CERT_FILE=/test/cert.pem \
-  --env SURPLASSE_LOCAL_KEY_FILE=/test/key.pem \
-  --env SURPLASSE_DASHBOARD_HOST="$SURPLASSE_DASHBOARD_HOST" \
-  --env SURPLASSE_API_HOST="$SURPLASSE_API_HOST" \
-  --env SURPLASSE_LOCAL_CONTROL_HOST="$SURPLASSE_LOCAL_CONTROL_HOST" \
-  --env SURPLASSE_DOCS_HOST="$SURPLASSE_DOCS_HOST" \
-  --env SURPLASSE_MAILPIT_HOST="$SURPLASSE_MAILPIT_HOST" \
+  --env BACKEND_UPSTREAM=127.0.0.1:8080 \
+  --env ONBOARDING_UPSTREAM=127.0.0.1:8080 \
+  --env COMMANDE_UPSTREAM=127.0.0.1:8080 \
+  --env DASHBOARD_UPSTREAM=127.0.0.1:8080 \
   --volume "${TEST_DIRECTORY}:/test:ro" \
-  caddy:2.10.2 \
+  --volume "${TEST_DIRECTORY}/tls/profile.caddy:/etc/caddy/tls/profile.caddy:ro" \
+  --volume "${TEST_DIRECTORY}/routes/profile.caddy:/etc/caddy/routes/profile.caddy:ro" \
+  "$CADDY_IMAGE" \
   caddy run --config /test/Caddyfile --adapter caddyfile >/dev/null
 
 PUBLISHED_ADDRESS="$(docker port "$CONTAINER_NAME" 443/tcp)"
@@ -101,6 +108,16 @@ assert_no_credentials() {
 }
 
 wait_for_proxy
+
+METRICS_STATUS="$(curl --silent --show-error --insecure \
+  --resolve "${SURPLASSE_API_HOST}:${PUBLISHED_PORT}:127.0.0.1" \
+  --output /dev/null \
+  --write-out '%{http_code}' \
+  "${API_URL}:${PUBLISHED_PORT}/q/metrics")"
+[[ "$METRICS_STATUS" == 404 ]] || {
+  printf 'Error: the public metrics endpoint returned HTTP %s instead of 404.\n' "$METRICS_STATUS" >&2
+  exit 1
+}
 
 DASHBOARD_HEADERS="$(request_headers "$DASHBOARD_URL")"
 assert_header "$DASHBOARD_HEADERS" "Access-Control-Allow-Origin: ${DASHBOARD_URL}"

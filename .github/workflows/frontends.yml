@@ -13,7 +13,15 @@ on:
       - "scripts/lib/**"
       - "scripts/*local-*.sh"
       - "scripts/run-with-domain-profile.sh"
-      - "infra/local/**"
+      - "scripts/compose.sh"
+      - "scripts/test-compose-config.sh"
+      - "compose.yaml"
+      - "compose.*.yaml"
+      - ".dockerignore"
+      - "config/deployment/**"
+      - "infra/caddy/**"
+      - "infra/images/**"
+      - "infra/observability/**"
       - "brand/**"
       - "api/**"
       - "package.json"
@@ -56,6 +64,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
       - name: Check shell syntax
         run: >-
           bash -n
@@ -65,11 +76,17 @@ jobs:
           scripts/stop-local-proxy.sh
           scripts/remove-local-domain.sh
           scripts/run-with-domain-profile.sh
+          scripts/compose.sh
+          scripts/test-compose-config.sh
           scripts/verify-backend.sh
+          infra/images/backend-entrypoint.sh
+      - name: Validate both Compose profiles and production guardrails
+        run: npm run compose:config:test
       - name: Validate the local Caddyfile
         run: |
           source scripts/lib/local-domain.sh
           surplasse_local_load_config "$PWD"
+          source config/deployment/images.env
           mkdir -p "$RUNNER_TEMP/surplasse-caddy"
           openssl req -x509 -newkey rsa:2048 -nodes -days 30 \
             -subj "/CN=${APP_BASE_DOMAIN}" \
@@ -80,17 +97,29 @@ jobs:
             -e APP_BASE_URL="$APP_BASE_URL" \
             -e ONBOARDING_URL="$ONBOARDING_URL" \
             -e DASHBOARD_URL="$DASHBOARD_URL" \
-            -e SURPLASSE_LOCAL_CERT_FILE=/certs/cert.pem \
-            -e SURPLASSE_LOCAL_KEY_FILE=/certs/key.pem \
-            -e SURPLASSE_DASHBOARD_HOST="$SURPLASSE_DASHBOARD_HOST" \
-            -e SURPLASSE_API_HOST="$SURPLASSE_API_HOST" \
-            -e SURPLASSE_LOCAL_CONTROL_HOST="$SURPLASSE_LOCAL_CONTROL_HOST" \
-            -e SURPLASSE_DOCS_HOST="$SURPLASSE_DOCS_HOST" \
-            -e SURPLASSE_MAILPIT_HOST="$SURPLASSE_MAILPIT_HOST" \
-            -v "$PWD/infra/local/Caddyfile:/etc/caddy/Caddyfile:ro" \
-            -v "$RUNNER_TEMP/surplasse-caddy:/certs:ro" \
-            caddy:2.10.2 \
+            -e BACKEND_UPSTREAM=backend:8080 \
+            -e ONBOARDING_UPSTREAM=onboarding:4173 \
+            -e COMMANDE_UPSTREAM=commande:8080 \
+            -e DASHBOARD_UPSTREAM=dashboard:8080 \
+            -e DOCS_UPSTREAM=docs:8080 \
+            -e MAILPIT_UPSTREAM=mailpit:8025 \
+            -e GRAFANA_UPSTREAM=grafana:3000 \
+            -e LOCAL_CONTROL_UPSTREAM=host.docker.internal:4174 \
+            -v "$PWD/infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            -v "$PWD/infra/caddy/tls/development.caddy:/etc/caddy/tls/profile.caddy:ro" \
+            -v "$PWD/infra/caddy/routes/development.caddy:/etc/caddy/routes/profile.caddy:ro" \
+            -v "$RUNNER_TEMP/surplasse-caddy/cert.pem:/etc/caddy/tls/certificate.pem:ro" \
+            -v "$RUNNER_TEMP/surplasse-caddy/key.pem:/etc/caddy/tls/private-key.pem:ro" \
+            "$CADDY_IMAGE" \
             caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+          docker run --rm \
+            -v "$PWD/infra/caddy/Caddyfile:/srv/Caddyfile:ro" \
+            "$CADDY_IMAGE" \
+            caddy fmt /srv/Caddyfile \
+            > "$RUNNER_TEMP/surplasse-caddy/Caddyfile.formatted"
+          diff -u \
+            infra/caddy/Caddyfile \
+            "$RUNNER_TEMP/surplasse-caddy/Caddyfile.formatted"
       - name: Test the credentialed CORS boundary
         run: npm run local:cors:test
 

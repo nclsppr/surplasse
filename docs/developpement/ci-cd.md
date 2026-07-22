@@ -7,7 +7,7 @@ description: "Intégration et déploiement continus : le garde-fou du workflow s
 
 # CI/CD
 
-Surplasse s'appuie sur GitHub Actions pour l'intégration continue et le déploiement. Les workflows Pages, API, Backend et Frontends existent. `infra/local/` couvre uniquement le poste de développement. La construction des images Docker, la pile Compose de production et le déploiement sur le VPS restent des cibles absentes.
+Surplasse s'appuie sur GitHub Actions pour l'intégration continue et cible un déploiement continu. Les workflows Pages, API, Backend, Frontends et E2E existent. Les Dockerfiles, le socle Compose commun, ses deux surcharges, le profil facultatif d'observabilité et le runbook Ubuntu sont versionnés. La publication des images dans GHCR et le déploiement automatisé sur le VPS restent à livrer dans `images.yml` et `deploy.yml`.
 
 Pour le détail des environnements et de la topologie de production, voir [Environnements](../operations/environnements.md) et [Exploitation](../operations/index.md).
 
@@ -35,7 +35,7 @@ Le fichier `.github/workflows/pages.yml` construit le site Retype, l'assemble av
 | Concurrence | Groupe `pages`, avec annulation des exécutions en cours (`cancel-in-progress`) |
 | Jobs | `quality`, puis `build`, puis `deploy` (ce dernier conditionné à `main`) |
 
-Le job `quality` utilise le checkout exact du workflow. Il vérifie les profils de domaines, la démo statique, les assets de marque, le package partagé, puis le lint, les tests et le build de Commande et du Dashboard. Le job `build` ne démarre que si cette porte est verte. Il enchaîne un nouveau checkout du même SHA, l'installation de Node 24 (`actions/setup-node@v4`), `npm ci`, une nouvelle vérification du fichier de domaines généré avec `npm run domains:check`, `npm run docs:build`, puis l'assemblage du site publié. Cet assemblage place la landing, le tunnel avec son aperçu fidèle du Dashboard et `runtime-config.js` à la racine, les assets de marque sous `brand/` et la documentation Retype sous `docs/`. Le script npm invoque `node node_modules/retypeapp/retype.js` directement plutôt que la commande `retype` : npm 10.9.x ne crée pas le lien `node_modules/.bin/retype` à l'installation, à cause d'une collision de noms de bin avec les paquets plateforme `retypeapp-*`. Le site assemblé est publié comme artefact Pages via `actions/upload-pages-artifact@v3`.
+Le job `quality` utilise le checkout exact du workflow. Il vérifie les profils de domaines, la démo statique, les assets de marque, le package partagé, puis le lint, les tests et le build de Commande et du Dashboard. Le job `build` ne démarre que si cette porte est verte. Il enchaîne un nouveau checkout du même SHA, l'installation de Node 24 (`actions/setup-node@v4`), `npm ci`, une nouvelle vérification du fichier de domaines généré avec `npm run domains:check`, `npm run docs:build`, puis l'assemblage du site publié. Cet assemblage génère explicitement le `runtime-config.js` du profil production, place la landing et le tunnel à la racine, les assets de marque sous `brand/` et la documentation Retype sous `docs/`. Il n'existe aucun choix implicite de la production depuis un hostname inconnu. Le script npm invoque `node node_modules/retypeapp/retype.js` directement plutôt que la commande `retype` : npm 10.9.x ne crée pas le lien `node_modules/.bin/retype` à l'installation, à cause d'une collision de noms de bin avec les paquets plateforme `retypeapp-*`. Le site assemblé est publié comme artefact Pages via `actions/upload-pages-artifact@v3`.
 
 Le job `deploy` dépend de `build`, qui dépend lui-même de `quality`. Il ne s'exécute que si la référence est `refs/heads/main`, cible l'environnement GitHub `github-pages` et publie l'artefact avec `actions/deploy-pages@v4`. Les permissions `pages: write` et `id-token: write` sont limitées à ce job ; les installations et validations précédentes restent en lecture seule sur le dépôt. Une suite UI rouge ne peut donc pas publier le SHA concerné, même si le workflow `Frontends` séparé termine plus tard.
 
@@ -43,16 +43,17 @@ Ce workflow reste volontairement sans filtre de chemins. Chaque push sur `main` 
 
 ## Les workflows
 
-Le monorepo suit un découpage par filtres de chemins (`paths`) : un push qui ne touche que `frontends/commande/` ne doit pas déclencher les tests du backend. `api.yml`, `backend.yml` et `frontends.yml` existent depuis la phase 1 ; `images.yml` et `deploy.yml` seront créés avec `infra/`.
+Le monorepo suit un découpage par filtres de chemins (`paths`) : un push qui ne touche que `frontends/commande/` ne doit pas déclencher les tests du backend. `api.yml`, `backend.yml` et `frontends.yml` existent. `images.yml` et `deploy.yml` restent à créer maintenant que leurs recettes Compose sont disponibles.
 
 | Workflow | Déclencheur (filtre de chemins) | Étapes |
 |---|---|---|
 | `pages.yml` | chaque `push` sur `main` | Porte qualité UI sur le même SHA, build Retype, assemblage du site public (docs, landing, tunnel, aperçu Dashboard, marque), déploiement GitHub Pages (décrit ci-dessus) |
 | `api.yml` | `push`, chemins `api/**`, `openapitools.json`, `scripts/api/**` | Lint Spectral, contrôle de compatibilité `oasdiff` contre le commit précédent (dérogation par préfixe de commit `api!:`), fraîcheur de la génération (`npm run api:generate` puis `git diff --exit-code`) |
-| `backend.yml` | `push`, chemins `backend/**`, `api/**`, profils de domaines, wrapper ou `package.json` | Java 21 Temurin, cache Maven, `npm run backend:verify` : injection du profil, compilation, tests unitaires et d'intégration (PostgreSQL 17 via Testcontainers), contrat et formatage Spotless |
-| `frontends.yml` | `push`, chemins `frontends/**`, `config/domains/**`, cockpit, scripts locaux, `infra/local/**`, `brand/**`, `api/**` | Profils et QR générés, tests du cockpit, syntaxe shell, adaptation Caddy, package `shared`, lint, tests et builds de Commande et du Dashboard |
-| `images.yml` (cible) | `push` sur `main`, chemins `backend/**`, `frontends/**`, `brand/**`, `infra/**` | Build des images Docker (backend et les trois fronts), tag par SHA de commit, push vers le registre (GHCR) |
-| `deploy.yml` (cible) | Fin réussie de `images.yml` sur `main`, ou déclenchement manuel avec un SHA en paramètre | Connexion SSH au VPS, `docker compose pull`, `docker compose up -d`, healthcheck post-déploiement |
+| `backend.yml` | `push`, chemins `backend/**`, `api/**`, profils de domaines, wrapper ou `package.json` | Java 21 Temurin, cache Maven, `npm run backend:verify` : injection du profil, compilation, tests unitaires et d'intégration (PostgreSQL 17 via Testcontainers), métriques Micrometer et endpoint `/q/metrics`, contrat et formatage Spotless |
+| `frontends.yml` | `push`, chemins `frontends/**`, profils, scripts Compose et locaux, fichiers Compose, `infra/caddy/**`, `infra/images/**`, `infra/observability/**`, `brand/**`, `api/**` | Profils et QR générés, tests isolés du contrôleur Compose et des rapports du cockpit, syntaxe shell, modèles Compose avec et sans observabilité, refus des configurations dangereuses, validation de Caddy, CORS, package `shared`, lint, tests et builds des fronts |
+| `e2e.yml` | push ciblé sur le package ou sa configuration, chaque heure à la minute 17 après activation, plus déclenchement manuel | validation légère au push ; Chromium, smokes sans écriture, rapport Allure 3, historique propre à la cible, traces et artefact rejouable pour les lancements de surveillance |
+| `images.yml` (cible) | `push` sur `main`, chemins `backend/**`, `frontends/**`, `brand/**`, `config/domains/**`, `infra/images/**`, `infra/observability/**`, fichiers Compose | Build des quatre images applicatives et du Caddy DNS pour le profil production, contrôle qu'aucun artefact development n'entre dans les images, tag par SHA complet, push vers GHCR ; Prometheus et Grafana restent des images amont épinglées |
+| `deploy.yml` (cible) | Fin réussie de `images.yml` sur `main`, ou déclenchement manuel avec un SHA complet | Connexion SSH au VPS, sélection de `IMAGE_TAG`, wrapper Compose, attente des healthchecks publics |
 
 L'enchaînement sur un push touchant du code applicatif se lit ainsi :
 
@@ -66,14 +67,53 @@ push sur main
      |         +--> api.yml         (si api/ touché)
      |         +--> pages.yml       (à chaque push sur main)
      |
-     +--> images.yml  (si backend/, frontends/, brand/ ou infra/ touchés)
+     +--> images.yml  (cible, si une recette ou un module déployé change)
                 |
-                +--> deploy.yml  (si images.yml réussit)
+                +--> deploy.yml  (cible, si images.yml réussit)
 ```
 
-Les workflows de vérification et la construction des images tournent en parallèle : un test rouge n'empêche pas mécaniquement la construction d'une image, mais `deploy.yml` ne part que si `images.yml` a réussi, et la discipline de correction immédiate (voir la philosophie ci-dessus) fait le reste. Rendre le déploiement dépendant de tous les workflows de vérification est une évolution possible, à trancher quand les workflows existeront.
+La cible ne doit publier puis déployer les images qu'après la réussite des portes API, Backend et Frontends du même SHA. Cette dépendance reste à encoder avec les deux workflows manquants ; elle ne doit pas être remplacée par une simple course en parallèle.
 
-Les jobs `domains` et `dev-cockpit` utilisent seulement Node 24 et son runner de tests natif. Les jobs `commande` et `dashboard` installent d'abord `frontends/shared/`, consommé en source conformément à l'ADR-0014, puis leur propre verrou npm. Le job Dashboard exécute successivement `npm run lint`, `npm test` et `npm run build`. Ce dernier inclut `tsc --noEmit` avant le build Vite. Aucun de ces outils de vérification ne devient un processus de production.
+Les jobs `domains` et `dev-cockpit` utilisent seulement Node 24 et son runner de tests natif. Le contrôleur Compose du cockpit y reçoit un exécuteur simulé : ce job ne démarre ni Docker, ni le cluster, ni Chromium. Les jobs `commande` et `dashboard` installent d'abord `frontends/shared/`, consommé en source conformément à l'ADR-0014, puis leur propre verrou npm. Le job Dashboard exécute successivement `npm run lint`, `npm test` et `npm run build`. Ce dernier inclut `tsc --noEmit` avant le build Vite. Aucun de ces outils de vérification ne devient un processus de production.
+
+Le bouton Playwright du cockpit n'est pas une voie CI supplémentaire. Il appelle uniquement `npm run e2e:test -- development` sur le poste, après contrôle de la santé du cluster Compose local, puis rend le dernier rapport accessible sur `REPORTS_URL`. Le cockpit ne propose jamais `production` ou `custom`. Ces cibles passent par la CLI ou par le workflow E2E, ce qui conserve une sélection explicite et une trace de l'exécution.
+
+L'observabilité suit les mêmes portes que le code qu'elle décrit. Le Backend teste ses compteurs avec un registre en mémoire et vérifie que `/q/metrics` exporte les séries attendues. La validation Compose résout les deux environnements avec le profil `observability`, contrôle les images épinglées, les montages en lecture seule, les volumes et l'absence de dépendance du Backend vers Prometheus ou Grafana. La même image Prometheus épinglée exécute `promtool check config`, ce qui charge aussi les règles référencées, puis Node parse le JSON du tableau de bord. Le test Caddy exige un `404` public sur `/q/metrics` et la production ne reçoit aucun upstream Grafana.
+
+Le déploiement applicatif normal ne dépend pas du profil facultatif. Une indisponibilité de Prometheus ou Grafana ne rend ni le SHA applicatif, ni le healthcheck Backend rouges. Une modification de leurs fichiers se déploie par un démarrage ou une recréation explicite des deux services après validation. Les règles restent sans canal de notification tant qu'Alertmanager n'est pas livré.
+
+## La surveillance E2E horaire
+
+Le workflow `.github/workflows/e2e.yml` valide au push le résolveur de cibles et le chargement de toutes les spécifications, sans installer de navigateur ni joindre un environnement. Son horaire `17 * * * *` évite le début exact de l'heure, souvent chargé chez GitHub. Il cible le profil `production`, mais le job planifié reste ignoré tant que la variable de dépôt `E2E_MONITORING_ENABLED` ne vaut pas `true`. Cette porte empêche de signaler comme panne une production qui n'est pas encore provisionnée.
+
+Un lancement manuel choisit `production` ou `custom`. La seconde option exige `target_id` et `base_domain`, puis accepte un `establishment_slug` facultatif. Elle permet de rejouer le même rapport sur un deuxième serveur ou une future UAT. Elle ne construit pas cette UAT et ne remplace pas son profil de domaines applicatif. Les rapports produits restent dans les artefacts GitHub Actions et ne sont pas publiés par le cockpit local.
+
+Le job suit cet ordre :
+
+```text
+checkout et npm ci du package e2e
+              |
+              v
+validation de la cible et restauration du pointeur et de l'historique
+              |
+              v
+installation de Chromium, puis smokes Playwright
+              |
+              v
+génération Allure 3 et mise à jour de l'historique
+              |
+              +--> sauvegarde du cache propre à la cible
+              +--> artefact rapport, résultats, historique et diagnostics
+              |
+              v
+propagation du code rouge après conservation des preuves
+```
+
+Le cache utilise une clé immuable par `run_id` et un préfixe de restauration par cible. Il restaure `current.json` et le `history.jsonl` de la publication associée. Deux cibles ne partagent donc jamais leurs tendances. L'artefact est conservé 30 jours et contient le pointeur ainsi que les publications rejouables, car un cache GitHub peut être évincé. La concurrence est sérialisée par cible avec `cancel-in-progress: false`, afin que deux lancements ne réécrivent pas simultanément le même historique.
+
+Le slug témoin planifié vient de `E2E_PRODUCTION_ESTABLISHMENT_SLUG`. En son absence, le test mobile Commande est visible comme ignoré et les autres smokes restent obligatoires. Aucune clé applicative ou donnée de connexion n'entre dans le workflow. Les tests horaires ne créent ni magic link, ni session de table, ni commande, ni paiement.
+
+Une planification GitHub peut démarrer en retard ou être omise lors d'une forte charge. Ce workflow apporte une preuve fonctionnelle périodique et un diagnostic navigateur, mais il ne remplace pas la sonde de disponibilité et son canal d'alerte décrits dans [Observabilité](../operations/observabilite.md).
 
 Deux règles transversales :
 
@@ -88,21 +128,21 @@ Le déploiement vise le VPS unique décrit dans [Exploitation](../operations/ind
 GitHub Actions                                VPS
      |                                         |
      |-- (1) ssh (clé dédiée au déploiement) ->|
-     |                                         |-- (2) export TAG=<sha>
-     |                                         |-- (3) docker compose pull
-     |                                         |-- (4) docker compose up -d
-     |<- (5) healthcheck : curl /q/health -----|
+     |                                         |-- (2) checkout + IMAGE_TAG=<sha>
+     |                                         |-- (3) compose.sh production pull
+     |                                         |-- (4) compose.sh production up --wait
+     |<- (5) sondes HTTPS publiques -----------|
      |                                         |
      |-- (6) échec ? redéployer le tag         |
      |        précédent (rollback)             |
 ```
 
 1. **Connexion SSH.** Le runner GitHub Actions se connecte au VPS avec une clé SSH dédiée au déploiement, restreinte à un utilisateur non privilégié membre du groupe Docker. La clé privée est un secret de CI, la clé publique est provisionnée sur le VPS.
-2. **Sélection du tag.** Le SHA à déployer est exporté comme variable pour Docker Compose. Les fichiers Compose vivent dans `infra/` et référencent les images par `${TAG}`.
-3. **`docker compose pull`** récupère les images taggées depuis GHCR.
-4. **`docker compose up -d`** recrée uniquement les conteneurs dont l'image a changé.
-5. **Healthcheck post-déploiement.** Le workflow interroge l'endpoint de santé du backend (`/q/health`, fourni par SmallRye Health) et la page d'accueil de chaque front, avec quelques tentatives espacées le temps du démarrage de Quarkus. Un healthcheck rouge fait échouer le workflow et déclenche une alerte (voir [Observabilité](../operations/observabilite.md)).
-6. **Rollback.** Revenir en arrière consiste à relancer `deploy.yml` manuellement avec le SHA du dernier déploiement sain en paramètre. Aucune reconstruction n'est nécessaire : l'image précédente existe toujours dans le registre. Les migrations Flyway étant additives par convention (voir [Backend](../architecture/backend.md)), un rollback applicatif n'exige pas de rollback de schéma.
+2. **Sélection de la version.** Le dépôt du VPS passe en checkout détaché sur le SHA complet demandé et `IMAGE_TAG` reçoit exactement le même SHA dans `/etc/surplasse/production.env`. `scripts/compose.sh` refuse un tag mutable, abrégé, différent du checkout ou un worktree sale.
+3. **Pull.** `scripts/compose.sh production pull` récupère les images taggées depuis GHCR avec le profil de domaines central.
+4. **Recréation contrôlée.** `scripts/compose.sh production up --detach --wait` recrée seulement les conteneurs modifiés et attend leurs healthchecks.
+5. **Healthcheck post-déploiement.** Le workflow interroge `/q/health/ready` et la page d'accueil de chaque front par leurs URL HTTPS publiques. Un healthcheck rouge fait échouer le workflow et déclenche une alerte (voir [Observabilité](../operations/observabilite.md)).
+6. **Rollback.** Revenir en arrière consiste à relancer `deploy.yml` manuellement avec le SHA du dernier déploiement sain en paramètre. Le checkout et les images reviennent ensemble à cette version. Aucune reconstruction n'est nécessaire : l'image précédente existe toujours dans le registre. Les migrations Flyway étant additives par convention (voir [Backend](../architecture/backend.md)), un rollback applicatif n'exige pas de rollback de schéma.
 
 !!! warning Migrations et rollback
 Le rollback redéploie le code, pas la base. Une migration Flyway qui supprime ou renomme une colonne casserait la version précédente du backend. La convention est donc : les migrations destructives sont découpées en deux déploiements (d'abord le code qui n'utilise plus la colonne, puis la migration qui la supprime).
@@ -127,7 +167,7 @@ Cette séparation borne le rayon d'action d'une compromission : un secret de CI 
 Il n'y a que deux environnements : le poste de développement local et la production (voir [Environnements](../operations/environnements.md)). Aucun environnement de staging n'est prévu au lancement, pour trois raisons :
 
 - **Le coût de la pièce mobile.** Un staging est un deuxième VPS (ou une deuxième pile Compose) à maintenir, sauvegarder, superviser et garder synchrone. Pour un développeur seul, ce coût d'entretien dépasse le bénéfice tant que le trafic est faible.
-- **La fidélité illusoire.** Un staging sans données réelles, sans trafic réel et sans webhooks Stripe live ne reproduit pas la production ; il donne surtout une fausse confiance. Le mode dev local de Quarkus, les Dev Services et Stripe en mode test couvrent déjà l'essentiel de ce qu'un staging vérifierait.
+- **La fidélité illusoire.** Un staging sans données réelles, sans trafic réel et sans webhooks Stripe live ne reproduit pas la production ; il donne surtout une fausse confiance. Le cluster Compose local exerce déjà le graphe, les images, Caddy, PostgreSQL et Stripe en mode test avec le profil development.
 - **Le déploiement est réversible.** Images immuables taggées par SHA, rollback en une relance de workflow, migrations additives : le coût d'un déploiement raté est borné et court.
 
 Quand une fonctionnalité est trop risquée pour partir directement en production, la réponse est un feature flag léger : une variable de configuration lue au démarrage, qui masque la fonctionnalité tant qu'elle n'est pas prête. Pas de plateforme de feature flags dédiée à ce stade ; une entrée de configuration par flag suffit.

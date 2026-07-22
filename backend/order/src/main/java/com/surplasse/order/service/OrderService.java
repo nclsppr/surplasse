@@ -4,6 +4,7 @@ import com.surplasse.common.catalog.CatalogGateway;
 import com.surplasse.common.error.BusinessRuleException;
 import com.surplasse.common.error.ConflictException;
 import com.surplasse.common.error.NotFoundException;
+import com.surplasse.common.event.OrderCreated;
 import com.surplasse.order.entity.Order;
 import com.surplasse.order.entity.OrderLine;
 import com.surplasse.order.entity.OrderType;
@@ -11,6 +12,7 @@ import com.surplasse.order.repository.OrderLineRepository;
 import com.surplasse.order.repository.OrderRepository;
 import com.surplasse.order.service.TableSessionService.ActiveSession;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
 import jakarta.transaction.Transactional;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -32,12 +34,17 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderLineRepository orderLineRepository;
     private final CatalogGateway catalogGateway;
+    private final Event<OrderCreated> orderCreated;
 
     OrderService(
-            OrderRepository orderRepository, OrderLineRepository orderLineRepository, CatalogGateway catalogGateway) {
+            OrderRepository orderRepository,
+            OrderLineRepository orderLineRepository,
+            CatalogGateway catalogGateway,
+            Event<OrderCreated> orderCreated) {
         this.orderRepository = orderRepository;
         this.orderLineRepository = orderLineRepository;
         this.catalogGateway = catalogGateway;
+        this.orderCreated = orderCreated;
     }
 
     @Transactional
@@ -90,6 +97,7 @@ public class OrderService {
             orderLineRepository.persist(line);
             lines.add(line);
         }
+        orderCreated.fire(new OrderCreated(order.getId(), order.getEstablishmentId()));
         return new OrderView(order, lines, tableLabel(order));
     }
 

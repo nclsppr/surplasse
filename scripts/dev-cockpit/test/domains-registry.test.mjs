@@ -6,11 +6,13 @@ import { createQualitySuites } from "../quality-suites.mjs";
 import { createRegistry, EXPECTED_MODULE_IDS } from "../registry.mjs";
 import { configuredDevelopmentUrls, repoRoot } from "./helpers.mjs";
 
-test("development domain catalog is consumed without aliases or local fallback", () => {
+test("development domain catalog exposes cockpit, reports and application URLs without fallback", () => {
   const loaded = loadDevelopmentUrls(repoRoot);
 
   assert.equal(loaded.source, "config/domains/development.env");
   assert.equal(loaded.urls.cockpit, "https://local.surplasse.test");
+  assert.equal(loaded.urls.reports, "https://reports.surplasse.test");
+  assert.equal(loaded.urls.grafana, "https://grafana.surplasse.test");
   assert.equal(loaded.urls.backend, "https://api.surplasse.test");
   assert.equal(loaded.urls.commande, "https://le-cormoran.surplasse.test");
   assert.equal(loaded.urls.mailpit, "https://mail.surplasse.test");
@@ -27,116 +29,175 @@ test("missing development domain catalog fails closed without URL fallbacks", ()
   );
 });
 
-test("present but invalid development domain catalog fails closed", () => {
-  assert.throws(
-    () =>
-      loadDevelopmentUrls(repoRoot, {
-        existsSync: () => true,
-        loadDomainConfig: () => ({
-          LOCAL_CONTROL_URL: "",
-          MAILPIT_URL: "",
+test("development catalog requires cockpit, mail, reports and Grafana URLs", () => {
+  for (const missingKey of ["LOCAL_CONTROL_URL", "MAILPIT_URL", "REPORTS_URL", "GRAFANA_URL"]) {
+    assert.throws(
+      () =>
+        loadDevelopmentUrls(repoRoot, {
+          existsSync: () => true,
+          loadDomainConfig: () => ({ ...domainConfigFixture(), [missingKey]: "" }),
         }),
-      }),
-    /must define LOCAL_CONTROL_URL/u,
-  );
+      /must define LOCAL_CONTROL_URL, MAILPIT_URL, REPORTS_URL and GRAFANA_URL/u,
+      missingKey,
+    );
+  }
 });
 
-test("registry contains only executable allowlist, derived PostgreSQL and reserved domains", () => {
-  const registry = createRegistry(repoRoot, configuredDevelopmentUrls());
+test("development catalog requires every local control subdomain to stay reserved", () => {
+  for (const missingReservation of ["app", "admin", "local", "mail", "reports", "grafana"]) {
+    assert.throws(
+      () =>
+        loadDevelopmentUrls(repoRoot, {
+          existsSync: () => true,
+          loadDomainConfig: () => ({
+            ...domainConfigFixture(),
+            RESERVED_SUBDOMAINS: ["app", "admin", "local", "mail", "reports", "grafana"]
+              .filter((item) => item !== missingReservation)
+              .join(","),
+          }),
+        }),
+      new RegExp(`must reserve the ${missingReservation} subdomain`, "u"),
+    );
+  }
+});
 
+test("registry maps every local runtime to an allowlisted Compose service", () => {
+  const registry = createRegistry(repoRoot, configuredDevelopmentUrls());
+  const composeModules = registry.modules.filter((module) => module.kind === "compose");
+
+  assert.deepEqual(registry.modules.map((module) => module.id), EXPECTED_MODULE_IDS);
+  assert.deepEqual(registry.composeServices, [
+    "edge",
+    "backend",
+    "commande",
+    "dashboard",
+    "onboarding",
+    "docs",
+    "mailpit",
+    "prometheus",
+    "grafana",
+    "postgresql",
+  ]);
   assert.deepEqual(
-    registry.modules.map((module) => module.id),
-    EXPECTED_MODULE_IDS,
+    composeModules.map((module) => module.composeService),
+    registry.composeServices,
   );
-  assert.equal(registry.modules.find((module) => module.id === "postgresql").kind, "derived");
-  assert.equal(registry.modules.find((module) => module.id === "postgresql").derivedFrom, "backend");
+  assert.equal(new Set(registry.composeServices).size, registry.composeServices.length);
+  assert.equal(composeModules.every((module) => module.id === module.composeService), true);
   assert.equal(registry.modules.find((module) => module.id === "app").kind, "reserved");
   assert.equal(registry.modules.find((module) => module.id === "admin").kind, "reserved");
-  assert.equal(registry.modules.some((module) => ["caddy", "dnsmasq", "mkcert"].includes(module.id)), false);
 });
 
-test("registry fixes commands, loopback probes, ports and Mailpit image", () => {
+test("registry never exposes native or raw Docker launch metadata", () => {
   const registry = createRegistry(repoRoot, configuredDevelopmentUrls());
-  const backend = registry.modules.find((module) => module.id === "backend");
-  const commande = registry.modules.find((module) => module.id === "commande");
-  const onboarding = registry.modules.find((module) => module.id === "onboarding");
-  const mailpit = registry.modules.find((module) => module.id === "mailpit");
+  const serialized = JSON.stringify(registry);
 
-  assert.equal(backend.command.executable, `${repoRoot}/scripts/run-with-domain-profile.sh`);
-  assert.deepEqual(backend.command.args, [
-    "development",
-    "./mvnw",
+  for (const forbidden of [
+    '"command":',
+    '"executable":',
+    '"cwd":',
+    '"docker":',
     "quarkus:dev",
-    "-Ddebug=5006",
-    "-Dquarkus.http.host=127.0.0.1",
-  ]);
-  assert.deepEqual(backend.ports, [8080, 5006, 5432]);
-  assert.deepEqual(commande.command.args, ["run", "dev", "--", "--host", "127.0.0.1"]);
-  assert.equal(onboarding.command.executable, process.execPath);
-  assert.deepEqual(onboarding.command.args, [`${repoRoot}/scripts/dev-cockpit/onboarding-server.mjs`]);
-  assert.equal(mailpit.docker.image, "axllent/mailpit:v1.30.4");
-  assert.deepEqual(mailpit.ports, [1025, 8025]);
-  for (const module of registry.modules.filter((item) => item.health)) {
-    assert.equal(new URL(module.health.url).hostname, "127.0.0.1");
+    "docs:watch",
+    "--host",
+    "axllent/mailpit",
+  ]) {
+    assert.equal(serialized.includes(forbidden), false, forbidden);
   }
-
-  const managedPorts = registry.modules
-    .filter((module) => ["process", "docker"].includes(module.kind))
-    .flatMap((module) => module.ports);
-  assert.equal(new Set(managedPorts).size, managedPorts.length);
 });
 
-test("Backend is launched through the fixed central domain profile wrapper", () => {
+test("Caddy is visible but read-only while every other Compose module is controllable", () => {
   const registry = createRegistry(repoRoot, configuredDevelopmentUrls());
-  const backend = registry.modules.find((module) => module.id === "backend");
+  const composeModules = registry.modules.filter((module) => module.kind === "compose");
+  const edge = composeModules.find((module) => module.id === "edge");
 
-  assert.equal(backend.command.executable, `${repoRoot}/scripts/run-with-domain-profile.sh`);
-  assert.equal(backend.command.args[0], "development");
-  assert.equal(backend.command.args[1], "./mvnw");
-  assert.equal(Object.hasOwn(backend.command, "environment"), false);
-  assert.equal(backend.requiresJava21, true);
+  assert.equal(edge.controllable, false);
+  assert.equal(edge.group, "infrastructure");
+  assert.equal(
+    composeModules.filter((module) => module.id !== "edge").every((module) => module.controllable),
+    true,
+  );
+  assert.equal(registry.presets.core.includes("edge"), false);
+  assert.equal(registry.presets.all.includes("edge"), false);
+  assert.deepEqual(registry.presets.core, [
+    "postgresql",
+    "mailpit",
+    "backend",
+    "commande",
+    "dashboard",
+  ]);
 });
 
-test("public probes target canonical HTTPS routes and reserved domains expect 503", () => {
+test("public probes target canonical HTTPS routes including the dedicated reports host", () => {
   const registry = createRegistry(repoRoot, configuredDevelopmentUrls());
   const byId = Object.fromEntries(registry.modules.map((module) => [module.id, module]));
 
+  assert.equal(byId.edge.publicHealth.url, "https://surplasse.test/.well-known/surplasse-edge");
   assert.equal(byId.backend.publicHealth.url, "https://api.surplasse.test/q/health/ready");
   assert.equal(byId.backend.publicHealth.bodyExpectation, "quarkus-up");
   assert.equal(byId.commande.publicHealth.url, "https://le-cormoran.surplasse.test");
   assert.equal(byId.mailpit.publicHealth.url, "https://mail.surplasse.test/readyz");
+  assert.equal(byId.prometheus.publicHealth, null);
+  assert.equal(byId.grafana.publicHealth.url, "https://grafana.surplasse.test/api/health");
+  assert.equal(byId.postgresql.publicHealth, null);
   assert.deepEqual(byId.app.publicHealth.expectedStatusCodes, [503]);
-  assert.equal(byId.app.publicHealth.expectation, "reserved");
   assert.equal(registry.urlConfiguration.controlHealth.url, "https://local.surplasse.test/styles.css");
+  assert.equal(registry.urlConfiguration.reportsUrl, "https://reports.surplasse.test");
   assert.equal(registry.urlConfiguration.wwwUrl, "https://www.surplasse.test");
-  assert.equal(registry.urlConfiguration.wwwHealth.url, "https://www.surplasse.test");
   assert.deepEqual(registry.urlConfiguration.wwwHealth.expectedStatusCodes, [308]);
-  assert.equal(registry.urlConfiguration.wwwHealth.expectation, "redirect");
 });
 
-test("browser links use canonical surplasse.test domains", () => {
+test("browser links use only canonical HTTPS domains", () => {
   const registry = createRegistry(repoRoot, configuredDevelopmentUrls());
   const allLinks = registry.modules.flatMap((module) => module.links.map((item) => item.url));
 
   assert.ok(allLinks.includes("https://api.surplasse.test"));
   assert.ok(allLinks.some((url) => url.startsWith("https://le-cormoran.surplasse.test/?table=")));
   assert.ok(allLinks.includes("https://mail.surplasse.test"));
-  assert.equal(allLinks.some((url) => url.includes("cockpit.surplasse.test")), false);
-  assert.equal(allLinks.some((url) => url.includes("mailpit.surplasse.test")), false);
+  assert.ok(allLinks.includes("https://grafana.surplasse.test"));
+  assert.equal(allLinks.every((url) => new URL(url).protocol === "https:"), true);
+  assert.equal(allLinks.some((url) => url.includes("localhost")), false);
+  assert.equal(allLinks.some((url) => url.includes("127.0.0.1")), false);
 });
 
-test("quality suites expose a fixed command allowlist without shell composition", () => {
+test("quality suites include a fixed local Playwright command without shell composition", () => {
   const suites = createQualitySuites(repoRoot);
 
   assert.deepEqual(suites.map((suite) => suite.id), [
     "backend-integration",
     "frontend-contracts",
     "local-platform",
+    "e2e-development",
   ]);
-  assert.equal(suites.every((suite) => suite.commands.length > 0), true);
+  const e2e = suites.find((suite) => suite.id === "e2e-development");
+  assert.equal(e2e.label, "Parcours Playwright");
+  assert.deepEqual(e2e.commands, [
+    {
+      label: "Smokes Playwright et rapport Allure 3",
+      executable: "npm",
+      args: ["run", "e2e:test", "--", "development"],
+      cwd: repoRoot,
+    },
+  ]);
   for (const command of suites.flatMap((suite) => suite.commands)) {
-    assert.ok(["npm"].includes(command.executable));
+    assert.equal(command.executable, "npm");
     assert.equal(command.cwd, repoRoot);
     assert.equal(command.args.some((argument) => /[;&|`]/u.test(argument)), false);
   }
 });
+
+function domainConfigFixture() {
+  return {
+    LOCAL_CONTROL_URL: "https://local.surplasse.test",
+    MAILPIT_URL: "https://mail.surplasse.test",
+    REPORTS_URL: "https://reports.surplasse.test",
+    GRAFANA_URL: "https://grafana.surplasse.test",
+    RESERVED_SUBDOMAINS: "app,admin,local,mail,reports,grafana",
+    APP_SCHEME: "https",
+    APP_BASE_DOMAIN: "surplasse.test",
+    API_URL: "https://api.surplasse.test",
+    DASHBOARD_URL: "https://dashboard.surplasse.test",
+    ONBOARDING_URL: "https://surplasse.test",
+    DOCS_URL: "https://docs.surplasse.test",
+  };
+}

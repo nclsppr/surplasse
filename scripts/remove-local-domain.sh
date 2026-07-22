@@ -10,6 +10,10 @@ source "${SCRIPT_DIR}/lib/local-domain.sh"
 REPOSITORY_ROOT="$(surplasse_local_repo_root)"
 surplasse_local_require_macos
 
+if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+  "${SCRIPT_DIR}/compose.sh" development down
+fi
+
 USER_CONFIG_ROOT="${XDG_CONFIG_HOME:-${HOME}/.config}/surplasse"
 DNSMASQ_CONFIG="${USER_CONFIG_ROOT}/dnsmasq.conf"
 DNSMASQ_LOG="${USER_CONFIG_ROOT}/dnsmasq.log"

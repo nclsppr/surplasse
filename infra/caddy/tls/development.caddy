@@ -1,0 +1,1 @@
+tls /etc/caddy/tls/certificate.pem /etc/caddy/tls/private-key.pem

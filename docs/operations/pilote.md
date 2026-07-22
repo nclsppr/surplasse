@@ -74,7 +74,9 @@ La production démarre avec `order_intake_status=paused`. Elle suit la topologie
 - Les clés Stripe live, les deux secrets de webhook, les clés JWT et les identifiants SMTP sont absents de git, des images et des logs.
 - Les domaines et certificats TLS sont valides. CORS reste fermé par défaut et limité aux origines exactes autorisées.
 - Le magic link est reçu via le fournisseur SMTP réel.
-- Les sondes de santé, logs corrélés et alertes minimales sont visibles par l'opérateur.
+- Le profil `observability` collecte le Backend, le tableau de bord `Surplasse / Vue opérationnelle` est lisible par tunnel SSH et les logs corrélés sont accessibles par Compose.
+- Une sonde externe et son canal de notification ont été déclenchés volontairement puis acquittés. Les règles Prometheus seules ne satisfont pas ce critère tant qu'Alertmanager est absent.
+- Prometheus et Grafana ont été arrêtés ensemble : `/q/health/ready` et une lecture applicative sont restés verts. Leur redémarrage a retrouvé la cible Backend sans redémarrer celui-ci.
 - Le dernier SHA sain peut être redéployé. Les migrations de base ne sont jamais annulées.
 - L'établissement, la carte et les QR du pilote sont provisionnés par migration, seed contrôlé ou outil interne répétable, jamais par DML improvisé en production.
 
@@ -135,11 +137,15 @@ Le premier service ouvre sur une plage, un menu et un nombre de tables définis.
 
 Suspendre immédiatement les nouvelles commandes si l'un des seuils suivants est atteint :
 
-- un double débit, un mauvais montant, une mauvaise table ou une commande payée perdue ;
-- deux erreurs techniques de paiement consécutives ;
-- plus de 5 % de réponses API en erreur sur 5 minutes ;
-- un Dashboard sans données fiables pendant plus de 2 minutes ;
-- l'impossibilité de rembourser ou de mettre la prise de commandes à `paused`.
+| Seuil | Détection | Réaction et preuve |
+|---|---|---|
+| Double débit, mauvais montant, mauvaise table ou commande payée perdue | Rapprochement exact Stripe, PostgreSQL et observation du service, pas Prometheus | Passer immédiatement à `paused`, couvrir les QR et suivre le runbook ci-dessous |
+| Deux erreurs techniques de paiement consécutives | Panneau des événements de paiement par résultat, règle Prometheus d'échecs et logs corrélés | Confirmer les deux événements, passer à `paused` et diagnostiquer Stripe avant toute reprise |
+| Plus de 5 % de réponses API en erreur sur 5 minutes | Panneau du taux de 5xx et règle Prometheus correspondante | Passer à `paused`, vérifier santé, logs et pool JDBC, puis revenir au dernier SHA sain si la régression est applicative |
+| Dashboard sans données fiables pendant plus de 2 minutes | Panneau des connexions SSE, smoke externe et contrôle REST de la file | Utiliser REST au plus 5 minutes, puis passer à `paused` si le flux ne revient pas |
+| Remboursement impossible ou prise de commandes impossible à suspendre | Panneau des remboursements par résultat et contrôle fonctionnel du Dashboard | Couvrir les QR, conserver les preuves et traiter les commandes existantes manuellement sans DML direct |
+
+Les règles Prometheus rendent un état visible, mais ne notifient personne sans Alertmanager. Pendant le pilote, l'opérateur garde Grafana ouvert et la sonde externe porte l'alerte indépendante. Les contrôles financiers exacts restent issus du rapprochement, jamais d'un compteur Micrometer.
 
 ### Critère de sortie de phase 2
 

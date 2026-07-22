@@ -1,0 +1,3 @@
+tls {
+	dns {$CADDY_DNS_PROVIDER} {env.DNS_API_TOKEN}
+}

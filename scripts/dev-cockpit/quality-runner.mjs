@@ -189,27 +189,78 @@ export class QualityRunner {
 
 export function runCommand(command, options = {}) {
   return new Promise((resolveRun) => {
+    if (options.signal?.aborted) {
+      resolveRun({ exitCode: null, output: "Vérification interrompue avant son démarrage." });
+      return;
+    }
+    const detached = process.platform !== "win32";
     const child = spawn(command.executable, command.args, {
       cwd: command.cwd,
       env: process.env,
+      detached,
       shell: false,
       stdio: ["ignore", "pipe", "pipe"],
-      signal: options.signal,
     });
     let output = "";
+    let settled = false;
+    let forceTimer = null;
     const collect = (chunk) => {
       const text = chunk.toString("utf8");
       output = appendOutput(output, text);
       options.onOutput?.(text);
     };
+    const finish = (exitCode) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      if (forceTimer) {
+        clearTimeout(forceTimer);
+      }
+      options.signal?.removeEventListener("abort", abort);
+      resolveRun({ exitCode: options.signal?.aborted ? null : exitCode, output });
+    };
+    const abort = () => {
+      terminateProcessTree(child, "SIGTERM", detached);
+      forceTimer = setTimeout(() => terminateProcessTree(child, "SIGKILL", detached), 5_000);
+      forceTimer.unref?.();
+    };
     child.stdout.on("data", collect);
     child.stderr.on("data", collect);
     child.once("error", (error) => {
       collect(error.message);
-      resolveRun({ exitCode: options.signal?.aborted ? null : 1, output });
+      finish(1);
     });
-    child.once("close", (code) => resolveRun({ exitCode: code, output }));
+    child.once("close", (code) => finish(code));
+    options.signal?.addEventListener("abort", abort, { once: true });
   });
+}
+
+function terminateProcessTree(child, signal, detached) {
+  if (!child.pid || child.exitCode !== null || child.signalCode !== null) {
+    return;
+  }
+  try {
+    if (process.platform === "win32") {
+      const argumentsList = ["/pid", String(child.pid), "/t"];
+      if (signal === "SIGKILL") {
+        argumentsList.push("/f");
+      }
+      const killer = spawn("taskkill.exe", argumentsList, {
+        detached: false,
+        shell: false,
+        stdio: "ignore",
+        windowsHide: true,
+      });
+      killer.unref();
+      return;
+    }
+    process.kill(detached ? -child.pid : child.pid, signal);
+  } catch (error) {
+    if (error?.code !== "ESRCH") {
+      console.warn("A cockpit quality process could not be terminated.");
+    }
+  }
 }
 
 function emptyRecord() {

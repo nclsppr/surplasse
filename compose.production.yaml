@@ -1,0 +1,56 @@
+services:
+  edge:
+    image: ${IMAGE_REGISTRY:?IMAGE_REGISTRY is required}/edge:${IMAGE_TAG:?IMAGE_TAG is required}
+    build:
+      context: .
+      dockerfile: infra/images/caddy.Dockerfile
+      args:
+        CADDY_BUILDER_IMAGE: ${CADDY_BUILDER_IMAGE:?CADDY_BUILDER_IMAGE is required}
+        CADDY_RUNTIME_IMAGE: ${CADDY_IMAGE:?CADDY_IMAGE is required}
+        CADDY_DNS_MODULE: ${CADDY_DNS_MODULE:?CADDY_DNS_MODULE is required}
+    ports:
+      - ${CADDY_HTTP_BIND_ADDRESS:?CADDY_HTTP_BIND_ADDRESS is required}:${CADDY_HTTP_PORT:?CADDY_HTTP_PORT is required}:80
+      - ${CADDY_HTTPS_BIND_ADDRESS:?CADDY_HTTPS_BIND_ADDRESS is required}:${CADDY_HTTPS_PORT:?CADDY_HTTPS_PORT is required}:443
+    environment:
+      CADDY_DNS_PROVIDER: ${CADDY_DNS_PROVIDER:?CADDY_DNS_PROVIDER is required}
+      DNS_API_TOKEN: ${DNS_API_TOKEN:?DNS_API_TOKEN is required}
+      ONBOARDING_UPSTREAM: onboarding:8080
+    volumes:
+      - ./infra/caddy/tls/production.caddy:/etc/caddy/tls/profile.caddy:ro
+      - ./infra/caddy/routes/production.caddy:/etc/caddy/routes/profile.caddy:ro
+    restart: unless-stopped
+
+  backend:
+    environment:
+      AUTH_JWT_PRIVATE_KEY_PATH: /run/secrets/jwt-private.pem
+      AUTH_JWT_JWKS_PATH: /run/secrets/jwks.json
+      AUTH_JWT_KEY_ID: ${AUTH_JWT_KEY_ID:?AUTH_JWT_KEY_ID is required}
+    volumes:
+      - ${AUTH_JWT_PRIVATE_KEY_FILE:?AUTH_JWT_PRIVATE_KEY_FILE is required}:/run/secrets/jwt-private.pem:ro
+      - ${AUTH_JWT_JWKS_FILE:?AUTH_JWT_JWKS_FILE is required}:/run/secrets/jwks.json:ro
+    restart: unless-stopped
+
+  postgresql:
+    restart: unless-stopped
+
+  onboarding:
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/__health"]
+    restart: unless-stopped
+
+  commande:
+    restart: unless-stopped
+
+  dashboard:
+    restart: unless-stopped
+
+  prometheus:
+    restart: unless-stopped
+
+  grafana:
+    environment:
+      GF_SERVER_ROOT_URL: http://${GRAFANA_BIND_ADDRESS:-127.0.0.1}:${GRAFANA_PORT:-3000}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    ports:
+      - ${GRAFANA_BIND_ADDRESS:-127.0.0.1}:${GRAFANA_PORT:-3000}:3000
+    restart: unless-stopped

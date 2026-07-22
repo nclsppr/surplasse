@@ -62,7 +62,7 @@ En attendant un outil dédié, le tableau ci-dessous tient lieu de registre des 
 | Collecte et publication d'avis | Clients ayant opté | Note, texte de l'avis, prénom éventuel | Consentement |
 | Amélioration des photos, extraction de carte et génération de visuels de plats | Restaurateurs | Photos de la carte, de l'établissement et des plats, carte structurée et visuels candidats produits | Exécution du contrat (côté restaurateur) |
 | Pré-génération des espaces et prise de contact pour la revendication | Restaurateurs prospectés | Données professionnelles publiques de l'établissement (nom, adresse, carte publiée), email professionnel de contact | Intérêt légitime (proposer le service à des professionnels identifiés publiquement) |
-| Journalisation et sécurité de la plateforme | Tous | Logs techniques sans donnée personnelle (voir [observabilité](observabilite.md)), adresses IP pour la limitation de débit | Intérêt légitime (sécurité et continuité du service) |
+| Journalisation et sécurité de la plateforme | Tous | Logs techniques sans donnée personnelle, métriques Prometheus agrégées sans identifiant ni valeur libre (voir [observabilité](observabilite.md)), adresses IP pour la limitation de débit | Intérêt légitime (sécurité et continuité du service) |
 
 La qualification exacte des rôles (Surplasse responsable de traitement, ou sous-traitant du restaurateur pour les données des clients de son établissement) reste à valider juridiquement ; elle conditionne le contenu des conditions générales côté restaurateur.
 
@@ -84,11 +84,14 @@ Le modèle de données complet, entité par entité, vit dans la page [données]
 | Photos de la carte, des plats et de l'établissement | Établissement | Sources et visuels sélectionnés pendant la vie de l'établissement ; candidats écartés selon une durée à trancher | Effacement à la clôture ; données professionnelles, pas personnelles, métadonnées EXIF retirées |
 | Adresses IP de limitation des magic links | Aucune entité métier | Fenêtre de 15 minutes, en mémoire | Expiration de la fenêtre ou remise à zéro au redémarrage |
 | Adresses IP des futurs journaux d'accès de production | Aucune entité métier | 30 jours au maximum | Rotation des logs (voir [observabilité](observabilite.md)) |
+| Séries Prometheus agrégées | Aucune entité métier | Rétention technique bornée dans la configuration du conteneur | Suppression automatique avec les anciens blocs ou perte volontaire du volume reconstructible |
 
 Deux principes transverses :
 
 - **L'anonymisation plutôt que la suppression comptable.** Une commande ne peut pas disparaître (obligation comptable), mais ses champs personnels le peuvent : l'effacement d'un client vide les champs email et prénom, les montants et le contenu restent.
-- **La purge est automatique.** Chaque durée du tableau correspond à une tâche planifiée du Backend (extension `scheduler`, voir [les traitements asynchrones](../architecture/backend.md#les-traitements-asynchrones)), jamais à une intervention manuelle.
+- **La purge est automatique.** Chaque durée métier du tableau correspond à une tâche planifiée du Backend (extension `scheduler`, voir [les traitements asynchrones](../architecture/backend.md#les-traitements-asynchrones)). Les journaux et séries techniques utilisent leur propre rotation ou rétention bornée, jamais une intervention manuelle récurrente.
+
+Prometheus ne reçoit aucun identifiant de commande, d'établissement, de paiement, de session ou de personne. Ses seuls labels métier sont des enums fermés de résultat ou de type de canal. Grafana utilise uniquement cette source Prometheus et ne possède aucun accès direct à PostgreSQL. L'historique opérationnel ne permet donc pas de reconstituer l'activité d'une personne ou d'un établissement.
 
 ## Les droits des personnes
 

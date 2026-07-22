@@ -75,7 +75,7 @@ if [[ -n "$PREVIOUS_BASE_DOMAIN" && "$PREVIOUS_BASE_DOMAIN" != "$APP_BASE_DOMAIN
 fi
 
 surplasse_local_info "Installing required Homebrew formulae when missing..."
-for formula in dnsmasq nss mkcert caddy; do
+for formula in dnsmasq nss mkcert; do
   if ! brew list --versions "$formula" >/dev/null 2>&1; then
     brew install "$formula"
   fi
@@ -241,4 +241,4 @@ surplasse_local_info "Local wildcard DNS and certificates are ready."
 surplasse_local_info "  Domain:      ${APP_BASE_DOMAIN} and *.${APP_BASE_DOMAIN}"
 surplasse_local_info "  DNS server:  127.0.0.1:53535"
 surplasse_local_info "  Certificate: ${SURPLASSE_LOCAL_CERT_FILE}"
-surplasse_local_info "Next: scripts/start-local-proxy.sh"
+surplasse_local_info "Next: npm run local:up"

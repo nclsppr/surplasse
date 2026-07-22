@@ -1,0 +1,86 @@
+services:
+  edge:
+    ports:
+      - ${CADDY_HTTPS_BIND_ADDRESS:?CADDY_HTTPS_BIND_ADDRESS is required}:${CADDY_HTTPS_PORT:?CADDY_HTTPS_PORT is required}:443
+    environment:
+      DOCS_UPSTREAM: docs:8080
+      MAILPIT_UPSTREAM: mailpit:8025
+      GRAFANA_UPSTREAM: grafana:3000
+      LOCAL_CONTROL_UPSTREAM: host.docker.internal:4174
+      LOCAL_CONTROL_TOKEN: ${LOCAL_CONTROL_TOKEN:?LOCAL_CONTROL_TOKEN is required}
+    volumes:
+      - ./infra/caddy/tls/development.caddy:/etc/caddy/tls/profile.caddy:ro
+      - ./infra/caddy/routes/development.caddy:/etc/caddy/routes/profile.caddy:ro
+      - ${LOCAL_TLS_CERTIFICATE_FILE:?LOCAL_TLS_CERTIFICATE_FILE is required}:/etc/caddy/tls/certificate.pem:ro
+      - ${LOCAL_TLS_PRIVATE_KEY_FILE:?LOCAL_TLS_PRIVATE_KEY_FILE is required}:/etc/caddy/tls/private-key.pem:ro
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    networks:
+      observability:
+    depends_on:
+      docs:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
+
+  backend:
+    depends_on:
+      mailpit:
+        condition: service_healthy
+
+  onboarding:
+    environment:
+      ONBOARDING_HOST: 0.0.0.0
+      ONBOARDING_PORT: 4173
+      ONBOARDING_STRIPE_PILOT_ENABLED: ${ONBOARDING_STRIPE_PILOT_ENABLED:-false}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_PUBLISHABLE_KEY: ${VITE_STRIPE_PUBLISHABLE_KEY:-}
+      STRIPE_CONNECT_PILOT_ACCOUNT_ID: ${STRIPE_CONNECT_PILOT_ACCOUNT_ID:-}
+      STRIPE_CONNECT_PILOT_ESTABLISHMENT_NAME: ${STRIPE_CONNECT_PILOT_ESTABLISHMENT_NAME:-}
+
+  docs:
+    image: ${IMAGE_REGISTRY:?IMAGE_REGISTRY is required}/docs:${IMAGE_TAG:?IMAGE_TAG is required}
+    build:
+      context: .
+      dockerfile: infra/images/docs.Dockerfile
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:?NODE_IMAGE is required}
+        NGINX_IMAGE: ${NGINX_IMAGE:?NGINX_IMAGE is required}
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/surplasse/docs/"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+
+  mailpit:
+    image: ${MAILPIT_IMAGE:?MAILPIT_IMAGE is required}
+    environment:
+      MP_DATABASE: /tmp/mailpit.db
+      MP_MAX_MESSAGES: 500
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+  grafana:
+    environment:
+      GF_SERVER_ROOT_URL: ${GRAFANA_URL:?GRAFANA_URL is required}
+      GF_SERVER_DOMAIN: grafana.${APP_BASE_DOMAIN:?APP_BASE_DOMAIN is required}
+      GF_SERVER_ENFORCE_DOMAIN: "true"
+      GF_SECURITY_COOKIE_SECURE: "true"
+      GF_SECURITY_COOKIE_SAMESITE: strict
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer

@@ -1,0 +1,111 @@
+{
+	admin off
+	auto_https off
+	persist_config off
+}
+
+(forwarded_headers) {
+	header_up Host {http.request.host}
+}
+
+https://{$APP_BASE_DOMAIN}, https://*.{$APP_BASE_DOMAIN} {
+	import /etc/caddy/tls/profile.caddy
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+	}
+
+	@edge_identity path /.well-known/surplasse-edge
+	handle @edge_identity {
+		respond "surplasse-edge-v1" 200
+	}
+
+	@api_metrics {
+		host api.{$APP_BASE_DOMAIN}
+		path /q/metrics /q/metrics/*
+	}
+	handle @api_metrics {
+		respond "Not found.\n" 404
+	}
+
+	@api_dashboard {
+		host api.{$APP_BASE_DOMAIN}
+		header Origin {$DASHBOARD_URL}
+	}
+	handle @api_dashboard {
+		reverse_proxy {$BACKEND_UPSTREAM} {
+			import forwarded_headers
+			header_down Access-Control-Allow-Credentials "true"
+		}
+	}
+
+	@api_onboarding {
+		host api.{$APP_BASE_DOMAIN}
+		header Origin {$ONBOARDING_URL}
+	}
+	handle @api_onboarding {
+		reverse_proxy {$BACKEND_UPSTREAM} {
+			import forwarded_headers
+			header_down Access-Control-Allow-Credentials "true"
+		}
+	}
+
+	@api host api.{$APP_BASE_DOMAIN}
+	handle @api {
+		reverse_proxy {$BACKEND_UPSTREAM} {
+			import forwarded_headers
+			header_down -Access-Control-Allow-Credentials
+		}
+	}
+
+	@dashboard host dashboard.{$APP_BASE_DOMAIN}
+	handle @dashboard {
+		reverse_proxy {$DASHBOARD_UPSTREAM} {
+			import forwarded_headers
+		}
+	}
+
+	import /etc/caddy/routes/profile.caddy
+
+	@www host www.{$APP_BASE_DOMAIN}
+	handle @www {
+		redir {$APP_BASE_URL}{uri} 308
+	}
+
+	@onboarding_content {
+		host {$APP_BASE_DOMAIN}
+		path / /index.html /creer.html /connect.html /connect.js /stripe-connect/config /stripe-connect/account-session /runtime-config.js /brand/*
+	}
+	handle @onboarding_content {
+		rewrite / /frontends/onboarding/index.html
+		rewrite /index.html /frontends/onboarding/index.html
+		rewrite /creer.html /frontends/onboarding/creer.html
+		rewrite /connect.html /frontends/onboarding/connect.html
+		rewrite /connect.js /frontends/onboarding/connect.js
+		rewrite /runtime-config.js /frontends/onboarding/runtime-config.js
+		reverse_proxy {$ONBOARDING_UPSTREAM} {
+			import forwarded_headers
+		}
+	}
+
+	@onboarding host {$APP_BASE_DOMAIN}
+	handle @onboarding {
+		respond "This path is not exposed by the Surplasse Onboarding.\n" 404
+	}
+
+	@reserved host app.{$APP_BASE_DOMAIN} admin.{$APP_BASE_DOMAIN} docs.{$APP_BASE_DOMAIN} local.{$APP_BASE_DOMAIN} mail.{$APP_BASE_DOMAIN} reports.{$APP_BASE_DOMAIN} grafana.{$APP_BASE_DOMAIN}
+	handle @reserved {
+		respond "This Surplasse subdomain is reserved but has no service in this deployment.\n" 503
+	}
+
+	handle {
+		reverse_proxy {$COMMANDE_UPSTREAM} {
+			import forwarded_headers
+		}
+	}
+}
+
+http://{$APP_BASE_DOMAIN}, http://*.{$APP_BASE_DOMAIN} {
+	redir https://{host}{uri} 308
+}

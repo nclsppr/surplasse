@@ -1,301 +1,203 @@
-import { spawn, execFile } from "node:child_process";
-import { randomUUID, timingSafeEqual, X509Certificate } from "node:crypto";
+import { spawn } from "node:child_process";
+import { timingSafeEqual, X509Certificate } from "node:crypto";
 import { lookup as dnsLookup } from "node:dns/promises";
-import { access, readFile, readdir } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import https from "node:https";
-import net from "node:net";
-import { delimiter, join } from "node:path";
-import { homedir } from "node:os";
 import tls from "node:tls";
 
-export class ProcessController {
+// `docker compose ps --format json` includes labels and mounts for every
+// container. A complete local project already exceeds 16 KiB, so retain a
+// bounded but comfortably sized response instead of truncating its first JSON
+// object and making the cockpit report Docker as unavailable.
+const MAX_COMMAND_OUTPUT = 256 * 1024;
+
+export class ComposeController {
   constructor(options = {}) {
-    this.spawnImpl = options.spawnImpl ?? spawn;
-    this.killImpl = options.killImpl ?? process.kill;
-    this.setTimer = options.setTimer ?? setTimeout;
-    this.clearTimer = options.clearTimer ?? clearTimeout;
-    this.stdout = options.stdout ?? process.stdout;
-    this.stderr = options.stderr ?? process.stderr;
-    this.stopTimeoutMs = options.stopTimeoutMs ?? 8_000;
-    this.baseEnvironment = options.baseEnvironment ?? process.env;
-    this.javaEnvironmentResolver = options.javaEnvironmentResolver ?? resolveJava21Environment;
+    this.script = options.script;
+    this.cwd = options.cwd;
+    this.profile = options.profile ?? "development";
+    this.project = options.project ?? "surplasse";
+    this.allowedServices = new Set(options.services ?? []);
+    this.executeCommand = options.executeCommand ?? runFixedCommand;
   }
 
-  async start(definition, onExit) {
-    const javaEnvironment = definition.requiresJava21
-      ? await this.javaEnvironmentResolver(this.baseEnvironment)
-      : {};
-    const child = this.spawnImpl(definition.command.executable, [...definition.command.args], {
-      cwd: definition.command.cwd,
-      env: {
-        ...this.baseEnvironment,
-        ...javaEnvironment,
-        ...(definition.command.environment ?? {}),
-      },
-      detached: true,
-      shell: false,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    const handle = {
-      child,
-      pid: child.pid,
-      running: true,
-      exit: null,
-      exitPromise: null,
-    };
-
-    handle.exitPromise = new Promise((resolveExit) => {
-      child.once("exit", (code, signal) => {
-        handle.running = false;
-        handle.exit = { code, signal, error: null };
-        resolveExit(handle.exit);
-        onExit(handle.exit);
-      });
-      child.once("error", (error) => {
-        if (!handle.running) {
-          return;
-        }
-        handle.running = false;
-        handle.exit = { code: null, signal: null, error };
-        resolveExit(handle.exit);
-        onExit(handle.exit);
-      });
-    });
-
-    pipeWithPrefix(child.stdout, this.stdout, `[${definition.label}] `);
-    pipeWithPrefix(child.stderr, this.stderr, `[${definition.label}] `);
-
-    await waitForSpawn(child, handle);
-    if (!Number.isInteger(handle.pid) || handle.pid <= 0) {
-      throw new Error(`Unable to own process for ${definition.id}.`);
-    }
-    if (!handle.running) {
-      throw handle.exit?.error ?? new Error(`Process ${definition.id} exited during startup.`);
-    }
-    return handle;
-  }
-
-  async stop(handle) {
-    if (!handle?.running) {
-      return;
-    }
-
-    this.signalOwnedGroup(handle.pid, "SIGTERM");
-    const exitedGracefully = await this.waitForExit(handle.exitPromise);
-    if (exitedGracefully || !handle.running) {
-      return;
-    }
-
-    this.signalOwnedGroup(handle.pid, "SIGKILL");
-    await handle.exitPromise;
-  }
-
-  signalOwnedGroup(pid, signal) {
-    try {
-      this.killImpl(-pid, signal);
-    } catch (error) {
-      if (error?.code !== "ESRCH") {
-        throw error;
-      }
-    }
-  }
-
-  waitForExit(exitPromise) {
-    return new Promise((resolveWait) => {
-      const timer = this.setTimer(() => resolveWait(false), this.stopTimeoutMs);
-      exitPromise.then(() => {
-        this.clearTimer(timer);
-        resolveWait(true);
-      });
-    });
-  }
-}
-
-async function resolveJava21Environment(baseEnvironment) {
-  const candidates = [
-    baseEnvironment.JAVA_HOME,
-    ...(await sdkmanJavaHomes()),
-  ].filter(Boolean);
-
-  for (const javaHome of candidates) {
-    if (await isJava21Jdk(javaHome)) {
-      return javaEnvironment(javaHome, baseEnvironment.PATH);
-    }
-  }
-
-  throw new CockpitOperationError(
-    "Java 21 (JDK) est requis pour démarrer le Backend. Installez Temurin 21 avec SDKMAN, puis réessayez.",
-    409,
-  );
-}
-
-async function sdkmanJavaHomes() {
-  const candidatesDirectory = join(homedir(), ".sdkman", "candidates", "java");
-  try {
-    const entries = await readdir(candidatesDirectory, { withFileTypes: true });
-    return entries
-      .filter((entry) => entry.isDirectory() && /^21(?:\.|$)/u.test(entry.name))
-      .map((entry) => join(candidatesDirectory, entry.name))
-      .sort((left, right) => right.localeCompare(left));
-  } catch {
-    return [];
-  }
-}
-
-async function isJava21Jdk(javaHome) {
-  const java = join(javaHome, "bin", "java");
-  const javac = join(javaHome, "bin", "javac");
-  try {
-    await Promise.all([access(java), access(javac)]);
-    const { stdout, stderr } = await execFilePromise(java, ["-version"], { timeout: 5_000 });
-    return /(?:openjdk|java) version "21(?:\.|"|$)/iu.test(`${stdout}\n${stderr}`);
-  } catch {
-    return false;
-  }
-}
-
-function javaEnvironment(javaHome, path) {
-  const javaBin = join(javaHome, "bin");
-  return {
-    JAVA_HOME: javaHome,
-    PATH: path ? `${javaBin}${delimiter}${path}` : javaBin,
-  };
-}
-
-export class MailpitController {
-  constructor(options = {}) {
-    this.execFile = options.execFile ?? execFilePromise;
-    this.instanceId = options.instanceId ?? randomUUID();
-  }
-
-  async isDockerAvailable() {
-    try {
-      await this.execFile("docker", ["info", "--format", "{{.ServerVersion}}"], { timeout: 3_000 });
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  async inspect(definition, reference = definition.docker.name) {
-    const template = [
-      "{{.Id}}",
-      "{{.Name}}",
-      "{{.Config.Image}}",
-      `{{index .Config.Labels "${definition.docker.managedLabel}"}}`,
-      `{{index .Config.Labels "${definition.docker.ownershipLabel}"}}`,
-      "{{.State.Running}}",
-    ].join("|");
-    try {
-      const { stdout } = await this.execFile(
-        "docker",
-        ["inspect", "--format", template, reference],
-        { timeout: 3_000 },
-      );
-      const [id, name, image, managed = "", owner = "", runningValue] = stdout.trim().split("|", 6);
-      return {
-        exists: true,
-        id,
-        name: name.replace(/^\//u, ""),
-        image,
-        running: runningValue === "true",
-        managedByCockpit: managed === "true",
-        ownedByCurrent: owner === this.instanceId,
-        owner,
-      };
-    } catch {
-      return {
-        exists: false,
-        id: "",
-        name: "",
-        image: "",
-        running: false,
-        managedByCockpit: false,
-        ownedByCurrent: false,
-        owner: "",
-      };
-    }
-  }
-
-  async start(definition) {
-    const existing = await this.inspect(definition);
-    if (existing.exists) {
-      throw new CockpitOperationError("Le conteneur Mailpit existe déjà et n'appartient pas à ce cockpit.", 409);
-    }
-    const { stdout } = await this.execFile(
-      "docker",
-      [
-        "run",
-        "--detach",
-        "--rm",
-        "--name",
-        definition.docker.name,
-        "--label",
-        `${definition.docker.managedLabel}=true`,
-        "--label",
-        `${definition.docker.ownershipLabel}=${this.instanceId}`,
-        "--publish",
-        "127.0.0.1:1025:1025",
-        "--publish",
-        "127.0.0.1:8025:8025",
-        definition.docker.image,
-      ],
-      { timeout: 30_000 },
+  async inspectAll() {
+    const result = await this.executeCommand(
+      this.script,
+      [this.profile, "ps", "--all", "--format", "json"],
+      { cwd: this.cwd, timeoutMs: 20_000 },
     );
-    const containerId = stdout.trim();
-    if (!containerId) {
-      throw new Error("Docker did not return the Mailpit container identifier.");
-    }
-    return { containerId };
+    this.requireSuccess(result, "read the development project state");
+    return parseComposePs(result.stdout, {
+      allowedServices: this.allowedServices,
+      project: this.project,
+    });
   }
 
-  async stop(definition, handle) {
-    if (!handle?.containerId) {
-      throw new CockpitOperationError("Identifiant du conteneur possédé absent, arrêt refusé.", 409);
+  async start(services, options = {}) {
+    const selected = this.requireAllowedServices(services);
+    const result = await this.executeCommand(
+      this.script,
+      [this.profile, "up", "--detach", "--build", "--wait", ...selected],
+      { cwd: this.cwd, signal: options.signal, timeoutMs: 10 * 60_000 },
+    );
+    this.requireSuccess(result, "start the selected development services");
+  }
+
+  async stop(services, options = {}) {
+    const selected = this.requireAllowedServices(services);
+    const result = await this.executeCommand(
+      this.script,
+      [this.profile, "stop", "--timeout", "10", ...selected],
+      { cwd: this.cwd, signal: options.signal, timeoutMs: 2 * 60_000 },
+    );
+    this.requireSuccess(result, "stop the selected development services");
+  }
+
+  requireAllowedServices(services) {
+    if (!Array.isArray(services) || services.length === 0) {
+      throw new CockpitOperationError("Aucun service Compose sélectionné.", 400);
     }
-    const existing = await this.inspect(definition, handle.containerId);
-    if (!existing.exists) {
+    const selected = [...new Set(services)];
+    if (
+      selected.length !== services.length ||
+      selected.some((service) => typeof service !== "string" || !this.allowedServices.has(service))
+    ) {
+      throw new CockpitOperationError("Service Compose inconnu ou non autorisé.", 404);
+    }
+    return selected;
+  }
+
+  requireSuccess(result, action) {
+    if (result?.exitCode === 0) {
       return;
     }
-    if (
-      !existing.managedByCockpit ||
-      !existing.ownedByCurrent ||
-      existing.id !== handle.containerId ||
-      existing.name !== definition.docker.name ||
-      existing.image !== definition.docker.image
-    ) {
-      throw new CockpitOperationError("Mailpit a été lancé hors de ce cockpit et ne sera pas arrêté.", 409);
+    if (result?.aborted) {
+      throw new CockpitOperationError("L'opération Docker Compose a été interrompue.", 409);
     }
-    await this.execFile("docker", ["stop", "--time", "5", handle.containerId], { timeout: 10_000 });
+    const detail = safeCommandOutput(result?.stderr || result?.stdout);
+    if (detail) {
+      console.error(`Docker Compose could not ${action}: ${detail}`);
+    }
+    throw new CockpitOperationError(
+      "Docker Compose n'a pas terminé l'opération. Consultez le terminal du cockpit.",
+      503,
+    );
   }
 }
 
-export async function probeHttp(health, options = {}) {
-  const fetchImpl = options.fetchImpl ?? fetch;
+export function parseComposePs(output, options) {
+  const statuses = new Map(
+    [...options.allowedServices].map((service) => [service, missingComposeService(service)]),
+  );
+  const source = String(output ?? "").trim();
+  if (!source) {
+    return statuses;
+  }
+
+  let entries;
   try {
-    const response = await fetchImpl(health.url, {
-      method: "GET",
-      redirect: "manual",
-      signal: AbortSignal.timeout(health.timeoutMs ?? 1_500),
-      headers: { Accept: "application/json,text/html;q=0.8,*/*;q=0.5" },
-    });
-    if (!response.ok) {
-      return false;
-    }
-    if (health.url.endsWith("/q/health/ready")) {
-      const payload = await response.json();
-      return payload?.status === "UP";
-    }
-    return true;
+    entries = source.startsWith("[")
+      ? JSON.parse(source)
+      : source.split(/\r?\n/u).filter(Boolean).map((line) => JSON.parse(line));
   } catch {
-    return false;
+    throw new CockpitOperationError("Docker Compose a renvoyé un état illisible.", 503);
   }
+  if (!Array.isArray(entries)) {
+    entries = [entries];
+  }
+
+  for (const entry of entries) {
+    if (
+      !entry ||
+      entry.Project !== options.project ||
+      !options.allowedServices.has(entry.Service) ||
+      statuses.get(entry.Service)?.exists
+    ) {
+      throw new CockpitOperationError("Docker Compose a renvoyé un service inattendu.", 503);
+    }
+    statuses.set(entry.Service, Object.freeze({
+      service: entry.Service,
+      exists: true,
+      state: normalizeComposeValue(entry.State),
+      health: normalizeComposeValue(entry.Health),
+      exitCode: Number.isInteger(entry.ExitCode) ? entry.ExitCode : null,
+    }));
+  }
+  return statuses;
 }
 
-export async function probePorts(ports, options = {}) {
-  const probe = options.probe ?? probePort;
-  const results = await Promise.all(ports.map((port) => probe(port)));
-  return results.some(Boolean);
+export function runFixedCommand(executable, args, options = {}) {
+  return new Promise((resolveRun) => {
+    let child;
+    try {
+      child = spawn(executable, args, {
+        cwd: options.cwd,
+        env: process.env,
+        shell: false,
+        stdio: ["ignore", "pipe", "pipe"],
+        signal: options.signal,
+      });
+    } catch (error) {
+      resolveRun({ exitCode: 1, stdout: "", stderr: error.message, aborted: false });
+      return;
+    }
+
+    let stdout = "";
+    let stderr = "";
+    let settled = false;
+    const collect = (current, chunk) => `${current}${chunk.toString("utf8")}`.slice(-MAX_COMMAND_OUTPUT);
+    child.stdout.on("data", (chunk) => {
+      stdout = collect(stdout, chunk);
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr = collect(stderr, chunk);
+    });
+
+    const timer = options.timeoutMs
+      ? setTimeout(() => child.kill("SIGTERM"), options.timeoutMs)
+      : null;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      resolveRun(result);
+    };
+    child.once("error", (error) => finish({
+      exitCode: 1,
+      stdout,
+      stderr: collect(stderr, error.message),
+      aborted: options.signal?.aborted ?? false,
+    }));
+    child.once("close", (code) => finish({
+      exitCode: code,
+      stdout,
+      stderr,
+      aborted: options.signal?.aborted ?? false,
+    }));
+  });
+}
+
+function missingComposeService(service) {
+  return Object.freeze({
+    service,
+    exists: false,
+    state: "",
+    health: "",
+    exitCode: null,
+  });
+}
+
+function normalizeComposeValue(value) {
+  return typeof value === "string" ? value.toLowerCase().slice(0, 32) : "";
+}
+
+function safeCommandOutput(value) {
+  return String(value ?? "")
+    .replace(/[\u0000-\u001f\u007f]/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim()
+    .slice(-500);
 }
 
 export function createPublicUrlProbe(options = {}) {
@@ -604,76 +506,10 @@ function publicProbeResult(state, detail, statusCode = null) {
   return Object.freeze({ state, detail, statusCode });
 }
 
-export function probePort(port, options = {}) {
-  const connect = options.connect ?? net.createConnection;
-  const timeoutMs = options.timeoutMs ?? 250;
-  return new Promise((resolveProbe) => {
-    const socket = connect({ host: "127.0.0.1", port });
-    let settled = false;
-    const finish = (value) => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      socket.destroy();
-      resolveProbe(value);
-    };
-    socket.setTimeout(timeoutMs);
-    socket.once("connect", () => finish(true));
-    socket.once("timeout", () => finish(false));
-    socket.once("error", () => finish(false));
-  });
-}
-
 export class CockpitOperationError extends Error {
   constructor(message, statusCode = 400) {
     super(message);
     this.name = "CockpitOperationError";
     this.statusCode = statusCode;
   }
-}
-
-function waitForSpawn(child, handle) {
-  return new Promise((resolveSpawn, rejectSpawn) => {
-    child.once("spawn", resolveSpawn);
-    child.once("error", rejectSpawn);
-    handle.exitPromise.then((exit) => {
-      if (exit.error) {
-        rejectSpawn(exit.error);
-      }
-    });
-  });
-}
-
-function pipeWithPrefix(input, output, prefix) {
-  if (!input || !output) {
-    return;
-  }
-  let atLineStart = true;
-  input.on("data", (chunk) => {
-    const text = String(chunk);
-    let rendered = "";
-    for (const part of text.split(/(?<=\n)/u)) {
-      if (atLineStart && part) {
-        rendered += prefix;
-      }
-      rendered += part;
-      atLineStart = part.endsWith("\n");
-    }
-    output.write(rendered);
-  });
-}
-
-function execFilePromise(file, args, options) {
-  return new Promise((resolveExecution, rejectExecution) => {
-    execFile(file, args, options, (error, stdout, stderr) => {
-      if (error) {
-        error.stdout = stdout;
-        error.stderr = stderr;
-        rejectExecution(error);
-        return;
-      }
-      resolveExecution({ stdout, stderr });
-    });
-  });
 }

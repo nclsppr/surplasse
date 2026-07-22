@@ -85,7 +85,7 @@ Ne jamais « corriger » un ADR pour l'aligner sur une page plus récente. Soit 
 
 ## Registre des ADR
 
-Vingt-cinq ADR sont consignés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'aux visuels de plats générés à la demande.
+Vingt-neuf ADR sont consignés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'au déploiement commun par Docker Compose, à son cockpit local, à sa surveillance fonctionnelle et à son observabilité technique.
 
 | Numéro | Titre | Statut | Lien |
 |---|---|---|---|
@@ -104,7 +104,7 @@ Vingt-cinq ADR sont consignés à ce jour. Ils couvrent les choix structurants d
 | 0013 | Générateurs OpenAPI (jaxrs-spec et typescript-fetch) | Accepté | [ADR-0013](adr-0013-generateurs-openapi.md) |
 | 0014 | Liaison de frontends/shared (file:, source TypeScript) | Accepté | [ADR-0014](adr-0014-liaison-shared.md) |
 | 0015 | Modèle de commission (0 % pendant 3 mois, puis 1 %) | Accepté | [ADR-0015](adr-0015-modele-commission.md) |
-| 0016 | Topologie des domaines locaux | Accepté | [ADR-0016](adr-0016-topologie-domaines-locaux.md) |
+| 0016 | Topologie des domaines locaux | Remplacé par ADR-0028 | [ADR-0016](adr-0016-topologie-domaines-locaux.md) |
 | 0017 | Charges directes Stripe Connect | Remplacé par ADR-0020 | [ADR-0017](adr-0017-charges-directes-stripe-connect.md) |
 | 0018 | Contrôle opérationnel de la prise de commandes | Remplacé par ADR-0020 | [ADR-0018](adr-0018-controle-prise-commandes.md) |
 | 0019 | Maintien de Java et Temporal différé | Accepté | [ADR-0019](adr-0019-maintien-java-temporal-differe.md) |
@@ -114,5 +114,9 @@ Vingt-cinq ADR sont consignés à ce jour. Ils couvrent les choix structurants d
 | 0023 | Système de logo vectoriel fourni | Accepté | [ADR-0023](adr-0023-systeme-logo-vectoriel-fourni.md) |
 | 0024 | Deux registres visuels complémentaires | Accepté | [ADR-0024](adr-0024-deux-registres-visuels.md) |
 | 0025 | Visuels de plats à la demande | Accepté | [ADR-0025](adr-0025-visuels-plats-a-la-demande.md) |
+| 0026 | Une pile Docker Compose commune | Accepté | [ADR-0026](adr-0026-compose-commun.md) |
+| 0027 | Playwright et Allure 3 pour les tests E2E | Accepté | [ADR-0027](adr-0027-playwright-allure-3.md) |
+| 0028 | Cockpit Compose et rapports Allure | Accepté | [ADR-0028](adr-0028-cockpit-compose-et-rapports-allure.md) |
+| 0029 | Observabilité Prometheus et Grafana non bloquante | Accepté | [ADR-0029](adr-0029-observabilite-prometheus-grafana.md) |
 
 Les décisions encore ouvertes (par exemple le choix de la solution d'impression thermique ESC/POS mentionné dans la stack de référence) donneront lieu à de futurs ADR au fil de la [roadmap](../roadmap.md).

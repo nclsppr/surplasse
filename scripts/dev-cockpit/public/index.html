@@ -19,7 +19,7 @@
         </a>
         <nav class="primary-nav" aria-label="Navigation du cockpit">
           <a href="/" data-nav="modules">Modules</a>
-          <a href="/tests" data-nav="tests">État de la plateforme</a>
+          <a href="/tests" data-nav="tests">Tests et rapports</a>
         </nav>
         <span class="environment"><span aria-hidden="true"></span>Développement</span>
       </header>
@@ -54,8 +54,8 @@
         <section id="tests-view" class="view" aria-labelledby="tests-title" hidden>
           <div class="page-heading quality-heading">
             <div>
-              <h1 id="tests-title">État de la plateforme</h1>
-              <p>Le dernier verdict local des contrôles qui protègent le parcours Surplasse.</p>
+              <h1 id="tests-title">Tests et rapports</h1>
+              <p>Lancez les contrôles locaux, puis consultez le dernier rapport rejouable des parcours Playwright.</p>
             </div>
             <button id="run-all-tests" class="button button-primary" type="button">Tout relancer</button>
           </div>
@@ -68,13 +68,22 @@
             </div>
           </section>
 
+          <section id="allure-report" class="report-card" aria-labelledby="allure-report-title" aria-live="polite" aria-busy="true">
+            <div class="report-copy">
+              <span class="eyebrow">Rapport de parcours</span>
+              <h2 id="allure-report-title">Allure 3</h2>
+              <p id="allure-report-copy">Recherche du dernier rapport development...</p>
+            </div>
+            <div id="allure-report-result" class="report-result"></div>
+          </section>
+
           <div id="quality-suites" class="quality-suites"></div>
-          <p class="quality-note">Les relances utilisent uniquement des commandes définies dans le dépôt. Aucun argument libre n’est accepté depuis le navigateur.</p>
+          <p class="quality-note">Les relances utilisent uniquement des commandes définies dans le dépôt. Le cockpit cible exclusivement development et n’accepte aucun argument libre depuis le navigateur.</p>
         </section>
       </main>
 
       <footer>
-        <p>Caddy, dnsmasq et mkcert restent en dehors du cockpit.</p>
+        <p>Les modules sont pilotés par Docker Compose. Caddy est affiché en lecture seule. dnsmasq et mkcert restent gérés sur l’hôte.</p>
         <button id="refresh" class="text-button" type="button">Actualiser maintenant</button>
       </footer>
     </div>

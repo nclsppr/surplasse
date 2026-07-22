@@ -7,18 +7,19 @@ description: "La production de Surplasse : philosophie d'exploitation d'un déve
 
 # Exploitation
 
-Cette section décrit la cible d'exploitation de Surplasse : ce qui tourne en production, où, comment c'est sauvegardé et comment on réagit quand ça casse. Rien de tout cela n'est encore provisionné ; ces pages fixent la référence que l'infrastructure devra suivre.
+Cette section décrit la cible d'exploitation de Surplasse : ce qui tourne en production, où, comment c'est sauvegardé et comment on réagit quand ça casse. La pile Compose, les images, le profil facultatif d'observabilité et le runbook sont maintenant versionnés et exercés en local. Aucun VPS de production n'est encore provisionné.
 
 Les pages de la section :
 
 - [Environnements](environnements.md) : local et production, domaines, DNS, variables d'environnement.
+- [Déploiement Compose](deploiement-compose.md) : images, Ubuntu LTS, démarrage, mise à jour, retour arrière et sauvegarde.
 - [Outillage de l'opérateur](outillage-operateur.md) : accès à la base, logs, résultats de tests, exploration de l'API.
 - [Observabilité](observabilite.md) : logs, métriques, sondes et alertes.
 - [Pilote de phase 2](pilote.md) : portes Go ou No-Go, métriques, répétition, service réel et repli.
 - [Preuve Stripe Connect du 2026-07-20](preuve-stripe-connect-2026-07-20.md) : premier contrôle API test, blocage d'inscription Connect et condition de reprise.
 - [RGPD](rgpd.md) : données personnelles, rétention, droits des personnes.
 
-Le déploiement lui-même (workflows GitHub Actions, images, rollback) est décrit dans [CI/CD](../developpement/ci-cd.md).
+Le déploiement exécutable est décrit dans [Déploiement Compose](deploiement-compose.md). Son automatisation future par GitHub Actions est décrite dans [CI/CD](../developpement/ci-cd.md).
 
 ## Règle d'entrée en production
 
@@ -26,61 +27,64 @@ Tout nouveau module ou logiciel tiers est classé dès son introduction : dével
 
 Un composant destiné à la production n'est pas considéré comme documenté tant que les opérations suivantes ne sont pas décrites pour Ubuntu LTS : provisionnement ou construction de l'image, configuration et secrets, démarrage et redémarrage, contrôle de santé, mise à jour et retour arrière. Un composant qui conserve des données documente aussi ses volumes, sa sauvegarde et sa restauration. Ces informations arrivent dans le même commit que le service ou la dépendance.
 
-Un outil réservé au développement ou à la CI indique explicitement qu'il est absent de la production. Quand un autre service remplit ce rôle en production, comme le fournisseur SMTP à la place de Mailpit, l'équivalent est nommé. Une description de cible au futur ne suffit plus dès que le composant est ajouté à `infra/` ou utilisé par une application déployée.
+Un outil réservé au développement ou à la CI indique explicitement qu'il est absent de la production. Quand un autre service remplit ce rôle en production, comme le fournisseur SMTP à la place de Mailpit, l'équivalent est nommé. Une description de cible au futur ne suffit plus dès que le composant est ajouté aux fichiers Compose, à `infra/` ou utilisé par une application déployée.
 
 ## Philosophie : l'exploitation d'un développeur seul
 
 Surplasse est développé et exploité par une seule personne. Ce fait dicte toute l'architecture de production, avant même les considérations techniques :
 
 - **Le moins de pièces mobiles possible.** Chaque service qui tourne est un service à mettre à jour, superviser, sauvegarder et déboguer à trois heures du matin. Un composant n'entre en production que s'il paie son coût d'entretien.
-- **Tout dans Docker Compose, sur un VPS unique.** Pas d'orchestrateur, pas de cluster, pas de cloud managé au lancement. Un seul VPS, une seule pile Compose versionnée dans `infra/`, un seul endroit où regarder. Kubernetes résout des problèmes que Surplasse n'a pas.
-- **Tout redéployable depuis git.** Le VPS ne contient aucun état de configuration qui ne soit pas reconstructible : les fichiers Compose et la configuration du reverse proxy vivent dans `infra/`, les images sont taggées par SHA dans le registre, les secrets sont les seuls éléments provisionnés à la main (et documentés dans [Environnements](environnements.md)). Perdre le VPS doit coûter une restauration de sauvegarde et un déploiement, pas une archéologie.
+- **Tout dans Docker Compose, sur un VPS unique.** Pas d'orchestrateur, pas de cluster, pas de cloud managé au lancement. Un seul VPS, un socle `compose.yaml`, une surcharge production et un seul endroit où regarder. Kubernetes résout des problèmes que Surplasse n'a pas.
+- **Tout redéployable depuis git.** Le VPS ne contient aucun état de configuration qui ne soit pas reconstructible : les fichiers Compose vivent à la racine, la configuration du reverse proxy dans `infra/caddy/`, les images sont taggées par SHA dans le registre, les secrets sont les seuls éléments provisionnés à la main (et documentés dans [Environnements](environnements.md)). Perdre le VPS doit coûter une restauration de sauvegarde et un déploiement, pas une archéologie.
 
 Les seules dépendances externes sont des services SaaS qui portent leur propre exploitation : Stripe pour le paiement, l'API OpenAI pour l'extraction de carte, le futur fournisseur SMTP transactionnel pour les emails, GitHub pour le code, la CI et la documentation.
 
 ## Inventaire des services en production
 
-La documentation et la préfiguration statique de l'Onboarding sont actuellement publiées sur GitHub Pages. La pile VPS ci-dessous n'est pas encore provisionnée. Le commit qui introduira `infra/` remplacera chaque statut cible par une procédure exécutable.
+La documentation et la préfiguration statique de l'Onboarding sont actuellement publiées sur GitHub Pages. Les images et services ci-dessous sont construits et testés dans le cluster local. Ils ne prouvent pas qu'un VPS public existe.
 
 | Service | Techno | Statut | Rôle | Exposition |
 |---|---|---|---|---|
 | Site public actuel | GitHub Pages | En service | Documentation, marque et préfiguration statique de l'Onboarding | URL GitHub Pages |
-| Reverse proxy | Caddy | Cible non provisionnée | Terminaison TLS et routage par domaine | Ports 80 et 443, seul service du VPS exposé |
-| Backend | Quarkus (Java 21) | Exécutable localement, non déployé | API REST, logique métier, temps réel SSE et intégrations | `api.surplasse.com`, via Caddy |
-| Onboarding | Conteneur statique | Cible non construite | Vitrine produit et tunnel d'embarquement | `surplasse.com`, via Caddy |
-| Commande | Conteneur statique | Exécutable localement, non déployé | Mini-site, carte, commande et paiement | `{slug}.surplasse.com`, via Caddy |
-| Dashboard | React, build statique | Exécutable localement, non déployé | Authentification, suivi SSE et avancement des commandes | Cible : `dashboard.surplasse.com`, via Caddy |
-| PostgreSQL | PostgreSQL 17 | Dev Services local, cible Compose absente | Base de données unique | Réseau interne Compose uniquement |
+| Reverse proxy | Caddy 2.11.4 | Service Compose livré, VPS non provisionné | Terminaison TLS et routage par domaine | Ports 80 et 443, seul service du VPS exposé |
+| Backend | Quarkus 3.25.4, Java 21 | Image livrée, non déployée | API REST, logique métier, temps réel SSE et intégrations | `api.surplasse.com`, via Caddy |
+| Onboarding | Fichiers statiques, NGINX interne | Image livrée, non déployée | Vitrine produit et tunnel d'embarquement | `surplasse.com`, via Caddy |
+| Commande | Build React statique, NGINX interne | Image livrée, non déployée | Mini-site, carte, commande et paiement | `{slug}.surplasse.com`, via Caddy |
+| Dashboard | Build React statique, NGINX interne | Image livrée, non déployée | Authentification, suivi SSE et avancement des commandes | `dashboard.surplasse.com`, via Caddy |
+| PostgreSQL | PostgreSQL 17.10 | Service Compose livré, VPS non provisionné | Base de données unique | Réseau interne Compose uniquement |
 | MinIO | MinIO | Module absent | Stockage objet des images | Réseau interne Compose uniquement |
-| Supervision | À trancher | Cible non provisionnée | Sondes, logs, métriques et alertes | Interface d'administration privée |
+| Surveillance fonctionnelle | Playwright 1.61 et Allure 3 | Workflow livré, horaire production désactivé avant le VPS | Smokes publics en lecture seule, rapport et historique par cible | Runner GitHub Actions ou poste d'exploitation, jamais dans la pile |
+| Prometheus | 3.13.1, variante `busybox` | Profil Compose facultatif livré, VPS non provisionné | Collecte pull des métriques et évaluation de règles | Réseau interne Compose uniquement |
+| Grafana | 13.1.1 | Profil Compose facultatif livré, VPS non provisionné | Tableau de bord opérationnel provisionné | Développement via `GRAFANA_URL` ; production par port loopback et tunnel SSH |
 
 Le module Maven `identity` n'apparaît pas comme un service dans ce tableau : il est compilé dans l'image Backend. Il ne possède aucun processus, port, conteneur, volume ni health check distinct. Mailpit n'apparaît pas non plus : c'est un outil local jetable, absent de la CI et de la production. En production, le Backend remet les emails à un fournisseur SMTP transactionnel externe encore à sélectionner.
 
-dnsmasq, mkcert et le cockpit Node sont eux aussi réservés au développement. Le DNS public remplace dnsmasq, Let's Encrypt remplace mkcert et l'observabilité de production remplacera le cockpit. `infra/local/Caddyfile` ne se déploie pas sur Ubuntu : le Caddy du VPS aura sa propre configuration, son défi DNS-01 et son cycle de vie Compose. L'inventaire local exécutable est dans [Domaines locaux](../developpement/domaines-locaux.md).
+dnsmasq, mkcert et le cockpit Node sont eux aussi réservés au développement. Le cockpit pilote uniquement le profil Compose development, peut démarrer ou arrêter Prometheus et Grafana et sert seulement son rapport Allure local. Le DNS public remplace dnsmasq et Let's Encrypt remplace mkcert. En production, Grafana garde sa propre authentification derrière un tunnel SSH et le cockpit reste absent. Playwright et Allure restent hors du VPS : ils observent Caddy et les applications depuis un runner externe. Les rapports production et UAT restent des artefacts de CLI ou de CI. Le routage commun vit dans `infra/caddy/Caddyfile`. Les petites inclusions de TLS et de routes portent les différences entre les profils. L'inventaire local exécutable est dans [Domaines locaux](../developpement/domaines-locaux.md).
 
 ### Cycle de vie de l'identité sous Ubuntu LTS
 
-L'identité suit exactement le cycle de vie du Backend. La pile `infra/` n'est pas encore provisionnée ; les commandes ci-dessous fixent le contrat opérationnel du futur service Compose `backend` :
+L'identité suit exactement le cycle de vie du Backend. Elle n'a ni image, ni port, ni healthcheck distinct. Les commandes du service Compose sont exécutables :
 
 ```bash
 # Verify the Backend before building its image
 cd /path/to/surplasse
 npm run backend:verify
 
-# Start on the VPS from the future production infrastructure directory
-docker compose up -d backend
-docker compose restart backend
+# Start on Ubuntu with the protected production environment selected
+export SURPLASSE_SECRETS_FILE=/etc/surplasse/production.env
+scripts/compose.sh production up --detach --wait backend
+scripts/compose.sh production restart backend
 curl --fail https://api.surplasse.com/q/health/ready
 
 # Stop for maintenance, which interrupts the whole API
-docker compose stop backend
+scripts/compose.sh production stop backend
 ```
 
-Le démarrage exige PostgreSQL, les migrations Flyway, les clés JWT RS256 montées hors image et la configuration SMTP décrite dans [Environnements](environnements.md#backend-quarkus). Flyway applique les migrations jusqu'à V13 avant que la readiness passe à `UP`. Une mise à jour ou un retour arrière redéploie l'image Backend entière : il n'existe aucune opération propre à `identity`. Ubuntu LTS fait foi.
+Le démarrage exige PostgreSQL, les migrations Flyway, les clés JWT RS256 montées hors image et la configuration SMTP décrite dans [Environnements](environnements.md#backend). Flyway applique les migrations jusqu'à V14 avant que la readiness passe à `UP`. Une mise à jour ou un retour arrière redéploie l'image Backend entière : il n'existe aucune opération propre à `identity`. Ubuntu LTS fait foi.
 
 ### Cycle de vie du Dashboard sous Ubuntu LTS
 
-Le Dashboard est aujourd'hui exécutable localement mais absent de la production. Le dépôt ne contient encore ni image statique du Dashboard, ni service Compose, ni routage Caddy. La seule procédure exécutable avant ce provisionnement est la construction de l'artefact statique :
+Le Dashboard possède maintenant une image statique, un service Compose, une route Caddy et un healthcheck. Il reste absent d'un VPS public. Sa vérification applicative précède la construction :
 
 ```bash
 cd frontends/shared
@@ -95,23 +99,21 @@ npm test
 npm run build
 ```
 
-Cette construction produit `frontends/dashboard/dist/`. Le mode production lit `APP_BASE_DOMAIN` dans `config/domains/production.env`, puis intègre l'URL API dérivée `https://api.surplasse.com` aux fichiers. Aucun override séparé de l'API n'est accepté. Le résultat ne conserve aucune donnée et n'utilise aucun volume. React, React Router, TanStack Query et `frontends/shared` sont intégrés aux fichiers statiques. Node, Vite, Tailwind CSS, TypeScript, ESLint et Vitest restent dans l'étape de build ou de CI et sont absents du conteneur statique cible.
-
-Le futur commit `infra/` devra construire une image immuable depuis ce dossier, déclarer un service Compose `dashboard` et rendre alors les commandes suivantes réellement exécutables sur Ubuntu LTS :
+Cette construction produit `frontends/dashboard/dist/`. L'image exécute la même construction avec le profil choisi. Le mode production lit `APP_BASE_DOMAIN` dans `config/domains/production.env`, puis intègre l'URL API dérivée aux fichiers. Aucun override séparé de l'API n'est accepté. Le résultat ne conserve aucune donnée et n'utilise aucun volume. React, React Router, TanStack Query et `frontends/shared` sont intégrés aux fichiers statiques. Node, Vite, Tailwind CSS, TypeScript, ESLint et Vitest restent dans l'étape de build et sont absents de l'image NGINX finale.
 
 ```bash
-# Target only: the dashboard service does not exist in the repository yet
-docker compose up -d dashboard
-docker compose restart dashboard
+export SURPLASSE_SECRETS_FILE=/etc/surplasse/production.env
+scripts/compose.sh production up --detach --wait dashboard
+scripts/compose.sh production restart dashboard
 curl --fail https://dashboard.surplasse.com/
-docker compose stop dashboard
+scripts/compose.sh production stop dashboard
 ```
 
-Une mise à jour remplacera l'image par un nouveau SHA. Un retour arrière redéploiera le dernier SHA sain, sans restauration de données. Le Dashboard n'a ni sauvegarde, ni restauration, ni migration propre : toute donnée métier reste dans PostgreSQL derrière le Backend. Tant que l'image, le service Compose et le routage ne sont pas ajoutés, le Dashboard est explicitement non déployable et les commandes cibles ci-dessus ne doivent pas être utilisées comme preuve d'une production disponible.
+Une mise à jour remplace l'image par un nouveau SHA. Un retour arrière redéploie le dernier SHA sain, sans restauration de données. Le Dashboard n'a ni sauvegarde, ni restauration, ni migration propre : toute donnée métier reste dans PostgreSQL derrière le Backend. L'absence actuelle de VPS et de DNS public reste distincte de la disponibilité de l'artefact.
 
-Sur le choix du reverse proxy : Traefik excelle dans la découverte dynamique de conteneurs et brille dans des environnements où les services vont et viennent, au prix d'une configuration par labels plus verbeuse et d'un modèle mental plus riche. Caddy fait la même chose ici avec un fichier de configuration court et lisible, et gère le certificat wildcard par défi DNS-01 via un module DNS provider (build Caddy personnalisé, à prévoir dans l'image de production). La topologie de Surplasse étant statique, la référence retient Caddy pour sa simplicité. L'[ADR-0016](../decisions/adr-0016-topologie-domaines-locaux.md) fixe déjà son rôle dans la reproduction locale ; le provisionnement VPS devra confirmer le module DNS exact.
+Sur le choix du reverse proxy : Traefik excelle dans la découverte dynamique de conteneurs et brille dans des environnements où les services vont et viennent, au prix d'une configuration par labels plus verbeuse et d'un modèle mental plus riche. Caddy fait la même chose ici avec un fichier de configuration court et lisible. L'image de production est prête à intégrer par `xcaddy` le module DNS du fournisseur retenu. Le choix du fournisseur et du module reste un blocage explicite avant le premier VPS.
 
-Chaque front est empaqueté dans une image minimale servant ses fichiers statiques, construite et taggée par SHA par la CI (voir [CI/CD](../developpement/ci-cd.md)). L'alternative (Caddy servant directement les fichiers depuis un volume) économiserait trois conteneurs mais casserait l'uniformité « un déploiement = un jeu d'images » ; elle reste ouverte si la première approche s'avère lourde.
+Chaque front est empaqueté dans une image immuable et utilise NGINX non privilégié en production. Le serveur Node allowlisté de l'Onboarding existe seulement dans son image development afin de servir la session Stripe test locale. Les images de production seront taggées par SHA par la CI. Le détail des images et des commandes vit dans [Déploiement Compose](deploiement-compose.md).
 
 ## Topologie
 
@@ -133,18 +135,22 @@ Chaque front est empaqueté dans une image minimale servant ses fichiers statiqu
    |(statique)| |(statique)|     | (statique)| | (Quarkus)|
    +----------+ +----------+     +-----------+ +----+-----+
                                                     |
-                                       +------------+-----------+
-                                       v                        v
-                                +------------+           +-----------+
-                                | PostgreSQL |           |   MinIO   |
-                                +------------+           +-----------+
+                                                    v
+                                       +------------+
+                                       | PostgreSQL |
+                                       +------------+
 
-   +-------------+
-   | Supervision |   sondes internes, hors du chemin des requêtes
-   +-------------+
+   +------------+    scrape pull    +---------+
+   | Prometheus | <---------------- | Backend |
+   +-----+------+                   +---------+
+         ^
+         | PromQL
+   +-----+------+
+   |  Grafana   |   profil facultatif, hors du chemin des requêtes
+   +------------+
 ```
 
-Seul Caddy écoute sur l'extérieur. PostgreSQL et MinIO ne sont joignables que depuis le réseau interne Compose ; le backend est le seul à leur parler. Les appels sortants (Stripe, API OpenAI, envoi des magic links) partent du backend.
+Seul Caddy écoute sur l'extérieur. PostgreSQL et Prometheus ne sont joignables que depuis le réseau interne Compose. Le Backend est le seul service applicatif à parler à PostgreSQL. Prometheus collecte le Backend, jamais l'inverse. Grafana rejoint le réseau interne pour lire Prometheus. Il n'a aucune route publique en production et son éventuel port hôte écoute seulement sur la boucle locale pour un tunnel SSH. MinIO n'entre pas dans la pile avant l'implémentation du domaine `generation`. Les appels sortants vers Stripe et le SMTP partent du Backend.
 
 Le routage de Caddy est purement par nom d'hôte : `api.surplasse.com` vers le backend, `dashboard.surplasse.com` vers le Dashboard, `surplasse.com` vers l'Onboarding, et tout autre sous-domaine `*.surplasse.com` vers Commande, qui résout le slug côté application. La correspondance entre domaines et certificats est détaillée dans [Environnements](environnements.md).
 
@@ -159,7 +165,7 @@ L'entretien du système suit la même logique de sobriété :
 - Pare-feu : seuls les ports 22, 80 et 443 sont ouverts.
 - Aucun logiciel installé hors Docker, le moteur Docker et l'outillage de sauvegarde exceptés.
 
-Le choix de l'hébergeur reste à trancher (contrainte principale : localisation des données dans l'Union européenne, voir [RGPD](rgpd.md)) et sera consigné en ADR avec la mise en place de `infra/`.
+Le choix de l'hébergeur reste à trancher (contrainte principale : localisation des données dans l'Union européenne, voir [RGPD](rgpd.md)) et sera consigné en ADR avant le provisionnement du VPS.
 
 ## Sauvegardes
 
@@ -169,10 +175,12 @@ La base de données est le seul état qui ne se reconstruit pas. Le régime de s
 |---|---|---|
 | PostgreSQL | Quotidienne | `pg_dump` complet, chiffré (age ou GPG), horodaté |
 | Copie hors VPS | Quotidienne, après le dump | Transfert du dump chiffré vers un stockage tiers, hors du VPS et hors du même hébergeur |
-| Contenu MinIO | Hebdomadaire | Synchronisation des buckets vers le même stockage tiers |
+| Contenu MinIO, après son ajout | Hebdomadaire | Synchronisation des buckets vers le même stockage tiers |
 | Exercice de restauration | Trimestriel | Restauration complète du dernier dump sur un environnement local, vérification que l'application démarre et que les données sont cohérentes |
 
-Le dump PostgreSQL inclut les tables d'identité ajoutées par V5, le routage Connect ajouté par V10, le snapshot financier ajouté par V11, l'état de prise de commandes ajouté par V12 et les noms Accounts v2 introduits par V13. Aucune sauvegarde ni aucun volume distinct ne leur est nécessaire. L'exercice de restauration vérifie aussi le rattachement entre restaurateurs et établissements, l'état Flyway de V13, la valeur `open` ou `paused` de chaque établissement et les index critiques décrits dans le [modèle de données](../architecture/donnees.md#migrations-flyway-effectivement-livrées).
+Les volumes Prometheus et Grafana ne rejoignent pas cette sauvegarde métier. Les séries temporelles, préférences et éventuelles modifications manuelles de l'interface sont reconstructibles et peuvent être perdues. Le dépôt reprovisionne la configuration, les règles, la source Prometheus et le tableau de bord canonique. Si l'historique opérationnel devient une exigence de conformité ou de service, son export hors VPS fera l'objet d'une décision explicite.
+
+Le dump PostgreSQL inclut les tables d'identité ajoutées par V5, le routage Connect ajouté par V10, le snapshot financier ajouté par V11, l'état de prise de commandes ajouté par V12, les noms Accounts v2 introduits par V13 et les remboursements rapprochés par V14. Aucune sauvegarde ni aucun volume distinct ne leur est nécessaire. L'exercice de restauration vérifie aussi le rattachement entre restaurateurs et établissements, l'état Flyway de V14, la valeur `open` ou `paused` de chaque établissement et les index critiques décrits dans le [modèle de données](../architecture/donnees.md#migrations-flyway-effectivement-livrées).
 
 Le contenu MinIO est moins critique que la base : les images de produits sont re-téléversables et la carte extraite vit en base, seule la photo originale de la carte serait perdue. La rétention exacte des dumps (nombre de jours, paliers hebdomadaires et mensuels) reste à trancher, en cohérence avec les durées de [RGPD](rgpd.md).
 
@@ -194,4 +202,4 @@ Il n'y a pas d'astreinte, pas d'équipe, pas de rotation : il y a une personne, 
 
 **Des réflexes plutôt que des runbooks épais.** Trois gestes couvrent l'essentiel : redéployer le dernier SHA sain (rollback décrit dans [CI/CD](../developpement/ci-cd.md)), redémarrer un service via Compose, restaurer la dernière sauvegarde. Chaque incident notable donne lieu à une note post-mortem courte (cause, détection, correction, prévention) conservée dans le dépôt.
 
-Ce qui reste à trancher : l'outil de page de statut (service SaaS ou page statique alimentée par les sondes) et le canal d'alerte (voir [Observabilité](observabilite.md)).
+Ce qui reste à trancher : l'outil de page de statut (service SaaS ou page statique alimentée par les sondes), la sonde externe et le canal d'alerte. Les règles Prometheus livrées ne notifient personne tant qu'Alertmanager ou un service externe n'est pas configuré (voir [Observabilité](observabilite.md)).

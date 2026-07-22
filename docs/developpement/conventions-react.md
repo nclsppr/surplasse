@@ -137,7 +137,7 @@ Le front Commande sert un établissement à la fois. Le slug est résolu une foi
 
 - **En production**, le slug est le sous-domaine direct du mini-site (`{slug}.surplasse.com`).
 - **En développement**, la même résolution s'applique sur `{slug}.surplasse.test`. Les deux suffixes viennent du profil `APP_BASE_DOMAIN`, sans hypothèse sur `.com`.
-- Les noms `www`, `api`, `dashboard`, `docs`, `app`, `admin`, `local` et `mail`, ainsi que les hôtes hors plateforme ou imbriqués, ne sont jamais traités comme des établissements.
+- Les noms `www`, `api`, `dashboard`, `docs`, `app`, `admin`, `local`, `mail` et `reports`, ainsi que les hôtes hors plateforme ou imbriqués, ne sont jamais traités comme des établissements.
 - Commande refuse tout hostname qui n'est pas un sous-domaine établissement direct du domaine configuré. Aucun slug de repli ne permet un diagnostic par port Vite.
 
 ## Formulaires

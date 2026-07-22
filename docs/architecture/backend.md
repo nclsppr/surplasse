@@ -140,8 +140,8 @@ Les trois événements structurants du MVP :
 
 | Événement | Émis par | Quand | Consommé par |
 |---|---|---|---|
-| **Commande payée** (`OrderPaid`) | paiement | Le webhook Stripe signé confirme le paiement | commande (passage au statut `paid`, diffusion sur le canal de l'établissement, ticket cuisine si activé), engagement (métriques) |
-| **Commande acceptée** (`OrderAccepted`) | commande | Le restaurateur prend la commande en charge depuis le Dashboard | commande (diffusion sur le canal de la commande pour le suivi client), engagement (métriques) |
+| **Commande payée** (`OrderPaid`) | paiement | Le webhook Stripe signé confirme le paiement | commande (passage au statut `paid`, diffusion sur le canal de l'établissement, ticket cuisine si activé), observabilité (compteur après commit) |
+| **Commande acceptée** (`OrderAccepted`) | commande | Le restaurateur prend la commande en charge depuis le Dashboard | commande (diffusion sur le canal de la commande pour le suivi client) |
 | **Produit en rupture** (`ProductOutOfStock`) | catalogue | Le restaurateur marque un produit indisponible | commande (refus des paniers contenant ce produit à la validation), diffusion sur le canal de l'établissement |
 
 Trois règles d'usage :
@@ -149,6 +149,8 @@ Trois règles d'usage :
 - **Un événement décrit un fait, pas une intention.** « Commande payée » constate un paiement confirmé ; il ne demande à personne de faire quoi que ce soit. Chaque consommateur décide seul de sa réaction.
 - **Les écritures critiques partagent la transaction.** Le webhook Stripe, la réussite du paiement, le passage de la commande à `paid` et l'événement SSE persistant sont validés ensemble. Une erreur annule le tout, y compris l'identifiant de webhook, afin que Stripe puisse livrer à nouveau l'événement.
 - **Les effets volatils attendent le commit.** La diffusion en mémoire vers les connexions SSE s'observe en `TransactionPhase.AFTER_SUCCESS`. Elle ne peut donc jamais annoncer un état finalement annulé. Une diffusion perdue au redémarrage est réparée par le rejeu des événements persistés.
+
+L'assemblage `application` observe aussi les signaux internes `OrderCreated`, `PaymentSessionOpened`, `PaymentFailed`, `PaymentRefunded`, `PaymentRefundFailed`, `MagicLinkDeliveryCompleted` et `SseConnectionChanged`. `OperationalMetrics` les convertit en compteurs ou jauges à faible cardinalité. Les signaux liés à une transaction sont observés en `TransactionPhase.AFTER_SUCCESS` : une transaction annulée ne produit pas de métrique métier. Cet observateur écrit uniquement dans le registre Micrometer du processus et ne fait aucun appel réseau. L'arrêt de Prometheus ou Grafana ne peut donc pas influencer un service métier ni la readiness du Backend.
 
 !!! warning Événements internes, pas une API
 Ces événements vivent dans le processus et ne franchissent jamais la frontière du Backend. Ce que les frontends reçoivent (SSE) et ce que le Backend expose (REST) relève exclusivement du contrat.
@@ -195,8 +197,8 @@ La première marche reste composée de transactions locales, d'événements pers
 | `quarkus-smallrye-jwt-build` | Émission des JWT restaurateur avec la clé privée courante |
 | `quarkus-scheduler` | Planification du worker de jobs et des tâches périodiques (relances, purges) |
 | `quarkus-smallrye-health` | Endpoints de vivacité et de disponibilité (`/q/health`) pour Docker Compose et la supervision |
-| `quarkus-micrometer` | Métriques applicatives (commandes, jobs, connexions SSE) exposées pour l'observabilité |
-| `quarkus-opentelemetry` | Traces distribuées ; en cible, activée quand la chaîne d'observabilité sera en place (voir [operations](../operations/)) |
+| `quarkus-micrometer-registry-prometheus` | Métriques HTTP, JVM, JDBC et métier sur `/q/metrics`, collectées en pull par Prometheus |
+| `quarkus-opentelemetry` | Traces distribuées, non installées ; elles restent une évolution distincte si un besoin de diagnostic le justifie |
 
 La liste est volontairement courte : chaque extension supplémentaire se justifie, dans l'esprit du principe de simplicité opérationnelle posé dans la [vue d'ensemble](index.md).
 
@@ -222,3 +224,4 @@ La configuration applicative est consommée par des interfaces `@ConfigMapping` 
 | [ADR 0003 : Quarkus](../decisions/adr-0003-quarkus.md) | La décision d'adopter Quarkus et les alternatives écartées |
 | [ADR 0006 : SSE](../decisions/adr-0006-sse.md) | La décision de retenir SSE plutôt que WebSockets pour le temps réel |
 | [ADR 0019 : maintien de Java et Temporal différé](../decisions/adr-0019-maintien-java-temporal-differe.md) | La réévaluation du runtime transactionnel et le seuil d'adoption d'une orchestration durable |
+| [ADR 0029 : Prometheus et Grafana](../decisions/adr-0029-observabilite-prometheus-grafana.md) | La collecte pull, l'absence de dépendance du Backend et les règles de cardinalité |

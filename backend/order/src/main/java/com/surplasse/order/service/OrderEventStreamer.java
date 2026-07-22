@@ -1,16 +1,20 @@
 package com.surplasse.order.service;
 
+import com.surplasse.common.event.SseConnectionChanged;
+import com.surplasse.common.event.SseConnectionChanged.Channel;
 import com.surplasse.common.identity.RestaurateurIdentityGateway;
 import com.surplasse.order.entity.OrderEvent;
 import com.surplasse.order.repository.OrderEventRepository;
 import com.surplasse.order.service.OrderStatusService.PublishedOrderEvent;
 import io.smallrye.mutiny.Multi;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.sse.OutboundSseEvent;
 import jakarta.ws.rs.sse.Sse;
 import java.time.Duration;
 import java.util.UUID;
+import org.jboss.logging.Logger;
 
 /**
  * Assembles the order SSE streams: replay of persisted events after
@@ -21,29 +25,35 @@ import java.util.UUID;
 @ApplicationScoped
 public class OrderEventStreamer {
 
+    private static final Logger LOG = Logger.getLogger(OrderEventStreamer.class);
     private static final Duration HEARTBEAT_INTERVAL = Duration.ofSeconds(25);
 
     private final OrderService orderService;
     private final OrderEventRepository orderEventRepository;
     private final OrderEventBroadcaster broadcaster;
     private final RestaurateurIdentityGateway identityGateway;
+    private final Event<SseConnectionChanged> connectionChanged;
 
     OrderEventStreamer(
             OrderService orderService,
             OrderEventRepository orderEventRepository,
             OrderEventBroadcaster broadcaster,
-            RestaurateurIdentityGateway identityGateway) {
+            RestaurateurIdentityGateway identityGateway,
+            Event<SseConnectionChanged> connectionChanged) {
         this.orderService = orderService;
         this.orderEventRepository = orderEventRepository;
         this.broadcaster = broadcaster;
         this.identityGateway = identityGateway;
+        this.connectionChanged = connectionChanged;
     }
 
     public Multi<OutboundSseEvent> stream(UUID orderId, String trackingToken, String lastEventId, Sse sse) {
         orderService.requireTrackingAccess(orderId, trackingToken);
 
         long after = parseLastEventId(lastEventId);
-        return assemble(orderEventRepository.listForOrderAfter(orderId, after), broadcaster.orderStream(orderId), sse);
+        return monitor(
+                assemble(orderEventRepository.listForOrderAfter(orderId, after), broadcaster.orderStream(orderId), sse),
+                Channel.ORDER);
     }
 
     public Multi<OutboundSseEvent> streamEstablishment(
@@ -51,10 +61,27 @@ public class OrderEventStreamer {
         identityGateway.authorize(accessToken, establishmentId);
 
         long after = parseLastEventId(lastEventId);
-        return assemble(
-                orderEventRepository.listForEstablishmentAfter(establishmentId, after),
-                broadcaster.establishmentStream(establishmentId),
-                sse);
+        return monitor(
+                assemble(
+                        orderEventRepository.listForEstablishmentAfter(establishmentId, after),
+                        broadcaster.establishmentStream(establishmentId),
+                        sse),
+                Channel.ESTABLISHMENT);
+    }
+
+    private Multi<OutboundSseEvent> monitor(Multi<OutboundSseEvent> stream, Channel channel) {
+        return stream.onSubscription()
+                .invoke(subscription -> publishConnectionChange(channel, true))
+                .onTermination()
+                .invoke((failure, cancelled) -> publishConnectionChange(channel, false));
+    }
+
+    private void publishConnectionChange(Channel channel, boolean connected) {
+        try {
+            connectionChanged.fire(new SseConnectionChanged(channel, connected));
+        } catch (RuntimeException failure) {
+            LOG.warnf("SSE connection telemetry failed for channel %s.", channel);
+        }
     }
 
     private static Multi<OutboundSseEvent> assemble(

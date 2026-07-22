@@ -16,11 +16,41 @@ const SECURITY_HEADERS = Object.freeze({
   "X-Frame-Options": "DENY",
 });
 
+const REPORT_SECURITY_HEADERS = Object.freeze({
+  "Cache-Control": "no-store",
+  "Content-Security-Policy": [
+    "default-src 'none'",
+    "script-src 'unsafe-inline' data: blob:",
+    "style-src 'unsafe-inline' data:",
+    "img-src data: blob:",
+    "font-src data:",
+    "connect-src data: blob:",
+    "worker-src blob:",
+    "media-src data: blob:",
+    "object-src 'none'",
+    "frame-src 'none'",
+    "frame-ancestors 'none'",
+    "base-uri 'none'",
+    "form-action 'none'",
+  ].join("; "),
+  "Cross-Origin-Opener-Policy": "same-origin",
+  "Cross-Origin-Resource-Policy": "same-origin",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+  "Referrer-Policy": "no-referrer",
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+});
+
+const UPSTREAM_TOKEN_HEADER = "x-surplasse-cockpit-upstream-token";
+
 export function createCockpitServer(options) {
   const csrfToken = options.csrfToken ?? randomBytes(32).toString("hex");
   const publicDirectory = options.publicDirectory;
   const manager = options.manager;
   const configuredUrl = parseConfiguredUrl(options.configuredCockpitUrl);
+  const configuredReportsUrl = parseConfiguredUrl(options.configuredReportsUrl);
+  const upstreamToken = options.upstreamToken;
+  const reportStore = options.reportStore ?? null;
   const assets = Object.freeze({
     "/": {
       contentType: "text/html; charset=utf-8",
@@ -49,12 +79,29 @@ export function createCockpitServer(options) {
   const server = http.createServer(async (request, response) => {
     setSecurityHeaders(response);
     try {
-      if (!hasSingleHeader(request, "host") || !isAllowedHost(request.headers.host, configuredUrl)) {
+      if (!hasValidUpstreamToken(request, upstreamToken)) {
+        sendJson(response, 421, { error: "Proxy local requis." });
+        return;
+      }
+      if (!hasSingleHeader(request, "host")) {
         sendJson(response, 421, { error: "Hôte refusé." });
         return;
       }
 
-      const requestUrl = new URL(request.url ?? "/", "http://cockpit.invalid");
+      const rawRequestTarget = request.url ?? "/";
+      const requestUrl = new URL(rawRequestTarget, "http://cockpit.invalid");
+      if (isAllowedHost(request.headers.host, configuredReportsUrl)) {
+        await serveAllureReport(request, response, rawRequestTarget, reportStore);
+        return;
+      }
+      if (!isAllowedHost(request.headers.host, configuredUrl)) {
+        sendJson(response, 421, { error: "Hôte refusé." });
+        return;
+      }
+      if (rawRequestTarget !== requestUrl.pathname) {
+        sendJson(response, 404, { error: "Route inconnue." });
+        return;
+      }
       if (assets[requestUrl.pathname]) {
         if (request.method !== "GET" && request.method !== "HEAD") {
           methodNotAllowed(response, "GET, HEAD");
@@ -90,11 +137,11 @@ export function createCockpitServer(options) {
         if (moduleRoute) {
           const [, id, action] = moduleRoute;
           const result = action === "start" ? await manager.start(id) : await manager.stop(id);
-          sendJson(response, 200, { ok: true, module: result });
+          sendJson(response, 202, { ok: true, module: result });
         } else if (presetRoute) {
           const [, name, action] = presetRoute;
           const result = await manager.runPreset(name, action);
-          sendJson(response, 200, { ok: true, ...result });
+          sendJson(response, 202, { ok: true, ...result });
         } else {
           const quality = qualityRoute
             ? await manager.runQualitySuite(qualityRoute[1])
@@ -113,6 +160,30 @@ export function createCockpitServer(options) {
   });
 
   return { server, csrfToken };
+}
+
+async function serveAllureReport(request, response, rawRequestTarget, reportStore) {
+  if (rawRequestTarget !== "/") {
+    sendJson(response, 404, { error: "Rapport inconnu." });
+    return;
+  }
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    methodNotAllowed(response, "GET, HEAD");
+    return;
+  }
+  const report = reportStore ? await reportStore.read() : null;
+  if (!report) {
+    sendJson(response, 404, { error: "Aucun rapport Allure disponible." });
+    return;
+  }
+  for (const [name, value] of Object.entries(REPORT_SECURITY_HEADERS)) {
+    response.setHeader(name, value);
+  }
+  response.writeHead(200, {
+    "Content-Length": report.length,
+    "Content-Type": "text/html; charset=utf-8",
+  });
+  response.end(request.method === "HEAD" ? undefined : report);
 }
 
 function validateMutationRequest(request, csrfToken, configuredUrl) {
@@ -182,7 +253,15 @@ function parseConfiguredUrl(value) {
   }
   try {
     const url = new URL(value);
-    return ["http:", "https:"].includes(url.protocol) ? url : null;
+    return url.protocol === "https:" &&
+      url.pathname === "/" &&
+      !url.search &&
+      !url.hash &&
+      !url.username &&
+      !url.password &&
+      !url.port
+      ? url
+      : null;
   } catch {
     return null;
   }
@@ -192,6 +271,17 @@ function tokensEqual(provided, expected) {
   const providedBuffer = Buffer.from(provided);
   const expectedBuffer = Buffer.from(expected);
   return providedBuffer.length === expectedBuffer.length && timingSafeEqual(providedBuffer, expectedBuffer);
+}
+
+function hasValidUpstreamToken(request, expected) {
+  const provided = request.headers[UPSTREAM_TOKEN_HEADER];
+  return (
+    typeof expected === "string" &&
+    /^[0-9a-f]{64}$/u.test(expected) &&
+    hasSingleHeader(request, UPSTREAM_TOKEN_HEADER) &&
+    typeof provided === "string" &&
+    tokensEqual(provided, expected)
+  );
 }
 
 function hasSingleHeader(request, expectedName) {
@@ -224,4 +314,9 @@ function methodNotAllowed(response, allow) {
   sendJson(response, 405, { error: "Méthode refusée." });
 }
 
-export { SECURITY_HEADERS, isAllowedHost, isAllowedHostOriginPair };
+export {
+  REPORT_SECURITY_HEADERS,
+  SECURITY_HEADERS,
+  isAllowedHost,
+  isAllowedHostOriginPair,
+};

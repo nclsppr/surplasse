@@ -1,4 +1,3 @@
-import { EventEmitter } from "node:events";
 import http from "node:http";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,6 +22,8 @@ export function configuredDevelopmentUrls() {
       onboarding: "https://surplasse.test",
       docs: "https://docs.surplasse.test",
       mailpit: "https://mail.surplasse.test",
+      reports: "https://reports.surplasse.test",
+      grafana: "https://grafana.surplasse.test",
       app: "https://app.surplasse.test",
       admin: "https://admin.surplasse.test",
     }),
@@ -31,29 +32,28 @@ export function configuredDevelopmentUrls() {
 
 export function createManagerHarness(options = {}) {
   const registry = createRegistry(repoRoot, configuredDevelopmentUrls());
-  const health = options.health ?? new Map();
-  const occupiedPorts = options.occupiedPorts ?? new Set();
-  const processController = options.processController ?? new FakeProcessController();
-  const mailpitController = options.mailpitController ?? new FakeMailpitController();
+  const composeController = options.composeController ?? new FakeComposeController(
+    registry.composeServices,
+  );
   const publicUrls = options.publicUrls ?? new Map();
+  const qualityRunner = options.qualityRunner ?? new FakeQualityRunner();
+  const reportStore = options.reportStore ?? new FakeReportStore();
   let now = options.now ?? 1_700_000_000_000;
   const manager = new CockpitManager(registry, {
-    processController,
-    mailpitController,
-    healthProbe: async (probe) => health.get(probe.url) ?? false,
-    portProbe: async (ports) => ports.some((port) => occupiedPorts.has(port)),
+    composeController,
     publicProbe: async (healthProbe) =>
       publicUrls.get(healthProbe.url) ?? defaultPublicResult(healthProbe),
+    qualityRunner,
+    reportStore,
     now: () => now,
   });
   return {
     manager,
     registry,
-    health,
-    occupiedPorts,
-    processController,
-    mailpitController,
+    composeController,
     publicUrls,
+    qualityRunner,
+    reportStore,
     advance(milliseconds) {
       now += milliseconds;
     },
@@ -82,91 +82,190 @@ function defaultPublicResult(healthProbe) {
   };
 }
 
-export class FakeProcessController {
-  constructor() {
+export class FakeComposeController {
+  constructor(services = []) {
+    this.services = new Set(services);
+    this.states = new Map(services.map((service) => [service, missingComposeService(service)]));
     this.starts = [];
     this.stops = [];
-    this.callbacks = new Map();
-    this.nextPid = 10_000;
+    this.inspectError = null;
+    this.startError = null;
+    this.stopError = null;
+    this.operation = null;
+    this.aborted = false;
   }
 
-  async start(definition, onExit) {
-    const handle = {
-      pid: this.nextPid++,
-      running: true,
-      exitPromise: Promise.resolve(),
-    };
-    this.starts.push({ definition, handle });
-    this.callbacks.set(handle, onExit);
-    return handle;
+  set(service, overrides = {}) {
+    if (!this.services.has(service)) {
+      throw new Error(`Unknown fake Compose service: ${service}`);
+    }
+    this.states.set(service, composeService(service, overrides));
   }
 
-  async stop(handle) {
-    this.stops.push(handle);
-    handle.running = false;
-    this.callbacks.get(handle)?.({ code: 0, signal: "SIGTERM", error: null });
+  setAllReady() {
+    for (const service of this.services) {
+      this.set(service);
+    }
   }
 
-  exit(handle, exit = { code: 1, signal: null, error: null }) {
-    handle.running = false;
-    this.callbacks.get(handle)?.(exit);
+  async inspectAll() {
+    if (this.inspectError) {
+      throw this.inspectError;
+    }
+    return new Map(this.states);
+  }
+
+  deferNextOperation() {
+    this.operation = deferred();
+    return this.operation;
+  }
+
+  async start(services, options = {}) {
+    this.starts.push([...services]);
+    await this.waitForOperation(options.signal);
+    if (this.startError) {
+      throw this.startError;
+    }
+    for (const service of services) {
+      this.set(service);
+    }
+  }
+
+  async stop(services, options = {}) {
+    this.stops.push([...services]);
+    await this.waitForOperation(options.signal);
+    if (this.stopError) {
+      throw this.stopError;
+    }
+    for (const service of services) {
+      this.states.set(service, missingComposeService(service));
+    }
+  }
+
+  async waitForOperation(signal) {
+    if (!this.operation) {
+      return;
+    }
+    if (signal?.aborted) {
+      this.aborted = true;
+      throw abortError();
+    }
+    let onAbort;
+    const aborted = new Promise((_, reject) => {
+      onAbort = () => {
+        this.aborted = true;
+        reject(abortError());
+      };
+      signal?.addEventListener("abort", onAbort, { once: true });
+    });
+    try {
+      await Promise.race([this.operation.promise, aborted]);
+    } finally {
+      signal?.removeEventListener("abort", onAbort);
+      this.operation = null;
+    }
   }
 }
 
-export class FakeMailpitController {
+export class FakeQualityRunner {
   constructor() {
-    this.available = true;
-    this.container = null;
-    this.starts = [];
-    this.stops = [];
-    this.instanceId = "current-owner";
+    this.running = false;
+    this.suiteStarts = [];
+    this.allStarts = 0;
+    this.stops = 0;
   }
 
-  async isDockerAvailable() {
-    return this.available;
-  }
-
-  async inspect(definition, reference = definition.docker.name) {
-    if (!this.container) {
-      return missingContainer();
-    }
-    if (reference !== definition.docker.name && reference !== this.container.id) {
-      return missingContainer();
-    }
-    return { ...this.container };
-  }
-
-  async start(definition) {
-    this.starts.push(definition);
-    this.container = {
-      exists: true,
-      id: "container-current",
-      name: definition.docker.name,
-      image: definition.docker.image,
-      running: true,
-      managedByCockpit: true,
-      ownedByCurrent: true,
-      owner: this.instanceId,
+  async state() {
+    return {
+      status: this.running ? "running" : "not-run",
+      running: this.running,
+      updatedAt: null,
+      suites: [],
     };
-    return { containerId: this.container.id };
   }
 
-  async stop(definition, handle) {
-    if (!this.container?.ownedByCurrent || handle.containerId !== this.container.id) {
-      throw new Error("not owned");
-    }
-    this.stops.push({ definition, handle });
-    this.container = null;
+  async startSuite(id) {
+    this.suiteStarts.push(id);
+    this.running = true;
+    return this.state();
+  }
+
+  async startAll() {
+    this.allStarts += 1;
+    this.running = true;
+    return this.state();
+  }
+
+  async stop() {
+    this.stops += 1;
+    this.running = false;
   }
 }
 
-export class FakeChild extends EventEmitter {
-  constructor(pid = 4567) {
-    super();
-    this.pid = pid;
-    this.stdout = new EventEmitter();
-    this.stderr = new EventEmitter();
+export class FakeReportStore {
+  constructor(state = {}) {
+    this.reportState = {
+      available: false,
+      url: "https://reports.surplasse.test",
+      status: "not-run",
+      createdAt: null,
+      durationMs: null,
+      total: 0,
+      passed: 0,
+      ...state,
+    };
   }
+
+  async state() {
+    return { ...this.reportState };
+  }
+}
+
+export function composeService(service, overrides = {}) {
+  return Object.freeze({
+    service,
+    exists: true,
+    state: "running",
+    health: "healthy",
+    exitCode: 0,
+    ...overrides,
+  });
+}
+
+export function missingComposeService(service) {
+  return Object.freeze({
+    service,
+    exists: false,
+    state: "",
+    health: "",
+    exitCode: null,
+  });
+}
+
+export function deferred() {
+  let resolvePromise;
+  let rejectPromise;
+  const promise = new Promise((resolve, reject) => {
+    resolvePromise = resolve;
+    rejectPromise = reject;
+  });
+  return { promise, resolve: resolvePromise, reject: rejectPromise };
+}
+
+function abortError() {
+  const error = new Error("The operation was aborted.");
+  error.name = "AbortError";
+  return error;
+}
+
+export async function waitUntil(predicate, attempts = 100) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (await predicate()) {
+      return;
+    }
+    await new Promise((resolveWait) => setImmediate(resolveWait));
+  }
+  throw new Error("Condition was not reached before the test timeout.");
 }
 
 export async function listen(server) {
@@ -188,8 +287,8 @@ export async function close(server) {
 
 export function request(port, options = {}) {
   const body = options.body ?? "";
-  const headers = { ...(options.headers ?? {}) };
-  if (body && !headers["Content-Length"]) {
+  const headers = options.rawHeaders ?? { ...(options.headers ?? {}) };
+  if (body && !options.rawHeaders && !headers["Content-Length"]) {
     headers["Content-Length"] = Buffer.byteLength(body);
   }
   return new Promise((resolveRequest, rejectRequest) => {
@@ -216,17 +315,4 @@ export function request(port, options = {}) {
     outgoing.once("error", rejectRequest);
     outgoing.end(body);
   });
-}
-
-function missingContainer() {
-  return {
-    exists: false,
-    id: "",
-    name: "",
-    image: "",
-    running: false,
-    managedByCockpit: false,
-    ownedByCurrent: false,
-    owner: "",
-  };
 }

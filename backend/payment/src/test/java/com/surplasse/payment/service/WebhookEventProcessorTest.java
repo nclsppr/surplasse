@@ -8,6 +8,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.surplasse.common.event.OrderPaid;
+import com.surplasse.common.event.PaymentFailed;
+import com.surplasse.common.event.PaymentRefundFailed;
 import com.surplasse.common.event.PaymentRefunded;
 import com.surplasse.common.event.StripeAccountUpdated;
 import com.surplasse.common.order.OrderGateway;
@@ -40,7 +42,9 @@ class WebhookEventProcessorTest {
     private PaymentRefundRepository refundRepository;
     private OrderGateway orderGateway;
     private Event<OrderPaid> orderPaid;
+    private Event<PaymentFailed> paymentFailed;
     private Event<PaymentRefunded> paymentRefunded;
+    private Event<PaymentRefundFailed> paymentRefundFailed;
     private Event<StripeAccountUpdated> stripeAccountUpdated;
     private WebhookEventProcessor processor;
 
@@ -52,7 +56,9 @@ class WebhookEventProcessorTest {
         refundRepository = mock(PaymentRefundRepository.class);
         orderGateway = mock(OrderGateway.class);
         orderPaid = mock(Event.class);
+        paymentFailed = mock(Event.class);
         paymentRefunded = mock(Event.class);
+        paymentRefundFailed = mock(Event.class);
         stripeAccountUpdated = mock(Event.class);
         processor = new WebhookEventProcessor(
                 processedEvents,
@@ -60,7 +66,9 @@ class WebhookEventProcessorTest {
                 refundRepository,
                 orderGateway,
                 orderPaid,
+                paymentFailed,
                 paymentRefunded,
+                paymentRefundFailed,
                 stripeAccountUpdated);
         when(processedEvents.findByIdOptional(any())).thenReturn(Optional.empty());
     }
@@ -125,6 +133,7 @@ class WebhookEventProcessorTest {
 
         assertEquals(PaymentStatus.PENDING, payment.getStatus());
         verify(orderPaid, never()).fire(any());
+        verify(paymentFailed).fire(new PaymentFailed(payment.getOrderId(), payment.getEstablishmentId()));
     }
 
     @Test

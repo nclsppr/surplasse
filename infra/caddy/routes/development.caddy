@@ -1,0 +1,58 @@
+@docs_root {
+	host docs.{$APP_BASE_DOMAIN}
+	path /
+}
+handle @docs_root {
+	rewrite * /surplasse/docs/
+	reverse_proxy {$DOCS_UPSTREAM} {
+		import forwarded_headers
+	}
+}
+
+@docs_pretty {
+	host docs.{$APP_BASE_DOMAIN}
+	not path /surplasse/docs /surplasse/docs/*
+}
+handle @docs_pretty {
+	rewrite * /surplasse/docs{uri}
+	reverse_proxy {$DOCS_UPSTREAM} {
+		import forwarded_headers
+	}
+}
+
+@docs host docs.{$APP_BASE_DOMAIN}
+handle @docs {
+	reverse_proxy {$DOCS_UPSTREAM} {
+		import forwarded_headers
+	}
+}
+
+@local_control host local.{$APP_BASE_DOMAIN}
+handle @local_control {
+	reverse_proxy {$LOCAL_CONTROL_UPSTREAM} {
+		import forwarded_headers
+		header_up X-Surplasse-Cockpit-Upstream-Token {$LOCAL_CONTROL_TOKEN}
+	}
+}
+
+@local_reports host reports.{$APP_BASE_DOMAIN}
+handle @local_reports {
+	reverse_proxy {$LOCAL_CONTROL_UPSTREAM} {
+		import forwarded_headers
+		header_up X-Surplasse-Cockpit-Upstream-Token {$LOCAL_CONTROL_TOKEN}
+	}
+}
+
+@mailpit host mail.{$APP_BASE_DOMAIN}
+handle @mailpit {
+	reverse_proxy {$MAILPIT_UPSTREAM} {
+		import forwarded_headers
+	}
+}
+
+@grafana host grafana.{$APP_BASE_DOMAIN}
+handle @grafana {
+	reverse_proxy {$GRAFANA_UPSTREAM} {
+		import forwarded_headers
+	}
+}

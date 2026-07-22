@@ -15,6 +15,7 @@ import com.surplasse.common.catalog.CatalogGateway;
 import com.surplasse.common.error.BusinessRuleException;
 import com.surplasse.common.error.ConflictException;
 import com.surplasse.common.error.NotFoundException;
+import com.surplasse.common.event.PaymentSessionOpened;
 import com.surplasse.common.order.OrderGateway;
 import com.surplasse.payment.entity.Payment;
 import com.surplasse.payment.entity.PaymentRequest;
@@ -23,6 +24,7 @@ import com.surplasse.payment.repository.PaymentRepository;
 import com.surplasse.payment.repository.PaymentRequestRepository;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.narayana.jta.TransactionRunnerOptions;
+import jakarta.enterprise.event.Event;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -54,6 +56,7 @@ class PaymentServiceTest {
     private CatalogGateway catalogGateway;
     private PaymentProvider paymentProvider;
     private PaymentRequestRepository paymentRequestRepository;
+    private Event<PaymentSessionOpened> paymentSessionOpened;
     private PaymentService service;
     private MockedStatic<QuarkusTransaction> transactions;
     private AtomicReference<Payment> reservedPayment;
@@ -65,8 +68,14 @@ class PaymentServiceTest {
         catalogGateway = mock(CatalogGateway.class);
         paymentProvider = mock(PaymentProvider.class);
         paymentRequestRepository = mock(PaymentRequestRepository.class);
+        paymentSessionOpened = mock(Event.class);
         service = new PaymentService(
-                paymentRepository, orderGateway, catalogGateway, paymentProvider, paymentRequestRepository);
+                paymentRepository,
+                orderGateway,
+                catalogGateway,
+                paymentProvider,
+                paymentRequestRepository,
+                paymentSessionOpened);
 
         transactions = Mockito.mockStatic(QuarkusTransaction.class);
         TransactionRunnerOptions runner = mock(TransactionRunnerOptions.class);
@@ -118,6 +127,7 @@ class PaymentServiceTest {
         assertEquals(CONNECTED_ACCOUNT, payment.getConnectedAccountId());
         assertEquals(0, payment.getApplicationFeeAmount());
         verify(paymentRepository).persist(payment);
+        verify(paymentSessionOpened).fire(new PaymentSessionOpened(ORDER, ESTABLISHMENT));
         ArgumentCaptor<PaymentRequest> request = ArgumentCaptor.forClass(PaymentRequest.class);
         verify(paymentRequestRepository).persist(request.capture());
         assertEquals(idempotencyKey, request.getValue().getIdempotencyKey());
@@ -144,6 +154,7 @@ class PaymentServiceTest {
 
         assertSame(pending, payment);
         verify(paymentProvider, never()).createIntent(any());
+        verify(paymentSessionOpened, never()).fire(any());
     }
 
     @Test

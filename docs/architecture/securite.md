@@ -23,8 +23,8 @@ Trois choix structurants minimisent le risque à la source :
 
 Le reste de la posture découle de ce socle : sessions courtes, autorisations filtrées par établissement, validation stricte des entrées, chiffrement en transit partout.
 
-!!! info État actuel au 2026-07-19
-Le catalogue, la commande, le paiement et le module Backend `identity` sont implémentés localement. La lecture paginée, l'avancement des commandes et le flux SSE authentifient le restaurateur et vérifient son appartenance à l'établissement avant toute opération métier. Le Dashboard utilise ce parcours pour recevoir et faire avancer les commandes jusqu'au service ou au retrait. Rien n'est encore déployé en production. L'identité s'exécute dans l'unique processus Backend, sans service autonome.
+!!! info État actuel au 2026-07-22
+Le catalogue, la commande, le paiement et le module Backend `identity` sont implémentés localement. Le cluster Compose exerce aussi la frontière CORS commune, le proxy de confiance, les cookies sécurisés et le routage HTTPS prévu pour le VPS. La lecture paginée, l'avancement des commandes et le flux SSE authentifient le restaurateur et vérifient son appartenance à l'établissement avant toute opération métier. Le profil facultatif `observability` collecte les métriques Backend sur le réseau interne et Caddy refuse publiquement `/q/metrics`. Rien n'est encore déployé en production. L'identité s'exécute dans l'unique processus Backend, sans service autonome.
 !!!
 
 ## Durcissements Dashboard avant production {#durcissements-dashboard-avant-production}
@@ -33,10 +33,10 @@ Le parcours local protège déjà le jeton de magic link, les cookies et l'autor
 
 | Point | État | Risque et garde-fou |
 |---|---|---|
-| CORS avec cookies | Livré et vérifié localement | Quarkus accepte l'apex et les sous-domaines directs comme origines publiques, mais refuse les credentials dans tous ses profils, y compris `%prod`. Caddy les rétablit seulement après comparaison exacte avec `DASHBOARD_URL` ou `ONBOARDING_URL`. Les tests refusent les credentials à un mini-site et à une origine externe. Le futur Caddy de production devra reproduire cette branche exacte avant de pouvoir servir le Dashboard. |
+| CORS avec cookies | Livré et vérifié localement | Quarkus accepte l'apex et les sous-domaines directs comme origines publiques, mais refuse les credentials dans tous ses profils, y compris `%prod`. Le Caddy commun les rétablit seulement après comparaison exacte avec `DASHBOARD_URL` ou `ONBOARDING_URL`. Les tests refusent les credentials à un mini-site et à une origine externe. La production utilise cette même branche, sélectionnée par profil. |
 | Rotation entre onglets | Livré et vérifié localement | Le Dashboard place le renouvellement sous un Web Lock exclusif commun à tous les onglets. Une fois le verrou acquis, il relit d'abord la session : si un autre onglet l'a déjà renouvelée, la requête initiale est rejouée sans nouvelle rotation. Sinon, un seul refresh token est consommé. BroadcastChannel propage la nouvelle session ou la déconnexion. Sans Web Locks, le Dashboard échoue de manière sûre et demande une nouvelle connexion au lieu de risquer une réutilisation du refresh token. Les tests unitaires couvrent la coordination et un scénario réel à deux onglets a conservé la session avec une seule rotation en base. |
 
-La configuration `%prod` échoue désormais de manière sûre : sans règle explicite au proxy de production, aucune réponse CORS ne peut être lue avec les cookies restaurateur. Cette fermeture ne vaut pas autorisation de déployer le Dashboard. Le Caddy du VPS reste à provisionner avec la même sélection exacte des origines. La coordination ne modifie pas le protocole de rotation côté serveur ; elle complète la décision de session de l'[ADR-0008](../decisions/adr-0008-magic-link.md).
+La configuration `%prod` échoue désormais de manière sûre : Quarkus n'accorde jamais seul les credentials et le Caddy commun ne les ajoute qu'aux deux origines exactes du profil. Cette fermeture ne vaut pas autorisation de déployer le Dashboard tant que le VPS, son DNS, ses secrets et les autres portes du pilote ne sont pas prêts. La coordination ne modifie pas le protocole de rotation côté serveur ; elle complète la décision de session de l'[ADR-0008](../decisions/adr-0008-magic-link.md).
 
 ## Modèle de menaces
 
@@ -49,6 +49,7 @@ Modèle volontairement léger, centré sur les scénarios réalistes pour une pl
 | Restaurateur légitime | Accès aux données d'un autre établissement (commandes, chiffre d'affaires, clients) | Confidentialité inter-établissements | Filtrage systématique par appartenance à l'établissement sur chaque requête (voir [Autorisations](#autorisations)) |
 | Attaquant externe | Rejeu ou forge de webhook Stripe (commande marquée payée sans paiement) | Intégrité des paiements | Vérification de signature, tolérance d'horloge, traitement idempotent (voir [Webhooks Stripe](#webhooks-stripe)) |
 | Attaquant externe | Vol de session restaurateur (interception ou vol de jeton) | Compte restaurateur, données de l'établissement | JWT de session à durée courte, refresh token révocable, HTTPS strict, cookies durcis |
+| Attaquant externe | Exploration des métriques ou de l'interface d'exploitation | Topologie, charge, incidents et accès administrateur | `/q/metrics` refusé par Caddy, Prometheus interne, Grafana sans route publique en production, port loopback, tunnel SSH et authentification |
 | Concurrent ou agrégateur | Scraping massif de la carte et des prix | Données de la carte, positionnement de l'établissement | La carte est publique par nature (elle l'est aussi en vitrine) ; la parade se limite à la limitation de débit et à l'absence d'API d'énumération globale des établissements |
 | Attaquant externe | Injection via les photos téléversées (fichier malveillant déguisé en image, XSS via SVG, charge utile dans les métadonnées) | Backend, navigateurs des clients | Validation stricte de type et de taille, réécriture systématique des images, aucun fichier téléversé servi tel quel (voir [Téléversements](#televersements)) |
 
@@ -160,18 +161,26 @@ Les webhooks Stripe pilotent le cycle de vie du paiement et du remboursement, pu
 
 Les deux endpoints de webhook sont les seuls endpoints publics non couverts par le CORS applicatif : ils ne sont appelés que serveur à serveur par Stripe.
 
+## Accès à l'observabilité
+
+`/q/metrics` est un endpoint d'administration interne. Prometheus le collecte directement sur `backend:8080` dans le réseau Compose. Le Caddy commun refuse explicitement le chemin sur l'hôte public de l'API, avant le proxy vers Quarkus. Une régression de cette fermeture fait échouer les contrôles de configuration et doit bloquer un déploiement.
+
+Prometheus ne publie aucun port hôte et n'a aucune route Caddy. Grafana est accessible par son URL centrale uniquement en développement. En production, il ne reçoit aucun domaine public : son port est lié à la boucle locale du VPS, puis atteint depuis un poste autorisé par tunnel SSH. L'accès anonyme est désactivé et le mot de passe administrateur vient de `/etc/surplasse/production.env`, protégé en mode `0600`. Le pare-feu ne reçoit aucune règle pour Grafana ou Prometheus.
+
+La source Grafana provisionnée est Prometheus seulement. Grafana ne possède donc aucun mot de passe PostgreSQL et ne peut pas lire les commandes ou restaurateurs. Les métriques utilisent des labels à cardinalité bornée. Aucun identifiant, slug, email, IP, jeton, montant ou message libre n'entre dans une série. Les volumes de la chaîne contiennent un historique opérationnel agrégé et restent accessibles uniquement au compte de déploiement via Docker.
+
 ## Secrets et configuration
 
 | Règle | Détail |
 |---|---|
-| Variables d'environnement uniquement | Tous les secrets (clés Stripe, clé API OpenAI, clé privée de signature JWT, identifiants SMTP, mot de passe PostgreSQL) sont injectés par l'environnement ou montés hors image, jamais codés en dur |
+| Variables d'environnement uniquement | Tous les secrets (clés Stripe, clé API OpenAI, clé privée de signature JWT, identifiants SMTP, mot de passe PostgreSQL et mot de passe administrateur Grafana) sont injectés par l'environnement ou montés hors image, jamais codés en dur |
 | Jamais dans git | Aucun secret dans l'historique, y compris dans les fichiers de configuration Docker Compose : les valeurs sensibles sont référencées, pas inscrites |
 | `.env.example` committé | Un fichier d'exemple liste toutes les variables attendues, avec des valeurs vides ou factices, pour documenter la configuration sans rien exposer |
 | Rotation | Les secrets sont rotables sans modification de code : rotation planifiée au moins annuelle, immédiate en cas de suspicion de fuite. Pour le JWT, le JWKS conserve temporairement les clés publiques courante et précédente afin de laisser expirer les sessions signées avant la bascule |
 
-L'outillage exact de gestion des secrets sur le VPS (fichier d'environnement protégé, coffre dédié) reste à trancher et sera consigné dans un ADR.
+Le premier VPS utilise `/etc/surplasse/production.env`, hors du dépôt et inaccessible au groupe et aux autres utilisateurs. Les clés JWT sont des fichiers distincts montés en lecture seule. Les copies maîtresses et la procédure de récupération vivent dans le gestionnaire de mots de passe de l'opérateur. Un coffre serveur dédié n'est pas retenu au lancement.
 
-Sous Ubuntu LTS, qui fait foi pour la production, `AUTH_JWT_PRIVATE_KEY_PATH` pointe vers la clé privée RS256 courante, `AUTH_JWT_KEY_ID` vers son `kid`, et `AUTH_JWT_JWKS_PATH` vers le jeu de clés publiques de vérification. L'émetteur suit obligatoirement `API_URL` et `AUTH_JWT_AUDIENCE` verrouille l'audience. Les fichiers de clés sont montés en lecture seule hors de l'image. La procédure de rotation et l'inventaire complet des variables vivent dans [Environnements](../operations/environnements.md#backend-quarkus).
+Sous Ubuntu LTS, qui fait foi pour la production, `AUTH_JWT_PRIVATE_KEY_PATH` pointe vers la clé privée RS256 courante, `AUTH_JWT_KEY_ID` vers son `kid`, et `AUTH_JWT_JWKS_PATH` vers le jeu de clés publiques de vérification. L'émetteur suit obligatoirement `API_URL` et `AUTH_JWT_AUDIENCE` verrouille l'audience. Les fichiers de clés sont montés en lecture seule hors de l'image. La procédure de rotation et l'inventaire complet des variables vivent dans [Environnements](../operations/environnements.md#backend).
 
 ## Transport et en-têtes HTTP
 
@@ -179,8 +188,8 @@ Tout le trafic est chiffré, sans exception ni période de transition :
 
 - HTTPS partout, avec un certificat wildcard couvrant `*.surplasse.com` (nécessaire pour les mini-sites en `{slug}.surplasse.com`) et le domaine apex.
 - HSTS activé sur tous les domaines (avec `includeSubDomains`), pour interdire tout repli en clair.
-- CSP stricte sur les trois fronts (Onboarding, Commande, Dashboard) : scripts et styles limités à l'origine et aux domaines Stripe requis par Elements, aucune source `unsafe-inline` pour les scripts.
-- CORS séparé selon la sensibilité : `CORS_PUBLIC_ORIGINS` contient seulement l'apex et le motif d'un sous-domaine direct HTTPS du domaine courant. Quarkus refuse les credentials en développement, en test et en production. Caddy les ajoute uniquement pour les origines exactes du Dashboard et de l'Onboarding. Le futur Caddy du VPS doit appliquer la même règle avant de servir ces fronts.
+- CSP adaptée à chaque surface : l'Onboarding en émet déjà une, avec les exceptions temporaires requises par ses pages statiques et Stripe Connect. Commande et Dashboard doivent encore recevoir leur politique explicite avant le premier trafic public. Cette dette est une porte de production, pas une valeur implicite permissive.
+- CORS séparé selon la sensibilité : `CORS_PUBLIC_ORIGINS` contient seulement l'apex et le motif d'un sous-domaine direct HTTPS du domaine courant. Quarkus refuse les credentials en développement, en test et en production. Le Caddy commun les ajoute uniquement pour les origines exactes du Dashboard et de l'Onboarding.
 - Cookies de session hôte uniquement pour `api.surplasse.test` en local et `api.surplasse.com` en production, sans attribut `Domain`, en `Secure`, `HttpOnly`, `SameSite=Lax`.
 
 ## Téléversements {#televersements}
@@ -215,8 +224,8 @@ PostgreSQL est sauvegardé de façon chiffrée, avec des copies hors du VPS de p
 ## Dépendances
 
 - Mises à jour régulières de toutes les dépendances (Maven côté backend, npm côté frontends et docs), intégrées par petits lots plutôt que par grandes campagnes.
-- Dependabot activé sur le dépôt : alertes de vulnérabilités et PR de mise à jour automatiques ; les alertes de sévérité haute ou critique sont traitées en priorité sur le reste du travail.
-- Les images Docker de l'infrastructure ([déploiement](../operations/index.md)) sont reconstruites régulièrement pour intégrer les correctifs des images de base.
+- Renovate est l'outil retenu pour proposer les mises à jour npm, Maven, GitHub Actions et du catalogue `config/deployment/images.env`, digest compris. Son bot n'est pas encore activé ; les mises à jour restent manuelles jusque-là.
+- Les images Docker sont reconstruites après chaque mise à jour validée des bases épinglées afin d'intégrer leurs correctifs.
 
 ## Ce qui reste à trancher
 
@@ -224,6 +233,6 @@ PostgreSQL est sauvegardé de façon chiffrée, avec des copies hors du VPS de p
 |---|---|---|
 | Durée exacte de la session client anonyme | 2 heures glissantes | Le contrat et un ADR si le sujet s'avère structurant |
 | Rôles restaurateur différenciés (gérant, salle) | Hors MVP | ADR dédié le moment venu |
-| Outillage de gestion des secrets sur le VPS | Orientation : fichier d'environnement protégé (chmod 600) sur le VPS, copies maîtresses dans un gestionnaire de mots de passe (le coffre des humains), rotation documentée. Un coffre serveur dédié (Vault, Infisical) ne se justifiera que si les secrets se multiplient réellement (notifications, API tierces) ou si plusieurs opérateurs partagent l'exploitation | ADR dédié, avec `infra/` |
+| Seuil de passage à un coffre serveur dédié | Seulement si les secrets ou les opérateurs se multiplient réellement ; le fichier protégé et le coffre humain suffisent au premier VPS | ADR dédié si le seuil est atteint |
 | Seuils de limitation hors demande de magic link et futur stockage partagé des compteurs | Calibrage avant activation de chaque endpoint, stockage partagé avant toute seconde instance | Documentation d'exploitation |
 | Plafond de taille des téléversements | De l'ordre de 10 Mo par image | Le contrat |

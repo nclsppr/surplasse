@@ -7,7 +7,6 @@ import { runInNewContext } from "node:vm";
 
 import {
   allowedFrontendHosts,
-  configureFrontendDomainConfig,
   frontendEnvironmentDefinitions,
   loadDomainConfig,
   loadFrontendDomainConfig,
@@ -20,7 +19,9 @@ test("development exposes the complete local HTTPS topology", () => {
   assert.equal(config.API_URL, "https://api.surplasse.test");
   assert.equal(config.PROBLEM_TYPE_BASE, "https://surplasse.com/problems/");
   assert.equal(config.COOKIE_DOMAIN, "");
-  assert.equal(config.RESERVED_SUBDOMAINS, "www,api,dashboard,docs,app,admin,local,mail");
+  assert.equal(config.REPORTS_URL, "https://reports.surplasse.test");
+  assert.equal(config.GRAFANA_URL, "https://grafana.surplasse.test");
+  assert.equal(config.RESERVED_SUBDOMAINS, "www,api,dashboard,docs,app,admin,local,mail,reports,grafana");
 });
 
 test("domain profiles store one base domain and derive every application URL", () => {
@@ -29,7 +30,7 @@ test("domain profiles store one base domain and derive every application URL", (
     assert.match(source, /^APP_BASE_DOMAIN=/mu);
     assert.doesNotMatch(
       source,
-      /^(?:APP_BASE_URL|ONBOARDING_URL|DASHBOARD_URL|API_URL|LOCAL_CONTROL_URL|DOCS_URL|MAILPIT_URL)=/mu,
+      /^(?:APP_BASE_URL|ONBOARDING_URL|DASHBOARD_URL|API_URL|LOCAL_CONTROL_URL|DOCS_URL|MAILPIT_URL|REPORTS_URL|GRAFANA_URL)=/mu,
     );
   }
 });
@@ -42,28 +43,22 @@ test("production keeps development-only services disabled", () => {
   assert.equal(config.PROBLEM_TYPE_BASE, "https://surplasse.com/problems/");
   assert.equal(config.LOCAL_CONTROL_URL, "");
   assert.equal(config.MAILPIT_URL, "");
+  assert.equal(config.REPORTS_URL, "");
+  assert.equal(config.GRAFANA_URL, "");
 });
 
-test("frontend overrides derive a coherent topology from the base domain", () => {
+test("frontend topology overrides fail closed", () => {
+  for (const key of ["VITE_APP_BASE_DOMAIN", "VITE_API_BASE_URL", "VITE_DASHBOARD_URL"]) {
+    assert.throws(
+      () => loadFrontendDomainConfig("development", { [key]: "https://override.invalid" }),
+      new RegExp(`${key} cannot override the development domain profile`, "u"),
+    );
+  }
+
   const config = loadFrontendDomainConfig("development", {
-    VITE_APP_BASE_DOMAIN: "example.test",
+    VITE_STRIPE_PUBLISHABLE_KEY: "pk_test_public",
   });
-
-  assert.equal(config.APP_BASE_URL, "https://example.test");
-  assert.equal(config.DASHBOARD_URL, "https://dashboard.example.test");
-  assert.equal(config.API_URL, "https://api.example.test");
-  assert.equal(config.PROBLEM_TYPE_BASE, "https://surplasse.com/problems/");
-  assert.deepEqual(allowedFrontendHosts(config), ["example.test", ".example.test"]);
-});
-
-test("frontend ignores scattered URL overrides and keeps the derived topology", () => {
-  const config = loadFrontendDomainConfig("development", {
-    VITE_API_BASE_URL: "https://gateway.example.test",
-    VITE_DASHBOARD_URL: "https://portal.example.test",
-  });
-
-  assert.equal(config.DASHBOARD_URL, "https://dashboard.surplasse.test");
-  assert.equal(config.API_URL, "https://api.surplasse.test");
+  assert.deepEqual(allowedFrontendHosts(config), ["surplasse.test", ".surplasse.test"]);
 });
 
 test("frontend definitions never expose a cookie domain", () => {
@@ -98,11 +93,11 @@ test("onboarding selects development only from the configured local domain", () 
   }
 });
 
-test("onboarding keeps unknown public hosts on the production profile", () => {
-  const config = onboardingRuntimeConfig("preview.example.net");
-
-  assert.equal(config.PROFILE, "production");
-  assert.equal(config.APP_BASE_DOMAIN, "surplasse.com");
+test("onboarding refuses unknown public hosts instead of falling back to production", () => {
+  assert.throws(
+    () => onboardingRuntimeConfig("preview.example.net"),
+    /Hostname does not belong to a configured domain profile/u,
+  );
 });
 
 test("backend wrapper exports one coherent profile without Java URL defaults", () => {
@@ -110,7 +105,7 @@ test("backend wrapper exports one coherent profile without Java URL defaults", (
     new URL("../../scripts/run-with-domain-profile.sh", import.meta.url),
   );
   const command = [
-    "printf '%s\\n' \"$APP_BASE_DOMAIN\" \"$SURPLASSE_PLATFORM_API_URL\" \"$ONBOARDING_URL\" \"$SURPLASSE_PLATFORM_DASHBOARD_URL\" \"$SURPLASSE_PLATFORM_PROBLEM_TYPE_BASE\" \"$CORS_PUBLIC_ORIGINS\"",
+    "printf '%s\\n' \"$APP_BASE_DOMAIN\" \"$SURPLASSE_PLATFORM_API_URL\" \"$ONBOARDING_URL\" \"$SURPLASSE_PLATFORM_DASHBOARD_URL\" \"$SURPLASSE_PLATFORM_PROBLEM_TYPE_BASE\" \"$REPORTS_URL\" \"$GRAFANA_URL\" \"$CORS_PUBLIC_ORIGINS\"",
   ];
 
   const development = execFileSync(script, ["development", "bash", "-c", ...command], {
@@ -126,6 +121,8 @@ test("backend wrapper exports one coherent profile without Java URL defaults", (
     "https://surplasse.test",
     "https://dashboard.surplasse.test",
     "https://surplasse.com/problems/",
+    "https://reports.surplasse.test",
+    "https://grafana.surplasse.test",
     "https://surplasse.test,/https:\\/\\/[a-z0-9-]+\\.surplasse\\.test/",
   ]);
   assert.deepEqual(production, [
@@ -134,6 +131,8 @@ test("backend wrapper exports one coherent profile without Java URL defaults", (
     "https://surplasse.com",
     "https://dashboard.surplasse.com",
     "https://surplasse.com/problems/",
+    "",
+    "",
     "https://surplasse.com,/https:\\/\\/[a-z0-9-]+\\.surplasse\\.com/",
   ]);
 });
@@ -155,6 +154,20 @@ test("backend CORS stays public and without credentials in every runtime profile
     );
   }
   assert.doesNotMatch(properties, /access-control-allow-credentials=true/u);
+});
+
+test("backend development mailer honors the injected SMTP service", () => {
+  const properties = readFileSync(
+    new URL("../../backend/application/src/main/resources/application.properties", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(properties, /^%dev\.quarkus\.mailer\.host=\$\{SMTP_HOST:localhost\}$/mu);
+  assert.match(properties, /^%dev\.quarkus\.mailer\.port=\$\{SMTP_PORT:1025\}$/mu);
+  assert.match(
+    properties,
+    /^%dev\.quarkus\.mailer\.start-tls=\$\{SMTP_START_TLS:DISABLED\}$/mu,
+  );
 });
 
 test("runtime configuration code contains no hard-coded Surplasse environment", () => {

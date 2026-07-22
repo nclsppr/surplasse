@@ -2,187 +2,254 @@
 label: Observabilité
 order: 30
 icon: pulse
-description: Health checks, logs structurés, métriques Micrometer, alerting minimal et objectifs de niveau de service de la plateforme Surplasse.
+description: Healthchecks, métriques Micrometer, collecte Prometheus, tableau de bord Grafana, règles et exploitation non bloquante de Surplasse.
 ---
 
 # Observabilité
 
-Cette page décrit comment Surplasse s'observe en production : ce qui est mesuré, où cela s'affiche, et qui est réveillé quand quelque chose casse. Elle complète la page [sécurité](../architecture/securite.md) (dont elle partage la philosophie de sobriété), la page [backend](../architecture/backend.md) (qui liste les extensions Quarkus concernées) et la page [RGPD](rgpd.md) (qui encadre ce que les logs et les métriques ont le droit de contenir).
+Surplasse dispose d'une première chaîne de métriques reproductible : le Backend expose Micrometer, Prometheus collecte les séries et Grafana provisionne leur visualisation. L'[ADR-0029](../decisions/adr-0029-observabilite-prometheus-grafana.md) fixe sa séparation avec le chemin applicatif.
 
-!!! info Documentation de référence
-Le Backend est exécutable localement et expose déjà ses endpoints de santé. Aucune infrastructure de production n'est déployée et Micrometer n'est pas encore installé. Cette page distingue ce qui existe de la cible du premier déploiement et des briques à poser plus tard.
+!!! info État réel au 2026-07-22
+Le code, les configurations, les règles et le tableau de bord sont livrés dans le dépôt et peuvent être exercés avec le profil Compose facultatif `observability`. Aucun VPS de production n'est encore provisionné. Les règles Prometheus sont évaluées localement, mais elles n'envoient aucune notification car Alertmanager n'est pas installé. La sonde externe et son canal d'alerte restent une porte du premier déploiement.
 !!!
 
-## Le principe : observer d'abord ce qui coûte
+## Principe non bloquant
 
-L'observabilité de Surplasse ne commence pas par des graphiques de CPU. Elle commence par une question : qu'est-ce qui, en cas de panne silencieuse, fait perdre de l'argent ou des commandes sans que personne ne s'en aperçoive ?
+Prometheus fonctionne en collecte pull. Le Backend met à jour un registre Micrometer en mémoire et répond à `/q/metrics`. Il ne connaît ni l'adresse, ni l'état, ni les identifiants de Prometheus ou de Grafana. Aucun thread métier n'envoie de métrique sur le réseau.
 
-Les réponses ordonnent tout le reste :
-
-| Panne silencieuse | Conséquence | Ce qui doit la révéler |
-|---|---|---|
-| Le paiement échoue systématiquement | Zéro chiffre d'affaires, clients qui abandonnent au pire moment | Métrique d'échecs de paiement, alerte sur seuil |
-| La carte ne se charge pas ou trop lentement | Le client scanne, attend, renonce : la commande n'existe jamais | Latence p95 de l'API carte, sonde de disponibilité |
-| Le flux SSE est mort | Les commandes payées n'arrivent plus en salle : clients servis en retard ou pas du tout | Compteur de connexions SSE actives, fraîcheur des événements |
-| Les jobs d'extraction échouent en boucle | Les embarquements se bloquent, les restaurateurs abandonnent le tunnel | Compteur de jobs d'extraction en échec |
-| Les emails de magic link ne sont plus remis | Les restaurateurs ne peuvent plus se connecter alors que l'API répond 202 | Échecs SMTP côté Backend, rejets et rebonds côté fournisseur, test de remise périodique |
-
-La règle de priorisation qui en découle : une mesure qui protège une commande ou un paiement se pose au premier déploiement ; une mesure de confort (dashboards détaillés, traces distribuées) se pose quand un problème réel la réclame. L'empilement d'outils d'observation est un coût d'exploitation comme un autre, et la [posture générale du projet](../architecture/index.md) est la simplicité opérationnelle.
-
-## Les health checks
-
-Le Backend expose les endpoints de santé standards de Quarkus via l'extension `quarkus-smallrye-health` (voir [les extensions Quarkus](../architecture/backend.md#les-extensions-quarkus)) :
-
-| Endpoint | Question posée | Répond « UP » quand |
-|---|---|---|
-| `/q/health/live` | Le processus est-il vivant ? | La JVM répond. Un « DOWN » ou une absence de réponse signifie qu'un redémarrage est la bonne réaction. |
-| `/q/health/ready` | Le service peut-il traiter du trafic ? | La connexion PostgreSQL est vérifiée et les migrations Flyway sont passées. Un « DOWN » signifie : ne pas envoyer de trafic, mais ne pas redémarrer non plus. |
-| `/q/health` | Agrégat des deux | Tous les checks individuels sont « UP ». |
-
-Deux consommateurs sondent ces endpoints :
-
-- **Le superviseur** : le `healthcheck` Docker Compose interroge `/q/health/live` à intervalle court et redémarre le conteneur après plusieurs échecs consécutifs. C'est la première ligne de défense, elle fonctionne sans aucun outil supplémentaire.
-- **Le déploiement** : le workflow de déploiement (voir [environnements](environnements.md)) attend que `/q/health/ready` réponde « UP » sur la nouvelle version avant de la considérer comme déployée. Un déploiement dont la readiness ne monte jamais est un déploiement échoué, pas un déploiement lent.
-
-```
-                    ┌──────────────────────┐
-                    │   Backend Quarkus    │
-                    │                      │
-   Docker Compose ──►  /q/health/live      │   échec répété = redémarrage
-                    │                      │
-   Déploiement ─────►  /q/health/ready     │   pas de UP = déploiement échoué
-                    │                      │
-   Uptime Kuma ─────►  /q/health           │   DOWN = alerte email / mobile
-                    └──────────────────────┘
+```text
+Internet
+   |
+   v
++-------+       routes applicatives       +-------------------+
+| Caddy | ------------------------------> | Backend Quarkus   |
++---+---+                                 | /q/health         |
+    |                                     | /q/metrics interne|
+    | refuse /q/metrics public            +---------+---------+
+    |                                               ^
+    |                                               | scrape pull
+    |                                     +---------+---------+
+    |                                     | Prometheus        |
+    |                                     +---------+---------+
+    |                                               ^
+    |                                               | requêtes PromQL
+    |                                     +---------+---------+
+    +-- Grafana local seulement --------> | Grafana           |
+                                          +-------------------+
 ```
 
-La distinction liveness / readiness n'est pas un raffinement gratuit : sans elle, un incident PostgreSQL transitoire provoquerait des redémarrages en boucle du Backend, qui n'y peut rien et ne ferait qu'aggraver la situation.
+Cette séparation est vérifiable dans la topologie :
 
-## Les logs
+- `backend`, `edge` et `postgresql` n'ont aucune dépendance Compose vers `prometheus` ou `grafana` ;
+- la readiness du Backend vérifie PostgreSQL, jamais la supervision ;
+- Prometheus et Grafana appartiennent au profil facultatif `observability` et peuvent rester arrêtés ;
+- une erreur de mise à jour d'un compteur est journalisée puis ignorée par l'instrumentation ;
+- l'arrêt des services de supervision fait perdre la collecte et l'affichage pendant l'incident, pas les commandes ni les paiements.
 
-### Structurés en JSON en production
+Pour le prouver en local, garder une requête applicative ouverte ou contrôler la readiness, arrêter les deux services, puis recommencer le contrôle :
 
-En production, le Backend émet ses logs en JSON structuré (une ligne par événement, horodatage, niveau, logger, message, identifiants de corrélation). Le JSON n'est pas un choix esthétique : il rend chaque champ filtrable le jour où un agrégateur est posé, sans reformatage rétroactif. En développement, les logs restent au format texte lisible de Quarkus.
+```bash
+scripts/compose.sh development stop prometheus grafana
+curl --fail https://api.surplasse.test/q/health/ready
+```
 
-Chaque requête HTTP porte un identifiant de corrélation, propagé dans tous les logs qu'elle déclenche : retrouver l'histoire complète d'une requête en erreur se fait par un seul filtre.
+## Services et exposition
 
-### Consultation : simple d'abord
+| Composant | Version | Rôle | Exposition |
+|---|---:|---|---|
+| Registre Micrometer Prometheus | fourni par Quarkus 3.25.4 | Produit les métriques automatiques et métier dans le processus Backend | `/q/metrics` sur le réseau Compose, refusé par Caddy depuis le domaine API |
+| Prometheus | 3.13.1, variante `busybox` | Collecte, conserve et évalue les règles | Réseau Compose seulement, aucune route Caddy ni port hôte |
+| Grafana | 13.1.1 | Affiche le tableau de bord provisionné | `GRAFANA_URL` derrière Caddy en développement ; port loopback et tunnel SSH en production |
 
-Au premier déploiement, la consultation des logs passe par `docker logs` (et `docker compose logs -f`) sur le VPS. C'est volontairement rudimentaire, et suffisant tant que le trafic est faible et l'équipe réduite.
+Le catalogue `config/deployment/images.env` épingle les deux images par tag et digest. Prometheus utilise `prometheus_data`, Grafana `grafana_data`. La rétention Prometheus est de 7 jours en développement et de 15 jours dans l'exemple de production. Ces volumes sont persistants mais reconstructibles : les configurations, règles, sources et tableaux de bord canoniques vivent dans `infra/observability/`. PostgreSQL reste l'unique sauvegarde métier obligatoire.
 
-Un agrégateur léger sera posé quand le besoin réel apparaîtra (chercher dans l'historique, croiser plusieurs services, suivre les logs sans SSH). Deux candidats, à comparer le moment venu : Dozzle est une simple interface web temps réel sur les logs Docker, sans stockage ni recherche historique, posée en cinq minutes. Loki (avec Grafana) indexe et conserve les logs avec un vrai langage de requête, au prix d'une brique d'exploitation supplémentaire à héberger et à maintenir.
+## Healthchecks
 
-Le choix sera consigné dans un ADR le moment venu ; d'ici là, `docker logs` fait le travail.
+Le Backend expose les endpoints standards de Quarkus :
 
-### Aucune donnée personnelle dans les logs
+| Endpoint | Question | Usage |
+|---|---|---|
+| `/q/health/live` | La JVM répond-elle ? | Diagnostic de vivacité |
+| `/q/health/ready` | Le Backend et sa dépendance PostgreSQL sont-ils prêts ? | Healthcheck Compose et porte de déploiement |
+| `/q/health` | Quel est l'état agrégé ? | Sonde externe future |
 
-!!! warning Règle absolue de non-journalisation
-Aucune donnée personnelle ne doit jamais apparaître dans les logs : pas d'adresse email, pas de prénom de client, pas de jeton de session ni de magic link, pas de charge utile complète de webhook. Les logs référencent des identifiants techniques (identifiant de commande, identifiant d'établissement, identifiant d'événement Stripe), jamais les données qu'ils désignent. Cette règle est vérifiée en revue de code, et son fondement RGPD est détaillé dans la page [RGPD](rgpd.md) : un log est une copie de données qui échappe aux durées de conservation maîtrisées.
+Prometheus expose `/-/healthy` et `/-/ready` sur son réseau interne. Grafana expose `/api/health`. Leurs healthchecks servent à `up --wait` lorsqu'ils sont démarrés explicitement. Ils ne remontent jamais dans la santé du Backend.
+
+Quatre contrôles restent complémentaires :
+
+| Contrôle | Ce qu'il prouve | Limite |
+|---|---|---|
+| Healthcheck Compose | Le conteneur et sa dépendance immédiate répondent | Reste interne au VPS |
+| Prometheus | La cible est collectable et ses séries évoluent | Tombe avec le VPS s'il est hébergé dessus |
+| Playwright horaire | Caddy, TLS, JavaScript et écrans publics fonctionnent depuis l'extérieur | Une planification GitHub peut être retardée |
+| Sonde externe future | Le service et son certificat répondent indépendamment du VPS | Outil et canal encore à sélectionner |
+
+## Métriques automatiques
+
+Le registre Quarkus et Prometheus fournissent les métriques techniques utilisées par le tableau de bord :
+
+| Nom Prometheus | Type | Unité | Labels utiles | Panneau |
+|---|---|---|---|---|
+| `up` | Jauge 0 ou 1 | booléen | `job`, `instance` | Disponibilité du Backend, disponibilité de Prometheus |
+| `http_server_requests_seconds_count` | Compteur | requêtes | `method`, `outcome`, `status`, `uri` normalisée | Ratio d'erreurs 5xx, requêtes HTTP par statut, durée moyenne |
+| `http_server_requests_seconds_sum` | Compteur | secondes cumulées | `method`, `outcome`, `status`, `uri` normalisée | Durée moyenne des requêtes HTTP |
+| `jvm_memory_used_bytes` | Jauge | octets | `area`, `id` | Pression mémoire du tas JVM |
+| `jvm_memory_max_bytes` | Jauge | octets | `area`, `id` | Pression mémoire du tas JVM |
+| `process_cpu_usage` | Jauge de 0 à 1 | ratio | aucune avant les labels de cible Prometheus | CPU du processus Backend |
+| `jvm_threads_live_threads` | Jauge | threads | aucune avant les labels de cible Prometheus | Threads JVM |
+| `agroal_active_count` | Jauge | connexions | `datasource` | Connexions du pool JDBC |
+| `agroal_awaiting_count` | Jauge | demandes en attente | `datasource` | Connexions du pool JDBC |
+| `scrape_duration_seconds` | Jauge | secondes | `job`, `instance` | Durée de collecte Prometheus |
+| `scrape_samples_scraped` | Jauge | échantillons par scrape | `job`, `instance` | Échantillons collectés par cible |
+
+Les routes HTTP doivent rester normalisées par le binder. Un chemin contenant un identifiant de commande ou d'établissement ne devient jamais une série distincte. Une nouvelle métrique automatique n'est ajoutée au tableau de bord qu'après contrôle de sa cardinalité.
+
+## Métriques métier livrées
+
+Les noms ci-dessous sont le contrat opérationnel initial. Les compteurs Prometheus portent le suffixe `_total`. Ils sont remis à zéro avec le processus, donc les graphiques utilisent `rate()` ou `increase()` et non la valeur brute comme vérité comptable.
+
+| Nom Micrometer | Nom Prometheus | Type, unité et labels | Point d'instrumentation | Panneau et lecture |
+|---|---|---|---|---|
+| `surplasse.orders.created` | `surplasse_orders_created_total` | Compteur d'événements, aucun label | `OrderCreated`, après commit d'une nouvelle commande | Commandes créées : arrêt ou chute du flux |
+| `surplasse.payment.sessions.opened` | `surplasse_payment_sessions_opened_total` | Compteur d'événements, aucun label | `PaymentSessionOpened`, après commit d'une session activée chez le fournisseur | Sessions de paiement : progression des commandes vers le paiement |
+| `surplasse.payment.intent.events` | `surplasse_payment_intent_events_total` | Compteur d'événements, `outcome="succeeded|failed"` | `OrderPaid` ou `PaymentFailed`, après rapprochement et commit du webhook signé | Paiements par résultat : succès confirmés et échecs |
+| `surplasse.refunds` | `surplasse_refunds_total` | Compteur d'événements, `outcome="succeeded|failed"` | `PaymentRefunded` ou `PaymentRefundFailed`, après commit de l'état terminal | Remboursements par résultat : réussite ou incident |
+| `surplasse.magic.link.deliveries` | `surplasse_magic_link_deliveries_total` | Compteur d'événements, `outcome="accepted|failed"` | `MagicLinkDeliveryCompleted`, lorsque le mailer accepte ou refuse la remise | Magic links par résultat : panne ou configuration SMTP invalide |
+| `surplasse.sse.connections.active` | `surplasse_sse_connections_active` | Jauge de connexions, `channel="order|establishment"` | `SseConnectionChanged`, à l'abonnement et à la terminaison du flux autorisé | Connexions SSE : perte du suivi client ou restaurant |
+
+Les événements transactionnels sont observés en `TransactionPhase.AFTER_SUCCESS`. Une transaction annulée ne gonfle donc pas les compteurs de commande, session de paiement, paiement ou remboursement. La remise SMTP et le cycle d'une connexion SSE ne sont pas des transactions métier : leur résultat est mesuré au moment où le mailer ou le flux le connaît.
+
+### Politique de labels
+
+Seuls les ensembles fermés et très courts sont acceptés comme labels. Aujourd'hui, il s'agit de `outcome` et `channel` avec les valeurs listées ci-dessus.
+
+Sont interdits dans les labels et descriptions :
+
+- identifiant ou slug d'établissement ;
+- identifiant de commande, de paiement, de session, de restaurateur ou d'événement Stripe ;
+- email, IP, URL libre ou user agent ;
+- classe ou message d'exception libre ;
+- montant, produit ou texte saisi par un utilisateur.
+
+Cette règle protège à la fois la mémoire de Prometheus, la confidentialité et la possibilité d'agréger les séries. Un besoin exact par établissement appartient aux métriques produit sur PostgreSQL.
+
+## Tableau de bord versionné
+
+Grafana provisionne le dossier `Surplasse` et le tableau de bord `Vue opérationnelle`. Ses 18 panneaux sont listés ci-dessous. Le JSON versionné est la source de vérité. Une modification faite seulement dans l'interface est jetable et sera remplacée lors d'une recréation. La vue initiale couvre les 6 dernières heures et se rafraîchit toutes les 30 secondes.
+
+| Panneau | Donnée affichée | Question posée |
+|---|---|---|
+| Disponibilité du Backend | `up` de la cible `surplasse-backend` | Prometheus collecte-t-il encore le Backend ? |
+| Commandes créées sur 1 h | Somme de `increase(surplasse_orders_created_total[1h])` | Des commandes entrent-elles encore ? |
+| Paiements confirmés sur 1 h | Augmentation des événements `succeeded` | Les paiements aboutissent-ils ? |
+| Ratio d'erreurs 5xx sur 5 min | Pourcentage des requêtes serveur répondant en 5xx | Le trafic applicatif se dégrade-t-il ? |
+| Requêtes HTTP par statut | Débit par code HTTP | Quelle famille de réponses évolue ? |
+| Durée moyenne des requêtes HTTP | Durée cumulée divisée par le nombre de requêtes, en millisecondes | La réponse moyenne ralentit-elle ? |
+| Commandes et sessions de paiement | Débits comparés des créations et ouvertures de session | Le parcours se bloque-t-il avant Stripe ? |
+| Résultats des paiements | Débit par `outcome` | Les succès ou échecs de paiement augmentent-ils ? |
+| Résultats des remboursements | Débit par `outcome` | Les remboursements aboutissent-ils ? |
+| Livraisons de magic links | Débit par `outcome` | Le Backend remet-il les emails au SMTP ? |
+| Connexions SSE actives | Jauge par `channel` | Les suivis client et restaurant restent-ils connectés ? |
+| Durée de collecte Prometheus | `scrape_duration_seconds` du Backend | La collecte devient-elle lente ? |
+| Pression mémoire du tas JVM | Mémoire heap utilisée divisée par son maximum | La JVM approche-t-elle de sa limite mémoire ? |
+| CPU du processus Backend | `process_cpu_usage` en pourcentage | Le processus sature-t-il le CPU ? |
+| Threads JVM | `jvm_threads_live_threads` | Le nombre de threads dérive-t-il ? |
+| Connexions du pool JDBC | `agroal_active_count` et `agroal_awaiting_count` | Le pool PostgreSQL est-il actif ou en attente ? |
+| Disponibilité de Prometheus | `up` de la cible `prometheus` | Le collecteur observe-t-il encore sa propre cible ? |
+| Échantillons collectés par cible | Somme de `scrape_samples_scraped` par `job` | Une cible cesse-t-elle soudain d'exposer ses séries attendues ? |
+
+La latence initiale est une moyenne calculée à partir de la durée cumulée et du nombre de requêtes. Elle n'est pas un p95. Les histogrammes ciblés sur la carte, Stripe et les webhooks seront ajoutés avant d'afficher des percentiles fiables.
+
+Le tableau de bord sert à l'exploitation de la plateforme. Le Dashboard restaurateur n'y accède pas et ne consomme pas Prometheus.
+
+## Règles Prometheus
+
+Prometheus évalue cinq règles versionnées. Leur état est disponible dans Prometheus et sous forme de séries `ALERTS` interrogeables depuis Grafana. Le tableau de bord initial ne possède pas encore de panneau dédié aux règles :
+
+| Règle | Condition et durée | Sévérité | Première vérification |
+|---|---|---|---|
+| `SurplasseBackendMetricsUnavailable` | Cible Backend à `0` pendant 5 minutes | `critical` | Distinguer une panne Backend d'un problème de réseau ou de collecte |
+| `SurplasseBackendHighServerErrorRatio` | Plus de 5 % de 5xx sur la fenêtre de 5 minutes, pendant 10 minutes | `warning` | Panneaux HTTP, healthcheck, logs Backend et pool JDBC |
+| `SurplasseMagicLinkDeliveryFailure` | Au moins un résultat `failed` en 10 minutes, maintenu 1 minute | `warning` | Logs mailer et état du fournisseur SMTP |
+| `SurplassePaymentFailure` | Au moins un paiement rapproché `failed` en 10 minutes, maintenu 1 minute | `warning` | Panneau de résultats, événement Stripe et logs corrélés |
+| `SurplasseRefundFailure` | Au moins un remboursement `failed` en 10 minutes, maintenu 1 minute | `warning` | Panneau de résultats, état Stripe et tentative persistée |
+
+!!! warning Pas encore de notification
+Prometheus évalue les règles, mais aucun Alertmanager n'est configuré. Une règle dans l'état `firing` ne prévient personne. Avant le pilote, une sonde externe et un canal de notification doivent compléter cette chaîne. Ne jamais présenter les règles actuelles comme une astreinte ou une alerte livrée.
 !!!
 
-Les logs techniques sont conservés 30 jours au maximum (rotation par Docker, taille et nombre de fichiers plafonnés), une durée cohérente avec leur seul usage : le diagnostic d'incidents récents.
+Les seuils initiaux sont des garde-fous à calibrer avec du trafic réel. Un échec de paiement peut être un refus bancaire normal : la règle demande une inspection, pas une conclusion automatique. Toute modification de seuil ou de fenêtre passe par le fichier de règles versionné, puis par sa validation et un redémarrage ou rechargement contrôlé de Prometheus.
 
-## Les métriques
+## Logs et données personnelles
 
-### Micrometer et Prometheus dès le premier déploiement
+Au premier déploiement, les logs restent consultés par `scripts/compose.sh <profil> logs`. Le Backend émet du JSON structuré en production et du texte lisible en développement. Loki n'est pas installé.
 
-Le Backend expose ses métriques via `quarkus-micrometer` au format Prometheus, sur `/q/metrics`, dès le premier déploiement. Le coût est presque nul (une extension, quelques compteurs métier) et le bénéfice est décisif : le jour où un tableau de bord devient nécessaire, l'historique des mesures existe déjà dans le format que tout l'écosystème sait lire.
+!!! warning Aucune donnée personnelle dans les logs ou métriques
+Ne jamais journaliser ni étiqueter une adresse email, un prénom, un jeton, une charge utile de webhook ou une donnée de carte. Les logs peuvent porter des identifiants techniques opaques pour un diagnostic court. Les métriques restent agrégées et sans identifiant. La rétention des logs est plafonnée à 30 jours selon la page [RGPD](rgpd.md).
+!!!
 
-La chaîne se construit en deux temps :
+## Accès local et production
 
-| Étape | Quoi | Quand |
-|---|---|---|
-| 1 | Micrometer expose `/q/metrics` (format Prometheus), endpoint non exposé publiquement (accessible depuis le réseau interne Docker uniquement) | Premier déploiement |
-| 2 | Un Prometheus scrape l'endpoint et un Grafana affiche les tableaux de bord | Posé plus tard, quand le suivi visuel devient un besoin réel ; consigné dans un ADR |
+En développement, le profil de domaines dérive `GRAFANA_URL`. Caddy route uniquement cet hôte vers Grafana. La lecture anonyme locale est limitée au rôle `Viewer` et le compte administrateur jetable vient du profil de déploiement versionné. Le cockpit affiche le service et son lien lorsqu'il est disponible. Prometheus reste interne et se consulte par ses fichiers, ses logs ou une commande dans le conteneur, pas par une URL navigateur alternative.
 
-Micrometer fournit gratuitement les métriques techniques standards (latence par endpoint HTTP, pool de connexions JDBC, JVM). S'y ajoutent les métriques métier, instrumentées explicitement dans les services.
+En production, Grafana n'a aucun nom DNS ni route Caddy. Son port est publié sur `127.0.0.1` du VPS uniquement. Depuis un poste d'exploitation :
 
-### Les métriques métier prioritaires
+```bash
+ssh -N -L 3000:127.0.0.1:3000 <utilisateur>@<vps>
+```
 
-| Métrique | Type | Ce qu'elle révèle |
-|---|---|---|
-| Commandes créées | Compteur, par établissement | Le pouls de la plateforme : sa chute brutale est le premier signal d'un incident, avant toute plainte |
-| Taux de conversion panier vers paiement | Dérivée de deux compteurs (paniers validés, paiements confirmés) | Une chute signale un problème de paiement ou d'ergonomie au moment le plus coûteux du parcours |
-| Échecs de paiement | Compteur, par cause (refus carte, erreur Stripe, expiration) | Distingue le refus bancaire normal d'une panne d'intégration Stripe |
-| Remboursements | Compteur par statut et motif, plus jauge des tentatives actives anciennes | Détecte un remboursement bloqué ou une hausse anormale des incidents de service |
-| Latence p95 de l'API carte | Histogramme sur les endpoints de lecture de la carte | La carte est la première page vue après le scan : sa lenteur tue la commande avant qu'elle n'existe |
-| Connexions SSE actives | Jauge, par type de canal (établissement, commande) | Une jauge à zéro en plein service signifie que les Dashboards sont aveugles (voir [le temps réel](../architecture/backend.md#le-temps-réel--sse-via-mutiny)) |
-| Jobs d'extraction en échec | Compteur, avec la jauge des jobs en attente | Des embarquements bloqués et un budget d'API OpenAI qui brûle pour rien |
-| Échecs de remise SMTP | Compteur par classe d'erreur, sans adresse ni contenu | Une panne de connexion au fournisseur ou une configuration TLS invalide |
+Le navigateur ouvre alors l'extrémité locale du tunnel. Ce loopback est un accès d'administration privé, pas une URL applicative ni une valeur à introduire dans un profil de domaines. L'accès anonyme est désactivé et les identifiants Grafana de production viennent du fichier protégé du VPS.
 
-Ces huit mesures couvrent les quatre pannes silencieuses du tableau d'ouverture. Toute métrique métier supplémentaire se justifie par le même critère : quelle perte détecte-t-elle ?
+Le détail des commandes de démarrage, arrêt, mise à jour et recréation des volumes vit dans [Déploiement Compose](deploiement-compose.md#observabilite-facultative).
 
-## L'alerting minimal
+## Métriques d'exploitation et métriques produit
 
-Au MVP, l'alerting repose sur Uptime Kuma, un outil de supervision auto-hébergé et léger, installé de préférence hors du VPS de production (sinon il tombe avec ce qu'il surveille ; un hébergement séparé minimal ou un service de sonde externe reste à trancher).
-
-| Sonde | Cible | Alerte quand |
-|---|---|---|
-| Santé de l'API | `https://api.surplasse.com/q/health` | Réponse DOWN, erreur ou délai dépassé |
-| Mini-site Commande | La page d'un établissement témoin sur `{slug}.surplasse.com` | La page ne répond plus ou répond en erreur |
-| Dashboard | `https://dashboard.surplasse.com` | La page ne répond plus ou répond en erreur |
-| Certificat TLS | Le wildcard `*.surplasse.com` | Expiration à moins de 14 jours |
-
-Les notifications partent par email et par notification mobile (Uptime Kuma sait pousser vers la plupart des canaux courants ; le canal exact reste à trancher). Il n'y a pas d'astreinte formelle à ce stade : l'objectif est qu'aucune indisponibilité ne dure des heures faute d'avoir été vue.
-
-Les alertes sur seuils de métriques (taux d'échec de paiement, jobs en échec) arriveront avec Prometheus, qui sait les évaluer nativement ; d'ici là, ces compteurs sont consultés manuellement sur `/q/metrics` lors des diagnostics.
-
-L'email d'authentification demande en plus une supervision chez le fournisseur SMTP. Avant le pilote, l'opérateur active les alertes sur les rejets, les rebonds, les plaintes, la dégradation du délai de remise et les incidents du fournisseur. SPF, DKIM et DMARC sont contrôlés après chaque changement DNS. Un test périodique envoie un magic link à une boîte de contrôle et vérifie sa réception. Mailpit ne participe à aucune de ces sondes : il est limité au développement et n'existe ni en CI ni en production.
-
-## SLI et objectifs pragmatiques
-
-Sans engagement contractuel de niveau de service, Surplasse se fixe des objectifs internes, mesurables avec l'outillage décrit plus haut. Ils servent de seuil d'action : un objectif manqué déclenche une investigation, pas une pénalité.
-
-| SLI | Mesure | Objectif |
-|---|---|---|
-| Disponibilité de l'API de commande | Part des requêtes des endpoints de commande et de paiement répondues sans erreur 5xx, sur 30 jours glissants | 99,5 % (environ 3 h 40 d'indisponibilité tolérée par mois) |
-| Latence de la carte | p95 du temps de réponse des endpoints de lecture de la carte, mesuré côté Backend | Inférieure à 300 ms |
-| Fraîcheur du flux SSE | Délai entre le commit d'un changement de statut de commande et son émission sur le canal SSE | Inférieur à 2 secondes ; battement de cœur reçu au moins toutes les 60 secondes par connexion active |
-
-Ces valeurs sont des cibles de départ, calibrées pour un VPS unique et une volumétrie de lancement. Elles seront révisées avec les premières mesures réelles ; un durcissement significatif (haute disponibilité, multi-instances) serait une décision d'architecture, donc un ADR.
-
-## Observabilité technique et métriques produit
-
-Le Dashboard affiche aux restaurateurs des métriques d'activité : chiffre d'affaires, nombre de commandes, panier moyen, produits les plus commandés (voir [le parcours Dashboard](../produit/parcours/dashboard-restaurateur.md)). Ces chiffres ressemblent aux métriques d'observabilité, mais les deux familles ne se confondent jamais :
+Les deux familles ne se confondent jamais :
 
 | | Observabilité technique | Métriques produit du Dashboard |
 |---|---|---|
-| Source | Compteurs Micrometer, en mémoire, remis à zéro au redémarrage | Requêtes SQL sur les données de domaine dans PostgreSQL |
-| Exactitude | Approximative par nature (agrégats, pertes au redéploiement) : suffisante pour détecter une anomalie | Exacte au centime : un restaurateur rapproche ces chiffres de sa comptabilité |
-| Audience | L'exploitant de la plateforme | Le restaurateur, pour son établissement uniquement |
-| Chemin | `/q/metrics`, Prometheus, Grafana | Le contrat, endpoints de métriques du domaine engagement, filtrés par établissement (voir [sécurité](../architecture/securite.md#autorisations)) |
+| Source | Registre Micrometer collecté par Prometheus | Données de domaine dans PostgreSQL |
+| Exactitude | Séries agrégées, remises à zéro au redémarrage et soumises au scrape | Valeurs exactes, rapprochables avec les commandes et paiements |
+| Cardinalité | Globale, labels bornés uniquement | Filtrage obligatoire par établissement |
+| Audience | Opérateur de Surplasse | Restaurateur autorisé |
+| Usage | Détection et diagnostic | Pilotage de l'activité et comptabilité |
 
-La règle qui en découle : le Dashboard ne lit jamais Prometheus, et l'observabilité ne lit jamais les endpoints du contrat. Un chiffre montré à un restaurateur vient de la base, par le contrat, ou n'est pas montré.
+Grafana utilise seulement Prometheus dans cette première version. Une source PostgreSQL directe n'est pas ajoutée. Les futurs volumes exacts par établissement passent par le contrat et des endpoints du domaine concerné, jamais par `/q/metrics`.
 
-## Le pouls : les indicateurs métier des opérateurs et des fondateurs
+## SLI de départ
 
-Troisième famille, distincte des deux précédentes : le **pouls de la plateforme**, destiné à ceux qui l'exploitent et la portent. Voir les commandes défiler et les heures de pointe se dessiner remplit deux fonctions : la détection d'incident la plus fiable qui soit (plus aucune commande en plein service du midi est une alerte, quel que soit l'état des health checks) et la motivation de voir le produit vivre réellement.
+Ces objectifs restent internes et seront recalibrés avec les premières données :
 
-L'orientation de référence tient en un outil, Grafana, avec deux sources :
-
-| Besoin | Source Grafana | Pourquoi |
+| SLI | Mesure | Objectif initial |
 |---|---|---|
-| Graphe des commandes dans le temps, heures de pointe, volumes par établissement | **PostgreSQL en source de données directe** (requêtes sur `order`, lecture seule) | Chiffres exacts, historiques complets dès le premier jour, aucun code à écrire : la table des commandes est déjà la vérité |
-| Fil des dernières commandes (le produit « vit ») | Panneau tableau Grafana sur la même source, rafraîchi | Même exactitude ; un vrai fil temps réel poussé (SSE) reste possible plus tard comme page interne dédiée si le rafraîchissement ne suffit plus |
-| Alerte « zéro commande en heures de service » | **Prometheus** sur le compteur Micrometer de commandes créées | C'est le rôle de Prometheus : évaluer des seuils dans le temps et alerter ; le compteur existe déjà dans les métriques métier prioritaires |
+| Disponibilité de l'API de commande | Part des requêtes sans erreur 5xx sur 30 jours | 99,5 % |
+| Latence de lecture de la carte | p95 futur d'un histogramme ciblé | Inférieure à 300 ms |
+| Fraîcheur SSE | Délai futur du commit à l'émission et battement de coeur | Moins de 2 secondes, battement au moins toutes les 60 secondes |
 
-Autrement dit : Prometheus n'est pas le bon endroit pour des chiffres métier exacts (compteurs approximatifs, remis à zéro au redéploiement), mais il est le bon endroit pour l'alerte d'absence. Grafana réunit les deux mondes sur un même écran : les tableaux métier lisent PostgreSQL, les seuils lisent Prometheus. Un compte Grafana en lecture seule suffit aux fondateurs ; l'accès reste privé (jamais exposé publiquement, voir [la sécurité](../architecture/securite.md)). La pose concrète (conteneurs Grafana et Prometheus sur le VPS) se décide avec `infra/`, dans l'ADR déjà prévu ci-dessous.
+Le tableau de bord actuel ne prétend pas encore mesurer les deux derniers SLI avec leur précision cible. Il fournit la latence HTTP moyenne et la jauge des connexions, utiles pour démarrer sans inventer un percentile ou une fraîcheur non instrumentés.
 
-## Ce qui reste à trancher
+## Évolutions planifiées
 
-| Sujet | Piste | Où sera consignée la décision |
-|---|---|---|
-| Agrégateur de logs | Dozzle (simplicité) ou Loki (recherche et rétention) | ADR le moment venu |
-| Hébergement d'Uptime Kuma | Petit hébergement séparé du VPS de production, ou service de sonde externe | Documentation d'exploitation |
-| Canal de notification mobile | Selon les intégrations d'Uptime Kuma | Documentation d'exploitation |
-| Pose de Prometheus et Grafana | Quand le suivi visuel des métriques devient un besoin réel | ADR |
-| Traces distribuées OpenTelemetry | Extension déjà prévue côté Backend, activée avec la chaîne de collecte | ADR, avec le point précédent |
+| Besoin | Évolution, seulement quand le besoin est confirmé |
+|---|---|
+| Temps fournisseur | Timers ciblés pour Stripe, les webhooks et le SMTP |
+| Carte et IA | Histogrammes de lecture de carte, jobs d'extraction, latence et échecs OpenAI après livraison du domaine `generation` |
+| Percentiles | Histogrammes bornés et p95 sur les parcours critiques |
+| Machine | Exporteur hôte pour CPU, mémoire, disque, inode et pression I/O |
+| Notifications | Alertmanager ou service d'alerte externe, avec canal réellement testé |
+| Journaux | Loki si la recherche historique justifie son coût |
+| Traces | OpenTelemetry et Tempo si un diagnostic distribué devient nécessaire |
+| Analyse par établissement | Endpoints produit exacts sur PostgreSQL, autorisés par établissement |
+
+Uptime Kuma, Alertmanager, Loki, Tempo et un exporteur hôte ne sont pas installés aujourd'hui. Toute page ou checklist doit conserver cette distinction.
 
 ## Pour aller plus loin
 
 | Page | Contenu |
 |---|---|
-| [Environnements](environnements.md) | Le VPS, Docker Compose, le workflow de déploiement qui consomme la readiness |
-| [RGPD et confidentialité](rgpd.md) | Le fondement de la règle de non-journalisation et les durées de conservation |
-| [Le backend](../architecture/backend.md) | Les extensions health, micrometer et opentelemetry, le SSE et le worker de jobs |
-| [Sécurité](../architecture/securite.md) | La posture générale et le filtrage par établissement des métriques produit |
+| [ADR-0029](../decisions/adr-0029-observabilite-prometheus-grafana.md) | Raisons et conséquences de la chaîne facultative |
+| [Déploiement Compose](deploiement-compose.md#observabilite-facultative) | Exploitation sous Ubuntu LTS et cycle de vie des volumes |
+| [Environnements](environnements.md#observabilite) | Variables, accès local et tunnel de production |
+| [Backend](../architecture/backend.md#les-extensions-quarkus) | Extension Micrometer et place de l'observateur applicatif |
+| [Sécurité](../architecture/securite.md) | Fermeture publique de `/q/metrics` et accès privé à Grafana |
+| [RGPD](rgpd.md) | Données autorisées, rétention et interdits |

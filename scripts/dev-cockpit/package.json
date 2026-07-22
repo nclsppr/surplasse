@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Development-only local process cockpit for Surplasse.",
+  "description": "Development-only Docker Compose cockpit for Surplasse.",
   "scripts": {
     "start": "node main.mjs",
     "test": "node --test test/*.test.mjs"

@@ -9,7 +9,7 @@ description: "Pourquoi le développement reproduit les domaines de production av
 
 ## Statut
 
-Accepté, 2026-07-19.
+Remplacé par [ADR-0028](adr-0028-cockpit-compose-et-rapports-allure.md), 2026-07-22.
 
 ## Contexte
 
