@@ -102,6 +102,19 @@ test("Dashboard demo keeps multi-word order actions readable", async () => {
   );
 });
 
+test("Dashboard application keeps multi-word order actions readable", async () => {
+  const styles = await readFile(`${repoRoot}/frontends/dashboard/src/index.css`, "utf8");
+  const buttonRule = styles.match(/\.button\s*\{[^}]*\}/)?.[0] ?? "";
+
+  assert.match(buttonRule, /padding:\s*var\(--sp-2\) var\(--sp-4\)/);
+  assert.match(buttonRule, /line-height:\s*1\.25/);
+  assert.match(buttonRule, /white-space:\s*normal/);
+  assert.match(
+    styles,
+    /\.order-card:not\(\.order-card-paid\) \.order-card-actions-with-refund\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/,
+  );
+});
+
 test("Onboarding static server serves only the explicit public asset allowlist", async (t) => {
   assert.equal(ONBOARDING_HOST, "127.0.0.1");
   assert.equal(ONBOARDING_PORT, 4173);

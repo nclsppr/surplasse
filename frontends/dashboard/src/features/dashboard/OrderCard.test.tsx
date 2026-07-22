@@ -1,14 +1,10 @@
 // @vitest-environment jsdom
 
-import { readFileSync } from "node:fs";
-
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { DashboardOrder } from "@surplasse/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OrderCard } from "./OrderCard";
-
-const dashboardStyles = readFileSync("src/index.css", "utf8");
 
 const refundMutate = vi.hoisted(() => vi.fn());
 const refundReset = vi.hoisted(() => vi.fn());
@@ -52,19 +48,6 @@ const paidOrder: DashboardOrder = {
   currency: "EUR",
   createdAt: "2026-07-20T12:00:00Z",
 };
-
-describe("OrderCard action labels", () => {
-  it("allows translated actions to wrap inside dense status columns", () => {
-    const buttonRule = dashboardStyles.match(/\.button\s*\{[^}]*\}/)?.[0] ?? "";
-
-    expect(buttonRule).toMatch(/padding:\s*var\(--sp-2\) var\(--sp-4\)/);
-    expect(buttonRule).toMatch(/line-height:\s*1\.25/);
-    expect(buttonRule).toMatch(/white-space:\s*normal/);
-    expect(dashboardStyles).toMatch(
-      /\.order-card:not\(\.order-card-paid\) \.order-card-actions-with-refund\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/,
-    );
-  });
-});
 
 describe("OrderCard refund", () => {
   beforeEach(() => {
