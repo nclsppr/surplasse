@@ -68,16 +68,18 @@ button:disabled {
   align-items: center;
   justify-content: center;
   gap: var(--sp-2);
-  padding: 0 var(--sp-4);
+  padding: var(--sp-2) var(--sp-4);
   border: 1.5px solid transparent;
   border-radius: var(--radius-sm);
   font-family: var(--font-ui);
   font-size: var(--text-sm);
   font-weight: 700;
   letter-spacing: var(--tracking-caps);
-  line-height: 1;
+  line-height: 1.25;
+  text-align: center;
   text-decoration: none;
   text-transform: uppercase;
+  white-space: normal;
   transition:
     background 150ms ease-out,
     border-color 150ms ease-out,
@@ -920,8 +922,13 @@ button:disabled {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
+.order-card:not(.order-card-paid) .order-card-actions-with-refund {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .order-card-action {
   width: 100%;
+  min-width: 0;
   min-height: 2.75rem;
   font-size: var(--text-xs);
 }

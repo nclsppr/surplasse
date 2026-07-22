@@ -89,6 +89,19 @@ test("Onboarding photo upload stays in a single block formatting context", async
   assert.match(html, /\.drop\{[^}]*display:(?:block|flex|grid)/);
 });
 
+test("Dashboard demo keeps multi-word order actions readable", async () => {
+  const html = await readFile(`${repoRoot}/frontends/onboarding/creer.html`, "utf8");
+  const actionRule = html.match(/\.dashboard-order-action\{[^}]*\}/)?.[0] ?? "";
+
+  assert.match(actionRule, /height:auto/);
+  assert.match(actionRule, /line-height:1\.25/);
+  assert.match(actionRule, /white-space:normal/);
+  assert.match(
+    html,
+    /\.dashboard-order:not\(\[data-status="paid"\]\) \.dashboard-order-actions\{[^}]*grid-template-columns:minmax\(0,1fr\)/,
+  );
+});
+
 test("Onboarding static server serves only the explicit public asset allowlist", async (t) => {
   assert.equal(ONBOARDING_HOST, "127.0.0.1");
   assert.equal(ONBOARDING_PORT, 4173);
