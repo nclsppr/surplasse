@@ -66,7 +66,7 @@ export function createPagesDomainLinks(onboardingDemoUrl: string): DomainLinks {
   const docs = new URL("docs/", publicationRoot);
   return Object.freeze({
     originalCreate: new URL("creer.html", publicationRoot).toString(),
-    dashboardLogin: new URL("../dashboard/auth/login/", onboardingDemo).toString(),
+    dashboardLogin: new URL("../dashboard/", onboardingDemo).toString(),
     docs: docs.toString(),
     productVision: new URL("produit/vision/", docs).toString(),
     roadmap: new URL("roadmap/", docs).toString(),

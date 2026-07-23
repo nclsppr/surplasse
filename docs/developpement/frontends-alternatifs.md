@@ -186,9 +186,9 @@ npm run build --prefix frontends/dashboard2 -- --mode development
 | Commande | 320 906 octets | 100 450 octets | 14 597 octets | 3 930 octets | 0 | 0 |
 | Commande2 | 391 450 octets | 122 785 octets | 29 576 octets | 7 270 octets | 0 | 122 264 octets |
 | Dashboard | 322 253 octets | 99 205 octets | 33 195 octets | 6 836 octets | 0 | 205 352 octets |
-| Dashboard2 | 394 121 octets | 120 667 octets | 32 977 octets | 7 468 octets | 246 060 octets | 122 264 octets |
+| Dashboard2 | 398 099 octets | 121 832 octets | 33 728 octets | 7 584 octets | 246 060 octets | 122 264 octets |
 
-Commande2 ajoute 22 335 octets de JavaScript gzip et 3 340 octets de CSS gzip par rapport à Commande. Aucun raster généré n'entre dans son bundle. Dashboard2 ajoute 21 462 octets de JavaScript gzip, 632 octets de CSS gzip et 246 060 octets de WebP, tout en retirant 83 088 octets de fontes brutes par rapport au Dashboard canonique.
+Commande2 ajoute 22 335 octets de JavaScript gzip et 3 340 octets de CSS gzip par rapport à Commande. Aucun raster généré n'entre dans son bundle. Dashboard2 ajoute 22 627 octets de JavaScript gzip, 748 octets de CSS gzip et 246 060 octets de WebP, tout en retirant 83 088 octets de fontes brutes par rapport au Dashboard canonique.
 
 Ces écarts sont une dette expérimentale mesurée, pas un nouveau budget accepté. Une promotion doit réduire ou justifier chaque écart avec des métriques de chargement et d'interaction. L'Onboarding canonique reste un ensemble statique sans pipeline Vite comparable, il n'entre donc pas dans ce tableau.
 
@@ -196,9 +196,9 @@ Ces écarts sont une dette expérimentale mesurée, pas un nouveau budget accept
 
 Chaque push sur `main` publie un [sélecteur UI2 public](https://nclsppr.github.io/surplasse/_experiments/untitled/) et trois builds séparés, marqués `noindex`. Cette publication constitue une preuve visuelle du SHA, pas une route produit ni une destination du VPS.
 
-Onboarding2 expose sa vitrine et son écran de passage vers le tunnel original. Dashboard2 expose son écran de connexion. Commande2 utilise un mode de build Pages explicite, avec un établissement et une carte synthétiques signalés dans l'interface. Son panier reste local et la validation est neutralisée en l'absence de session de table. Ce mode ne remplace jamais le client généré dans les builds Compose ou Vite ordinaires et ne fournit aucun repli de domaine.
+Onboarding2 expose sa vitrine et son écran de passage vers le tunnel original. Dashboard2 ouvre directement un tableau de service alimenté par une session, un établissement et des commandes synthétiques. Ses changements de statut, sa pause et ses remboursements modifient uniquement un état en mémoire, réinitialisé au rechargement. Commande2 utilise un mode de build Pages explicite, avec un établissement et une carte synthétiques signalés dans l'interface. Son panier reste local et la validation est neutralisée en l'absence de session de table. Ces modes ne remplacent jamais le client généré dans les builds Compose ou Vite ordinaires et ne fournissent aucun repli de domaine.
 
-Les parcours alimentés par le Backend, les cookies, Stripe et le temps réel se valident exclusivement avec le profil Compose development sur les hôtes `.test`. La démo Pages ne transmet ni commande, ni paiement, ni adresse email.
+Les parcours alimentés par le Backend, les cookies, Stripe et le temps réel se valident exclusivement avec le profil Compose development sur les hôtes `.test`. La démo Pages ne transmet ni commande, ni paiement, ni adresse email. Le statut « Simulation locale » de Dashboard2 ne prétend pas établir un flux SSE.
 
 ## Assets générés
 

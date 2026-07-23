@@ -45,7 +45,7 @@ describe("createDomainLinks", () => {
     ).toEqual({
       originalCreate: "https://nclsppr.github.io/surplasse/creer.html",
       dashboardLogin:
-        "https://nclsppr.github.io/surplasse/_experiments/untitled/dashboard/auth/login/",
+        "https://nclsppr.github.io/surplasse/_experiments/untitled/dashboard/",
       docs: "https://nclsppr.github.io/surplasse/docs/",
       productVision: "https://nclsppr.github.io/surplasse/docs/produit/vision/",
       roadmap: "https://nclsppr.github.io/surplasse/docs/roadmap/",

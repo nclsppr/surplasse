@@ -381,7 +381,7 @@ curl --fail https://dashboard.surplasse.test/_experiments/untitled/auth/login
 
 `npm run local:experiment:stop` arrête seulement Onboarding2, Commande2 et Dashboard2. Les variantes ne possèdent ni volume ni donnée serveur propre. Leur arrêt ne demande donc ni sauvegarde, ni migration, ni retour arrière. Le cluster canonique continue de fonctionner.
 
-GitHub Pages publie aussi un [sélecteur de démos UI2](https://nclsppr.github.io/surplasse/_experiments/untitled/), puis un build distinct pour Onboarding2, Commande2 et Dashboard2. Ces fichiers portent `noindex` et servent uniquement à la revue visuelle publique du SHA construit. Ils utilisent le profil de configuration development, ne fournissent ni Backend, ni session, ni paiement et ne créent aucune route de production. La validation des parcours alimentés par les données reste celle du profil Compose local décrit ci-dessus.
+GitHub Pages publie aussi un [sélecteur de démos UI2](https://nclsppr.github.io/surplasse/_experiments/untitled/), puis un build distinct pour Onboarding2, Commande2 et Dashboard2. Ces fichiers portent `noindex` et servent uniquement à la revue visuelle publique du SHA construit. Ils utilisent le profil de configuration development, ne fournissent ni Backend, ni session réelle, ni paiement et ne créent aucune route de production. Dashboard2 y emploie une session et des commandes synthétiques en mémoire pour rendre le tableau de service visible. La validation des parcours alimentés par les données reste celle du profil Compose local décrit ci-dessus.
 
 Pour observer le cluster, démarrer ensuite les deux services facultatifs :
 

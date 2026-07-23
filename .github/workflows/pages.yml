@@ -281,23 +281,14 @@ jobs:
           mkdir -p \
             "${experiment_root}/onboarding/creer" \
             "${experiment_root}/commande/panier" \
-            "${experiment_root}/dashboard/auth/login"
+            "${experiment_root}/dashboard/auth/login" \
+            "${experiment_root}/dashboard/service"
           cp "${experiment_root}/onboarding/index.html" "${experiment_root}/onboarding/creer/index.html"
           cp "${experiment_root}/commande/index.html" "${experiment_root}/commande/panier/index.html"
           cp "${experiment_root}/dashboard/index.html" "${experiment_root}/dashboard/auth/login/index.html"
+          cp "${experiment_root}/dashboard/index.html" "${experiment_root}/dashboard/service/index.html"
           node --input-type=module <<'NODE'
           import { writeFileSync } from "node:fs";
-
-          writeFileSync("site/_experiments/untitled/dashboard/index.html", `<!doctype html>
-          <html lang="fr">
-            <head>
-              <meta charset="UTF-8">
-              <meta name="robots" content="noindex,nofollow">
-              <meta http-equiv="refresh" content="0; url=./auth/login/">
-              <title>Dashboard2 | Démonstration statique</title>
-            </head>
-            <body><p><a href="./auth/login/">Ouvrir Dashboard2</a></p></body>
-          </html>`);
 
           const destination = "site/_experiments/untitled/index.html";
           writeFileSync(destination, `<!doctype html>
@@ -333,7 +324,7 @@ jobs:
                 <section class="grid" aria-label="Démonstrations disponibles">
                   <article><h2>Onboarding2</h2><p>La vitrine, le récit du service et le point de départ de l'embarquement.</p><a href="./onboarding/">Ouvrir Onboarding2</a></article>
                   <article><h2>Commande2</h2><p>La carte et le panier dans le nouveau système visuel.</p><a href="./commande/">Ouvrir Commande2</a></article>
-                  <article><h2>Dashboard2</h2><p>L'écran de connexion statique de l'équipe restaurant. Les vues métier se vérifient avec Compose.</p><a href="./dashboard/auth/login/">Ouvrir Dashboard2</a></article>
+                  <article><h2>Dashboard2</h2><p>Le tableau de service avec commandes synthétiques et actions locales, sans connexion au Backend.</p><a href="./dashboard/">Ouvrir Dashboard2</a></article>
                 </section>
                 <footer><span>Preuve visuelle GitHub Pages, profil development, sans Backend public.</span><a href="../../docs/decisions/adr-0033-frontends-alternatifs-untitled-ui/">Lire ADR-0033</a></footer>
               </main>

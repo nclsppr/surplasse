@@ -12,7 +12,7 @@ import {
 import {
   servicePass960Url,
 } from "@surplasse/design-system2/assets/service-pass-960";
-import { ClipboardList, LogOut, RefreshCw } from "lucide-react";
+import { ClipboardList, LogOut, RefreshCw, RotateCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { dashboardClients, sessionCoordinator } from "../../app/runtime";
@@ -26,6 +26,7 @@ import { useOperationalOrders } from "./useOperationalOrders";
 
 interface ServicePageProps {
   session: RestaurateurSession;
+  pagesDemo?: boolean;
 }
 
 const timeFormatter = new Intl.DateTimeFormat("fr-FR", {
@@ -33,7 +34,7 @@ const timeFormatter = new Intl.DateTimeFormat("fr-FR", {
   minute: "2-digit",
 });
 
-export function ServicePage({ session }: ServicePageProps) {
+export function ServicePage({ session, pagesDemo = false }: ServicePageProps) {
   const navigate = useNavigate();
   const establishment = useEstablishmentSelection(session.establishments);
   const logout = useMutation({
@@ -77,19 +78,29 @@ export function ServicePage({ session }: ServicePageProps) {
               <span>{session.email}</span>
             </div>
             <Button
-              aria-label={fr.service.logout}
+              aria-label={pagesDemo ? fr.service.pagesDemoReset : fr.service.logout}
               color="tertiary"
-              iconLeading={<LogOut aria-hidden="true" />}
-              isDisabled={logout.isPending}
-              onPress={() => logout.mutate()}
+              iconLeading={
+                pagesDemo ? <RotateCcw aria-hidden="true" /> : <LogOut aria-hidden="true" />
+              }
+              isDisabled={!pagesDemo && logout.isPending}
+              onPress={() => {
+                if (pagesDemo) {
+                  globalThis.location.reload();
+                  return;
+                }
+                logout.mutate();
+              }}
               size="sm"
             >
-              <span className="logout-label">{fr.service.logout}</span>
+              <span className="logout-label">
+                {pagesDemo ? fr.service.pagesDemoReset : fr.service.logout}
+              </span>
             </Button>
           </div>
         </header>
 
-        {logout.isError ? (
+        {!pagesDemo && logout.isError ? (
           <div className="header-error" role="alert">
             {fr.service.logoutError}
           </div>
@@ -107,6 +118,7 @@ export function ServicePage({ session }: ServicePageProps) {
 
         {session.establishments.length > 0 && establishment.selectedId ? (
           <OperationalService
+            pagesDemo={pagesDemo}
             session={session}
             selectedId={establishment.selectedId}
             onSelect={establishment.select}
@@ -123,14 +135,20 @@ export function ServicePage({ session }: ServicePageProps) {
 }
 
 interface OperationalServiceProps {
+  pagesDemo: boolean;
   session: RestaurateurSession;
   selectedId: string;
   onSelect(establishmentId: string): void;
 }
 
-function OperationalService({ session, selectedId, onSelect }: OperationalServiceProps) {
+function OperationalService({
+  pagesDemo,
+  session,
+  selectedId,
+  onSelect,
+}: OperationalServiceProps) {
   const orders = useOperationalOrders(selectedId);
-  const liveStatus = useEstablishmentOrderEvents(selectedId);
+  const liveStatus = useEstablishmentOrderEvents(selectedId, pagesDemo);
   const allOrders = orders.data?.pages.flatMap((page) => page.items) ?? [];
   const updatedAt = orders.dataUpdatedAt
     ? timeFormatter.format(new Date(orders.dataUpdatedAt))
@@ -152,6 +170,16 @@ function OperationalService({ session, selectedId, onSelect }: OperationalServic
 
   return (
     <main className="service-main">
+      {pagesDemo ? (
+        <section className="dashboard-demo-notice" aria-labelledby="dashboard-demo-title">
+          <Badge tone="info">{fr.service.pagesDemoBadge}</Badge>
+          <div>
+            <h2 id="dashboard-demo-title">{fr.service.pagesDemoTitle}</h2>
+            <p>{fr.service.pagesDemoDescription}</p>
+          </div>
+        </section>
+      ) : null}
+
       <section className="service-toolbar">
         <div className="service-title">
           <div className="title-line">
@@ -179,7 +207,9 @@ function OperationalService({ session, selectedId, onSelect }: OperationalServic
               <strong>{session.establishments[0]?.name}</strong>
             </div>
           )}
-          <Status state={statusState}>{fr.service.live[liveStatus]}</Status>
+          <Status state={statusState}>
+            {pagesDemo ? fr.service.pagesDemoLive : fr.service.live[liveStatus]}
+          </Status>
           <div className="refresh-control">
             <Button
               color="secondary"

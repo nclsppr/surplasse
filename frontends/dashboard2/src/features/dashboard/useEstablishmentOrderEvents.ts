@@ -14,11 +14,18 @@ import {
 
 export function useEstablishmentOrderEvents(
   establishmentId: string,
+  pagesDemo = false,
 ): LiveConnectionStatus {
   const queryClient = useQueryClient();
-  const [status, setStatus] = useState<LiveConnectionStatus>("connecting");
+  const [status, setStatus] = useState<LiveConnectionStatus>(
+    pagesDemo ? "connected" : "connecting",
+  );
 
   useEffect(() => {
+    if (pagesDemo) {
+      setStatus("connected");
+      return;
+    }
     setStatus("connecting");
     return openEstablishmentOrderEvents({
       baseUrl: apiBaseUrl,
@@ -33,7 +40,7 @@ export function useEstablishmentOrderEvents(
           .runProtected(() => dashboardClients.identity.getCurrentSession())
           .then(() => undefined),
     });
-  }, [establishmentId, queryClient]);
+  }, [establishmentId, pagesDemo, queryClient]);
 
   return status;
 }

@@ -37,6 +37,12 @@ export const fr = {
     navigationLabel: "Navigation du service",
     navigationService: "Service",
     experiment: "Interface 2 · Untitled",
+    pagesDemoBadge: "Démonstration interactive",
+    pagesDemoTitle: "Le service, avec des données synthétiques",
+    pagesDemoDescription:
+      "Les commandes sont fictives. Les actions modifient uniquement cet écran et sont réinitialisées au rechargement. Aucun appel au Backend n’est effectué.",
+    pagesDemoLive: "Simulation locale",
+    pagesDemoReset: "Réinitialiser la démo",
     photoCaption: "Le passe reste lisible avant, pendant et après le coup de feu.",
     eyebrow: "Service en cours",
     title: "Commandes opérationnelles",

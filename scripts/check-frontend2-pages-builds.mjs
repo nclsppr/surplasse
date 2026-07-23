@@ -20,7 +20,7 @@ const builds = [
   {
     name: "Dashboard2",
     directory: "frontends/dashboard2/dist",
-    marker: "Ce build GitHub Pages ne transmet aucune adresse email.",
+    marker: "Les commandes sont fictives. Les actions modifient uniquement cet écran",
   },
 ];
 
