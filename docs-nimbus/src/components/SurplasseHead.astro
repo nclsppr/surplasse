@@ -1,0 +1,139 @@
+---
+import { config } from "virtual:nimbus/config";
+import { getCollectionLlmsUrl } from "@cloudflare/nimbus-docs";
+import type { HeadElement } from "@cloudflare/nimbus-docs/types";
+import {
+  absoluteSiteUrl,
+  withBase,
+  withoutBase,
+} from "@/lib/urls";
+import appIconUrl from "../../../brand/surplasse-app-icon.svg";
+
+interface Props {
+  title: string;
+  description?: string;
+  noindex?: boolean;
+  markdownUrl?: string;
+  socialImage?: string;
+  lastUpdated?: Date;
+  head?: HeadElement[];
+  collection?: string;
+}
+
+const {
+  title,
+  description,
+  noindex,
+  markdownUrl,
+  socialImage,
+  lastUpdated,
+  head: pageHead = [],
+  collection,
+} = Astro.props;
+
+const fullTitle = title !== config.title ? `${title} | ${config.title}` : title;
+const resolvedDescription = description ?? config.description;
+const canonical = Astro.site
+  ? new URL(Astro.url.pathname, Astro.site).href
+  : null;
+const socialImagePath = socialImage ?? config.socialImage ?? "/og.png";
+const openGraphImage = Astro.site
+  ? absoluteSiteUrl(socialImagePath, Astro.site)
+  : withBase(socialImagePath);
+const llmsPath = collection
+  ? await getCollectionLlmsUrl(collection)
+  : "/llms.txt";
+const llmsUrl = Astro.site
+  ? absoluteSiteUrl(llmsPath, Astro.site)
+  : withBase(llmsPath);
+const isHomePage = withoutBase(Astro.url.pathname) === "/";
+const mergedHead = [...(config.head ?? []), ...pageHead];
+const structuredData = canonical
+  ? JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": isHomePage ? "WebSite" : "WebPage",
+      name: fullTitle,
+      ...(resolvedDescription ? { description: resolvedDescription } : {}),
+      url: canonical,
+      inLanguage: config.locale ?? "fr",
+      image: openGraphImage,
+      ...(isHomePage
+        ? {}
+        : {
+            isPartOf: {
+              "@type": "WebSite",
+              name: config.title,
+              url: Astro.site
+                ? absoluteSiteUrl("/", Astro.site)
+                : withBase("/"),
+            },
+            ...(lastUpdated ? { dateModified: lastUpdated.toISOString() } : {}),
+          }),
+    })
+  : null;
+---
+
+<title>{fullTitle}</title>
+<meta name="generator" content={Astro.generator} />
+{resolvedDescription && (
+  <meta name="description" content={resolvedDescription} />
+)}
+{noindex && <meta name="robots" content="noindex,nofollow" />}
+
+<link rel="icon" type="image/svg+xml" href={appIconUrl.src} />
+<link rel="stylesheet" href={withBase("/_nimbus/shiki.css")} />
+{canonical && <link rel="canonical" href={canonical} />}
+{Astro.site && (
+  <link
+    rel="sitemap"
+    href={absoluteSiteUrl("/sitemap-index.xml", Astro.site)}
+  />
+)}
+{markdownUrl && (
+  <link rel="alternate" type="text/markdown" href={markdownUrl} />
+)}
+<link
+  rel="alternate"
+  type="text/plain"
+  href={llmsUrl}
+  title="Index LLM"
+/>
+
+<meta property="og:title" content={fullTitle} />
+<meta property="og:type" content={isHomePage ? "website" : "article"} />
+<meta property="og:site_name" content={config.title} />
+<meta property="og:locale" content={config.locale ?? "fr"} />
+{resolvedDescription && (
+  <meta property="og:description" content={resolvedDescription} />
+)}
+{canonical && <meta property="og:url" content={canonical} />}
+<meta property="og:image" content={openGraphImage} />
+{config.socialImageAlt && (
+  <meta property="og:image:alt" content={config.socialImageAlt} />
+)}
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+{!isHomePage && lastUpdated && (
+  <meta
+    property="article:modified_time"
+    content={lastUpdated.toISOString()}
+  />
+)}
+
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={fullTitle} />
+{resolvedDescription && (
+  <meta name="twitter:description" content={resolvedDescription} />
+)}
+<meta name="twitter:image" content={openGraphImage} />
+{config.socialImageAlt && (
+  <meta name="twitter:image:alt" content={config.socialImageAlt} />
+)}
+
+{structuredData && (
+  <script is:inline type="application/ld+json" set:html={structuredData} />
+)}
+
+{mergedHead.map(({ tag: Tag, attrs = {}, content }) =>
+  content ? <Tag {...attrs} set:html={content} /> : <Tag {...attrs} />
+)}

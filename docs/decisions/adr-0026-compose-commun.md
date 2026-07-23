@@ -1,5 +1,6 @@
 ---
 label: "ADR-0026 : Compose commun"
+order: 260
 icon: law
 description: Un socle Docker Compose commun au poste local et au VPS, configuré par profils et surcharges explicites.
 ---

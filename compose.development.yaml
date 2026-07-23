@@ -123,13 +123,19 @@ services:
       args:
         NODE_IMAGE: ${NODE_IMAGE:?NODE_IMAGE is required}
         NGINX_IMAGE: ${NGINX_IMAGE:?NGINX_IMAGE is required}
+        NIMBUS_SITE_ORIGIN: ${DOCS_URL:?DOCS_URL is required}
+        NIMBUS_BASE_PATH: /_experiments/nimbus-docs
     read_only: true
     tmpfs:
       - /tmp
     security_opt:
       - no-new-privileges:true
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/surplasse/docs/"]
+      test:
+        [
+          "CMD-SHELL",
+          "wget --quiet --spider http://127.0.0.1:8080/surplasse/docs/ && wget --quiet --spider http://127.0.0.1:8080/_experiments/nimbus-docs/",
+        ]
       interval: 10s
       timeout: 5s
       retries: 6

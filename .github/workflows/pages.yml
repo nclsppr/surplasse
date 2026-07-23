@@ -219,12 +219,15 @@ jobs:
           cache: npm
           cache-dependency-path: |
             package-lock.json
+            docs-nimbus/package-lock.json
             frontends/shared/package-lock.json
             frontends/design-system2/package-lock.json
             frontends/onboarding2/package-lock.json
             frontends/commande2/package-lock.json
             frontends/dashboard2/package-lock.json
       - run: npm ci
+      - name: Install Nimbus dependencies
+        run: npm ci --prefix docs-nimbus
       - name: Install experimental frontend dependencies
         run: npm run frontend2:install
       - run: npm run domains:check
@@ -234,10 +237,15 @@ jobs:
       # plateforme retypeapp-*), donc la commande nue `retype` échouerait.
       - name: Build documentation
         run: |
+          set -euo pipefail
           if ! npm run docs:build; then
             echo "::warning::Retype a échoué une première fois, nouvelle tentative."
             npm run docs:build
           fi
+          repository_name="${GITHUB_REPOSITORY#*/}"
+          export NIMBUS_SITE_ORIGIN="https://${GITHUB_REPOSITORY_OWNER}.github.io"
+          export NIMBUS_BASE_PATH="/${repository_name}/_experiments/nimbus-docs"
+          npm --prefix docs-nimbus run check
       - name: Build the static experimental demos
         run: |
           set -euo pipefail
@@ -270,6 +278,10 @@ jobs:
           rm -f site/brand/qr/qr-demo-development.png
           # Documentation Retype sous /docs
           cp -R docs-site/. site/docs/
+          # Aperçu Nimbus généré depuis les mêmes Markdown
+          nimbus_root="site/_experiments/nimbus-docs"
+          mkdir -p "${nimbus_root}"
+          cp -R docs-nimbus/dist/. "${nimbus_root}/"
           # Preuves visuelles UI2, isolées des routes produit et sans Backend Pages
           experiment_root="site/_experiments/untitled"
           mkdir -p \

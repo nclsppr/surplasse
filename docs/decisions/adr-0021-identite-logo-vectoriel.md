@@ -1,5 +1,6 @@
 ---
 label: "ADR-0021 : identité et logo vectoriel"
+order: 210
 icon: law
 description: Le symbole table et repère, le mot-symbole Bodoni Moda et leurs variantes deviennent la signature visuelle de Surplasse.
 ---

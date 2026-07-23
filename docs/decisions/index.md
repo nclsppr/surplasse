@@ -85,7 +85,7 @@ Ne jamais « corriger » un ADR pour l'aligner sur une page plus récente. Soit 
 
 ## Registre des ADR
 
-Trente-trois ADR sont consignés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'au déploiement commun par Docker Compose, à son cockpit local, à sa surveillance fonctionnelle, à son observabilité technique, au socle professionnel du Dashboard et à l'expérience de frontends alternatifs.
+Trente-quatre ADR sont consignés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'au déploiement commun par Docker Compose, à son cockpit local, à sa surveillance fonctionnelle, à son observabilité technique, au socle professionnel du Dashboard et aux expériences de frontends et de documentation alternatifs.
 
 | Numéro | Titre | Statut | Lien |
 |---|---|---|---|
@@ -122,5 +122,6 @@ Trente-trois ADR sont consignés à ce jour. Ils couvrent les choix structurants
 | 0031 | Équipes, rôles et vues métier | Accepté | [ADR-0031](adr-0031-equipes-roles-vues-metier.md) |
 | 0032 | Canal prépayé sans fonction de caisse | Accepté | [ADR-0032](adr-0032-canal-prepaye-sans-caisse.md) |
 | 0033 | Frontends alternatifs fondés sur Untitled UI | Accepté | [ADR-0033](adr-0033-frontends-alternatifs-untitled-ui.md) |
+| 0034 | Double rendu Retype et Nimbus à source unique | Accepté | [ADR-0034](adr-0034-double-rendu-retype-nimbus.md) |
 
 Les décisions encore ouvertes (par exemple le choix de la solution d'impression thermique ESC/POS mentionné dans la stack de référence) donneront lieu à de futurs ADR au fil de la [roadmap](../roadmap.md).

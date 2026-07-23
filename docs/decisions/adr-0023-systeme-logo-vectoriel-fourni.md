@@ -1,5 +1,6 @@
 ---
 label: "ADR-0023 : système de logo vectoriel fourni"
+order: 230
 icon: law
 description: Les quatre SVG fournis deviennent les sources canoniques du logo Surplasse et du symbole central des QR codes.
 ---

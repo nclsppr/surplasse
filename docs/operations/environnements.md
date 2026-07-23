@@ -26,7 +26,7 @@ Le cluster Compose local est implémenté et validé sous `surplasse.test`. La s
 | Stripe | Mode test exclusivement | Mode live exclusivement |
 | Email | Mailpit | Fournisseur SMTP transactionnel |
 | Certificat | mkcert monté en lecture seule | Let's Encrypt wildcard par DNS-01 |
-| Services annexes | Mailpit, documentation, cockpit et rapport Allure development sur l'hôte ; Prometheus et Grafana facultatifs | Prometheus et Grafana facultatifs ; Grafana sur loopback seulement |
+| Services annexes | Mailpit, rendus Retype et Nimbus, cockpit et rapport Allure development sur l'hôte ; Prometheus et Grafana facultatifs | Prometheus et Grafana facultatifs ; Grafana sur loopback seulement |
 | Images applicatives | Tags locaux `development` | Tags immuables par SHA git |
 
 Aucune clé live, donnée réelle ou sauvegarde de production ne doit se trouver sur un poste local. Le serveur Onboarding peut créer une courte session Stripe Connect seulement en `development`. Le wrapper exige que cette capacité soit désactivée en `production`.
@@ -40,7 +40,7 @@ Aucune clé live, donnée réelle ou sauvegarde de production ne doit se trouver
 | `{slug}.surplasse.com` | `{slug}.surplasse.test` | Commande |
 | `dashboard.surplasse.com` | `dashboard.surplasse.test` | Dashboard |
 | `api.surplasse.com` | `api.surplasse.test` | Backend |
-| `docs.surplasse.com` sur GitHub Pages | `docs.surplasse.test` dans Compose | Documentation |
+| `docs.surplasse.com` sur GitHub Pages | `docs.surplasse.test` dans Compose | Retype canonique et aperçu Nimbus sous `/_experiments/nimbus-docs/` |
 | absent | `local.surplasse.test` | Cockpit de développement |
 | SMTP externe | `mail.surplasse.test` | Mailpit |
 | absent | `reports.surplasse.test` | Dernier rapport Allure development servi par le cockpit |

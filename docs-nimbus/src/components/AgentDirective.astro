@@ -1,0 +1,16 @@
+---
+interface Props {
+  /** Absolute or site-relative URL for this page's markdown version. */
+  markdownUrl: string;
+  /** Absolute or site-relative URL for the top-level llms.txt index. */
+  llmsUrl: string;
+}
+
+const { markdownUrl, llmsUrl } = Astro.props;
+---
+
+<aside class="sr-only" data-ai-agent-directive>
+  Cette page est disponible au format Markdown, recommandé pour les agents.
+  Consultez <a href={markdownUrl}>{markdownUrl}</a> pour cette page ou
+  <a href={llmsUrl}>{llmsUrl}</a> pour l'index complet.
+</aside>

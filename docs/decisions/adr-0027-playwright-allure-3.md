@@ -1,5 +1,6 @@
 ---
 label: "ADR-0027 : Playwright et Allure 3"
+order: 270
 icon: law
 description: Des tests E2E Playwright rejouables sur chaque cible, avec un rapport Allure 3 et un historique JSONL isolé par environnement.
 ---

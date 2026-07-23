@@ -1,5 +1,6 @@
 ---
 label: "ADR-0024 : deux registres visuels complémentaires"
+order: 240
 icon: law
 description: Le design system distingue le registre de service Surplasse du registre éditorial propre aux établissements.
 ---

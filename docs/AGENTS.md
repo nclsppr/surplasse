@@ -64,7 +64,7 @@ Les domaines sont des données de configuration. `config/domains/production.env`
 | Auth restaurateur | Magic link par email, session JWT en cookie HttpOnly | MVP | Le client final n'a jamais de compte |
 | IA | API OpenAI (derrière interface) | modèles courants | Extraction de carte et données publiques (vision) ; génération de visuels de plats à l'embarquement et depuis le Dashboard |
 | Impression | Imprimante thermique ESC/POS | à trancher (ADR) | Tickets cuisine optionnels |
-| Docs | Retype | 4.6+ | Ce site ; déployé sur GitHub Pages |
+| Docs | Retype et Nimbus | Retype 4.6+, Nimbus 0.7.1 | Retype canonique ; aperçu Nimbus dérivé et non indexé sur GitHub Pages |
 | Reverse proxy | Caddy | 2.11.4 | Routage commun ; mkcert en local, TLS wildcard DNS-01 en production |
 | Tests E2E | Playwright et Allure Report | 1.61 et 3 | Chromium, historique JSONL isolé par cible, rapport rejouable |
 | Métriques Backend | Micrometer, registre Prometheus | livré par Quarkus | `/q/metrics` interne, métriques techniques et métier à faible cardinalité |
@@ -234,7 +234,8 @@ En prose, les entités métier s'écrivent en minuscule : la commande, un produi
 
 ```
 surplasse/
-├── docs/                    # Documentation Retype (ce site)
+├── docs/                    # Source Markdown canonique des deux rendus
+├── docs-nimbus/             # Rendu Nimbus expérimental et adaptateur
 ├── brand/                   # Charte graphique : tokens, polices, composants, QR
 ├── api/
 │   └── openapi.yaml         # Le contrat, source de vérité de l'API
@@ -295,7 +296,7 @@ docs/
 - Phrases courtes. Une idée par paragraphe. Tableaux pour les faits énumérables, prose pour les explications.
 - Dates en toutes lettres ou au format AAAA-MM-JJ. Jamais de date relative (« récemment », « bientôt »).
 
-## Conventions Retype
+## Conventions documentaires partagées
 
 - Front matter YAML en tête de chaque page : `label` (titre court pour la sidebar), `order` (entier, tri croissant), `icon` (nom Octicon, optionnel), `description` (une phrase, pour le SEO).
 - Chaque dossier a un `index.yml` (`label`, `order`, `expanded`) et, s'il a un contenu propre, un `index.md`.
@@ -303,6 +304,9 @@ docs/
 - Composants Retype autorisés : callouts (`!!! info`, `!!! warning`), onglets (`+++`), accordéons (`==-`), badges. Ne pas en abuser : un callout par section maximum.
 - Diagrammes en ASCII dans des blocs de code (Retype ne rend pas mermaid). Les garder simples et alignés.
 - Pas d'images tant qu'il n'y a pas de produit à montrer.
+- `docs/` est la seule source éditoriale. Ne jamais modifier ni committer `docs-nimbus/src/content/docs/`, qui est régénéré avant chaque commande Nimbus.
+- Le rendu Nimbus convertit le front matter, les index, les liens `.md` et les callouts actuellement utilisés. Avant d'introduire un autre composant Retype, ajouter sa conversion et son test dans `docs-nimbus/scripts/sync-content.test.mjs`.
+- `npm run docs:build` reste la porte obligatoire avant tout push touchant `docs/`. `npm run docs:build:all` vérifie en plus l'aperçu Nimbus.
 
 ## Workflow git
 
@@ -315,8 +319,11 @@ docs/
 
 ```bash
 npm install          # une fois
+npm ci --prefix docs-nimbus
 npm run docs:build   # build de vérification (sortie dans docs-site/)
 npm run docs:watch   # serveur local avec rechargement
+npm run docs:nimbus:check
+npm run docs:nimbus:build
 ```
 
-Le déploiement est automatique : chaque push sur `main` publie le site (documentation, landing statique, tunnel avec aperçu du Dashboard, assets de marque et dernier rapport Allure development de CI) sur GitHub Pages via `.github/workflows/pages.yml`. Le workflow actualise aussi ce rapport chaque heure sous `/local-tests/`.
+Le déploiement est automatique : chaque push sur `main` publie le site (documentation Retype, aperçu Nimbus non indexé, landing statique, tunnel avec aperçu du Dashboard, assets de marque et dernier rapport Allure development de CI) sur GitHub Pages via `.github/workflows/pages.yml`. Le workflow actualise aussi ce rapport chaque heure sous `/local-tests/`.

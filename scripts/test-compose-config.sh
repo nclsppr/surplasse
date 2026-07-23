@@ -219,6 +219,20 @@ node - "${TEST_DIRECTORY}/development-observability.json" <<'NODE'
 const { readFileSync } = require('node:fs');
 
 const model = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+const docs = model.services.docs;
+if (docs.build?.args?.NIMBUS_SITE_ORIGIN !== 'https://docs.surplasse.test') {
+  throw new Error('development Nimbus does not use the centrally derived documentation origin');
+}
+if (docs.build?.args?.NIMBUS_BASE_PATH !== '/_experiments/nimbus-docs') {
+  throw new Error('development Nimbus does not use its isolated experimental route');
+}
+const docsHealthcheck = docs.healthcheck?.test?.join(' ') ?? '';
+if (
+  !docsHealthcheck.includes('/surplasse/docs/') ||
+  !docsHealthcheck.includes('/_experiments/nimbus-docs/')
+) {
+  throw new Error('development documentation healthcheck does not cover both static renderers');
+}
 if (model.services.edge.environment?.GRAFANA_UPSTREAM !== 'grafana:3000') {
   throw new Error('development Caddy does not receive the internal Grafana upstream');
 }
