@@ -92,7 +92,7 @@ Le délai perçu est un enjeu à part entière. L'écran d'attente affiche des �
 
 **Objectif** : produire l'effet déclencheur : le restaurateur voit son mini-site, avec sa carte, avant tout engagement.
 
-**Actions du restaurateur** : il parcourt la prévisualisation comme le ferait un client : page d'accueil du mini-site, carte par catégories, fiches produit. Il peut basculer entre le rendu mini-site et la vue structurée de la carte. Une fois les produits extraits, il associe chaque photo de plat au bon produit et peut demander des rendus IA candidats depuis cette photo.
+**Actions du restaurateur** : il parcourt la prévisualisation comme le ferait un client : page d'accueil du mini-site, carte par catégories, fiches produit. Il choisit un premier profil Compact, Équilibré ou Visuel, puis peut basculer entre le rendu mobile et la vue structurée de la carte. Une fois les produits extraits, il associe chaque photo de plat au bon produit et peut demander des rendus IA candidats depuis cette photo.
 
 **Ce que fait le système** : l'application Onboarding embarque un rendu de l'application Commande en mode prévisualisation, sur le slug provisoire. Le mini-site n'est pas public à ce stade : rien n'est indexé, rien n'est commandable. La génération demandée démarre alors en tâche de fond, après l'association explicite entre produit et photo source. La photo source reste disponible pendant le traitement. Quand les candidats sont prêts, la prévisualisation permet de les comparer. Pour chaque produit, le restaurateur choisit explicitement la photo originale, un candidat généré ou aucune image. Le workflow et ses garanties sont fixés par l'[ADR-0025](../../decisions/adr-0025-visuels-plats-a-la-demande.md).
 
@@ -109,10 +109,11 @@ Le délai perçu est un enjeu à part entière. L'écran d'attente affiche des �
 - il corrige les prix erronés et les libellés mal lus ;
 - il ajoute les produits manquants et supprime ceux qui n'existent plus ;
 - il complète les options que la photo ne pouvait pas révéler (cuissons, suppléments, tailles) ;
-- il ordonne les catégories si l'ordre extrait ne correspond pas à sa carte.
+- il ordonne les catégories si l'ordre extrait ne correspond pas à sa carte ;
+- il renseigne ou valide les allergènes, régimes, origines et mentions applicables ;
 - il vérifie le visuel de chaque produit et peut téléverser une autre photo, demander de nouveaux candidats ou ne conserver aucune image.
 
-**Ce que fait le système** : l'interface d'édition met en avant les éléments marqués « à vérifier » et sauvegarde en continu. La carte reste en brouillon jusqu'à validation explicite. Si le restaurateur relance une extraction avec une meilleure photo, la stratégie de fusion avec les corrections manuelles déjà faites reste à trancher (règle envisagée : une correction manuelle n'est jamais écrasée par une extraction).
+**Ce que fait le système** : l'interface d'édition met en avant les éléments marqués « à vérifier » et sauvegarde en continu. La carte reste en brouillon jusqu'à validation explicite. L'IA ne déduit ni allergène ni mention juridique sans validation humaine. Si le restaurateur relance une extraction avec une meilleure photo, la stratégie de fusion avec les corrections manuelles déjà faites reste à trancher (règle envisagée : une correction manuelle n'est jamais écrasée par une extraction).
 
 **Erreurs possibles** et traitement :
 
@@ -151,11 +152,11 @@ L'étape peut être différée : le restaurateur peut préparer ses QR codes et 
 
 ## Étape 7 : choix et réception des QR codes
 
-**Objectif** : mettre le canal de commande physiquement sur les tables.
+**Objectif** : mettre le canal de commande sur les tables sans faire du QR code l'unique support de la carte.
 
-**Actions du restaurateur** : il indique son nombre de tables, choisit ses supports et son adresse de livraison. Il peut aussi télécharger immédiatement un PDF à imprimer lui-même, pour ne pas attendre la livraison.
+**Actions du restaurateur** : il indique son nombre de tables, choisit ses supports et son adresse de livraison. Il peut télécharger immédiatement les QR codes et une carte papier dérivée de la version publiée, avec prix TTC et informations réglementaires validées.
 
-**Ce que fait le système** : le backend génère les QR codes de l'établissement. Un QR code par table (permettant d'associer la commande à la table) est la cible de référence ; un QR code générique unique reste possible pour les usages à emporter. La commande de supports part en fabrication et une notification est envoyée à l'expédition.
+**Ce que fait le système** : le backend génère les QR codes de l'établissement. Un QR code par table (permettant d'associer la commande à la table) est la cible de référence ; un QR code générique unique reste possible pour les usages à emporter. La carte papier porte une version et une date afin que le Dashboard puisse signaler son obsolescence. La commande de supports part en fabrication et une notification est envoyée à l'expédition.
 
 | Support | Contenu | Prix |
 |---|---|---|
@@ -178,15 +179,16 @@ L'étape peut être différée : le restaurateur peut préparer ses QR codes et 
 
 **Objectif** : la première commande réelle, payée et servie, sans accroc.
 
-**Actions du restaurateur** : avant le service, il passe lui-même une commande de test en scannant un QR code de sa salle, pour vérifier la carte, le paiement et la réception côté Dashboard. Il briefe son équipe (où arrivent les commandes, comment les marquer prêtes). Puis il ouvre son premier service en conditions réelles, le Dashboard affiché en cuisine ou au comptoir.
+**Actions du restaurateur** : il vérifie son fuseau, ses horaires et son service à venir. Pendant la phase 3, il peut réaliser seul ce premier service avec l'accès restaurateur livré. À partir de la phase 4, la migration lui attribue le rôle `owner` ; il invite alors les membres nominatifs, choisit leurs rôles et appaire les éventuels postes Salle ou Cuisine. Il passe ensuite une commande de test en scannant un QR code de sa salle, pour vérifier la carte, le paiement, le son et la réception dans les vues disponibles. Puis il ouvre explicitement son premier service en conditions réelles.
 
-**Ce que fait le système** : les commandes arrivent en temps réel dans le Dashboard (SSE). La toute première commande réelle est mise en avant (c'est le moment fondateur de la relation). Un guide de premier service, court, accompagne cette étape : checklist de test, réflexes en cas de client bloqué.
+**Ce que fait le système** : un contrôle de préparation réunit carte publiée, horaires, canaux actifs, tables et QR codes lorsque le sur place est ouvert, configuration à emporter lorsqu'elle est ouverte, capacités Stripe, son, réseau et mode de réception des commandes. Les commandes arrivent en temps réel dans le Dashboard (SSE). La toute première commande réelle est mise en avant. Un guide court accompagne le premier service : responsabilités de chacun lorsqu'une équipe est configurée, commande de test, remboursement de test et réflexes en cas de client bloqué.
 
 **Erreurs possibles** et traitement :
 
 | Erreur | Traitement |
 |---|---|
 | Équipe non briefée, commandes non vues | Alerte dans le Dashboard sur commande non acquittée après un délai, guide de premier service |
+| Vue de préparation ou réception non testée | Le contrôle explique le prérequis absent ; une session capable d'accepter doit être armée, et un poste Cuisine seul ne maintient jamais la prise de commandes ouverte |
 | Client bloqué au paiement | La carte reste consultable ; le restaurateur prend la commande à la voix, l'incident est visible dans le Dashboard |
 | QR code d'une mauvaise table | Réassignation du QR code depuis le Dashboard |
 

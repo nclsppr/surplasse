@@ -2,12 +2,12 @@
 label: Personas
 order: 20
 icon: people
-description: "Les cinq personas de référence de Surplasse et l'anti-persona qui délimite la cible."
+description: "Les six personas de référence de Surplasse et l'anti-persona qui délimite la cible."
 ---
 
 # Personas
 
-Cette page décrit les personnes pour lesquelles Surplasse est conçu. Cinq personas guident les choix de produit, un anti-persona délimite ce que Surplasse ne cherche pas à servir. Chaque persona est rattaché aux applications qu'il rencontre (Onboarding, Commande, Dashboard) et aux trois parcours détaillés : [l'embarquement restaurateur](parcours/onboarding-restaurateur.md), [la commande client](parcours/commande-client.md) et [le quotidien avec le Dashboard](parcours/dashboard-restaurateur.md).
+Cette page décrit les personnes pour lesquelles Surplasse est conçu. Six personas guident les choix de produit, un anti-persona délimite ce que Surplasse ne cherche pas à servir. Chaque persona est rattaché aux applications qu'il rencontre (Onboarding, Commande, Dashboard) et aux trois parcours détaillés : [l'embarquement restaurateur](parcours/onboarding-restaurateur.md), [la commande client](parcours/commande-client.md) et [le quotidien avec le Dashboard](parcours/dashboard-restaurateur.md).
 
 !!! info Des personas fictifs, des situations réelles
 Les prénoms, les établissements et les citations de cette page sont fictifs. Ils condensent des situations observées chez les restaurants indépendants ; ils ne décrivent aucune personne réelle. Les citations sont rédigées pour illustrer le ton de chaque persona, pas pour être exactes.
@@ -22,6 +22,7 @@ Les prénoms, les établissements et les citations de cette page sont fictifs. I
 | Thomas | Client du midi pressé | Commande | [Commande client](parcours/commande-client.md) (sur place) |
 | La tablée du soir | Groupe de clients attablés | Commande | [Commande client](parcours/commande-client.md) (sur place) |
 | Karim | Serveur, équipe en salle | Dashboard | [Commande client](parcours/commande-client.md) (sur place) |
+| Sofia | Cuisinière, production et pass | Dashboard | [Dashboard](parcours/dashboard-restaurateur.md) (vue Cuisine) |
 | L'anti-persona | Chaîne ou franchise avec POS intégré | Aucune | Hors cible |
 
 ## Marco, le restaurateur indépendant
@@ -135,13 +136,13 @@ Quatre amis autour d'une table un vendredi soir. Le rythme est inversé par rapp
 
 ### Ce que Surplasse change pour elle
 
-Le QR code de la table permet des commandes successives sur une même session de table : chaque salve part en temps réel vers le Dashboard sans mobiliser un serveur pour la prise de commande. La carte reste consultable pendant tout le repas, avec les produits épuisés à jour. Chaque convive peut payer sa part depuis son propre téléphone.
+Le QR code de la table permet des commandes successives sur une même session de table : chaque salve payée part en temps réel vers le Dashboard sans mobiliser un serveur pour la prise de commande. La carte reste consultable pendant tout le repas, avec les produits épuisés à jour. Chaque convive compose et paie sa propre commande depuis son téléphone, sans addition commune à répartir après consommation.
 
 ### Risques d'adoption
 
 - Le repas du soir reste un moment social : si l'outil donne le sentiment de remplacer le contact humain, la table le rejettera. Surplasse prend la commande, le service reste humain.
 - Une session de table mal gérée (mauvaise table, session qui expire en plein repas) casse la confiance du groupe entier.
-- Le partage précis de l'addition (par produit, en parts égales, mixte) est un sujet identifié mais son périmètre exact dans le MVP reste à trancher ; il est suivi dans la [roadmap](../roadmap.md).
+- Le groupe doit comprendre que Surplasse traite des commandes prépayées séparées et ne répartit pas une addition commune en fin de repas.
 
 > « Le pire moment du restaurant, c'est la fin : qui a pris quoi, qui doit combien. Si on peut chacun payer son truc, c'est réglé. » (citation fictive)
 
@@ -165,15 +166,47 @@ Karim, 24 ans, est serveur dans le bistrot de Marco. Un service normal : trente 
 
 ### Ce que Surplasse change pour lui
 
-Les commandes prises par les clients arrivent dans le Dashboard en temps réel, et le ticket cuisine part sur l'imprimante thermique quand l'établissement en est équipé (le choix du matériel d'impression fait l'objet d'un ADR dans [decisions](../decisions/index.md)). Karim ne saisit plus les commandes passées par QR code : il les voit, les suit et les sert. La prise de commande assistée par le serveur pour les clients qui préfèrent le contact humain, ainsi que l'existence d'un accès propre à l'équipe en salle distinct de celui du restaurateur, restent à trancher.
+Les commandes prises par les clients arrivent dans le Dashboard en temps réel. Karim utilise son propre accès `service` ou un poste Salle appairé, jamais le magic link du restaurateur. Sa vue regroupe les commandes par table, met en avant celles qui attendent une acceptation et celles que la cuisine vient de marquer prêtes. Il les suit et les sert sans voir les finances ni les réglages sensibles. La commande assistée reste une proposition que le client doit vérifier et payer en ligne avant son entrée en cuisine.
 
 ### Risques d'adoption
 
-- Si le Dashboard sonne, clignote et réclame des validations en plein service, Karim le coupera.
+- Si le Dashboard sonne, clignote et réclame des validations inutiles en plein service, Karim le coupera.
 - Un écart entre ce que le client a commandé et ce qui s'affiche détruit la confiance en une soirée.
 - L'outil ne doit jamais donner aux clients le sentiment que le serveur est devenu optionnel : Karim est un utilisateur du produit, pas une variable d'ajustement.
 
 > « Un bon outil, je ne le remarque pas. Le jour où je passe plus de temps sur l'écran que dans la salle, c'est que quelqu'un s'est trompé quelque part. » (citation fictive)
+
+## Sofia, la cuisinière
+
+### Contexte
+
+Sofia, 34 ans, prépare le chaud dans une petite brigade. Pendant le coup de feu, elle travaille avec du bruit, des mains occupées et quelques secondes d'attention disponibles. Elle ne veut ni analyser les ventes, ni comprendre la configuration de la carte. Elle doit savoir quoi préparer, dans quel ordre, avec quelles options et pour quelle table.
+
+### Frustrations actuelles
+
+- Un ticket verbal ou mal écrit perd une cuisson, un supplément ou une allergie.
+- Une file triée par statut mais pas par ancienneté masque la commande qui attend depuis trop longtemps.
+- Les outils de gestion complets sont illisibles à deux mètres et dangereux à manipuler avec les mains mouillées.
+- Une rupture signalée trop tard continue de créer des commandes impossibles à servir.
+
+### Objectifs
+
+- Lire immédiatement les quantités, options, allergènes et remarques utiles à la préparation.
+- Démarrer puis marquer prête avec deux actions larges et prévisibles.
+- Signaler une rupture sans quitter la file de production.
+- Rappeler le dernier ticket qu'elle a clôturé par erreur avant qu'il ne disparaisse du pass.
+
+### Ce que Surplasse change pour elle
+
+La vue Cuisine reçoit uniquement les commandes payées et acceptées, triées par ancienneté. Chaque ticket affiche le temps écoulé, les options et les alertes importantes sans données financières. Sofia démarre la préparation, marque prête, puis la salle prend le relais. Le poste fixe est appairé à l'établissement et peut être révoqué sans partager le compte d'une autre personne.
+
+### Risques d'adoption
+
+- Une alerte qui ne s'entend pas, un écran qui se met en veille ou un ticket qui disparaît sans retour immédiat suffit à faire revenir le papier.
+- Une couleur seule ne peut jamais porter un statut ni une allergie.
+- Le KDS ne doit pas imposer une organisation par postes complexes aux petites cuisines qui travaillent sur une file commune.
+
+> « Je veux voir le prochain ticket et ce qui change. Le reste peut attendre la fin du service. » (citation fictive)
 
 ## Anti-persona : la chaîne avec POS intégré
 
@@ -203,6 +236,7 @@ Le tableau suivant croise chaque persona avec les trois applications frontend d�
 | Thomas | Aucun contact | Scan, carte, panier, paiement : tout son parcours | Aucun contact |
 | La tablée du soir | Aucun contact | Commandes successives et paiement de chaque part | Aucun contact |
 | Karim | Aucun contact | Point d'appui pour aider un client qui hésite | Vue de service : tables, commandes, tickets cuisine |
+| Sofia | Aucun contact | Aucun contact | Vue Cuisine : file, minuteurs, options, allergènes, ruptures et passage à « Prête » |
 | Anti-persona (chaîne) | Hors cible | Hors cible | Hors cible |
 
 Les parcours détaillés prolongent cette page : [l'embarquement](parcours/onboarding-restaurateur.md) pour Marco et Nadia, la [commande client](parcours/commande-client.md), sur place ou à emporter, pour Thomas, la tablée du soir, Karim et les clients de Nadia.

@@ -85,7 +85,7 @@ Ne jamais « corriger » un ADR pour l'aligner sur une page plus récente. Soit 
 
 ## Registre des ADR
 
-Trente ADR sont consignés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'au déploiement commun par Docker Compose, à son cockpit local, à sa surveillance fonctionnelle et à son observabilité technique.
+Trente-deux ADR sont consignés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'au déploiement commun par Docker Compose, à son cockpit local, à sa surveillance fonctionnelle, à son observabilité technique et au socle professionnel du Dashboard.
 
 | Numéro | Titre | Statut | Lien |
 |---|---|---|---|
@@ -119,5 +119,7 @@ Trente ADR sont consignés à ce jour. Ils couvrent les choix structurants du pr
 | 0028 | Cockpit Compose et rapports Allure | Accepté | [ADR-0028](adr-0028-cockpit-compose-et-rapports-allure.md) |
 | 0029 | Observabilité Prometheus et Grafana non bloquante | Accepté | [ADR-0029](adr-0029-observabilite-prometheus-grafana.md) |
 | 0030 | Java 25 et Quarkus courant | Accepté | [ADR-0030](adr-0030-java-25-quarkus-courant.md) |
+| 0031 | Équipes, rôles et vues métier | Accepté | [ADR-0031](adr-0031-equipes-roles-vues-metier.md) |
+| 0032 | Canal prépayé sans fonction de caisse | Accepté | [ADR-0032](adr-0032-canal-prepaye-sans-caisse.md) |
 
 Les décisions encore ouvertes (par exemple le choix de la solution d'impression thermique ESC/POS mentionné dans la stack de référence) donneront lieu à de futurs ADR au fil de la [roadmap](../roadmap.md).

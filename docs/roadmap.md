@@ -21,10 +21,21 @@ Les phases décrivent dans quel ordre les problèmes sont attaqués, pas quand i
 | 1 | Le contrat et les squelettes | Établir le contrat OpenAPI et les squelettes générés des applications | Une carte statique de démonstration s'affiche de bout en bout depuis l'API |
 | 2 | Commander et payer | Faire fonctionner le cœur du produit dans un vrai restaurant | Un service du midi réel géré via Surplasse dans un restaurant pilote |
 | 3 | L'embarquement magique | Automatiser la création d'un établissement depuis une photo de la carte | Un restaurateur inconnu de l'équipe s'embarque seul en moins de 30 minutes |
-| 4 | Piloter | Donner au restaurateur les moyens de suivre et gérer son activité | Pendant quatre semaines, un restaurateur consulte ses métriques et met sa carte à jour sans aide |
+| 4 | Exploiter et piloter | Rendre Surplasse utilisable chaque jour par une équipe et rapprochable par le restaurateur | Au moins 80 % d'une cohorte cible exploite le socle professionnel pendant quatre semaines sans contournement bloquant |
 | 5 | La relation | Transformer les commandes en relation client durable | Un restaurant convertit des commandes en clients fidèles identifiés |
 
 Les fonctionnalités visées par chaque phase sont détaillées dans [le catalogue des fonctionnalités](produit/fonctionnalites.md). Les choix structurants pris en chemin sont consignés dans [les ADR](decisions/index.md).
+
+## Le cap professionnel
+
+La phase 2 et la phase 4 ne prouvent pas la même chose. La phase 2 qualifie le noyau sur un restaurant pilote, avec une carte et des accès préparés par Surplasse. La phase 3 prouve qu'un restaurateur peut créer ce canal seul. La phase 4 prouve qu'une équipe peut ensuite l'exploiter sans partager un compte, dépendre d'une intervention Surplasse ou découvrir un écart financier inexpliqué.
+
+Le seuil de 80 % porte sur la cible explicite : indépendants de un à trois établissements, commandes Surplasse prépayées en ligne, service à table, comptoir ou à emporter, sans remplacement complet de la caisse. Il ne constitue pas une estimation de part de marché. La définition du périmètre, les exclusions et le protocole de preuve vivent dans le [socle professionnel](produit/socle-professionnel.md).
+
+Deux décisions protègent cette trajectoire :
+
+- un seul Dashboard avec des rôles par établissement et des vues métier Salle, Cuisine et Gestion, conformément à l'[ADR-0031](decisions/adr-0031-equipes-roles-vues-metier.md) ;
+- un canal autonome pour les commandes payées en ligne, qui coexiste avec la caisse sans enregistrer les autres encaissements, conformément à l'[ADR-0032](decisions/adr-0032-canal-prepaye-sans-caisse.md).
 
 ## Phase 0 : Fondations
 
@@ -177,6 +188,8 @@ Faire disparaître le coût d'entrée. Un restaurateur photographie sa carte, Su
 - Extraction IA de la carte depuis une photo (API OpenAI, vision) : catégories, produits, options, prix, avec écran de relecture et correction avant publication.
 - Pour chaque plat photographié, harmonisation classique et génération facultative de visuels candidats par IA. Le restaurateur choisit explicitement la photo fournie, un rendu généré ou aucune image, sans publication automatique, conformément à l'[ADR-0025](decisions/adr-0025-visuels-plats-a-la-demande.md).
 - Génération du mini-site de l'établissement avec choix d'un thème, **SEO compris** : chaque mini-site généré embarque son référencement (balises, données structurées schema.org du menu, sitemap) pour que chaque nouveau restaurant et sa carte soient indexables dès l'activation.
+- Configuration initiale de l'établissement : fuseau horaire IANA, horaires, services nommés et profil de carte Compact, Équilibré ou Visuel, avec prévisualisation mobile.
+- Saisie ou validation initiale des prix TTC, allergènes, origines et mentions applicables, puis premier PDF daté de la carte publiée. L'édition versionnée et le signalement d'obsolescence arrivent en phase 4.
 - Automatisation de Stripe Connect Accounts v2 dans l'Onboarding : création du compte par le Backend, KYC et gestion des exigences dans les composants Connect intégrés, activation et reprise du parcours. Le schéma de charges directes a déjà été validé manuellement avec le pilote en phase 2.
 - Tunnel d'embarquement complet dans le front Onboarding : de la photo de la carte à la première commande encaissable.
 
@@ -197,43 +210,98 @@ Faire disparaître le coût d'entrée. Un restaurateur photographie sa carte, Su
 
 ### Critère de sortie
 
-Un restaurateur inconnu de l'équipe s'embarque seul en moins de 30 minutes : photo de la carte, relecture, génération réussie de candidats pour au moins un plat photographié, comparaison puis choix explicite entre photo fournie, rendu généré ou aucune image, génération du mini-site et activation Stripe, sans intervention humaine de Surplasse et sans publication automatique d'un candidat IA.
+Un restaurateur inconnu de l'équipe accomplit seul en moins de 30 minutes de temps actif : photo de la carte, relecture, génération réussie de candidats pour au moins un plat photographié, comparaison puis choix explicite entre photo fournie, rendu généré ou aucune image, choix d'un profil de carte, configuration du fuseau, des horaires et d'au moins un service, validation des informations réglementaires, génération du premier PDF daté, génération du mini-site et soumission complète du dossier Stripe, sans intervention humaine de Surplasse ni publication automatique d'un candidat IA. L'attente d'une vérification externe Stripe ne compte pas dans ces 30 minutes. Quand les capacités deviennent `active`, le tunnel reprend sans ressaisie et rend l'établissement encaissable sans intervention de Surplasse ; cette activation effective reste obligatoire pour sortir de la phase.
 
-## Phase 4 : Piloter
+## Phase 4 : Exploiter et piloter {#phase-4-exploiter-piloter}
 
 ### Objectif
 
-Le restaurateur ne subit plus son activité, il la pilote. Le Dashboard devient l'outil de travail quotidien : historique, métriques, gestion complète de la carte, et l'ouverture de l'à emporter élargit le canal au-delà de la salle.
+Surplasse devient un outil dont une équipe peut dépendre pendant et après le service. Le Dashboard distribue le travail entre la salle, la cuisine et la gestion, la carte se publie sans risque, et le restaurateur explique chaque vente Surplasse jusqu'au versement bancaire. Cette phase construit les fondations communes du [socle professionnel](produit/socle-professionnel.md), puis les exerce aussi à emporter et sur plusieurs établissements avant sa preuve de sortie.
 
 ### Livrables
 
-- Dashboard complet : historique des commandes, recherche, filtres.
-- Vue du service en cours : chiffre d'affaires, nombre de commandes et temps moyen de préparation, mis à jour en temps réel.
-- Analyse par jour, semaine ou mois, avec comparaison à la période précédente : chiffre d'affaires, nombre de commandes, panier moyen, produits classés par quantités et par chiffre d'affaires, heures de pointe, répartition par service et répartition entre sur place et à emporter lorsque ce canal est actif.
-- Gestion autonome de la carte depuis le Dashboard : création, édition, archivage et réorganisation des catégories, produits et options, changement de prix, horaires et disponibilités, sans intervention de Surplasse.
-- Gestion des visuels produit : téléverser, recadrer, remplacer ou retirer une photo, puis demander depuis cette photo des rendus IA candidats, les comparer et choisir explicitement la photo originale, un rendu généré ou aucune image. L'image publiée reste en place jusqu'au choix, conformément à l'[ADR-0025](decisions/adr-0025-visuels-plats-a-la-demande.md).
-- Multi-établissements : un restaurateur gère plusieurs établissements depuis le même compte.
-- À emporter avec créneaux : le client commande à l'avance et choisit un créneau de retrait.
+Les lots sont livrés dans cet ordre. Les lots 4A à 4C forment les fondations communes et sont éprouvés avant d'ajouter les variantes Must du lot 4D. Une pré-cohorte courte tranche ensuite les trois besoins conditionnels. La cohorte formelle ne commence qu'après leur décision et, lorsqu'ils deviennent Must, leur livraison. Les fonctionnalités Should ou Could et les extensions post-preuve ne retardent jamais son démarrage.
+
+#### 4A. Opérer en équipe
+
+- Membres, invitations, révocation, postes partagés et rôles fixes `owner`, `manager`, `service`, `kitchen`, avec autorisations Backend par établissement et journal des actions sensibles.
+- Trois vues métier dans le même Dashboard : Salle par table et par commande prête, Cuisine par ancienneté et préparation, Gestion pour la carte, l'équipe, les finances et les réglages. Les petits établissements gardent une vue combinée avec un rôle `owner` ou `manager`.
+- Alertes sonores et visuelles testables, état SSE permanent, âge de la commande, relance des commandes non acquittées et reprise sans perte après coupure.
+- Présence d'au moins une session explicitement armée, testée et capable d'accepter tant que la prise de commandes est ouverte. Un poste Cuisine seul ne suffit pas. L'absence prolongée de tout réceptionnaire actif force une pause sans réouverture automatique, alerte un responsable par un canal secondaire et laisse chaque commande déjà payée visible, puis la rembourse automatiquement par un job durable si elle dépasse le délai maximal d'acceptation.
+- Gestion des horaires, fermetures exceptionnelles, services nommés, tables et QR codes depuis le Dashboard.
+- Rupture immédiate d'un produit ou d'une option, synchronisée avec Commande et les vues métier.
+
+#### 4B. Gérer sans risque
+
+- Gestion autonome et versionnée de la carte : brouillon, prévisualisation, publication atomique, retour arrière, catégories, produits, options, formules simples, prix, horaires et disponibilités. Une formule regroupe et ordonne ses choix sur un ticket unique ; le séquencement séparé des services reste hors socle.
+- Informations professionnelles : prix TTC, allergènes, régimes, origine et mentions applicables, renseignés ou validés par le restaurateur.
+- Carte papier exportée depuis la version publiée, datée et utilisable sans images. Le Dashboard indique qu'un ancien export est devenu obsolète.
+- Remboursement partiel par ligne et quantité, avec motif, auteur, reçu corrigé, commission restituée selon la décision dédiée à prendre et continuité de la partie encore servie.
+
+#### 4C. Rapprocher
+
+- Historique des commandes, recherche et filtres, avec détail des lignes figées et des ajustements.
+- Composants Stripe intégrés pour les paiements, versements, litiges, documents et rapports, avec bannière d'exigences et remédiation permanente du compte. Les actions mutables restent bornées par rôle et passent par les workflows Surplasse lorsqu'ils existent. Cette dette est obligatoire avec `dashboard=none` dans l'[ADR-0020](decisions/adr-0020-accounts-v2-onboarding-embarque.md).
+- Rapprochement de fin de service : ventes brutes Surplasse TTC, remboursements, commission Surplasse, frais Stripe disponibles, net attendu, versements, échecs, litiges et écarts.
+- Export CSV comptable des seules ventes Surplasse, avec ventilation fiscale configurée et identifiants de rapprochement. La catégorie fiscale, le taux, la base hors taxe et le montant de taxe sont figés sur chaque ligne. Une revue juridique et comptable valide le périmètre avant la généralisation.
+- Vue du service en cours : ventes brutes Surplasse TTC, remboursements, nombre de commandes payées et temps moyen de préparation, mis à jour en temps réel.
+
+#### 4D. Couvrir les variantes de la cible
+
+- Présentation contrainte : profils Compact, Équilibré et Visuel, politique d'images, logo, couverture, palette accessible et prévisualisation mobile, sans constructeur de pages.
+- Gestion des visuels produit : téléverser, recadrer, remplacer ou retirer une photo, ou choisir aucun visuel. L'image publiée reste en place jusqu'au choix.
+- Multi-établissements : un restaurateur gère jusqu'à trois établissements depuis le même compte, sans consolidation de réseau avancée.
+- À emporter avec créneaux et capacité configurable : le client commande à l'avance, choisit un créneau encore disponible et reçoit un SMS lorsque sa commande est prête.
+
+#### Pré-cohorte de décision
+
+Cinq établissements, deux à table, deux principalement au comptoir et un principalement à emporter, réalisent chacun au moins deux services et vingt commandes payées sur les fondations et variantes Must. Les deux comptoirs couvrent chacun une période de pointe et au moins un exploitant gère deux établissements afin d'exercer la bascule, les droits et les alertes. Cette activité sert à corriger les blocages et ne compte pas dans les quatre semaines de preuve, même si un établissement rejoint ensuite la cohorte formelle.
+
+- Le routage simple des produits vers deux ou trois files devient Must si les deux établissements de comptoir ne peuvent pas tenir une période de pointe avec une file commune.
+- La commande assistée, proposition vérifiée et payée par le client avant toute entrée en cuisine, devient Must si au moins deux établissements ne peuvent pas intégrer les commandes Surplasse à leur prise de commande sans elle.
+- L'impression thermique devient Must si au moins deux établissements ne peuvent pas terminer une période de pointe avec la vue Cuisine et son mode de secours testés. Son ADR matériel est alors tranché avant la cohorte formelle.
+- Chaque décision est consignée avant le recrutement définitif de la cohorte. Toute capacité promue est livrée, testée et répétée sur les établissements concernés avant le début de la preuve.
+
+#### Extensions après la preuve
+
+Ces éléments restent utiles, mais ne justifient pas de retarder la preuve du canal professionnel :
+
+- analyse par jour, semaine ou mois, comparaison à la période précédente, panier moyen, produits classés, heures de pointe et répartitions détaillées ;
+- nouvelle génération de rendus IA depuis le Dashboard, comparaison des candidats et choix explicite conformément à l'[ADR-0025](decisions/adr-0025-visuels-plats-a-la-demande.md). L'embarquement conserve déjà son premier parcours de génération ;
+- autres améliorations Should ou Could du [catalogue des fonctionnalités](produit/fonctionnalites.md).
 
 ### Risques et parades
 
 | Risque | Parade |
 |---|---|
 | Des métriques que personne ne regarde | Partir des questions que les restaurateurs pilotes posent réellement, pas d'un catalogue de graphiques |
-| Des chiffres difficiles à croire | Définir chaque indicateur une seule fois, le calculer dans le fuseau de l'établissement et le rapprocher de l'historique des commandes et paiements |
+| Des chiffres difficiles à croire | Nommer « ventes Surplasse » le périmètre du canal, définir chaque indicateur une seule fois, le calculer dans le fuseau de l'établissement et le rapprocher des commandes, paiements et versements |
+| Un membre voit ou exécute une action interdite | Rôles fixes, autorisation Backend sur chaque endpoint, tests croisés entre rôles et établissements, révocation immédiate et journal d'activité |
+| La vue Cuisine devient un Dashboard de gestion miniaturisé | Projection dédiée, sans données financières, testée sur écran fixe et dans le bruit d'un service |
 | Une modification de carte altère l'historique | Figer le libellé, les options et le prix dans les lignes de chaque commande ; les modifications futures ne réécrivent jamais une commande payée |
+| Une publication de carte casse le service | Séparer la rupture immédiate des changements structurels, qui passent par un brouillon, une prévisualisation et une publication atomique |
 | Un visuel généré trompe le client ou dépasse le budget prévu | Imposer une photo du plat réel, un choix explicite, un étiquetage visible, des candidats privés et un quota de génération par établissement et par période |
 | L'à emporter perturbe le flux en cuisine aux heures de pointe | Les créneaux sont bornés en capacité, réglable par le restaurateur |
 | Le multi-établissements complexifie le modèle de données tardivement | Le modèle distingue restaurateur et établissement depuis le contrat de la phase 1 ; la phase 4 ne fait qu'ouvrir l'interface |
+| Surplasse devient une caisse par accumulation de petits besoins | Refuser l'enregistrement des paiements externes dans le socle, obtenir une qualification juridique écrite et respecter l'[ADR-0032](decisions/adr-0032-canal-prepaye-sans-caisse.md) |
+| La personnalisation produit des cartes illisibles ou lentes | Presets bornés, contrastes et budgets de performance non désactivables, prévisualisation mobile avant publication |
 
 ### Exclusions explicites
 
 - Pas de programme de fidélité ni de marketing : phase 5.
-- Pas de gestion des stocks ni d'intégration caisse.
+- Pas d'espèces, titres-restaurant, paiement sur terminal externe, addition ouverte ou paiement en fin de repas.
+- Pas de gestion des stocks, réservations, planning, livraison ni intégration caisse bidirectionnelle.
+- Pas de rôles entièrement configurables ni de constructeur de pages libre.
 
 ### Critère de sortie
 
-Pendant quatre semaines consécutives, un restaurateur consulte chaque semaine des métriques rapprochées de l'historique des commandes et paiements. Sur la même période, il publie sans intervention de Surplasse au moins une modification réelle de produit et un changement de visuel, puis mène un cycle complet de génération récurrente : demande, résultat réussi, comparaison et décision explicite.
+Une cohorte de dix établissements exactement, appartenant à la cible, avec quatre restaurants à table, trois activités principalement au comptoir et trois principalement à emporter, exploite Surplasse pendant quatre semaines consécutives après une première semaine d'accompagnement. Au moins deux exploitants utilisent chacun deux établissements. Chaque établissement expose le canal pendant au moins huit services réels, dont deux périodes de pointe, et traite au moins cinquante commandes payées. Tout abandon après recrutement compte comme un échec.
+
+Au moins huit établissements, dont trois sur quatre à table, deux sur trois au comptoir et deux sur trois à emporter, ouvrent, tiennent et rapprochent leurs services sans assistance quotidienne. Les équipes utilisent des membres nominatifs ou des postes appairés, jamais le compte du restaurateur partagé. Les rôles empêchent toute action interdite.
+
+Sur la période, 100 % des commandes, paiements, remboursements, commissions, frais Stripe disponibles et versements sont rapprochés jusqu'au dépôt bancaire, avec au moins un dépôt effectivement observé par établissement. Seules les transactions postérieures à la dernière échéance de versement documentée peuvent rester en transit. Aucun écart inexpliqué ni aucun écart attribuable à Surplasse ne subsiste ; un incident externe ouvert reste documenté. Les échecs de versement et litiges sont visibles. Chaque établissement qualifie au moins un remboursement partiel de bout en bout sur une commande payée. Aucune commande payée n'est perdue, aucun double débit, mauvais montant, mauvaise table ou fuite d'autorisation n'est constaté. Au moins 95 % des commandes payées apparaissent dans la vue attendue en moins de 5 secondes. Chaque commande payée est acceptée ou remboursée avant le délai maximal configuré, chaque reprise après coupure rattrape les événements manqués et chaque perte de tous les réceptionnaires déclenche le scénario de sécurité sans commande abandonnée. Chaque pilote à emporter prouve au moins une remise de SMS « Prête » et un échec fournisseur injecté, visible et récupérable sans notification silencieusement perdue.
+
+Au moins huit établissements publient seuls une modification réelle de carte, gèrent une rupture, régénèrent un QR code et exportent une carte papier à jour. L'export financier est importé ou rapproché sans retraitement manuel structurel par les comptables d'au moins trois pilotes. Aucun incident P0 ou P1, définis dans le protocole du socle professionnel, ne reste ouvert.
 
 ## Phase 5 : La relation
 
@@ -244,10 +312,10 @@ Le circuit court de la commande devient un circuit court de la relation. Le rest
 ### Livrables
 
 - Avis clients après commande, affichés sur le mini-site.
-- Pourboires à l'addition, versés à l'établissement.
+- Pourboire proposé après le service sous la forme d'un paiement distinct, versé à l'établissement.
 - Opt-in marketing : le client peut laisser son contact au restaurant, qui garde la propriété de sa base clients.
 - Espaces pré-générés pour des établissements identifiés en ligne, avec parcours de revendication par le restaurateur.
-- Impression thermique des tickets cuisine (ESC/POS) : l'ADR reste à trancher (matériel supporté, pont local ou impression réseau).
+- Impression thermique des tickets cuisine (ESC/POS), si la pré-cohorte ne l'a pas déjà promue en Must : l'ADR reste à trancher (matériel supporté, pont local ou impression réseau).
 - Supports QR premium pour les tables (chevalets, stickers).
 - **Vitrine Onboarding et acquisition SEO** : `surplasse.com` grandit en trois volets publics complémentaires :
   - une homepage qui présente Surplasse et conduit les restaurateurs vers le tunnel d'embarquement ;

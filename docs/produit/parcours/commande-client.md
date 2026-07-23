@@ -99,7 +99,7 @@ Le panier reste accessible en permanence via une pastille récapitulative (nombr
 Avant le paiement, le client confirme le mode de sa commande :
 
 - **Sur place** : le numéro de table est pré-rempli si le client est arrivé par un QR de table. Sinon, il le saisit (ou le sélectionne dans la liste des tables de l'établissement). La commande sera servie à table.
-- **À emporter** : le client choisit un créneau de retrait parmi ceux que l'établissement propose (dès que possible, ou un horaire précis). Il renseigne un prénom ou un numéro de téléphone pour l'appel au comptoir et les notifications.
+- **À emporter** : le client choisit un créneau de retrait parmi ceux que l'établissement propose (dès que possible, ou un horaire précis). Il renseigne un numéro mobile pour le SMS « Prête » et peut ajouter un prénom pour l'appel au comptoir.
 
 L'établissement peut n'activer qu'un seul des deux modes. Le mode et son contexte (table ou créneau) font partie de la commande transmise en cuisine.
 
@@ -129,13 +129,13 @@ Une fois le paiement confirmé, le client arrive sur une page de confirmation qu
 
 Chaque changement de statut, effectué par le restaurateur depuis le Dashboard, est poussé au client par SSE sans rechargement. La sémantique exacte des statuts et leurs transitions sont spécifiées dans [le modèle de données](../../architecture/donnees.md).
 
-La page de suivi reste accessible via l'URL de la commande : le client peut fermer son navigateur et y revenir. Pour une commande à emporter avec numéro de téléphone renseigné, un SMS de notification à l'état « prête » est en cible (le canal exact reste à trancher).
+La page de suivi reste accessible via l'URL de la commande : le client peut fermer son navigateur et y revenir. Pour une commande à emporter, le numéro mobile recueilli au strict nécessaire reçoit un SMS lorsque la commande passe à « Prête ». Le SMS ne contient aucune donnée sensible et ne vaut pas consentement marketing.
 
 ## Étape 8 : après le repas
 
 L'après-repas est le seul moment où le mini-site sollicite le client, avec trois propositions distinctes, toutes facultatives :
 
-1. **Pourboire numérique.** Proposé au moment opportun : à l'état « servie » pour le sur place, jamais avant ni pendant le paiement principal. Montants suggérés et montant libre, versés à l'établissement via un paiement Stripe distinct.
+1. **Pourboire numérique, phase 5.** Proposé au moment opportun : à l'état « servie » pour le sur place, jamais avant ni pendant le paiement principal. Montants suggérés et montant libre, versés à l'établissement via un paiement Stripe distinct.
 2. **Avis.** Une invitation à laisser un avis, orientée en priorité vers la fiche Google de l'établissement (c'est le référencement du restaurateur qui en bénéficie, pas Surplasse).
 3. **Opt-in marketing.** Une case explicite, décochée par défaut, pour recevoir les actualités de l'établissement (et de lui seul). Jamais de pré-cochage, jamais de conditionnement d'une fonctionnalité à l'opt-in.
 

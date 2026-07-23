@@ -46,7 +46,7 @@ Modèle volontairement léger, centré sur les scénarios réalistes pour une pl
 |---|---|---|---|
 | Client malveillant | Commandes frauduleuses (commande sans intention de payer, prix manipulé côté client) | Chiffre d'affaires de l'établissement | Le paiement précède la confirmation de la commande ; les prix sont recalculés côté backend depuis la carte, jamais repris du panier client |
 | Client curieux ou farceur | Scan du QR d'une autre table (commande attribuée à la mauvaise table, nuisance) | Fiabilité du service en salle | Le jeton de session est lié à l'établissement et à la table scannée ; une commande ne peut viser que la table du QR effectivement scanné, et le restaurateur peut réassigner une table depuis le Dashboard |
-| Restaurateur légitime | Accès aux données d'un autre établissement (commandes, chiffre d'affaires, clients) | Confidentialité inter-établissements | Filtrage systématique par appartenance à l'établissement sur chaque requête (voir [Autorisations](#autorisations)) |
+| Restaurateur légitime | Accès aux données d'un autre établissement (commandes, ventes Surplasse, clients) | Confidentialité inter-établissements | Filtrage systématique par appartenance à l'établissement sur chaque requête (voir [Autorisations](#autorisations)) |
 | Attaquant externe | Rejeu ou forge de webhook Stripe (commande marquée payée sans paiement) | Intégrité des paiements | Vérification de signature, tolérance d'horloge, traitement idempotent (voir [Webhooks Stripe](#webhooks-stripe)) |
 | Attaquant externe | Vol de session restaurateur (interception ou vol de jeton) | Compte restaurateur, données de l'établissement | JWT de session à durée courte, refresh token révocable, HTTPS strict, cookies durcis |
 | Attaquant externe | Exploration des métriques ou de l'interface d'exploitation | Topologie, charge, incidents et accès administrateur | `/q/metrics` refusé par Caddy, Prometheus interne, Grafana sans route publique en production, port loopback, tunnel SSH et authentification |
@@ -119,31 +119,42 @@ La remise du magic link est asynchrone mais non durable au MVP. Le Backend répo
 
 ## Session client anonyme
 
-Le client final n'a jamais de compte. Au scan du QR code, le parcours Commande obtient un jeton de session opaque (identifiant aléatoire, sans contenu déchiffrable côté client), lié à l'établissement et à la table encodés dans le QR.
+Le client final n'a jamais de compte. Au scan d'un QR de table, le parcours Commande obtient un jeton `TableSession` opaque lié à l'établissement et à la table encodés. Depuis un lien direct, le choix explicite de l'à emporter délivre au lot 4D un jeton `TakeawaySession` opaque limité à l'établissement et à ce canal, sans inventer de table.
 
 | Propriété | Valeur cible |
 |---|---|
 | Format | Jeton opaque (référence de session côté serveur), pas un JWT |
-| Portée | Un établissement, une table, une visite |
-| Durée de vie | Courte, de l'ordre de la durée d'un repas (2 heures, glissantes tant que la session est active) ; valeur exacte à trancher |
+| Portée | Un établissement et soit une table pour une visite, soit le canal à emporter pour une fenêtre de commande |
+| Durée de vie | Courte et glissante, de l'ordre de la durée d'un repas sur place et bornée à la fenêtre de commande à emporter ; valeurs exactes à trancher |
 | Autorise | Consulter la carte, constituer un panier, créer sa commande, payer, suivre l'état de sa commande |
 | N'autorise pas | Tout le reste : aucune lecture des autres commandes, aucune donnée de l'établissement au-delà de la carte publique, aucun endpoint restaurateur |
 
-La session anonyme ne porte aucune donnée personnelle. Si le client fournit un prénom ou un email (reçu, appel au comptoir), ces données sont rattachées à la commande, pas à la session, et relèvent de la politique décrite dans la page [RGPD](../operations/rgpd.md).
+La session anonyme ne porte aucune donnée personnelle. Si le client fournit un prénom, un email ou le mobile strictement nécessaire au SMS d'une commande à emporter, ces données sont rattachées à la commande, pas à la session, et relèvent de la politique décrite dans la page [RGPD](../operations/rgpd.md).
 
 ## Autorisations {#autorisations}
 
-Le modèle d'autorisation est volontairement simple : un restaurateur accède aux données des établissements auxquels il appartient, et à rien d'autre. Il n'y a pas de rôles fins au MVP (un seul niveau : membre de l'établissement) ; des rôles différenciés (gérant, équipe en salle) restent à trancher.
+Le modèle livré en phase 2 est volontairement simple : un restaurateur accède aux données des établissements dont il est propriétaire dans le modèle courant, et à rien d'autre. Il n'existe encore qu'un seul niveau de droit. Cette limite reste acceptable pour le pilote étroit, jamais pour une généralisation à une équipe.
+
+La cible de phase 4 est fixée par l'[ADR-0031](../decisions/adr-0031-equipes-roles-vues-metier.md). Une personne possède une `EstablishmentMembership` par établissement, avec le rôle `owner`, `manager`, `service` ou `kitchen`. Le rôle est lu côté Backend pour chaque opération. Les vues métier du Dashboard ne constituent pas une barrière de sécurité et ne reçoivent que la projection de données nécessaire à leur tâche.
 
 Chaque requête authentifiée côté restaurateur est filtrée par l'appartenance à l'établissement :
 
-1. Le JWT identifie le restaurateur.
-2. Le backend résout la liste de ses établissements.
-3. Toute requête portant sur des données d'établissement (commandes, carte, métriques, réglages) inclut obligatoirement la clause de filtrage par établissement.
+1. Le JWT identifie le restaurateur dans le modèle livré, puis le membre d'équipe après la migration de phase 4.
+2. Le backend résout l'appartenance à l'établissement et son rôle.
+3. Toute requête portant sur des données d'établissement (commandes, carte, métriques, équipe, finances, réglages) inclut obligatoirement la clause de filtrage par établissement.
+4. L'opération vérifie la capacité du rôle avant toute lecture sensible ou écriture.
 
 !!! warning Règle de code non négociable
-Jamais de requête sur une table liée à un établissement sans clause de filtrage par établissement. Cette règle est vérifiée en revue de code et couverte par des tests d'autorisation systématiques : pour chaque endpoint restaurateur, un test vérifie qu'un restaurateur A reçoit une 404 (et non une 403, pour ne pas confirmer l'existence de la ressource) quand il vise une ressource de l'établissement B.
+Jamais de requête sur une table liée à un établissement sans clause de filtrage par établissement. Cette règle est vérifiée en revue de code et couverte par des tests d'autorisation systématiques : pour chaque endpoint professionnel, un test vérifie qu'un membre A reçoit une 404 (et non une 403, pour ne pas confirmer l'existence de la ressource) quand il vise une ressource de l'établissement B. Une seconde matrice vérifie qu'un rôle insuffisant dans son propre établissement reçoit le problème 403 `role-not-authorized`.
 !!!
+
+Un `WorkstationPairingChallenge` est créé par une session nominative `owner` ou `manager`, stocké haché, expirant, consommable une fois et limité en tentatives. Son échange refuse tout navigateur qui présente déjà un cookie nominatif. Inversement, l'ouverture d'une session nominative refuse un cookie de poste actif : un contexte navigateur porte exactement un type de session.
+
+Une `WorkstationSession` appairée ne peut viser qu'un établissement et la vue Salle ou Cuisine. Elle possède une expiration, une dernière activité et une révocation à distance. Elle n'autorise jamais un refus de commande, un remboursement, la gestion des membres, les finances, les composants Stripe ni les réglages sensibles. Le poste Salle peut accepter, servir et mettre la prise de commandes en pause, mais jamais la rouvrir. Son cookie ne peut pas être promu en session nominative. Le `ReceptionLease` est une capacité courte supplémentaire : seuls une session nominative autorisée ou un poste Salle peuvent l'armer, et chaque battement revalide la session, l'appartenance, le rôle, l'établissement et la visibilité déclarée de la vue. Pour une session nominative, le bail référence le `family_id` stable : il survit à une rotation normale du refresh token et disparaît avec la révocation de la famille.
+
+Le Backend indexe les connexions SSE par session et appartenance. Une révocation ou expiration ferme les flux concernés avant de confirmer l'action. Chaque événement et battement de cœur revalide aussi la session, l'appartenance et le rôle afin qu'une connexion ouverte dans une course ne conserve aucun accès.
+
+Les changements de droits, appairages, révocations, remboursements, pauses, publications de carte et changements de prix créent un `AuditEvent` append-only. Le journal conserve l'acteur, le type de session, l'action, la ressource, l'établissement, l'heure et le résultat, sans secret ni contenu de carte bancaire.
 
 Le détail du modèle de données et des clés d'appartenance est décrit dans la page [données](donnees.md).
 
@@ -157,7 +168,7 @@ Les webhooks Stripe pilotent le cycle de vie du paiement et du remboursement, pu
 | Fraîcheur | Tolérance d'horloge de 5 minutes sur l'horodatage inclus dans la signature : un événement rejoué au-delà de cette fenêtre est rejeté. |
 | Cloisonnement Connect | Pour un événement de paiement ou de remboursement, le compte de niveau racine doit correspondre au compte figé sur le paiement. Le remboursement doit aussi référencer le même Payment Intent. Pour un événement fin Accounts v2, `related_object` doit désigner un `v2.core.account` connu. Le mode test ou live doit toujours correspondre à l'environnement ; un événement signé d'un autre mode est acquitté sans effet. |
 | Idempotence | L'identifiant d'événement Stripe est enregistré en base avec une contrainte d'unicité. Un événement déjà traité est acquitté en 200 sans effet : les livraisons dupliquées de Stripe (comportement normal de leur part) ne produisent jamais de double traitement. |
-| Atomicité | Pour un succès de paiement, l'événement reçu, la réussite du paiement, le passage de la commande à `paid` et son événement de suivi sont validés dans la même transaction. Pour un succès de remboursement, son état, le paiement `refunded`, la commande `refunded` et l'événement de suivi sont validés ensemble. Pour un événement Accounts v2, le compte est relu auprès de Stripe avant la transaction, puis l'événement et le snapshot de capacités sont validés ensemble. Si une écriture échoue, l'identifiant Stripe n'est pas conservé et sa prochaine livraison peut réparer le traitement. |
+| Atomicité | Pour un succès de paiement, l'événement reçu, la réussite du paiement, le passage de la commande à `paid`, son échéance d'acceptation durable et son événement de suivi sont validés dans la même transaction. Pour un succès de remboursement, son état, le paiement `refunded`, la commande `refunded` et l'événement de suivi sont validés ensemble. Pour un événement Accounts v2, le compte est relu auprès de Stripe avant la transaction, puis l'événement et le snapshot de capacités sont validés ensemble. Si une écriture échoue, l'identifiant Stripe n'est pas conservé et sa prochaine livraison peut réparer le traitement. |
 
 Les deux endpoints de webhook sont les seuls endpoints publics non couverts par le CORS applicatif : ils ne sont appelés que serveur à serveur par Stripe.
 
@@ -232,7 +243,6 @@ PostgreSQL est sauvegardé de façon chiffrée, avec des copies hors du VPS de p
 | Sujet | Piste | Où sera consignée la décision |
 |---|---|---|
 | Durée exacte de la session client anonyme | 2 heures glissantes | Le contrat et un ADR si le sujet s'avère structurant |
-| Rôles restaurateur différenciés (gérant, salle) | Hors MVP | ADR dédié le moment venu |
 | Seuil de passage à un coffre serveur dédié | Seulement si les secrets ou les opérateurs se multiplient réellement ; le fichier protégé et le coffre humain suffisent au premier VPS | ADR dédié si le seuil est atteint |
 | Seuils de limitation hors demande de magic link et futur stockage partagé des compteurs | Calibrage avant activation de chaque endpoint, stockage partagé avant toute seconde instance | Documentation d'exploitation |
 | Plafond de taille des téléversements | De l'ordre de 10 Mo par image | Le contrat |

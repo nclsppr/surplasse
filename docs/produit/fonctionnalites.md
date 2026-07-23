@@ -38,7 +38,7 @@ Le cœur de la promesse : un restaurateur passe d'une photo de sa carte à un mi
 | Activation du compte par magic link | Le restaurateur active son compte et accède au Dashboard via un lien envoyé par email, sans mot de passe. | Must | Onboarding, Dashboard, Backend |
 | Thème visuel extrait | L'IA dérive une palette de couleurs et une ambiance typographique depuis le logo et les photos fournies, pour que le mini-site ressemble au restaurant. | Should | Onboarding, Commande, Backend |
 | Harmonisation des photos de plats | Les photos de plats fournies par le restaurateur sont harmonisées par un traitement d'image serveur (cadrage, normalisation de la lumière, miniatures) pour un rendu homogène sur la carte, pendant l'embarquement comme lors des mises à jour. | Should | Onboarding, Dashboard, Backend |
-| Génération de visuels de plats | À l'embarquement ou depuis la fiche d'un produit dans le Dashboard, l'IA produit à partir de la photo du plat réel des visuels candidats privés. Le restaurateur choisit la photo fournie, un rendu généré ou aucune image ; rien n'est publié automatiquement. Sources maîtrisées uniquement, jamais de photos de tiers. Voir [ADR-0025](../decisions/adr-0025-visuels-plats-a-la-demande.md). | Must | Onboarding, Dashboard, Backend |
+| Premier choix de visuels de plats | Pendant l'embarquement, l'IA produit à partir de la photo du plat réel des visuels candidats privés. Le restaurateur choisit la photo fournie, un rendu généré ou aucune image ; rien n'est publié automatiquement. Sources maîtrisées uniquement, jamais de photos de tiers. Voir [ADR-0025](../decisions/adr-0025-visuels-plats-a-la-demande.md). | Must | Onboarding, Backend |
 
 ## 2. Espaces à revendiquer
 
@@ -61,13 +61,16 @@ La carte est la donnée centrale du produit : ce que le client consulte côté C
 | Fonctionnalité | Description | Priorité | Applications |
 |---|---|---|---|
 | Catégories et produits | La carte est organisée en catégories ordonnées (entrées, plats, desserts, boissons) contenant des produits avec nom, description, photo et prix. | Must | Commande, Dashboard, Backend |
-| Image par produit | Pour chaque produit, le restaurateur choisit son image depuis le Dashboard : téléverser, recadrer, remplacer ou retirer sa propre photo, demander des rendus IA depuis celle-ci, retenir un candidat ou n'afficher aucune image. | Must | Dashboard, Backend |
+| Image par produit | Pour chaque produit, le restaurateur choisit son image depuis le Dashboard : téléverser, recadrer, remplacer ou retirer sa propre photo, ou n'afficher aucune image. | Must | Dashboard, Backend |
+| Rendus IA récurrents | Après l'embarquement, le restaurateur peut demander depuis une photo réelle de nouveaux rendus candidats, les comparer et en retenir un explicitement. Cette extension ne bloque pas la cohorte de preuve. | Should | Dashboard, Backend |
 | Options de produits | Un produit porte des options : variantes exclusives (cuisson, taille) ou suppléments cumulables, avec impact sur le prix. | Must | Commande, Dashboard, Backend |
-| Édition de la carte | Le restaurateur modifie la carte depuis le Dashboard : ajout, retrait, réorganisation, changement de prix, sans délai de publication. | Must | Dashboard, Backend |
+| Édition de la carte | Le restaurateur modifie la carte depuis le Dashboard : ajout, retrait, réorganisation et changement de prix, sans intervention de Surplasse. | Must | Dashboard, Backend |
 | Disponibilités | Un produit peut être marqué indisponible en un geste (rupture du jour) ; il reste visible ou masqué selon le choix du restaurateur. | Must | Commande, Dashboard, Backend |
 | Horaires | L'établissement définit ses horaires d'ouverture et ses plages de commande ; hors plage, la carte reste consultable mais la commande est fermée. | Must | Commande, Dashboard, Backend |
-| Menus et formules | Des produits composés (entrée + plat + dessert à prix fixe) avec choix par étape. | Should | Commande, Dashboard, Backend |
-| Allergènes et régimes | Chaque produit peut porter des étiquettes allergènes et régimes (végétarien, sans gluten), filtrables côté client. | Should | Commande, Dashboard, Backend |
+| Publication versionnée | Une rupture est immédiate ; les changements structurels passent par un brouillon, une prévisualisation mobile et une publication atomique. Une version publiée peut être restaurée sans modifier les commandes passées. | Must | Dashboard, Commande, Backend |
+| Profils de présentation | Le restaurateur choisit Compact, Équilibré ou Visuel, règle la politique d'images et prévisualise la carte. Les contraintes d'accessibilité, de prix, de navigation et de performance ne sont pas désactivables. | Must | Onboarding, Commande, Dashboard, Backend |
+| Menus et formules | Des produits composés à prix fixe avec choix par étape. Les choix restent regroupés et ordonnés sur un ticket unique ; le socle ne pilote pas l'envoi séparé de chaque service. | Must | Commande, Dashboard, Backend |
+| Informations réglementaires | Chaque produit peut porter les allergènes déclarés, régimes, origine et mentions applicables. Le restaurateur les renseigne ou les valide ; l'IA ne déduit jamais seule une information juridique. | Must | Onboarding, Commande, Dashboard, Backend |
 
 ## 4. Commande
 
@@ -78,8 +81,9 @@ Le parcours client, sans application ni compte : scanner, choisir, payer. Les en
 | Commande sur place via QR par table | Chaque table porte un QR code qui ouvre la carte avec le numéro de table pré-rempli ; la commande arrive en cuisine rattachée à la table. | Must | Commande, Backend |
 | Panier | Le client compose son panier (produits, options, quantités, remarque libre) avant de valider ; le panier survit à un rechargement de page. | Must | Commande |
 | Statuts de commande | Le client suit sa commande en temps réel : payée, acceptée, en préparation, prête, servie ou retirée. | Must | Commande, Backend |
-| Commande à emporter | Le client commande depuis le mini-site sans être sur place et choisit un créneau de retrait. | Should | Commande, Backend |
+| Commande à emporter | Le client commande depuis le mini-site sans être sur place, choisit un créneau de retrait encore disponible et reçoit un SMS lorsque la commande est prête. | Must | Commande, Backend |
 | Rappel de commande | Le client retrouve sa commande en cours via un lien, sans compte, pour en suivre le statut ou montrer le récapitulatif. | Must | Commande, Backend |
+| Proposition de commande assistée | Un membre en salle enregistre une proposition liée à la table. Son ouverture hydrate un nouveau panier côté client, sans réserver le stock ni faire foi sur le prix. Le client le relit et le paie en ligne ; seule la commande payée entre en cuisine. La pré-cohorte décide si elle devient Must avant la preuve formelle. | Should | Dashboard, Commande, Backend |
 
 ## 5. Paiement
 
@@ -89,8 +93,9 @@ Le paiement est intégré à la commande, via Stripe. Le client paie depuis son 
 |---|---|---|---|
 | Paiement CB via Stripe | Paiement par carte bancaire au moment de la validation de la commande, sans création de compte client. | Must | Commande, Backend |
 | Apple Pay et Google Pay | Paiement en un geste via les portefeuilles natifs, servis par la même intégration Stripe. | Must | Commande, Backend |
-| Pourboire numérique | Au moment de payer, le client peut ajouter un pourboire (pourcentages suggérés ou montant libre), reversé à l'établissement. | Should | Commande, Backend |
-| Remboursement | Le restaurateur rembourse intégralement une commande depuis le Dashboard au MVP. Le remboursement partiel fera l'objet d'une décision ultérieure. | Should | Dashboard, Backend |
+| Pourboire numérique | Après le service, le client peut laisser un pourboire par un paiement Stripe distinct, avec pourcentages suggérés ou montant libre, reversé à l'établissement. | Should | Commande, Backend |
+| Remboursement intégral | Le restaurateur ou un responsable rembourse intégralement une commande depuis le Dashboard, avec motif, idempotence et rapprochement Stripe. | Must | Dashboard, Backend |
+| Remboursement partiel | Le restaurateur ou un responsable rembourse une ligne ou une quantité, avec motif, auteur, reçu mis à jour et restitution cohérente de la commission. Un ADR précède son implémentation. | Must | Dashboard, Backend |
 | PayPal | Paiement via PayPal. Exclu du MVP : Stripe couvre les moyens de paiement dominants ; PayPal est en roadmap. | Won't | Commande, Backend |
 
 ## 6. Temps réel et cuisine
@@ -100,10 +105,14 @@ La commande doit arriver côté restaurant sans délai perceptible et sans maté
 | Fonctionnalité | Description | Priorité | Applications |
 |---|---|---|---|
 | Flux SSE des commandes | Le Dashboard reçoit les nouvelles commandes et les changements de statut en temps réel via un flux SSE, avec reconnexion automatique. | Must | Dashboard, Backend |
-| Acceptation ou refus | Le restaurateur accepte ou refuse chaque commande entrante ; un refus déclenche l'annulation du paiement et l'information du client. | Must | Dashboard, Backend |
+| Acceptation ou refus | Un membre autorisé accepte ou refuse chaque commande déjà payée. Un refus avant acceptation déclenche un remboursement intégral contraint et l'information du client. | Must | Dashboard, Backend |
 | Avancement de commande | Le restaurateur fait progresser la commande (en préparation, prête, servie ou retirée) ; le client voit chaque changement. | Must | Dashboard, Commande, Backend |
-| Alerte sonore et visuelle | Une nouvelle commande déclenche une alerte sonore et visuelle sur le Dashboard, pensée pour un environnement de cuisine bruyant. | Should | Dashboard |
-| Imprimante thermique | Impression optionnelle d'un ticket cuisine sur imprimante thermique ESC/POS à chaque commande acceptée. Le protocole d'intégration reste à trancher (ADR à venir dans [les décisions](../decisions/index.md)). | Could | Dashboard, Backend |
+| Vues métier Salle et Cuisine | Le même Dashboard présente une vue Salle centrée sur les tables et le service, et une vue Cuisine centrée sur l'ancienneté, les options, les allergènes et la préparation. | Must | Dashboard, Backend |
+| Alerte sonore et visuelle | Une nouvelle commande déclenche une alerte sonore et visuelle testable. Son âge, l'état SSE et la relance avant acquittement restent visibles dans un environnement bruyant. | Must | Dashboard |
+| Rappel d'un ticket | La vue Cuisine permet de remettre immédiatement le dernier ticket passé à « Prête » par la même session en « En préparation », tant qu'il n'est ni servi ni retiré, avec une action tracée. À emporter, la fenêtre dure cinq secondes et annule le SMS encore en attente ; après le début possible de l'envoi, le traitement d'incident prend le relais. | Must | Dashboard, Backend |
+| Sécurité de réception | Tant que la prise de commandes est ouverte, au moins une session testée, explicitement armée et capable d'accepter confirme qu'elle reçoit le flux. Un poste Cuisine seul ne suffit pas. La perte de tous les réceptionnaires force une pause, une alerte secondaire et le traitement borné des commandes payées dans l'intervalle. | Must | Dashboard, Backend |
+| Routage simple par poste | Les produits peuvent être routés vers deux ou trois files spécialisées, par exemple bar, chaud ou froid. La pré-cohorte décide s'il devient Must avant la preuve formelle. | Should | Dashboard, Backend |
+| Imprimante thermique | Impression optionnelle d'un ticket cuisine sur une liste courte d'imprimantes ESC/POS à chaque commande acceptée. La pré-cohorte décide si elle devient Must ; le protocole d'intégration reste à trancher par ADR. | Should | Dashboard, Backend |
 
 ## 7. Engagement client
 
@@ -123,25 +132,42 @@ Le pont entre la salle et le numérique. Chaque table a son QR code, généré p
 | Fonctionnalité | Description | Priorité | Applications |
 |---|---|---|---|
 | Génération des QR codes | Le Dashboard génère les QR codes par table et par établissement, exportables en PDF prêt à imprimer. | Must | Dashboard, Backend |
+| Carte papier synchronisée | Le Dashboard exporte la carte publiée en PDF daté, avec prix TTC et informations réglementaires. Il signale quand une version imprimée est devenue obsolète. | Must | Dashboard, Backend |
 | Stickers et sous-verres gratuits | À l'activation, l'établissement reçoit gratuitement par courrier un jeu de stickers et de sous-verres imprimés avec ses QR codes. | Should | Dashboard, Backend |
 | Supports premium | Commande de supports de qualité supérieure (chevalets, plaques gravées) depuis le Dashboard, facturés à prix coûtant majoré. | Could | Dashboard, Backend |
 
-## 9. Gestion et métriques
+## 9. Équipe et accès
+
+Le restaurateur donne à chacun l'accès nécessaire sans partager son magic link. Le modèle cible est fixé dans l'[ADR-0031](../decisions/adr-0031-equipes-roles-vues-metier.md).
+
+| Fonctionnalité | Description | Priorité | Applications |
+|---|---|---|---|
+| Appartenances par établissement | Une personne appartient à un ou plusieurs établissements, avec un rôle propre à chacun. | Must | Dashboard, Backend |
+| Rôles fixes | Quatre rôles initiaux, `owner`, `manager`, `service`, `kitchen`, autorisent les actions côté Backend selon une matrice commune. | Must | Dashboard, Backend |
+| Invitations et révocation | Un administrateur invite un membre par email, choisit son rôle et peut révoquer immédiatement ses sessions. | Must | Dashboard, Backend |
+| Postes partagés | Une tablette Salle ou Cuisine est appairée par code temporaire, limitée à un établissement, expirante et révocable à distance. | Must | Dashboard, Backend |
+| Journal d'activité | Les changements de droits, remboursements, pauses, publications et changements de prix portent un auteur, une date et un résultat. | Must | Dashboard, Backend |
+| Permissions personnalisées | Le restaurateur compose librement chaque droit d'un rôle. Trop complexe pour le socle professionnel. | Won't | Dashboard, Backend |
+
+## 10. Gestion, finances et métriques
 
 Le Dashboard donne au restaurateur une lecture simple de son activité, sans jargon analytique.
 
 | Fonctionnalité | Description | Priorité | Applications |
 |---|---|---|---|
-| Vue du service en cours | Chiffre d'affaires, nombre de commandes et temps de préparation moyen du service, en temps réel. | Should | Dashboard, Backend |
+| Vue du service en cours | Ventes brutes Surplasse TTC, remboursements, nombre de commandes payées et temps de préparation moyen du service, en temps réel. | Must | Dashboard, Backend |
 | Historique des commandes | Liste consultable et filtrable de toutes les commandes passées, avec détail et statut de paiement. | Must | Dashboard, Backend |
-| Analyse de période | Chiffre d'affaires, nombre de commandes et panier moyen par jour, semaine ou mois, avec comparaison à la période précédente et répartition par service configuré. | Should | Dashboard, Backend |
-| Top produits | Deux classements des produits sur une période, par quantités vendues et par chiffre d'affaires généré, pour éclairer les choix de carte. | Should | Dashboard, Backend |
+| Registre financier | Chaque paiement montre brut, remboursements, commission Surplasse, frais Stripe disponibles, net et identifiants de rapprochement. Le pourboire apparaît séparément lorsque la phase 5 est active. | Must | Dashboard, Backend |
+| Paiements et versements Stripe | Les composants Connect intégrés donnent accès aux paiements, versements, litiges, documents, rapports, exigences KYC et remédiation du compte, sans Dashboard Stripe séparé. Leurs fonctions sont limitées selon le rôle et ne contournent jamais un workflow Surplasse. | Must | Dashboard, Backend |
+| Rapprochement de fin de service | Le restaurateur explique les ventes Surplasse, remboursements, net attendu, versements et écarts sans requête manuelle en base. | Must | Dashboard, Backend |
+| Export comptable | Export CSV des ventes Surplasse, taxes configurées, remboursements, frais et identifiants de rapprochement sur une période. | Must | Dashboard, Backend |
+| Analyse de période | Ventes Surplasse TTC, nombre de commandes et panier moyen par jour, semaine ou mois, avec comparaison à la période précédente et répartition par service configuré. | Should | Dashboard, Backend |
+| Top produits | Deux classements des produits sur une période, par quantités vendues et par ventes générées dans Surplasse, pour éclairer les choix de carte. | Should | Dashboard, Backend |
 | Heures de pointe | Répartition des commandes par jour et par heure, pour ajuster les équipes et les stocks. | Could | Dashboard, Backend |
 | Répartition par canal | Part des commandes sur place et à emporter, en nombre de commandes, lorsque l'à emporter est actif. | Should | Dashboard, Backend |
-| Multi-établissements | Un restaurateur gère plusieurs établissements depuis le même compte, avec bascule entre eux dans le Dashboard. | Could | Dashboard, Backend |
-| Export comptable | Export CSV des commandes et paiements sur une période, pour le comptable. | Could | Dashboard, Backend |
+| Multi-établissements | Un restaurateur gère jusqu'à trois établissements depuis le même compte, avec bascule et droits propres dans le Dashboard. | Must | Dashboard, Backend |
 
-## 10. Transverse
+## 11. Transverse
 
 Exigences qui traversent toutes les applications et ne se négocient pas fonctionnalité par fonctionnalité.
 
@@ -151,6 +177,8 @@ Exigences qui traversent toutes les applications et ne se négocient pas fonctio
 | RGPD | Minimisation des données, pas de compte client, consentements explicites, droits d'accès et d'effacement outillés. Détail dans [la page RGPD](../operations/rgpd.md). | Must | Toutes |
 | Multilingue de la carte | Traduction automatique de la carte (anglais en premier), activable par le restaurateur, avec relecture possible. | Could | Commande, Dashboard, Backend |
 | Performance mobile | Le mini-site se charge vite sur un réseau mobile moyen : la carte doit être consultable en moins de 2 secondes sur un réseau 4G. | Must | Commande |
+| Préparation au service | Avant chaque ouverture, une checklist vérifie carte, horaires, tables, QR codes, Stripe, son, réseau et au moins une session de réception capable d'accepter. Une commande et un remboursement de test sont exercés à l'activation puis après un changement critique, pas avant chaque service. | Must | Onboarding, Dashboard, Backend |
+| Frontière avec la caisse | Surplasse ne marque jamais manuellement une commande payée et n'enregistre aucun règlement externe dans le socle professionnel. | Must | Dashboard, Backend |
 
 ## Du Must au premier MVP livrable
 
@@ -158,23 +186,25 @@ Toutes les fonctionnalités Must ci-dessus sont indispensables au produit *fini*
 
 | Fonctionnalité Must | Phase de la roadmap |
 |---|---|
-| Carte numérique (catégories, produits, options, disponibilités, horaires) | Phase 2, saisie à la main |
+| Carte numérique du pilote (catégories, produits et options) | Phase 2, saisie à la main |
 | Commande sur place via QR par table, panier, rappel de commande | Phase 2 |
 | Paiement CB, Apple Pay et Google Pay via Stripe | Phase 2 |
 | Flux SSE des commandes, acceptation ou refus, avancement | Phase 2 |
-| Génération des QR codes par table | Phase 2 |
+| QR codes du pilote | Phase 2, provisionnés par Surplasse ; gestion autonome en phase 4 |
 | Activation du compte par magic link | Phase 2 |
 | Extraction de carte depuis photo, relecture et correction | Phase 3 |
-| Génération et choix des visuels de plats | Phase 3 pendant l'embarquement, phase 4 dans la vie courante |
-| Génération du mini-site | Phase 3 |
-| Édition de la carte depuis le Dashboard | Phase 4 |
-| Historique des commandes | Phase 4 |
+| Génération et choix initial des visuels de plats | Phase 3 pendant l'embarquement ; gestion des photos en phase 4, nouvelle génération récurrente Should après la preuve |
+| Génération du mini-site, profil initial, informations réglementaires et premier PDF | Phase 3 |
+| Équipe, rôles, postes partagés et vues métier | Phase 4 |
+| Édition versionnée, formules, mise à jour des informations réglementaires, profils visuels et obsolescence de la carte papier | Phase 4 |
+| Historique, remboursement partiel, surfaces Stripe, rapprochement et export | Phase 4 |
+| Emporter, sécurité de réception et multi-établissements | Phase 4 |
 | Accessibilité, RGPD, performance mobile | Transverse, dès la phase 2 |
 
-En une phrase : la phase 2 permet à un client attablé de commander et payer depuis son téléphone, la commande arrivant en cuisine en temps réel ; l'embarquement magique depuis une simple photo, cœur de la promesse, est industrialisé en phase 3.
+En une phrase : la phase 2 qualifie le noyau dans un pilote, la phase 3 industrialise l'embarquement depuis une photo, et la phase 4 transforme ce canal en outil exploitable chaque jour par une équipe et rapprochable par le restaurateur.
 
 !!! info Le contrat suit le périmètre
-Chaque fonctionnalité Must correspond à des opérations décrites dans le contrat OpenAPI (`api/openapi.yaml`), source de vérité de l'API. Voir [la page API](../architecture/api.md).
+Chaque fonctionnalité Must correspondra à des opérations décrites dans le contrat OpenAPI (`api/openapi.yaml`) avant son implémentation. Le contrat reste la source de vérité de l'API. Voir [la page API](../architecture/api.md).
 !!!
 
 ## Pour aller plus loin

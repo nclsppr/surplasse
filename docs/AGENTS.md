@@ -13,6 +13,11 @@ Positionnement : Surplasse n'est pas une marketplace. Le restaurant garde son id
 | Terme | Définition | À ne pas confondre avec |
 |---|---|---|
 | **Restaurateur** | Le professionnel qui gère un établissement sur Surplasse | « marchand », « commerçant », « utilisateur pro » |
+| **Membre d'équipe** | Une personne invitée à travailler sur un établissement avec un rôle déterminé | « sous-compte », « employé » comme terme générique |
+| **Vue métier** | Une présentation du Dashboard adaptée au travail en Salle, Cuisine ou Gestion ; elle ne définit jamais les droits | « application serveur », « application cuisine » |
+| **Poste partagé** | Un appareil Salle ou Cuisine appairé à un établissement, révocable et sans accès aux réglages sensibles | « compte commun », partage du magic link |
+| **Rapprochement Surplasse** | L'explication des ventes du canal par les paiements, remboursements, commissions, frais disponibles et versements Stripe | « chiffre d'affaires du restaurant », « clôture de caisse » |
+| **Socle professionnel** | Le minimum exploitable et mesurable qui permet à une équipe cible de dépendre de Surplasse chaque jour | « produit fini », « couverture de tout le marché » |
 | **Client** | Le convive qui consulte la carte et commande | « consommateur », « utilisateur final », « guest » |
 | **Établissement** | Le restaurant en tant qu'entité (un restaurateur peut en avoir plusieurs) | « boutique », « point de vente » |
 | **La carte** | Le menu du restaurant (catégories, produits, options, prix) | « le menu » est acceptable, « catalogue » non |
@@ -33,7 +38,7 @@ Quatre applications, un backend, un contrat :
 |---|---|---|---|---|
 | **Onboarding** | `frontends/onboarding/` | `surplasse.com` | `surplasse.test` | Vitrine produit et tunnel d'embarquement des restaurateurs |
 | **Commande** | `frontends/commande/` | `{slug}.surplasse.com` | `{slug}.surplasse.test` | Mini-site de l'établissement, carte numérique, commande et paiement client |
-| **Dashboard** | `frontends/dashboard/` | `dashboard.surplasse.com` | `dashboard.surplasse.test` | Suivi des commandes en temps réel, gestion de la carte, métriques et analyse |
+| **Dashboard** | `frontends/dashboard/` | `dashboard.surplasse.com` | `dashboard.surplasse.test` | Vues métier Salle, Cuisine et Gestion : commandes, équipe, carte, finances et analyse |
 | **Backend** | `backend/` | `api.surplasse.com` | `api.surplasse.test` | API REST Quarkus, logique métier, persistance, intégrations |
 
 Le contrat OpenAPI vit dans `api/openapi.yaml`. Il est la source de vérité : le backend l'implémente, les frontends consomment des clients TypeScript générés depuis lui.
@@ -99,6 +104,14 @@ Entités (noms de classes et, entre parenthèses, table SQL en `snake_case`) :
 | Entité (prose FR) | Classe (table SQL) |
 |---|---|
 | restaurateur | `Restaurateur` (`restaurateur`) |
+| membre d'équipe | `TeamMember` (`team_member`) |
+| appartenance à un établissement | `EstablishmentMembership` (`establishment_membership`) |
+| session de poste partagé | `WorkstationSession` (`workstation_session`) |
+| bail de réception | `ReceptionLease` (`reception_lease`) |
+| défi d'appairage d'un poste | `WorkstationPairingChallenge` (`workstation_pairing_challenge`) |
+| événement du journal d'activité | `AuditEvent` (`audit_event`) |
+| traitement planifié durable | `ScheduledJob` (`scheduled_job`) |
+| remise de notification | `NotificationDelivery` (`notification_delivery`) |
 | client | `Customer` (`customer`) |
 | établissement | `Establishment` (`establishment`) |
 | espace pré-généré | `Space` (`space`) |
@@ -109,12 +122,16 @@ Entités (noms de classes et, entre parenthèses, table SQL en `snake_case`) :
 | groupe d'options | `OptionGroup` (`option_group`) |
 | table (support QR) | `TableQr` (`table_qr`) |
 | session de table | `TableSession` (`table_session`) |
+| session à emporter | `TakeawaySession` (`takeaway_session`) |
+| configuration à emporter | `TakeawayConfiguration` (`takeaway_configuration`) |
+| créneau de retrait | `PickupSlot` (`pickup_slot`) |
 | commande | `Order` (`order`) |
 | ligne de commande | `OrderLine` (`order_line`) |
 | événement de commande diffusé | `OrderEvent` (`order_event`) |
 | paiement | `Payment` (`payment`) |
 | événement webhook traité | `StripeWebhookEvent` (`stripe_webhook_event`) |
 | session de magic link | `MagicLinkSession` (`magic_link_session`) |
+| session nominative d'un membre | `TeamMemberSession` (`team_member_session`) |
 | contact client | `CustomerContact` (`customer_contact`) |
 | avis | `Review` (`review`) |
 | pourboire | `Tip` (`tip`) |
@@ -132,6 +149,13 @@ Valeurs d'enum (stockées en base, donc en anglais) :
 | Cycle de vie d'un espace (`Space.status`) | `pregenerated`, `claiming`, `claimed` |
 | Cycle de vie d'un établissement (`Establishment.status`) | `configuring`, `active`, `suspended` |
 | État opérationnel de prise de commandes (`Establishment.orderIntakeStatus`) | `open`, `paused` |
+| Statut d'un membre (`TeamMember.status`) | `invited`, `active`, `suspended` |
+| Rôle d'une appartenance (`EstablishmentMembership.role`) | `owner`, `manager`, `service`, `kitchen` |
+| Vue d'un poste partagé (`WorkstationSession.view`) | `service`, `kitchen` |
+| Statut d'un créneau de retrait (`PickupSlot.status`) | `open`, `closed` |
+| Résultat d'une action journalisée (`AuditEvent.result`) | `succeeded`, `denied`, `failed` |
+| Statut d'un traitement planifié (`ScheduledJob.status`) | `pending`, `running`, `succeeded`, `failed`, `canceled` |
+| Statut d'une remise (`NotificationDelivery.status`) | `pending`, `sending`, `sent`, `delivered`, `failed`, `canceled` |
 | Statut d'un job (`ExtractionJob.status`) | `pending`, `running`, `succeeded`, `failed` |
 | Source d'un média (`MediaAsset.source`) | `uploaded`, `generated` |
 | Nature d'un média (`MediaAsset.kind`) | `dish`, `place`, `logo`, `menu_scan` |
@@ -143,7 +167,8 @@ Exceptions métier (dans `common`) :
 |---|---|---|
 | ressource inconnue | `NotFoundException` | 404 |
 | non authentifié | `UnauthenticatedException` | 401 |
-| accès hors périmètre établissement | `AccessDeniedException` | 404 (jamais 403) |
+| accès hors périmètre établissement | `AccessDeniedException` | 404 (ne jamais confirmer l'existence de la ressource) |
+| rôle insuffisant dans son établissement | `ForbiddenException` | 403 |
 | conflit d'état | `ConflictException` | 409 |
 | règle métier violée | `BusinessRuleException` | 422 |
 | paiement refusé | `PaymentFailedException` | 422 |
@@ -163,15 +188,15 @@ Les valeurs stockées du statut (`Order.status`) sont en anglais ; leur glose fr
 pending_payment  ->  paid  ->  accepted  ->  preparing  ->  ready  ->  served (sur place) | picked_up (à emporter)
 ```
 
-Glose : `pending_payment` (en attente de paiement), `paid` (payée), `accepted` (acceptée), `preparing` (en préparation), `ready` (prête), `served` (servie), `picked_up` (retirée). Statuts terminaux de sortie : `cancelled` (abandon ou expiration avant paiement, ou refus du restaurateur avant acceptation) et `refunded` (après paiement). Valeurs proscrites, à ne jamais employer comme statut : `received`/« reçue », `draft`/« brouillon », `retrieved`/« récupérée », « Nouvelle », « Refusée », « validée ». Le passage à `paid` n'est déclenché que par le webhook Stripe signé, jamais par le retour navigateur du client. Les libellés affichés au restaurateur dans le Dashboard peuvent être plus parlants (« Nouvelle commande » pour `paid`), mais ils restent rattachés explicitement au statut canonique.
+Glose : `pending_payment` (en attente de paiement), `paid` (payée), `accepted` (acceptée), `preparing` (en préparation), `ready` (prête), `served` (servie), `picked_up` (retirée). Le seul retour autorisé est `ready` vers `preparing`, pour rappeler immédiatement le dernier ticket que la même session a clôturé par erreur avant service ou retrait ; il est journalisé. Pour une commande à emporter, ce rappel n'est possible que pendant la fenêtre de cinq secondes précédant l'envoi du SMS « Prête » et annule atomiquement la remise encore `pending` ; dès que l'envoi a pu commencer, l'API refuse le rappel et impose le traitement d'incident. Statuts terminaux de sortie : `cancelled` (abandon ou expiration avant paiement uniquement) et `refunded` (tout remboursement intégral après paiement, y compris un refus ou l'expiration du délai d'acceptation). Valeurs proscrites, à ne jamais employer comme statut : `received`/« reçue », `draft`/« brouillon », `retrieved`/« récupérée », « Nouvelle », « Refusée », « validée ». Le passage à `paid` n'est déclenché que par le webhook Stripe signé, jamais par le retour navigateur du client. Les libellés affichés au restaurateur dans le Dashboard peuvent être plus parlants (« Nouvelle commande » pour `paid`), mais ils restent rattachés explicitement au statut canonique.
 
 ### Cycle de vie du panier et de la commande
 
-Le panier est un état **purement côté client** (application Commande). Aucune commande n'existe en base tant que le panier n'est pas validé. À la validation, le Backend crée la commande directement au statut `en attente de paiement`. Il n'y a pas d'état « brouillon » de commande en base.
+Le panier est un état **purement côté client** (application Commande). Aucune commande n'existe en base tant que le panier n'est pas validé. À la validation, le Backend crée la commande directement au statut `pending_payment` (en attente de paiement). Il n'y a pas d'état « brouillon » de commande en base.
 
 ### Prise de commandes (référence : `decisions/adr-0020-accounts-v2-onboarding-embarque.md`)
 
-La prise de commandes est un état opérationnel distinct du cycle de vie `Establishment.status`. `Establishment.orderIntakeStatus` vaut `open` ou `paused`. La disponibilité effective `acceptingOrders` exige en plus un établissement `active`, une carte publiée, une table active et un compte Stripe Connect encaissable. La pause ferme les nouvelles sessions de table, commandes et sessions de paiement, mais laisse accessibles la carte, les commandes existantes, leur suivi, les flux SSE et les webhooks Stripe. Une capacité Accounts v2 `card_payments` différente de `active` force la pause ; son retour ne rouvre jamais automatiquement la prise de commandes.
+La prise de commandes est un état opérationnel distinct du cycle de vie `Establishment.status`. `Establishment.orderIntakeStatus` vaut `open` ou `paused`. La disponibilité effective `acceptingOrders` exige en plus un établissement `active`, une carte publiée, au moins un canal actif (table avec QR ou à emporter configuré), un compte Stripe Connect encaissable et un `ReceptionLease` valide pour une session capable d'accepter. La pause ferme les nouvelles sessions anonymes, commandes et sessions de paiement, mais laisse accessibles la carte, les commandes existantes, leur suivi, les flux SSE et les webhooks Stripe. Une capacité Accounts v2 `card_payments` différente de `active` force la pause ; son retour ne rouvre jamais automatiquement la prise de commandes.
 
 ### Domaines métier (référence : `architecture/backend.md`)
 
@@ -179,11 +204,13 @@ Six domaines, alignés sur les modules Maven : `catalogue`, `commande`, `paiemen
 
 ### Authentification et temps réel (référence : `architecture/securite.md`)
 
-La session du restaurateur est un **JWT court porté par un cookie hôte uniquement émis par `api.surplasse.com`, `HttpOnly`, `Secure` en production, `SameSite=Lax`, `Path=/`**, posé après l'échange du magic link. Le lien transporte son jeton à usage unique dans le fragment `#token=...`, que le Dashboard retire avant l'échange par POST. Un second cookie hôte uniquement porte le refresh token opaque, rotatif et haché en base. Le Dashboard appelle `api.surplasse.com` avec `credentials: "include"` et le flux SSE utilise `withCredentials: true` : aucun en-tête `Authorization` n'est nécessaire. Ne jamais définir `Domain=.surplasse.com`, qui exposerait inutilement les cookies aux mini-sites, ni décrire l'authentification restaurateur comme un `Bearer` en en-tête. Le client final, lui, reçoit un jeton de session anonyme opaque lié à l'établissement et à la table.
+La session du restaurateur est un **JWT court porté par un cookie hôte uniquement émis par `api.surplasse.com`, `HttpOnly`, `Secure` en production, `SameSite=Lax`, `Path=/`**, posé après l'échange du magic link. Le lien transporte son jeton à usage unique dans le fragment `#token=...`, que le Dashboard retire avant l'échange par POST. Un second cookie hôte uniquement porte le refresh token opaque, rotatif et haché en base. Le Dashboard appelle `api.surplasse.com` avec `credentials: "include"` et le flux SSE utilise `withCredentials: true` : aucun en-tête `Authorization` n'est nécessaire. Ne jamais définir `Domain=.surplasse.com`, qui exposerait inutilement les cookies aux mini-sites, ni décrire l'authentification restaurateur comme un `Bearer` en en-tête. Le client final, lui, reçoit un jeton de session anonyme opaque lié à l'établissement et soit à une table, soit au canal à emporter.
+
+Le modèle livré en phase 2 associe encore directement un `Restaurateur` à ses établissements. La cible de phase 4, fixée par l'[ADR-0031](decisions/adr-0031-equipes-roles-vues-metier.md), migre l'identité professionnelle vers `TeamMember` et porte le rôle dans `EstablishmentMembership`. Les rôles stockés sont `owner`, `manager`, `service` et `kitchen`. Une `WorkstationSession` peut ouvrir uniquement la vue Salle ou Cuisine d'un établissement ; elle ne possède jamais les droits financiers ou d'administration. Seule une session capable d'accepter peut créer un `ReceptionLease` et maintenir la prise de commandes ouverte. Une vue métier organise l'interface, le Backend autorise l'action.
 
 ### Séquencement (référence : `roadmap.md`)
 
-La roadmap est la source unique de l'ordre de livraison (les phases). La priorisation MoSCoW de `produit/fonctionnalites.md` exprime l'importance intrinsèque des fonctionnalités pour le produit cible, pas un calendrier. Le premier MVP réellement livrable correspond à la **phase 2** de la roadmap (commander et payer). L'extraction IA de la carte, la génération du mini-site et le premier choix de visuels arrivent en phase 3. L'édition autonome de la carte, la génération récurrente de visuels, l'historique et les métriques arrivent en phase 4. Les espaces à revendiquer relèvent de la phase 5. Aucune page ne doit présenter ces éléments comme faisant partie du premier MVP.
+La roadmap est la source unique de l'ordre de livraison (les phases). La priorisation MoSCoW de `produit/fonctionnalites.md` exprime l'importance intrinsèque des fonctionnalités pour le produit cible, pas un calendrier. Le premier MVP réellement livrable correspond à la **phase 2** de la roadmap (commander et payer). L'extraction IA de la carte, la génération du mini-site et le premier choix de visuels arrivent en phase 3. Le socle professionnel arrive en phase 4 : équipe et rôles, vues métier, gestion autonome et versionnée de la carte, personnalisation contrainte, historique, surfaces financières Stripe, rapprochement et métriques. Les espaces à revendiquer relèvent de la phase 5. Aucune page ne doit présenter ces éléments comme faisant partie du premier MVP.
 
 ### Fournisseur IA
 

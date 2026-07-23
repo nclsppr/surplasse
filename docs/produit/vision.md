@@ -92,7 +92,7 @@ Les clients commandent directement auprès de l'établissement. Le restaurateur 
 
 ### 4. La discrétion de la technologie
 
-La technologie reste invisible pour le client (un scan, une carte, un paiement) et légère pour l'équipe : les commandes arrivent sur une tablette, un téléphone ou l'interface existante, et une petite imprimante thermique peut sortir les tickets pour les établissements qui travaillent au papier. Rien n'impose de changer la façon de travailler en salle ou en cuisine. Le service devient plus fluide sans que la technologie se voie.
+La technologie reste invisible pour le client (un scan, une carte, un paiement) et légère pour l'équipe : les commandes Surplasse arrivent dans les vues Salle et Cuisine sur une tablette ou un téléphone, et une petite imprimante thermique peut sortir les tickets pour les établissements qui travaillent au papier. Le canal coexiste avec la caisse en place. Le service devient plus fluide sans que la technologie se voie.
 
 ### 5. Sur place et à emporter, un seul canal
 
@@ -105,7 +105,7 @@ Assumer une vision, c'est aussi assumer des limites. Trois refus structurent le 
 | Surplasse n'est pas | Pourquoi | Ce que Surplasse fait à la place |
 |---|---|---|
 | Une marketplace | Placer les restaurants dans une liste concurrentielle contredit la thèse : ce serait redevenir l'intermédiaire | Un canal en propre par établissement, sur son sous-domaine, avec son identité et ses prix |
-| Un POS complet | La caisse, les stocks, la comptabilité, les plannings sont des métiers à part entière, déjà bien servis | Le canal de commande et de paiement client ; la coexistence avec la caisse en place, l'intégration éventuelle restant à trancher |
+| Un POS complet | La caisse, les stocks, la comptabilité, les plannings sont des métiers à part entière, déjà bien servis | Le canal prépayé de commande et de paiement client ; la coexistence avec la caisse en place, une intégration n'étant étudiée qu'après preuve d'un blocage récurrent |
 | Une agence web | Le sur-mesure facturé au projet est précisément la barrière d'entrée à supprimer | Une génération automatique à partir d'une photo, personnalisée par l'identité du restaurant, sans projet ni devis |
 
 Deux limites supplémentaires sont assumées à ce stade :

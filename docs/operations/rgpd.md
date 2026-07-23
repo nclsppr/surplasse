@@ -15,12 +15,12 @@ Le Backend, le front Commande et le package partagé sont implémentés localeme
 
 ## La posture : minimiser par conception
 
-Le choix de produit le plus structurant de Surplasse est aussi son meilleur argument de conformité : **le client peut consulter la carte, commander et payer sans créer de compte, sans donner son nom, sans fournir la moindre donnée personnelle**. La session client est un jeton opaque anonyme (voir [session client anonyme](../architecture/securite.md#session-client-anonyme)), le paiement est collecté directement par Stripe, et la commande se suffit d'un numéro de table.
+Le choix de produit le plus structurant de Surplasse est aussi son meilleur argument de conformité : **le client peut consulter la carte et commander sans créer de compte**. Sur place, la commande peut se suffire d'un numéro de table. À emporter, elle demande uniquement le prénom utile au retrait et le mobile nécessaire au SMS « Prête ». La session client reste un jeton opaque anonyme (voir [session client anonyme](../architecture/securite.md#session-client-anonyme)) et le paiement est collecté directement par Stripe.
 
 Tout le reste en découle :
 
 - Ce qui n'est pas collecté n'a pas à être protégé, conservé, purgé ni déclaré.
-- Les rares données personnelles collectées le sont à l'initiative de la personne (un email pour recevoir un reçu, un prénom pour l'appel au comptoir) et pour un usage unique et visible.
+- Les rares données personnelles collectées le sont à l'initiative de la personne ou au strict nécessaire du service demandé : email pour un reçu, prénom pour l'appel au comptoir, mobile pour le SMS d'une commande à emporter.
 - Les données du côté restaurateur (email de compte, photos de la carte, contenu de la carte) sont essentiellement des données professionnelles, au périmètre stable et réduit.
 - Aucune donnée n'est revendue, croisée ou partagée à des fins publicitaires. Surplasse n'est pas une marketplace : les clients d'un établissement restent les clients de cet établissement.
 
@@ -56,7 +56,7 @@ En attendant un outil dédié, le tableau ci-dessous tient lieu de registre des 
 
 | Traitement | Personnes concernées | Données | Base légale |
 |---|---|---|---|
-| Exécution de la commande et du paiement | Clients | Contenu de la commande, montant, table, référence de paiement Stripe ; email ou prénom uniquement si fournis | Exécution du contrat |
+| Exécution de la commande et du paiement | Clients | Contenu de la commande, montant, table, référence de paiement Stripe ; email ou prénom uniquement si fournis ; numéro mobile pour notifier une commande à emporter | Exécution du contrat |
 | Envoi du magic link de connexion | Restaurateurs | Adresse email, jeton haché horodaté | Exécution du contrat (l'authentification est nécessaire pour fournir le service au titulaire du compte) |
 | Marketing et fidélité | Clients ayant opté | Adresse email, historique de commandes rattaché | Consentement explicite, retirable à tout moment |
 | Collecte et publication d'avis | Clients ayant opté | Note, texte de l'avis, prénom éventuel | Consentement |
@@ -74,6 +74,7 @@ Le modèle de données complet, entité par entité, vit dans la page [données]
 |---|---|---|---|
 | Contenu et montants de la commande | Commande | Vie de l'établissement | Archivage comptable 10 ans (obligation légale) après anonymisation des champs personnels |
 | Prénom d'appel au comptoir (si fourni) | Commande | Jusqu'à la clôture de la commande, au plus 24 heures | Effacement |
+| Numéro mobile d'une commande à emporter | Commande | Jusqu'à l'envoi du SMS et la clôture, au plus 24 heures ensuite | Effacement |
 | Email de remise du reçu (si fourni) | Commande | 30 jours (permettre un renvoi du reçu) | Effacement |
 | Email marketing et fidélité (si consentement) | Client ayant opté | Jusqu'au retrait du consentement, purge après 3 ans sans interaction | Effacement |
 | Avis publié | Établissement | Durée de publication choisie par le restaurateur | Effacement à la demande de l'auteur ou à la dépublication |
@@ -115,6 +116,7 @@ Point pratique assumé : un client qui n'a rien fourni n'est pas identifiable, e
 | Stripe | Paiement | Données de carte bancaire (collectées directement par Stripe Elements, jamais vues par Surplasse), montant, référence de commande | Périmètre PCI DSS porté par Stripe (voir [sécurité](../architecture/securite.md#posture-générale)) ; transferts encadrés par ses clauses contractuelles |
 | Hébergeur du VPS (à trancher) | Hébergement du Backend et de PostgreSQL | L'ensemble des données en base | Hébergeur européen exigé, données localisées dans l'Union européenne |
 | Fournisseur d'emails (à trancher) | Envoi des magic links, reçus et notifications | Adresses email des destinataires, contenu des messages | Fournisseur européen privilégié ; décision consignée dans un ADR |
+| Fournisseur de SMS (à trancher) | Notification « Prête » des commandes à emporter | Numéro mobile, identifiant technique et texte minimal de notification | Sélection, DPA, localisation et durée fournisseur à valider avant le lot 4D |
 | OpenAI (API OpenAI) | Extraction de carte depuis photo, enrichissement de données publiques, génération de visuels de plats | Photos de cartes et de plats fournies par le restaurateur, données publiques d'établissements | Aucune donnée de client final, jamais (voir ci-dessous) ; accord de traitement des données et absence d'entraînement sur les contenus soumis à vérifier à la contractualisation |
 
 Chaque sous-traitant fait l'objet d'un accord de traitement des données (DPA) avant toute mise en production ; la liste ci-dessus est publiée dans la politique de confidentialité du produit et tenue à jour dans cette page.
@@ -135,8 +137,8 @@ La ligne est simple : **aucun cookie tiers, aucun traceur publicitaire, aucune m
 
 | Application | Stockage | Finalité |
 |---|---|---|
-| Commande | Jeton de session anonyme, panier en stockage local | Maintenir la session de table et le panier en cours ; aucune donnée personnelle |
-| Dashboard | Cookies hôte uniquement `surplasse_session` et `surplasse_refresh` (`Secure` en production, `HttpOnly`, `SameSite=Lax`, sans `Domain`) | Authentification courte et renouvellement révocable de la session |
+| Commande | Jeton de session anonyme, panier en stockage local | Maintenir une session de table ou à emporter et le panier en cours ; aucune donnée personnelle dans le jeton |
+| Dashboard | Cookies hôte uniquement `surplasse_session` et `surplasse_refresh`, ou cookie de poste partagé en phase 4, jamais les deux modes ensemble (`Secure` en production, `HttpOnly`, `SameSite=Lax`, sans `Domain`) | Authentification courte et renouvellement ou appairage révocable de la session |
 | Onboarding | Progression du tunnel d'embarquement en stockage local | Reprendre l'embarquement où il s'était arrêté |
 
 Ces stockages relèvent de l'exemption de consentement prévue par les lignes directrices de la CNIL pour les traceurs strictement nécessaires à la fourniture du service demandé. En conséquence, **le front Commande n'affiche pas de bandeau de consentement cookies** : rien n'y requiert un consentement au sens de la doctrine CNIL. Cette lecture reste à valider juridiquement avant le lancement ; si un outil de mesure d'audience est ajouté un jour, il devra soit être configuré en mode exempté (au sens CNIL), soit déclencher un vrai recueil de consentement, et ce choix fera l'objet d'un ADR.

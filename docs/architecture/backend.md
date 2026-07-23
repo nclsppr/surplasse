@@ -87,15 +87,25 @@ Chaque module de domaine suit la même structure interne, en quatre couches :
 
 Les resources sont volontairement minces : le contrat étant la source de vérité, elles se contentent de faire le pont entre les interfaces Java générées (module `contract`) et les services. Le workflow de génération est décrit dans [le contrat et l'API](api.md).
 
+### Autorisation professionnelle en phase 4
+
+Le modèle livré filtre encore les opérations par le propriétaire de l'établissement. Le lot 4A le remplace par une résolution centrale de `EstablishmentMembership`, conformément à l'[ADR-0031](../decisions/adr-0031-equipes-roles-vues-metier.md). Chaque service métier demande une capacité explicite, par exemple accepter une commande, marquer prête, rembourser, publier la carte ou gérer l'équipe. Les resources ne déduisent jamais un droit de la route du Dashboard.
+
+Une projection de lecture peut aussi dépendre du rôle. La vue Cuisine reçoit les produits, options, allergènes, remarques et temps opérationnels, mais pas les montants financiers ni les détails du compte. Comme le schéma `DashboardOrder` livré rend ces montants obligatoires, le contrat ajoute un schéma `KitchenOrder` et un endpoint additifs au lot 4A ; il ne fragilise pas `/v1` en rendant un ancien champ optionnel. Le filtrage s'effectue avant la sérialisation. Les tests croisent au minimum chaque rôle, un rôle interdit dans le bon établissement et un membre d'un autre établissement.
+
+Les actions sensibles appellent le journal append-only dans la même transaction que leur résultat métier lorsque c'est possible. Un refus d'autorisation peut être journalisé séparément sans révéler la ressource au demandeur. Les traitements automatiques utilisent l'acteur `system` avec l'identifiant du job durable, jamais l'identité d'un membre. Le refus d'une commande `paid` passe par une opération dédiée qui fixe le motif et le remboursement intégral ; le rôle `service` ne gagne aucun accès à l'endpoint générique de remboursement.
+
 ## Le contrôle de prise de commandes
 
-Le domaine catalogue possède l'état opérationnel de prise de commandes de chaque établissement. Cet état persistant vaut `open` ou `paused` et reste distinct du cycle de vie `Establishment.status`, conformément à l'[ADR-0018](../decisions/adr-0018-controle-prise-commandes.md). Le contrat restaurateur permet de le lire et de le fixer de manière idempotente. Une ouverture revalide le cycle de vie, la carte publiée, les tables actives et la capacité Stripe Connect avant de réussir.
+Le domaine catalogue possède l'état opérationnel de prise de commandes de chaque établissement. Cet état persistant vaut `open` ou `paused` et reste distinct du cycle de vie `Establishment.status`, conformément à l'[ADR-0020](../decisions/adr-0020-accounts-v2-onboarding-embarque.md). Le contrat professionnel permet de le lire et de le fixer de manière idempotente selon le rôle. Une ouverture revalide le cycle de vie, la carte publiée, au moins un canal actif, table avec QR ou à emporter configuré, la capacité Stripe Connect et la présence d'au moins une session de réception testée et capable d'accepter une commande : membre `owner`, `manager` ou `service`, ou poste partagé Salle. Un poste Cuisine seul ne satisfait jamais ce prérequis.
 
-Trois chemins demandent une admission au catalogue avant tout nouvel effet métier :
+Pendant l'ouverture, le Backend maintient une présence bornée des seules sessions capables d'accepter et explicitement armées comme réceptionnaires. Le navigateur renouvelle un bail court uniquement tant que la vue de réception est visible, connectée et a réussi son test sonore et SSE. Le verrouillage du téléphone, le passage durable en arrière-plan ou la perte de réseau font expirer ce bail ; l'interface avertit avant l'expiration et empêche de présenter un appareil non fiable comme actif. Si aucun réceptionnaire ne renouvelle sa présence au-delà du délai de grâce, le Backend force `paused` sous le même verrou d'établissement, ne rouvre jamais automatiquement, alerte un responsable par le canal secondaire configuré et continue de diffuser les commandes déjà payées. Une commande payée pendant la fenêtre de grâce reste à servir ou à rembourser ; si elle dépasse le délai maximal d'acceptation, le job durable créé lors du passage à `paid` force aussi la pause, même si un autre bail reste actif, puis déclenche son remboursement intégral idempotent. Seul un `owner` ou `manager` peut rouvrir après diagnostic. Les deux délais sont configurés dans des bornes sûres et qualifiés pendant les pilotes, y compris écran en veille, arrière-plan mobile et changement de réseau.
+
+Trois familles de chemins demandent une admission au catalogue avant tout nouvel effet métier :
 
 | Chemin | Effet refusé pendant `paused` |
 |---|---|
-| Session de table | Création d'un nouveau jeton anonyme depuis un QR |
+| Session anonyme | Création d'un nouveau jeton depuis un QR de table ou le canal à emporter direct |
 | Commande | Persistance d'une nouvelle commande `pending_payment` depuis une session déjà ouverte |
 | Paiement | Création ou restitution d'une session Stripe encore ouverte |
 
@@ -120,7 +130,7 @@ Deux types de canaux :
 
 Les deux canaux de commande sont implémentés. Chaque transition persistée est diffusée à la fois sur le canal de la commande concernée et sur celui de son établissement. Le canal par établissement rejoue les événements persistés dont l'identifiant est supérieur à `Last-Event-ID` avant de reprendre le direct.
 
-Le canal par établissement est authentifié par le cookie `HttpOnly` hôte uniquement pour `api.surplasse.com` (voir [la sécurité](securite.md)). Ce point est structurant : l'API navigateur `EventSource` n'accepte aucun en-tête personnalisé, donc aucun `Authorization: Bearer` ; le Dashboard utilise `withCredentials: true` pour envoyer le cookie à l'API. Le canal par commande est adressé par un jeton non devinable propre à la commande : le client n'a pas de compte, le jeton fait office de capacité d'accès (transmis en paramètre de l'URL du flux).
+Le canal par établissement est authentifié par le cookie `HttpOnly` hôte uniquement pour `api.surplasse.com` (voir [la sécurité](securite.md)). Ce point est structurant : l'API navigateur `EventSource` n'accepte aucun en-tête personnalisé, donc aucun `Authorization: Bearer` ; le Dashboard utilise `withCredentials: true` pour envoyer le cookie à l'API. Le registre de flux associe chaque connexion à sa session et à son appartenance. Une révocation ou expiration ferme ces connexions avant de répondre, et chaque événement ou battement de cœur revalide l'autorisation pour fermer une connexion ouverte dans une course. Le canal par commande est adressé par un jeton non devinable propre à la commande : le client n'a pas de compte, le jeton fait office de capacité d'accès (transmis en paramètre de l'URL du flux).
 
 ### Stratégie de reconnexion
 
@@ -166,13 +176,15 @@ Le fonctionnement :
 2. Un worker planifié (extension `scheduler`) réclame les jobs en attente à intervalle court, en les verrouillant par `SELECT ... FOR UPDATE SKIP LOCKED` pour rester correct même avec plusieurs instances.
 3. Le job s'exécute ; en cas d'échec, il est retenté avec un délai croissant jusqu'à un plafond, puis marqué `failed` et visible pour intervention manuelle.
 
-Les jobs prévus au MVP :
+Les jobs prévus au fil de la roadmap :
 
 | Job | Déclencheur | Effet |
 |---|---|---|
 | **Extraction IA** | L'embarquement : le restaurateur envoie la photo de sa carte | Appel de l'API OpenAI (vision), production de la carte structurée, progression consultable par le frontend |
-| **Notification transactionnelle durable** | Notification de revendication, litige ou échec de virement | Remise via l'extension `mailer`, avec retentatives, à implémenter avec le worker |
+| **Notification transactionnelle durable** | SMS « Prête », notification de revendication, litige ou échec de virement | Création ou reprise d'une `NotificationDelivery` rattachée à sa ressource réelle ; le SMS « Prête » attend cinq secondes pour permettre son annulation avant envoi, puis l'adaptateur rapproche remise, échec et reprise |
 | **Génération des QR codes** | Activation d'un établissement, ajout de tables | Production des QR codes de table et de la planche imprimable |
+| **Expiration avant paiement** | Réservation d'un créneau à emporter par une commande `pending_payment` | À l'échéance, refus de toute nouvelle remise de session ; libération seulement sans Payment Intent ou après annulation fournisseur confirmée, jamais pendant un état Stripe ambigu |
+| **Échéance d'acceptation** | Webhook signé faisant passer une commande à `paid` | À l'échéance, relecture verrouillée de la commande puis création idempotente d'un remboursement `acceptance_timeout` si elle est encore `paid` |
 
 Cette approche assume ses limites : la latence de prise en charge est celle du tick du scheduler, et le débit est celui d'un pool de workers dans le processus. C'est exactement suffisant pour la volumétrie visée, et cela n'ajoute aucune brique d'exploitation. Le passage à un broker externe sera réévalué si un besoin réel le justifie (fan-out important, jobs longs concurrents nombreux) ; ce serait alors l'objet d'un ADR.
 

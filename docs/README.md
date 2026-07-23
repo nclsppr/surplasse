@@ -56,7 +56,7 @@ La [vue d'ensemble de l'architecture](architecture/index.md) détaille ce schém
 
 | Section | Contenu | Pages principales |
 |---|---|---|
-| Produit | La vision, les personas, les fonctionnalités et les trois parcours détaillés | [Vision](produit/vision.md), [Personas](produit/personas.md), [Fonctionnalités](produit/fonctionnalites.md), parcours de [commande client](produit/parcours/commande-client.md), d'[embarquement restaurateur](produit/parcours/onboarding-restaurateur.md) (dont la variante revendication) et du [quotidien avec le Dashboard](produit/parcours/dashboard-restaurateur.md) |
+| Produit | La vision, le socle professionnel, les personas, les fonctionnalités et les trois parcours détaillés | [Vision](produit/vision.md), [Socle professionnel](produit/socle-professionnel.md), [Personas](produit/personas.md), [Fonctionnalités](produit/fonctionnalites.md), parcours de [commande client](produit/parcours/commande-client.md), d'[embarquement restaurateur](produit/parcours/onboarding-restaurateur.md) (dont la variante revendication) et du [quotidien avec le Dashboard](produit/parcours/dashboard-restaurateur.md) |
 | Architecture | La structure technique cible : applications, API, données, intégrations, sécurité | [Vue d'ensemble](architecture/index.md), [Frontends](architecture/frontends.md), [Backend](architecture/backend.md), [API](architecture/api.md), [Données](architecture/donnees.md), [Intégrations](architecture/integrations.md), [Sécurité](architecture/securite.md) |
 | Développement | Tout ce qu'il faut pour contribuer au code : environnement, domaines, cockpit, conventions, tests | [Setup](developpement/index.md), [Domaines locaux](developpement/domaines-locaux.md), [Conventions React](developpement/conventions-react.md), [Conventions Quarkus](developpement/conventions-quarkus.md), [Conventions API](developpement/conventions-api.md), [Git](developpement/workflow-git.md), [Tests](developpement/tests.md), [CI/CD](developpement/ci-cd.md) |
 | Opérations | L'exploitation du système en production | [Environnements](operations/environnements.md), [Observabilité](operations/observabilite.md), [Pilote de phase 2](operations/pilote.md), [RGPD](operations/rgpd.md) |
@@ -69,10 +69,11 @@ La [vue d'ensemble de l'architecture](architecture/index.md) détaille ce schém
 ### « Je découvre le produit »
 
 1. La [vision](produit/vision.md) : le problème, le positionnement, ce que Surplasse n'est pas.
-2. Les [personas](produit/personas.md) : le restaurateur et le client, leurs attentes respectives.
-3. Les [fonctionnalités](produit/fonctionnalites.md) : ce que fait chaque application.
-4. Les trois parcours : la [commande client](produit/parcours/commande-client.md), l'[embarquement restaurateur](produit/parcours/onboarding-restaurateur.md) (dont la variante revendication) et le [quotidien avec le Dashboard](produit/parcours/dashboard-restaurateur.md).
-5. La [roadmap](roadmap.md) pour situer ce qui vient en premier.
+2. Le [socle professionnel](produit/socle-professionnel.md) : la cible, le minimum exploitable et le protocole de preuve du seuil de 80 % dans cette cible.
+3. Les [personas](produit/personas.md) : le restaurateur, l'équipe et le client, leurs attentes respectives.
+4. Les [fonctionnalités](produit/fonctionnalites.md) : ce que fait chaque application.
+5. Les trois parcours : la [commande client](produit/parcours/commande-client.md), l'[embarquement restaurateur](produit/parcours/onboarding-restaurateur.md) (dont la variante revendication) et le [quotidien avec le Dashboard](produit/parcours/dashboard-restaurateur.md).
+6. La [roadmap](roadmap.md) pour situer ce qui vient en premier.
 
 ### « Je vais développer le frontend »
 

@@ -138,16 +138,23 @@ Le mécanisme exact de pré-rendu (pré-rendu au build par établissement, rendu
 
 ## Dashboard : le poste de pilotage
 
-Le Dashboard vit sur le comptoir ou en cuisine, souvent sur une tablette posée près de la caisse, parfois sur le PC du bureau. Il est pensé **desktop et tablette d'abord** : densité d'information, zones tactiles généreuses pour la tablette, sessions ouvertes des heures durant.
+Le Dashboard vit sur le comptoir, en cuisine, dans la poche d'un serveur ou sur le PC du bureau. Il est pensé **desktop et tablette d'abord**, puis adapté au téléphone : densité d'information, zones tactiles généreuses et sessions ouvertes des heures durant.
+
+La phase 2 livre encore une seule route de service avec tous les droits du restaurateur. La cible de phase 4, fixée par l'[ADR-0031](../decisions/adr-0031-equipes-roles-vues-metier.md), conserve la même application et la découpe en trois vues métier : Salle, Cuisine et Gestion. Une vue organise l'information ; le rôle `owner`, `manager`, `service` ou `kitchen` autorise l'action côté Backend.
 
 Ses traits distinctifs :
 
-- **Tableau adaptatif sans défilement horizontal** : une colonne sur mobile, deux sur tablette à partir de 700 px et quatre sur grand écran à partir de 1200 px. L'état vide est affiché une seule fois pour l'ensemble du tableau.
+- **Salle** : commandes nouvelles et prêtes, regroupement par table, acceptation, service et contrôle de prise de commandes. Le téléphone utilise une pile, la tablette une vue de service plus large.
+- **Cuisine** : file plein écran triée par ancienneté, options, allergènes, remarques, minuteurs et actions « Démarrer » puis « Prête ». Aucune donnée financière ni réglage sensible n'est transmis à cette projection.
+- **Gestion** : carte, versions, équipe, tables, QR codes, apparence, historique, composants Stripe, rapprochement et analyses.
+- **Vue combinée** : un `owner` ou `manager` d'un petit établissement peut garder les commandes et contrôles essentiels sur un seul écran, sans créer un quatrième rôle.
 - **États lisibles sans dépendre de la couleur** : chaque statut conserve un libellé explicite. Le vert est réservé aux états positifs, tandis que les erreurs utilisent les tokens sémantiques de danger.
 - **Session sûre entre onglets** : une requête refusée après expiration du JWT prend un Web Lock exclusif, relit la session, ne tourne le refresh token que si aucun autre onglet ne l'a déjà fait, puis diffuse le nouvel état par BroadcastChannel. Un navigateur sans Web Locks demande une nouvelle connexion au lieu de lancer une rotation non coordonnée.
 - **Flux SSE des commandes** : le Dashboard maintient une connexion Server-Sent Events vers le Backend (voir [l'API](api.md)) pour recevoir chaque nouvelle commande sans polling. Conformément à l'[ADR-0006](../decisions/adr-0006-sse.md), l'objet navigateur `EventSource` gère lui-même la reconnexion et renvoie `Last-Event-ID`. Le frontend ne recrée pas une stratégie exponentielle parallèle. Chaque événement et chaque réouverture du flux invalident la liste TanStack Query, puis REST resynchronise l'état complet. L'état de la connexion reste visible en permanence.
-- **Notifications sonores** : une nouvelle commande émet un signal sonore, activable et réglable par le restaurateur. Le son est un canal de premier ordre en cuisine, pas un gadget.
-- **Data-viz sobre** : les métriques (chiffre d'affaires, volume de commandes, produits les plus vendus) sont présentées avec des graphiques simples et lisibles, sans bibliothèque de charting lourde ni animation décorative. Les chiffres priment sur le spectacle.
+- **Réception explicitement armée** : après les tests son et SSE, une session capable d'accepter ouvre un bail court et le renouvelle seulement tant que la vue de réception est visible et connectée. L'interface affiche l'échéance, avertit avant sa perte et se désarme au verrouillage, à l'arrière-plan durable ou à la déconnexion. Elle ne promet jamais qu'un navigateur mobile endormi maintient le service ouvert.
+- **Notifications sonores** : une nouvelle commande émet un signal sonore testable et réglable. Son âge et sa relance restent visibles jusqu'à acquittement. Le son est un canal de premier ordre en cuisine, pas un gadget.
+- **Data-viz sobre** : les métriques (ventes Surplasse, volume de commandes, produits les plus vendus) sont présentées avec des graphiques simples et lisibles, sans bibliothèque de charting lourde ni animation décorative. Les chiffres priment sur le spectacle.
+- **Atterrissage par rôle** : le Dashboard ouvre la vue la plus utile, mais aucune route ne peut élever les droits. Un poste partagé reste limité à Salle ou Cuisine et à un établissement.
 
 Le détail fonctionnel des écrans est décrit dans [le parcours restaurateur](../produit/parcours/dashboard-restaurateur.md).
 

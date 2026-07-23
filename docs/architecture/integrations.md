@@ -21,18 +21,22 @@ Stripe porte l'intégralité de la chaîne de paiement : encaissement des client
 
 ### Stripe Connect : encaisser au nom de chaque établissement
 
-Surplasse n'encaisse pas pour son propre compte : chaque paiement est une charge directe créée sur le compte Stripe Connect de l'établissement. La charge apparaît dans le solde et le Dashboard Stripe du compte connecté. Ce schéma est cohérent avec le positionnement du produit : le restaurant garde ses clients et sa relation commerciale. L'[ADR-0020](../decisions/adr-0020-accounts-v2-onboarding-embarque.md) remplace les anciens types Standard et Express par une configuration Accounts v2 explicite :
+Surplasse n'encaisse pas pour son propre compte : chaque paiement est une charge directe créée sur le compte Stripe Connect de l'établissement. La charge appartient au solde du compte connecté et ses informations utiles sont rendues dans Surplasse par les composants Connect intégrés. Ce schéma est cohérent avec le positionnement du produit : le restaurant garde ses clients et sa relation commerciale. L'[ADR-0020](../decisions/adr-0020-accounts-v2-onboarding-embarque.md) remplace les anciens types Standard et Express par une configuration Accounts v2 explicite :
 
 | Propriété | Valeur de référence | Effet |
 |---|---|---|
 | Configuration | `merchant` | L'établissement agit comme marchand pour les charges directes |
-| Dashboard | `full` | Le restaurateur dispose d'un accès Stripe complet en voie de secours |
+| Dashboard | `none` | Surplasse doit fournir les surfaces financières utiles par composants Connect intégrés |
 | Frais Stripe | `fees_collector=stripe` | Stripe prélève ses frais directement sur le compte connecté |
 | Pertes | `losses_collector=stripe` | Stripe porte la responsabilité configurée pour les soldes négatifs |
 | Encaissement | `card_payments` demandé et `status=active` | Aucun Payment Intent n'est créé tant que la capacité n'est pas active |
 | Virements | `stripe_balance.payouts.status` suivi | La qualification vérifie séparément que les fonds peuvent être versés |
 
-Le parcours produit utilise les composants Connect intégrés `account_onboarding`, `notification_banner` et `account_management`. Le restaurateur reste dans l'Onboarding Surplasse, tandis que Stripe reçoit directement l'identité, les justificatifs, l'IBAN et l'acceptation de ses conditions. Le pilote utilise lui aussi le composant intégré. Le formulaire hébergé reste seulement une voie de secours opérateur. Un formulaire réglementaire entièrement construit avec l'API est exclu : il transférerait à Surplasse la maintenance continue des exigences KYC.
+Le parcours produit utilise les composants Connect intégrés `account_onboarding`, `notification_banner` et `account_management`. Le restaurateur reste dans l'Onboarding Surplasse, tandis que Stripe reçoit directement l'identité, les justificatifs, l'IBAN et l'acceptation de ses conditions. Le pilote utilise lui aussi le composant intégré. Après l'activation, la vue Gestion conserve `notification_banner` et le chemin de remédiation `account_management`, car une nouvelle exigence KYC peut réapparaître et forcer la prise de commandes à `paused`. Le formulaire hébergé reste seulement une voie de secours opérateur. Un formulaire réglementaire entièrement construit avec l'API est exclu : il transférerait à Surplasse la maintenance continue des exigences KYC.
+
+Le choix `dashboard=none` crée une obligation produit, pas un écran facultatif. Avant la généralisation, le Dashboard intègre les composants nécessaires aux paiements, détails de paiement, versements, litiges, documents et rapports de rapprochement. Stripe reste la source des frais et des versements ; Surplasse relie ces données à ses commandes, paiements et remboursements sans reconstruire une comptabilité générale.
+
+Chaque `AccountSession` est créée côté Backend pour un établissement, un membre et une liste fermée de composants et fonctions. Un `manager` reçoit seulement les surfaces financières de lecture et d'export. Seul un `owner` reçoit la gestion du compte, la remédiation KYC et les actions de litige prévues. Les fonctions Stripe de remboursement et de capture sont désactivées dans les composants pour tous les rôles : elles ne doivent pas contourner l'idempotence, la restitution de commission, le journal et la machine à états Surplasse. Toute autre action mutable autorisée dans un composant doit être reçue par événement Stripe, rapprochée avec l'établissement et ajoutée au journal d'activité.
 
 ### Payment Element côté Commande
 
@@ -86,11 +90,17 @@ Le modèle de prix est acté : commission par commande, sans abonnement, avec un
 
 Ces conditions doivent apparaître clairement sur la future homepage et dans la documentation publique destinée aux restaurateurs. La communication sépare toujours la commission Surplasse des frais Stripe : la transparence tarifaire fait partie du positionnement face aux plateformes à commission opaque. Le détail de la décision figure dans l'[ADR-0015](../decisions/adr-0015-modele-commission.md) et sa mise en visibilité dans la [roadmap](../roadmap.md).
 
+### Rapprochement restaurateur
+
+Le Dashboard distingue cinq montants : ventes Surplasse TTC, remboursements, commission Surplasse, frais Stripe disponibles et net attendu. Il montre ensuite les versements bancaires qui regroupent ces mouvements, avec leur statut et leur date d'arrivée prévue. Un export conserve les identifiants Stripe nécessaires pour expliquer chaque ligne.
+
+Ces données ne représentent jamais le chiffre d'affaires total de l'établissement. Conformément à l'[ADR-0032](../decisions/adr-0032-canal-prepaye-sans-caisse.md), Surplasse ne reçoit et n'enregistre aucun paiement externe dans le socle professionnel. Le rapprochement porte uniquement sur son canal prépayé.
+
 ### Mode test
 
 Tout le développement se fait en **mode test Stripe** : clés de test, cartes de test, webhooks rejoués via la CLI Stripe. Aucune clé de production n'existe avant la phase pilote. Les environnements et la ségrégation des clés sont décrits dans [la sécurité](securite.md).
 
-La clé `Idempotency-Key` reçue du navigateur est persistée avant d'être considérée comme livrée. Une transaction courte verrouille la commande, crée une réservation `creating` et fixe la clé Stripe stable. Cette réservation fige aussi le compte Connect et la commission. L'appel réseau se déroule ensuite sans transaction ouverte, puis une seconde transaction active la session. Deux requêtes simultanées terminent donc la même réservation avec la même clé Stripe au lieu de créer deux débits. Le SDK peut rejouer au maximum deux erreurs réseau avec cette clé. Un échec de moyen de paiement ne clôt pas le Payment Intent : le Payment Element peut recueillir un autre moyen de paiement et un événement ultérieur `payment_intent.succeeded` reste recevable. Chaque lecture d'une session existante est filtrée par la session de table exacte avant de rendre son `client_secret`.
+La clé `Idempotency-Key` reçue du navigateur est persistée avant d'être considérée comme livrée. Une transaction courte verrouille la commande, crée une réservation `creating` et fixe la clé Stripe stable. Cette réservation fige aussi le compte Connect et la commission. L'appel réseau se déroule ensuite sans transaction ouverte, puis une seconde transaction active la session. Deux requêtes simultanées terminent donc la même réservation avec la même clé Stripe au lieu de créer deux débits. Le SDK peut rejouer au maximum deux erreurs réseau avec cette clé. Un échec de moyen de paiement ne clôt pas le Payment Intent : le Payment Element peut recueillir un autre moyen de paiement et un événement ultérieur `payment_intent.succeeded` reste recevable. Chaque lecture d'une session existante est filtrée par la session anonyme exacte, `TableSession` ou `TakeawaySession`, avant de rendre son `client_secret`.
 
 Un webhook Connect ne recherche jamais un paiement par son seul identifiant Stripe. Le Backend exige le compte connecté porté au niveau racine de l'événement et rapproche le couple `(connected_account_id, external_reference)`. Un événement signé du mauvais mode est acquitté sans effet afin d'éviter les relivraisons inutiles. Un compte absent ou différent ne modifie aucun paiement.
 
@@ -102,7 +112,7 @@ Les événements snapshot de paiement et de remboursement, puis les événements
 
 ### Pause opérationnelle et frontière Stripe
 
-La [prise de commandes](../decisions/adr-0020-accounts-v2-onboarding-embarque.md) est fermée par un état applicatif, pas en modifiant le compte Stripe. Une pause bloque les nouvelles sessions de table, les nouvelles commandes et les créations ou reprises de sessions de paiement. Le mini-site reste lisible et tous les webhooks continuent à être traités.
+La [prise de commandes](../decisions/adr-0020-accounts-v2-onboarding-embarque.md) est fermée par un état applicatif, pas en modifiant le compte Stripe. Une pause bloque les nouvelles sessions anonymes, sur place comme à emporter, les nouvelles commandes et les créations ou reprises de sessions de paiement. Le mini-site reste lisible et tous les webhooks continuent à être traités.
 
 La pause ne peut pas reprendre un secret déjà livré au navigateur. Un Payment Intent dont le `client_secret` a été retourné avant la frontière transactionnelle peut encore être confirmé auprès de Stripe. Son événement `payment_intent.succeeded` reste la source de vérité, même si la prise de commandes est désormais `paused`. Cette commande doit apparaître dans le Dashboard, poursuivre son suivi et être servie ou remboursée. Une garantie plus forte demanderait d'annuler puis rapprocher les Payment Intents ouverts, ce qui n'est pas livré dans ce lot.
 
@@ -240,6 +250,14 @@ En développement, aucun email réel ne part : **Mailpit** capture tout (voir le
 
 Le mode d'intégration (SMTP via quarkus-mailer) est acté. Le fournisseur reste à trancher (ADR à venir), avec un test de délivrabilité comparatif avant la phase pilote.
 
+## SMS transactionnels à emporter
+
+Le SMS porte un seul usage dans le socle : prévenir qu'une commande à emporter est prête. Il ne contient ni détail de commande, ni lien secret, ni contenu marketing. Le numéro mobile est fourni pour ce service, conservé sur la commande pendant sa fenêtre courte et jamais copié dans les journaux ou la table de remise.
+
+Le Backend appelle le fournisseur derrière une interface dédiée. Le passage à `ready` persiste atomiquement une `NotificationDelivery` et un job dédupliqué. Le fournisseur doit accepter une clé stable ou permettre un rapprochement fiable, exposer un identifiant de message et fournir les statuts envoyé, remis et échoué par API ou webhook signé. Salle et Gestion affichent l'échec et permettent une reprise bornée ; la page de suivi reste disponible au client. Un statut absent ou ambigu n'est jamais présenté comme remis.
+
+Le fournisseur reste à trancher par ADR avant le lot 4D. Les critères bloquants sont la délivrabilité française, les reçus de remise, l'idempotence ou le rapprochement, le traitement des erreurs, le DPA, la localisation des données, le coût unitaire et un environnement de test. Le même fournisseur peut porter l'alerte secondaire de réception seulement s'il satisfait ces critères et si le numéro du responsable est collecté pour cet usage distinct.
+
 ## Impression thermique
 
 ### Rôle
@@ -271,7 +289,7 @@ Certains établissements veulent un ticket cuisine papier à chaque commande, en
 
 ### Statut de la décision
 
-**La décision est explicitement reportée : l'impression thermique est hors MVP.** Le Dashboard suffit pour la phase pilote. Un ADR tranchera entre les deux options (ou une combinaison) quand le besoin sera confirmé par les établissements pilotes. Rien dans l'architecture ne préempte le choix : les deux options consomment la même diffusion de Commandes que le Dashboard.
+**L'impression thermique n'appartient pas au socle par défaut.** La pré-cohorte commence avec la vue Cuisine et son mode de secours. Si au moins deux établissements ne peuvent pas terminer une période de pointe avec cet écran, la roadmap promeut l'impression en Must et impose l'ADR matériel avant la cohorte formelle. Sinon, la décision reste reportée en phase 5. Rien dans l'architecture ne préempte le choix : les deux options consomment la même diffusion de commandes que le Dashboard.
 
 ## Stockage objet des images
 
@@ -333,6 +351,7 @@ Pas de décision structurante : implémentation backend standard, prévue avec l
 | Visuels de plats générés | Sources maîtrisées, choix produit par produit, fidélité, disponibilité dans le Dashboard | Acté : [ADR-0025](../decisions/adr-0025-visuels-plats-a-la-demande.md) |
 | Données publiques | Sources, preuve de revendication, rétention | À trancher (ADR à venir) |
 | Emails | SMTP via quarkus-mailer | Mode acté ; fournisseur à trancher (ADR à venir) |
-| Impression thermique | Imprimante cloud ou application compagnon | Reportée, hors MVP (ADR à venir) |
+| SMS à emporter | Adaptateur Backend, remise durable et statuts rapprochés | Mode acté ; fournisseur à trancher avant le lot 4D |
+| Impression thermique | Imprimante cloud ou application compagnon | Conditionnelle : ADR avant la cohorte si la pré-cohorte la promeut, sinon phase 5 |
 | Stockage objet | MinIO S3-compatible sur le VPS, migration managée possible | Orientation de référence, ADR de confirmation à venir |
 | QR codes | Génération backend, jetons de table non devinables | Pas d'ADR nécessaire |
