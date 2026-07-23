@@ -187,6 +187,7 @@ test("every mutation endpoint rejects caller-supplied parameters", async (t) => 
   const harness = await serverHarness(t);
   const paths = [
     "/api/modules/backend/start",
+    "/api/modules/onboarding2/start",
     "/api/presets/core/start",
     "/api/quality/e2e-development/run",
     "/api/quality/run",
@@ -197,7 +198,7 @@ test("every mutation endpoint rejects caller-supplied parameters", async (t) => 
       path,
       method: "POST",
       headers: validMutationHeaders(harness.token, true),
-      body: '{"args":["dangerous"]}',
+      body: '{"profile":"frontend-experiment","args":["dangerous"]}',
     });
     assert.equal(response.status, 400, path);
   }

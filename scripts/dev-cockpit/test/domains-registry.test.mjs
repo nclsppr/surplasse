@@ -70,8 +70,11 @@ test("registry maps every local runtime to an allowlisted Compose service", () =
     "edge",
     "backend",
     "commande",
+    "commande2",
     "dashboard",
+    "dashboard2",
     "onboarding",
+    "onboarding2",
     "docs",
     "mailpit",
     "prometheus",
@@ -84,6 +87,13 @@ test("registry maps every local runtime to an allowlisted Compose service", () =
   );
   assert.equal(new Set(registry.composeServices).size, registry.composeServices.length);
   assert.equal(composeModules.every((module) => module.id === module.composeService), true);
+  assert.deepEqual(registry.composeServiceProfiles, {
+    commande2: ["frontend-experiment"],
+    dashboard2: ["frontend-experiment"],
+    grafana: ["observability"],
+    onboarding2: ["frontend-experiment"],
+    prometheus: ["observability"],
+  });
   assert.equal(registry.modules.find((module) => module.id === "app").kind, "reserved");
   assert.equal(registry.modules.find((module) => module.id === "admin").kind, "reserved");
 });
@@ -126,6 +136,9 @@ test("Caddy is visible but read-only while every other Compose module is control
     "commande",
     "dashboard",
   ]);
+  assert.equal(registry.presets.all.includes("commande2"), true);
+  assert.equal(registry.presets.all.includes("dashboard2"), true);
+  assert.equal(registry.presets.all.includes("onboarding2"), true);
 });
 
 test("public probes target canonical HTTPS routes including the dedicated reports host", () => {
@@ -136,6 +149,18 @@ test("public probes target canonical HTTPS routes including the dedicated report
   assert.equal(byId.backend.publicHealth.url, "https://api.surplasse.test/q/health/ready");
   assert.equal(byId.backend.publicHealth.bodyExpectation, "quarkus-up");
   assert.equal(byId.commande.publicHealth.url, "https://le-cormoran.surplasse.test");
+  assert.equal(
+    byId.commande2.publicHealth.url,
+    "https://le-cormoran.surplasse.test/_experiments/untitled/",
+  );
+  assert.equal(
+    byId.dashboard2.publicHealth.url,
+    "https://dashboard.surplasse.test/_experiments/untitled/auth/login",
+  );
+  assert.equal(
+    byId.onboarding2.publicHealth.url,
+    "https://surplasse.test/_experiments/untitled/",
+  );
   assert.equal(byId.mailpit.publicHealth.url, "https://mail.surplasse.test/readyz");
   assert.equal(byId.prometheus.publicHealth, null);
   assert.equal(byId.grafana.publicHealth.url, "https://grafana.surplasse.test/api/health");
@@ -153,6 +178,13 @@ test("browser links use only canonical HTTPS domains", () => {
 
   assert.ok(allLinks.includes("https://api.surplasse.test"));
   assert.ok(allLinks.some((url) => url.startsWith("https://le-cormoran.surplasse.test/?table=")));
+  assert.ok(
+    allLinks.some((url) =>
+      url.startsWith("https://le-cormoran.surplasse.test/_experiments/untitled/?table="),
+    ),
+  );
+  assert.ok(allLinks.includes("https://dashboard.surplasse.test/_experiments/untitled/auth/login"));
+  assert.ok(allLinks.includes("https://surplasse.test/_experiments/untitled/"));
   assert.ok(allLinks.includes("https://mail.surplasse.test"));
   assert.ok(allLinks.includes("https://grafana.surplasse.test"));
   assert.equal(allLinks.every((url) => new URL(url).protocol === "https:"), true);

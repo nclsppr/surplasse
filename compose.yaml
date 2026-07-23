@@ -260,6 +260,7 @@ networks:
     ipam:
       config:
         - subnet: ${COMPOSE_NETWORK_SUBNET:?COMPOSE_NETWORK_SUBNET is required}
+          ip_range: ${COMPOSE_NETWORK_IP_RANGE:?COMPOSE_NETWORK_IP_RANGE is required}
   observability:
     internal: true
 

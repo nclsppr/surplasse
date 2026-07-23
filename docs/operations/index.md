@@ -41,11 +41,11 @@ Les seules dépendances externes sont des services SaaS qui portent leur propre 
 
 ## Inventaire des services en production
 
-La documentation et la préfiguration statique de l'Onboarding sont actuellement publiées sur GitHub Pages. Les images et services ci-dessous sont construits et testés dans le cluster local. Ils ne prouvent pas qu'un VPS public existe.
+La documentation, la préfiguration statique de l'Onboarding et les démos UI2 `noindex` sont actuellement publiées sur GitHub Pages. Les démos UI2 ne joignent aucun Backend public et ne constituent pas des routes produit. Les images et services ci-dessous sont construits et testés dans le cluster local. Ils ne prouvent pas qu'un VPS public existe.
 
 | Service | Techno | Statut | Rôle | Exposition |
 |---|---|---|---|---|
-| Site public actuel | GitHub Pages | En service | Documentation, marque et préfiguration statique de l'Onboarding | URL GitHub Pages |
+| Site public actuel | GitHub Pages | En service | Documentation, marque, préfiguration statique de l'Onboarding et preuves visuelles UI2 | URL GitHub Pages |
 | Reverse proxy | Caddy 2.11.4 | Service Compose livré, VPS non provisionné | Terminaison TLS et routage par domaine | Ports 80 et 443, seul service du VPS exposé |
 | Backend | Quarkus 3.37.3, Java 25 | Image livrée, non déployée | API REST, logique métier, temps réel SSE et intégrations | `api.surplasse.com`, via Caddy |
 | Onboarding | Fichiers statiques, NGINX interne | Image livrée, non déployée | Vitrine produit et tunnel d'embarquement | `surplasse.com`, via Caddy |

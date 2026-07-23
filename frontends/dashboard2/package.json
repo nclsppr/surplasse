@@ -1,0 +1,37 @@
+{
+  "name": "@surplasse/dashboard2",
+  "version": "0.0.0-experimental",
+  "private": true,
+  "type": "module",
+  "description": "Experimental Untitled UI based alternative to the Surplasse Dashboard.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "test": "vitest run",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@surplasse/design-system2": "file:../design-system2",
+    "@surplasse/shared": "file:../shared",
+    "@tanstack/react-query": "5.101.2",
+    "lucide-react": "1.25.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-router-dom": "7.18.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.4",
+    "eslint": "9.39.5",
+    "eslint-plugin-react-hooks": "5.2.0",
+    "jsdom": "^29.1.1",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.64.0",
+    "vite": "8.1.5",
+    "vitest": "4.1.10"
+  }
+}

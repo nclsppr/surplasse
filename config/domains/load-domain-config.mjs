@@ -81,6 +81,25 @@ export function frontendEnvironmentDefinitions(config) {
   return definitions;
 }
 
+export function createPagesDemoDomainConfig(config) {
+  const origin = "https://pages.invalid";
+  const pagesConfig = {
+    ...config,
+    APP_BASE_DOMAIN: "pages.invalid",
+    APP_BASE_URL: origin,
+    ONBOARDING_URL: origin,
+    DASHBOARD_URL: origin,
+    API_URL: origin,
+    LOCAL_CONTROL_URL: "",
+    DOCS_URL: origin,
+    MAILPIT_URL: "",
+    REPORTS_URL: "",
+    GRAFANA_URL: "",
+  };
+  validateDomainConfig(pagesConfig, "pages-demo");
+  return Object.freeze(pagesConfig);
+}
+
 export function allowedFrontendHosts(config) {
   return Object.freeze([config.APP_BASE_DOMAIN, `.${config.APP_BASE_DOMAIN}`]);
 }

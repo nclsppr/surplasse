@@ -1,0 +1,38 @@
+{
+  "name": "@surplasse/design-system2",
+  "version": "0.0.0-experimental",
+  "private": true,
+  "type": "module",
+  "description": "Experimental Surplasse design system based on the public Untitled UI React foundations.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./src/styles.css",
+    "./assets/service-pass-1600": "./src/assets/service-pass-1600.ts",
+    "./assets/service-pass-960": "./src/assets/service-pass-960.ts",
+    "./assets/table-setting-960": "./src/assets/table-setting-960.ts",
+    "./assets/table-setting-640": "./src/assets/table-setting-640.ts",
+    "./assets/*": "./src/assets/*"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "vitest run --environment jsdom"
+  },
+  "dependencies": {
+    "react-aria-components": "1.19.0",
+    "tailwind-merge": "3.6.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "16.3.2",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "jsdom": "29.1.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "typescript": "5.9.3",
+    "vite": "8.1.5",
+    "vitest": "4.1.10"
+  },
+  "peerDependencies": {
+    "react": "^19.2.0"
+  }
+}

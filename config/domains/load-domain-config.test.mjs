@@ -7,6 +7,7 @@ import { runInNewContext } from "node:vm";
 
 import {
   allowedFrontendHosts,
+  createPagesDemoDomainConfig,
   frontendEnvironmentDefinitions,
   loadDomainConfig,
   loadFrontendDomainConfig,
@@ -69,6 +70,19 @@ test("frontend definitions never expose a cookie domain", () => {
     definitions["import.meta.env.VITE_API_BASE_URL"],
     JSON.stringify("https://api.surplasse.test"),
   );
+});
+
+test("Pages demos replace local topology with a non-routable neutral profile", () => {
+  const development = loadDomainConfig("development");
+  const pages = createPagesDemoDomainConfig(development);
+  const definitions = frontendEnvironmentDefinitions(pages);
+
+  assert.equal(pages.APP_BASE_DOMAIN, "pages.invalid");
+  assert.equal(pages.API_URL, "https://pages.invalid");
+  assert.equal(pages.LOCAL_CONTROL_URL, "");
+  assert.equal(pages.PROBLEM_TYPE_BASE, "https://surplasse.com/problems/");
+  assert.equal(development.APP_BASE_DOMAIN, "surplasse.test");
+  assert.doesNotMatch(JSON.stringify(definitions), /\.test\b/u);
 });
 
 test("unknown profiles fail closed", () => {

@@ -18,6 +18,13 @@ export class ComposeController {
     this.profile = options.profile ?? "development";
     this.project = options.project ?? "surplasse";
     this.allowedServices = new Set(options.services ?? []);
+    this.serviceProfiles = normalizeServiceProfiles(
+      options.serviceProfiles ?? {},
+      this.allowedServices,
+    );
+    this.composeProfiles = Object.freeze(
+      [...new Set([...this.serviceProfiles.values()].flatMap((profiles) => profiles))].sort(),
+    );
     this.executeCommand = options.executeCommand ?? runFixedCommand;
   }
 
@@ -25,7 +32,10 @@ export class ComposeController {
     const result = await this.executeCommand(
       this.script,
       [this.profile, "ps", "--all", "--format", "json"],
-      { cwd: this.cwd, timeoutMs: 20_000 },
+      withComposeProfiles(
+        { cwd: this.cwd, timeoutMs: 20_000 },
+        this.composeProfiles,
+      ),
     );
     this.requireSuccess(result, "read the development project state");
     return parseComposePs(result.stdout, {
@@ -39,7 +49,10 @@ export class ComposeController {
     const result = await this.executeCommand(
       this.script,
       [this.profile, "up", "--detach", "--build", "--wait", ...selected],
-      { cwd: this.cwd, signal: options.signal, timeoutMs: 10 * 60_000 },
+      withComposeProfiles(
+        { cwd: this.cwd, signal: options.signal, timeoutMs: 10 * 60_000 },
+        this.profilesFor(selected),
+      ),
     );
     this.requireSuccess(result, "start the selected development services");
   }
@@ -49,7 +62,10 @@ export class ComposeController {
     const result = await this.executeCommand(
       this.script,
       [this.profile, "stop", "--timeout", "10", ...selected],
-      { cwd: this.cwd, signal: options.signal, timeoutMs: 2 * 60_000 },
+      withComposeProfiles(
+        { cwd: this.cwd, signal: options.signal, timeoutMs: 2 * 60_000 },
+        this.profilesFor(selected),
+      ),
     );
     this.requireSuccess(result, "stop the selected development services");
   }
@@ -66,6 +82,12 @@ export class ComposeController {
       throw new CockpitOperationError("Service Compose inconnu ou non autorisé.", 404);
     }
     return selected;
+  }
+
+  profilesFor(services) {
+    return Object.freeze(
+      [...new Set(services.flatMap((service) => this.serviceProfiles.get(service) ?? []))].sort(),
+    );
   }
 
   requireSuccess(result, action) {
@@ -133,7 +155,7 @@ export function runFixedCommand(executable, args, options = {}) {
     try {
       child = spawn(executable, args, {
         cwd: options.cwd,
-        env: process.env,
+        env: commandEnvironment(options),
         shell: false,
         stdio: ["ignore", "pipe", "pipe"],
         signal: options.signal,
@@ -176,6 +198,60 @@ export function runFixedCommand(executable, args, options = {}) {
       aborted: options.signal?.aborted ?? false,
     }));
   });
+}
+
+function normalizeServiceProfiles(source, allowedServices) {
+  if (!source || typeof source !== "object" || Array.isArray(source)) {
+    throw new Error("Compose service profiles must use a fixed service map.");
+  }
+  const profilesByService = new Map();
+  for (const [service, profiles] of Object.entries(source)) {
+    if (!allowedServices.has(service) || !Array.isArray(profiles) || profiles.length === 0) {
+      throw new Error(`Invalid Compose profile mapping for service: ${service}`);
+    }
+    const normalized = [...profiles];
+    if (
+      normalized.some(
+        (profile, index) =>
+          typeof profile !== "string" ||
+          !/^[a-z0-9][a-z0-9_.-]*$/u.test(profile) ||
+          normalized.indexOf(profile) !== index,
+      )
+    ) {
+      throw new Error(`Invalid Compose profile mapping for service: ${service}`);
+    }
+    profilesByService.set(service, Object.freeze(normalized));
+  }
+  return profilesByService;
+}
+
+function withComposeProfiles(options, profiles) {
+  return { ...options, composeProfiles: profiles };
+}
+
+function commandEnvironment(options) {
+  if (!Object.hasOwn(options, "composeProfiles")) {
+    return process.env;
+  }
+  const profiles = options.composeProfiles;
+  if (
+    !Array.isArray(profiles) ||
+    profiles.some(
+      (profile, index) =>
+        typeof profile !== "string" ||
+        !/^[a-z0-9][a-z0-9_.-]*$/u.test(profile) ||
+        profiles.indexOf(profile) !== index,
+    )
+  ) {
+    throw new Error("Invalid fixed Docker Compose profiles.");
+  }
+  const environment = { ...process.env };
+  if (profiles.length === 0) {
+    delete environment.COMPOSE_PROFILES;
+  } else {
+    environment.COMPOSE_PROFILES = profiles.join(",");
+  }
+  return environment;
 }
 
 function missingComposeService(service) {

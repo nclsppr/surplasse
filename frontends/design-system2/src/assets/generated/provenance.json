@@ -1,0 +1,36 @@
+{
+  "policy": {
+    "allowedRoles": ["decorative", "editorial atmosphere"],
+    "forbiddenRoles": ["dish evidence", "real establishment evidence", "operational data"]
+  },
+  "assets": [
+    {
+      "file": "service-pass-1600.webp",
+      "createdAt": "2026-07-23",
+      "tool": "OpenAI image generation via Codex imagegen skill",
+      "promptSummary": "Empty contemporary restaurant pass before service, graphite and stainless steel, white plates, one folded Surplasse orange cloth, soft daylight, no people, no text, no logo and no food.",
+      "source": "masters/service-pass-master.png",
+      "dimensions": {
+        "master": "1672x941",
+        "derivatives": ["1600x901", "960x541"]
+      },
+      "transforms": "Proportional resize and WebP compression at quality 84 for 1600 px, quality 82 for 960 px.",
+      "usage": "Decorative wide context plane for Onboarding2 and Dashboard2. Empty alternative text.",
+      "derivatives": ["service-pass-1600.webp", "service-pass-960.webp"]
+    },
+    {
+      "file": "table-setting-960.webp",
+      "createdAt": "2026-07-23",
+      "tool": "OpenAI image generation via Codex imagegen skill",
+      "promptSummary": "Empty table setting seen from above, graphite tabletop, white plate, steel cutlery, clear water glass, one Surplasse orange napkin, directional daylight, no people, no food, no text and no logo.",
+      "source": "masters/table-setting-master.png",
+      "dimensions": {
+        "master": "1122x1402",
+        "derivatives": ["960x1200", "640x800"]
+      },
+      "transforms": "Proportional resize and WebP compression at quality 84 for 960 px, quality 82 for 640 px.",
+      "usage": "Decorative portrait context plane for Onboarding2 and Dashboard2 authentication surfaces. Empty alternative text.",
+      "derivatives": ["table-setting-960.webp", "table-setting-640.webp"]
+    }
+  ]
+}

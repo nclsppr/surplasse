@@ -1,0 +1,6 @@
+{
+  "$schema": "https://impeccable.style/design.schema.json",
+  "designFile": "frontends/design-system2/DESIGN.md",
+  "productFile": "PRODUCT.md",
+  "scope": "frontends/design-system2"
+}

@@ -96,7 +96,7 @@ test("Compose controller inspects only the fixed development project", async () 
     {
       executable: SCRIPT,
       args: ["development", "ps", "--all", "--format", "json"],
-      options: { cwd: repoRoot, timeoutMs: 20_000 },
+      options: { cwd: repoRoot, timeoutMs: 20_000, composeProfiles: [] },
     },
   ]);
 });
@@ -128,6 +128,7 @@ test("Compose controller starts and stops only allowlisted services with fixed a
         cwd: repoRoot,
         signal: controllerSignal.signal,
         timeoutMs: 10 * 60_000,
+        composeProfiles: [],
       },
     },
     {
@@ -137,9 +138,96 @@ test("Compose controller starts and stops only allowlisted services with fixed a
         cwd: repoRoot,
         signal: controllerSignal.signal,
         timeoutMs: 2 * 60_000,
+        composeProfiles: [],
       },
     },
   ]);
+});
+
+test("Compose controller activates only the fixed profiles required by optional services", async () => {
+  const calls = [];
+  const controller = new ComposeController({
+    script: SCRIPT,
+    cwd: repoRoot,
+    profile: "development",
+    project: "surplasse",
+    services: ["backend", "commande2", "onboarding2", "prometheus"],
+    serviceProfiles: {
+      commande2: ["frontend-experiment"],
+      onboarding2: ["frontend-experiment"],
+      prometheus: ["observability"],
+    },
+    executeCommand: async (executable, args, options) => {
+      calls.push({ executable, args, options });
+      return { exitCode: 0, stdout: "", stderr: "", aborted: false };
+    },
+  });
+
+  await controller.inspectAll();
+  await controller.start(["backend"]);
+  await controller.start(["backend", "commande2", "onboarding2"]);
+  await controller.stop(["onboarding2"]);
+
+  assert.deepEqual(calls, [
+    {
+      executable: SCRIPT,
+      args: ["development", "ps", "--all", "--format", "json"],
+      options: {
+        cwd: repoRoot,
+        timeoutMs: 20_000,
+        composeProfiles: ["frontend-experiment", "observability"],
+      },
+    },
+    {
+      executable: SCRIPT,
+      args: ["development", "up", "--detach", "--build", "--wait", "backend"],
+      options: {
+        cwd: repoRoot,
+        signal: undefined,
+        timeoutMs: 10 * 60_000,
+        composeProfiles: [],
+      },
+    },
+    {
+      executable: SCRIPT,
+      args: [
+        "development",
+        "up",
+        "--detach",
+        "--build",
+        "--wait",
+        "backend",
+        "commande2",
+        "onboarding2",
+      ],
+      options: {
+        cwd: repoRoot,
+        signal: undefined,
+        timeoutMs: 10 * 60_000,
+        composeProfiles: ["frontend-experiment"],
+      },
+    },
+    {
+      executable: SCRIPT,
+      args: ["development", "stop", "--timeout", "10", "onboarding2"],
+      options: {
+        cwd: repoRoot,
+        signal: undefined,
+        timeoutMs: 2 * 60_000,
+        composeProfiles: ["frontend-experiment"],
+      },
+    },
+  ]);
+});
+
+test("Compose controller rejects profile metadata outside its service allowlist", () => {
+  assert.throws(
+    () => new ComposeController({
+      services: ["backend"],
+      serviceProfiles: { unknown: ["frontend-experiment"] },
+    }),
+    /Invalid Compose profile mapping/u,
+  );
 });
 
 test("Compose controller refuses empty, duplicate and unknown service selections before execution", async () => {
@@ -199,6 +287,48 @@ test("fixed command runner treats shell syntax as a literal argument", async () 
   assert.equal(result.stdout, shellText);
   assert.equal(result.stderr, "");
   assert.equal(result.aborted, false);
+});
+
+test("fixed command runner passes an explicit Compose profile without shell composition", async () => {
+  const result = await runFixedCommand(
+    process.execPath,
+    ["-e", "process.stdout.write(process.env.COMPOSE_PROFILES ?? '')"],
+    {
+      cwd: repoRoot,
+      timeoutMs: 5_000,
+      composeProfiles: ["frontend-experiment"],
+    },
+  );
+
+  assert.equal(result.exitCode, 0);
+  assert.equal(result.stdout, "frontend-experiment");
+  assert.equal(result.stderr, "");
+});
+
+test("fixed command runner clears an ambient Compose profile for an explicit core operation", async () => {
+  const previous = process.env.COMPOSE_PROFILES;
+  process.env.COMPOSE_PROFILES = "ambient-profile";
+  try {
+    const result = await runFixedCommand(
+      process.execPath,
+      ["-e", "process.stdout.write(process.env.COMPOSE_PROFILES ?? '')"],
+      {
+        cwd: repoRoot,
+        timeoutMs: 5_000,
+        composeProfiles: [],
+      },
+    );
+
+    assert.equal(result.exitCode, 0);
+    assert.equal(result.stdout, "");
+    assert.equal(result.stderr, "");
+  } finally {
+    if (previous === undefined) {
+      delete process.env.COMPOSE_PROFILES;
+    } else {
+      process.env.COMPOSE_PROFILES = previous;
+    }
+  }
 });
 
 test("fixed command runner preserves a complete Compose-sized response", async () => {

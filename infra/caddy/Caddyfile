@@ -59,14 +59,14 @@ https://{$APP_BASE_DOMAIN}, https://*.{$APP_BASE_DOMAIN} {
 		}
 	}
 
+	import /etc/caddy/routes/profile.caddy
+
 	@dashboard host dashboard.{$APP_BASE_DOMAIN}
 	handle @dashboard {
 		reverse_proxy {$DASHBOARD_UPSTREAM} {
 			import forwarded_headers
 		}
 	}
-
-	import /etc/caddy/routes/profile.caddy
 
 	@www host www.{$APP_BASE_DOMAIN}
 	handle @www {

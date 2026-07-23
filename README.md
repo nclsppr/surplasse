@@ -15,6 +15,7 @@ Surplasse est un canal de commande directe pour les restaurants indépendants : 
 | `frontends/dashboard/` | Dashboard React avec suivi temps réel et avancement des commandes | Image Compose disponible |
 | `frontends/onboarding/` | Préfiguration HTML de la vitrine | Disponible |
 | `frontends/shared/` | Design system et client API TypeScript | Disponible |
+| `frontends/design-system2/`, `frontends/*2/` | Design system Untitled UI et variantes des trois interfaces | Expérience facultative en développement et démos visuelles Pages, absente des routes produit et du VPS |
 | `compose.yaml`, `infra/` | Pile commune, images et routage Caddy pour le local et la production | Cluster local disponible, VPS non provisionné |
 | `scripts/dev-cockpit/` | Pilotage du profil Compose development, vérifications locales et dernier rapport Allure | Disponible, absent de la production |
 | `e2e/` | Smokes Playwright et rapports Allure 3 avec historique par cible | Disponible, exécution locale et GitHub Actions |
@@ -35,6 +36,8 @@ npm ci
 (cd frontends/dashboard && npm ci)
 (cd e2e && npm ci && npx playwright install chromium)
 ```
+
+Pour travailler sur l'expérience UI2, installer aussi ses quatre packages avec `npm run frontend2:install`.
 
 ## Installer les domaines locaux
 
@@ -67,6 +70,14 @@ Pour garder les logs au premier plan :
 ```bash
 npm run local:start
 ```
+
+Pour ajouter les trois variantes UI2 au cluster canonique :
+
+```bash
+npm run local:experiment:up
+```
+
+Elles sont alors disponibles sous `/_experiments/untitled/` sur les mêmes hôtes que les interfaces originales. `npm run local:experiment:stop` arrête seulement ces trois variantes. La procédure complète et la démo Pages vivent dans [`docs/developpement/frontends-alternatifs.md`](docs/developpement/frontends-alternatifs.md).
 
 ## Piloter le cluster avec le cockpit
 

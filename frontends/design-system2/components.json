@@ -1,0 +1,16 @@
+{
+  "$schema": "https://www.untitledui.com/schema.json",
+  "version": "8",
+  "style": "default",
+  "typescript": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/styles.css",
+    "baseColor": "gray",
+    "cssVariables": true
+  },
+  "aliases": {
+    "components": "@/components",
+    "utils": "@/lib"
+  }
+}

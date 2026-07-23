@@ -35,6 +35,7 @@ write_fixture() {
     'IMAGE_REGISTRY=ghcr.io/example/surplasse' \
     "IMAGE_TAG=${image_tag}" \
     'COMPOSE_NETWORK_SUBNET=172.31.0.0/24' \
+    'COMPOSE_NETWORK_IP_RANGE=172.31.0.128/25' \
     'CADDY_INTERNAL_IP=172.31.0.10' \
     'CADDY_HTTP_BIND_ADDRESS=0.0.0.0' \
     'CADDY_HTTPS_BIND_ADDRESS=0.0.0.0' \
@@ -117,7 +118,13 @@ const model = JSON.parse(readFileSync(process.argv[2], 'utf8'));
 const onboarding = model.services.onboarding;
 const prometheus = model.services.prometheus;
 const grafana = model.services.grafana;
-for (const developmentOnlyService of ['docs', 'mailpit']) {
+for (const developmentOnlyService of [
+  'docs',
+  'mailpit',
+  'onboarding2',
+  'commande2',
+  'dashboard2',
+]) {
   if (Object.hasOwn(model.services, developmentOnlyService)) {
     throw new Error(`production unexpectedly contains ${developmentOnlyService}`);
   }
@@ -163,6 +170,13 @@ if (
 }
 if (!model.services.edge.networks?.default?.aliases?.includes('surplasse.com')) {
   throw new Error('production Caddy cannot resolve its public apex to the edge container');
+}
+const defaultNetworkConfig = model.networks?.default?.ipam?.config?.[0];
+if (
+  defaultNetworkConfig?.subnet !== '172.31.0.0/24' ||
+  defaultNetworkConfig?.ip_range !== '172.31.0.128/25'
+) {
+  throw new Error('production dynamic addresses can overlap the static Caddy address');
 }
 if (!prometheus || !grafana) {
   throw new Error('production observability profile does not include Prometheus and Grafana');
@@ -219,6 +233,43 @@ if (model.services.grafana.environment?.GF_AUTH_ANONYMOUS_ENABLED !== 'true') {
 }
 if (model.services.grafana.ports) {
   throw new Error('development Grafana bypasses Caddy with a published host port');
+}
+NODE
+
+COMPOSE_PROFILES=frontend-experiment \
+  bash "${SCRIPT_DIR}/compose.sh" development config --format json \
+  >"${TEST_DIRECTORY}/development-frontend-experiment.json"
+node - "${TEST_DIRECTORY}/development-frontend-experiment.json" <<'NODE'
+const { readFileSync } = require('node:fs');
+
+const model = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+const variants = {
+  onboarding2: 'onboarding2:8080',
+  commande2: 'commande2:8080',
+  dashboard2: 'dashboard2:8080',
+};
+for (const [serviceName, upstream] of Object.entries(variants)) {
+  const service = model.services[serviceName];
+  if (!service) {
+    throw new Error(`development frontend experiment is missing ${serviceName}`);
+  }
+  if (service.read_only !== true || !service.security_opt?.includes('no-new-privileges:true')) {
+    throw new Error(`${serviceName} is missing container hardening`);
+  }
+  if (!service.healthcheck?.test?.includes('wget')) {
+    throw new Error(`${serviceName} is missing its static frontend healthcheck`);
+  }
+  const environmentName = `${serviceName.replace(/2$/u, '').toUpperCase()}2_UPSTREAM`;
+  if (model.services.edge.environment?.[environmentName] !== upstream) {
+    throw new Error(`development Caddy does not receive ${environmentName}`);
+  }
+}
+const defaultNetworkConfig = model.networks?.default?.ipam?.config?.[0];
+if (
+  defaultNetworkConfig?.subnet !== '172.30.0.0/24' ||
+  defaultNetworkConfig?.ip_range !== '172.30.0.128/25'
+) {
+  throw new Error('development dynamic addresses can overlap the static Caddy address');
 }
 NODE
 

@@ -13,6 +13,10 @@ Surplasse expose trois applications web distinctes : **Onboarding** (vitrine et 
 Le module actuel couvre la connexion par magic link, le renouvellement de session coordonné entre onglets, la sélection d'un établissement autorisé, la liste REST paginée des commandes opérationnelles et leur avancement jusqu'au service ou au retrait. Le flux SSE authentifié par établissement invalide cette liste à chaque événement et à chaque reconnexion. L'état du direct reste visible dans la barre de service. Le son et les métriques ne sont pas encore disponibles.
 !!!
 
+!!! info Expérience UI2
+`frontends/onboarding2/`, `frontends/commande2/` et `frontends/dashboard2/` proposent une seconde implémentation visuelle fondée sur `frontends/design-system2/` et Untitled UI. Commande2 et Dashboard2 consomment le même contrat et le même client généré que leurs applications canoniques. Onboarding2 couvre actuellement la vitrine et passe explicitement au tunnel original avant toute étape reliée au Backend : sa parité n'est donc pas acquise. Chaque variante applique les mêmes règles métier et la même discipline i18n, sans partager nécessairement le même fichier de traduction. L'[ADR-0033](../decisions/adr-0033-frontends-alternatifs-untitled-ui.md) fixe leur isolement, leurs parcours reliés au Backend réservés au développement et leur retrait sans migration. Les applications sans suffixe restent seules candidates aux routes produit et aux images du VPS.
+!!!
+
 Le choix de trois applications React distinctes plutôt qu'une application unique ou qu'un framework SSR est motivé dans [l'ADR 0004](../decisions/adr-0004-trois-frontends-react.md).
 
 ## Le socle commun

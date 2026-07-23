@@ -38,6 +38,7 @@ const manager = new CockpitManager(registry, {
     profile: "development",
     project: composeProject,
     services: registry.composeServices,
+    serviceProfiles: registry.composeServiceProfiles,
   }),
   publicProbe: createPublicUrlProbe({
     baseDomain: developmentUrls.baseDomain,

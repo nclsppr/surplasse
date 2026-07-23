@@ -1,3 +1,42 @@
+@experiment_root path /_experiments/untitled
+handle @experiment_root {
+	redir /_experiments/untitled/ 308
+}
+
+@dashboard2 {
+	host dashboard.{$APP_BASE_DOMAIN}
+	path /_experiments/untitled/*
+}
+handle @dashboard2 {
+	uri strip_prefix /_experiments/untitled
+	reverse_proxy {$DASHBOARD2_UPSTREAM} {
+		import forwarded_headers
+	}
+}
+
+@onboarding2 {
+	host {$APP_BASE_DOMAIN}
+	path /_experiments/untitled/*
+}
+handle @onboarding2 {
+	uri strip_prefix /_experiments/untitled
+	reverse_proxy {$ONBOARDING2_UPSTREAM} {
+		import forwarded_headers
+	}
+}
+
+@commande2 {
+	host *.{$APP_BASE_DOMAIN}
+	not host api.{$APP_BASE_DOMAIN} dashboard.{$APP_BASE_DOMAIN} docs.{$APP_BASE_DOMAIN} app.{$APP_BASE_DOMAIN} admin.{$APP_BASE_DOMAIN} local.{$APP_BASE_DOMAIN} mail.{$APP_BASE_DOMAIN} reports.{$APP_BASE_DOMAIN} grafana.{$APP_BASE_DOMAIN} www.{$APP_BASE_DOMAIN}
+	path /_experiments/untitled/*
+}
+handle @commande2 {
+	uri strip_prefix /_experiments/untitled
+	reverse_proxy {$COMMANDE2_UPSTREAM} {
+		import forwarded_headers
+	}
+}
+
 @docs_root {
 	host docs.{$APP_BASE_DOMAIN}
 	path /

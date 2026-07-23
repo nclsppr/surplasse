@@ -30,11 +30,19 @@ jobs:
             frontends/shared/package-lock.json
             frontends/commande/package-lock.json
             frontends/dashboard/package-lock.json
+            frontends/design-system2/package-lock.json
+            frontends/onboarding2/package-lock.json
+            frontends/commande2/package-lock.json
+            frontends/dashboard2/package-lock.json
       - name: Install frontend dependencies
         run: |
           npm ci --prefix frontends/shared
           npm ci --prefix frontends/commande
           npm ci --prefix frontends/dashboard
+          npm ci --prefix frontends/design-system2
+          npm ci --prefix frontends/onboarding2
+          npm ci --prefix frontends/commande2
+          npm ci --prefix frontends/dashboard2
       - name: Validate domains and static demo
         run: |
           npm run domains:test
@@ -54,6 +62,8 @@ jobs:
           npm --prefix frontends/dashboard run lint
           npm --prefix frontends/dashboard test
           npm --prefix frontends/dashboard run build
+      - name: Validate experimental frontends
+        run: npm run frontend2:check
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -206,16 +216,39 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontends/shared/package-lock.json
+            frontends/design-system2/package-lock.json
+            frontends/onboarding2/package-lock.json
+            frontends/commande2/package-lock.json
+            frontends/dashboard2/package-lock.json
       - run: npm ci
+      - name: Install experimental frontend dependencies
+        run: npm run frontend2:install
       - run: npm run domains:check
       # docs:build invoque le wrapper retype.js via node directement :
       # npm 10.9.x ne crée pas le lien node_modules/.bin/retype à
       # l'installation (collision de noms de bin avec les paquets
       # plateforme retypeapp-*), donc la commande nue `retype` échouerait.
       - run: npm run docs:build
+      - name: Build the static experimental demos
+        run: |
+          set -euo pipefail
+          repository_name="${GITHUB_REPOSITORY#*/}"
+          demo_base="/${repository_name}/_experiments/untitled"
+          VITE_UI2_PAGES_DEMO=true \
+            npm run build --prefix frontends/onboarding2 -- --mode development --base "${demo_base}/onboarding/"
+          VITE_UI2_PAGES_DEMO=true \
+            VITE_UI2_PAGES_DEMO_SLUG=le-cormoran \
+            npm run build --prefix frontends/commande2 -- --mode development --base "${demo_base}/commande/"
+          VITE_UI2_PAGES_DEMO=true \
+            npm run build --prefix frontends/dashboard2 -- --mode development --base "${demo_base}/dashboard/"
+          npm run frontend2:pages:check
       - name: Assemble le site
         run: |
-          set -e
+          set -euo pipefail
           mkdir -p site/brand site/docs
           # Landing et onboarding à la racine ; chemins d'assets réécrits pour la racine
           for f in frontends/onboarding/index.html frontends/onboarding/creer.html frontends/onboarding/connect.html; do
@@ -232,6 +265,81 @@ jobs:
           rm -f site/brand/qr/qr-demo-development.png
           # Documentation Retype sous /docs
           cp -R docs-site/. site/docs/
+          # Preuves visuelles UI2, isolées des routes produit et sans Backend Pages
+          experiment_root="site/_experiments/untitled"
+          mkdir -p \
+            "${experiment_root}/onboarding" \
+            "${experiment_root}/commande" \
+            "${experiment_root}/dashboard"
+          cp -R frontends/onboarding2/dist/. "${experiment_root}/onboarding/"
+          cp -R frontends/commande2/dist/. "${experiment_root}/commande/"
+          cp -R frontends/dashboard2/dist/. "${experiment_root}/dashboard/"
+          for demo in onboarding commande dashboard; do
+            sed -i 's|<head>|<head>\n    <meta name="robots" content="noindex,nofollow">|' \
+              "${experiment_root}/${demo}/index.html"
+          done
+          mkdir -p \
+            "${experiment_root}/onboarding/creer" \
+            "${experiment_root}/commande/panier" \
+            "${experiment_root}/dashboard/auth/login"
+          cp "${experiment_root}/onboarding/index.html" "${experiment_root}/onboarding/creer/index.html"
+          cp "${experiment_root}/commande/index.html" "${experiment_root}/commande/panier/index.html"
+          cp "${experiment_root}/dashboard/index.html" "${experiment_root}/dashboard/auth/login/index.html"
+          node --input-type=module <<'NODE'
+          import { writeFileSync } from "node:fs";
+
+          writeFileSync("site/_experiments/untitled/dashboard/index.html", `<!doctype html>
+          <html lang="fr">
+            <head>
+              <meta charset="UTF-8">
+              <meta name="robots" content="noindex,nofollow">
+              <meta http-equiv="refresh" content="0; url=./auth/login/">
+              <title>Dashboard2 | Démonstration statique</title>
+            </head>
+            <body><p><a href="./auth/login/">Ouvrir Dashboard2</a></p></body>
+          </html>`);
+
+          const destination = "site/_experiments/untitled/index.html";
+          writeFileSync(destination, `<!doctype html>
+          <html lang="fr">
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <meta name="robots" content="noindex,nofollow">
+              <title>Surplasse UI2 | Démonstrations expérimentales</title>
+              <style>
+                :root { color-scheme: light; font-family: system-ui, sans-serif; background: #eef1f2; color: #17242a; }
+                * { box-sizing: border-box; }
+                body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 32px 20px; }
+                main { width: min(100%, 960px); }
+                .eyebrow { color: #c43f00; font-size: .75rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+                h1 { max-width: 720px; margin: 12px 0; font-size: clamp(2.2rem, 7vw, 5.5rem); line-height: .95; letter-spacing: -.055em; }
+                .intro { max-width: 680px; color: #52636c; font-size: 1.05rem; line-height: 1.65; }
+                .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 32px 0; }
+                article { min-height: 220px; display: flex; flex-direction: column; padding: 22px; border: 1px solid #b8c2c7; border-radius: 18px; background: #fff; }
+                article p { color: #52636c; line-height: 1.5; }
+                article a { margin-top: auto; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; background: #fa550c; color: #17242a; font-weight: 800; text-decoration: none; }
+                article a:focus-visible, footer a:focus-visible { outline: 2px solid #fff; box-shadow: 0 0 0 5px #17242a; }
+                footer { display: flex; flex-wrap: wrap; gap: 16px; color: #52636c; font-size: .9rem; }
+                footer a { color: #17242a; }
+                @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } article { min-height: 180px; } }
+              </style>
+            </head>
+            <body>
+              <main>
+                <p class="eyebrow">Expérience UI2</p>
+                <h1>Trois interfaces, une autre direction.</h1>
+                <p class="intro">Ces builds statiques servent uniquement à la revue visuelle de l'expérience Untitled UI. Ils ne sont ni les routes produit, ni un déploiement sur le VPS. Les parcours avec données, session ou paiement se vérifient dans le profil Compose development.</p>
+                <section class="grid" aria-label="Démonstrations disponibles">
+                  <article><h2>Onboarding2</h2><p>La vitrine, le récit du service et le point de départ de l'embarquement.</p><a href="./onboarding/">Ouvrir Onboarding2</a></article>
+                  <article><h2>Commande2</h2><p>La carte et le panier dans le nouveau système visuel.</p><a href="./commande/">Ouvrir Commande2</a></article>
+                  <article><h2>Dashboard2</h2><p>L'écran de connexion statique de l'équipe restaurant. Les vues métier se vérifient avec Compose.</p><a href="./dashboard/auth/login/">Ouvrir Dashboard2</a></article>
+                </section>
+                <footer><span>Preuve visuelle GitHub Pages, profil development, sans Backend public.</span><a href="../../docs/decisions/adr-0033-frontends-alternatifs-untitled-ui/">Lire ADR-0033</a></footer>
+              </main>
+            </body>
+          </html>`);
+          NODE
       - name: Add the latest local Allure report
         uses: actions/download-artifact@v4
         with:

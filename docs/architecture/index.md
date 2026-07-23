@@ -133,7 +133,11 @@ surplasse/
 │   ├── shared/              # Design system, client API généré, utilitaires
 │   ├── onboarding/          # surplasse.com
 │   ├── commande/            # {slug}.surplasse.com
-│   └── dashboard/           # dashboard.surplasse.com
+│   ├── dashboard/           # dashboard.surplasse.com
+│   ├── design-system2/      # fondations UI2 expérimentales
+│   ├── onboarding2/         # variante de développement
+│   ├── commande2/           # variante de développement
+│   └── dashboard2/          # variante de développement
 ├── infra/                   # Images et configuration Caddy
 └── .github/workflows/       # CI/CD
 ```
@@ -147,11 +151,12 @@ surplasse/
 | `frontends/onboarding/` | La vitrine produit et le tunnel d'embarquement des restaurateurs |
 | `frontends/commande/` | Le mini-site de l'établissement : carte numérique, commande et paiement client |
 | `frontends/dashboard/` | Le suivi des commandes en temps réel, la gestion de la carte et les métriques |
+| `frontends/design-system2/` et `frontends/*2/` | Le design system Untitled UI et les trois variantes réversibles réservées au développement et aux démos Pages |
 | `compose*.yaml` | Le graphe de services commun et ses surcharges d'environnement |
 | `infra/` | Les Dockerfiles, la configuration Caddy et les recettes d'exécution |
 | `.github/workflows/` | Les pipelines GitHub Actions : build, tests, déploiement, publication des docs |
 
-Le Backend, Commande, le Dashboard, la préfiguration de l'Onboarding et le cluster Compose sont livrés localement. Les modules encore absents sont créés au fil de la [roadmap](../roadmap.md).
+Le Backend, Commande, le Dashboard, la préfiguration de l'Onboarding, les variantes UI2 et le cluster Compose sont livrés localement. Les modules encore absents sont créés au fil de la [roadmap](../roadmap.md).
 
 ## Les deux flux critiques
 

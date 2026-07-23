@@ -41,6 +41,26 @@ export function createRegistry(_repoRoot, developmentUrls) {
       links: [link("Ouvrir avec la table de démo", withQuery(urls.commande, "table", DEMO_TABLE_CODE))],
     }),
     composeModule({
+      id: "commande2",
+      service: "commande2",
+      label: "Commande2",
+      description: "Variante Untitled UI du mini-site de commande.",
+      group: "applications",
+      ports: [8080],
+      profiles: ["frontend-experiment"],
+      publicHealth: publicHealth(appendPath(urls.commande, "/_experiments/untitled/")),
+      links: [
+        link(
+          "Ouvrir la variante avec la table de démo",
+          withQuery(
+            appendPath(urls.commande, "/_experiments/untitled/"),
+            "table",
+            DEMO_TABLE_CODE,
+          ),
+        ),
+      ],
+    }),
+    composeModule({
       id: "dashboard",
       service: "dashboard",
       label: "Dashboard",
@@ -51,6 +71,28 @@ export function createRegistry(_repoRoot, developmentUrls) {
       links: [
         link("Connexion", appendPath(urls.dashboard, "/auth/login")),
         link("Service", appendPath(urls.dashboard, "/service")),
+      ],
+    }),
+    composeModule({
+      id: "dashboard2",
+      service: "dashboard2",
+      label: "Dashboard2",
+      description: "Variante Untitled UI des vues métier du restaurateur.",
+      group: "applications",
+      ports: [8080],
+      profiles: ["frontend-experiment"],
+      publicHealth: publicHealth(
+        appendPath(urls.dashboard, "/_experiments/untitled/auth/login"),
+      ),
+      links: [
+        link(
+          "Connexion à la variante",
+          appendPath(urls.dashboard, "/_experiments/untitled/auth/login"),
+        ),
+        link(
+          "Service dans la variante",
+          appendPath(urls.dashboard, "/_experiments/untitled/service"),
+        ),
       ],
     }),
     composeModule({
@@ -65,6 +107,26 @@ export function createRegistry(_repoRoot, developmentUrls) {
         link("Onboarding", urls.onboarding),
         link("Pilote Stripe intégré", appendPath(urls.onboarding, "/connect.html")),
         link("Planche de marque", localCompanionLink(urls.onboarding)),
+      ],
+    }),
+    composeModule({
+      id: "onboarding2",
+      service: "onboarding2",
+      label: "Onboarding2",
+      description: "Variante Untitled UI de la vitrine et de l'embarquement.",
+      group: "applications",
+      ports: [8080],
+      profiles: ["frontend-experiment"],
+      publicHealth: publicHealth(appendPath(urls.onboarding, "/_experiments/untitled/")),
+      links: [
+        link(
+          "Ouvrir la variante",
+          appendPath(urls.onboarding, "/_experiments/untitled/"),
+        ),
+        link(
+          "Créer avec la variante",
+          appendPath(urls.onboarding, "/_experiments/untitled/creer"),
+        ),
       ],
     }),
     composeModule({
@@ -94,6 +156,7 @@ export function createRegistry(_repoRoot, developmentUrls) {
       description: "Collecte interne des métriques opérationnelles du Backend.",
       group: "tools",
       ports: [9090],
+      profiles: ["observability"],
       publicHealth: null,
       links: [],
     }),
@@ -104,6 +167,7 @@ export function createRegistry(_repoRoot, developmentUrls) {
       description: "Tableau de bord local des métriques opérationnelles.",
       group: "tools",
       ports: [3000],
+      profiles: ["observability"],
       publicHealth: publicHealth(appendPath(urls.grafana, "/api/health")),
       links: [link("Tableau de bord", urls.grafana)],
     }),
@@ -127,6 +191,11 @@ export function createRegistry(_repoRoot, developmentUrls) {
     composeServices: Object.freeze(
       modules.filter((module) => module.kind === "compose").map((module) => module.composeService),
     ),
+    composeServiceProfiles: Object.freeze(Object.fromEntries(
+      modules
+        .filter((module) => module.kind === "compose" && module.composeProfiles.length > 0)
+        .map((module) => [module.composeService, module.composeProfiles]),
+    )),
     presets: Object.freeze({
       core: Object.freeze(["postgresql", "mailpit", "backend", "commande", "dashboard"]),
       all: Object.freeze([
@@ -134,8 +203,11 @@ export function createRegistry(_repoRoot, developmentUrls) {
         "mailpit",
         "backend",
         "commande",
+        "commande2",
         "dashboard",
+        "dashboard2",
         "onboarding",
+        "onboarding2",
         "docs",
         "prometheus",
         "grafana",
@@ -166,6 +238,7 @@ function composeModule(definition) {
     group: definition.group,
     kind: "compose",
     controllable: definition.controllable ?? true,
+    composeProfiles: Object.freeze(definition.profiles ?? []),
     ports: Object.freeze(definition.ports),
     publicHealth: definition.publicHealth,
     links: Object.freeze(definition.links),
@@ -257,6 +330,15 @@ function assertRegistry(modules) {
         throw new Error(`Invalid or duplicate Compose service: ${module.composeService}`);
       }
       composeServices.add(module.composeService);
+      if (
+        module.composeProfiles.some(
+          (profile, index) =>
+            !/^[a-z0-9][a-z0-9_.-]*$/u.test(profile) ||
+            module.composeProfiles.indexOf(profile) !== index,
+        )
+      ) {
+        throw new Error(`Invalid or duplicate Compose profile for: ${module.id}`);
+      }
     }
   }
 }
@@ -265,8 +347,11 @@ export const EXPECTED_MODULE_IDS = Object.freeze([
   "edge",
   "backend",
   "commande",
+  "commande2",
   "dashboard",
+  "dashboard2",
   "onboarding",
+  "onboarding2",
   "docs",
   "mailpit",
   "prometheus",

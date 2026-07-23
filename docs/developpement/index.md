@@ -10,7 +10,7 @@ description: Prérequis, installation, commandes, ports et premier lancement de 
 Cette page est le point d'entrée de la section développement : ce qu'il faut installer sur sa machine, comment cloner et lancer le monorepo, quelles commandes exécuter dans chaque répertoire et comment diagnostiquer les problèmes les plus fréquents. Pour comprendre ce que l'on fait tourner avant de le lancer, lire d'abord la [vue d'ensemble de l'architecture](../architecture/index.md).
 
 !!! info État actuel
-Au 2026-07-22, la documentation, le contrat OpenAPI, le Backend Quarkus, Commande, le Dashboard, la préfiguration statique de l'Onboarding et le package partagé sont exécutables. Le cluster Docker Compose local assemble Caddy, PostgreSQL, ces applications, Mailpit et la documentation sous `surplasse.test`. Un profil facultatif ajoute Prometheus et Grafana sans les placer dans le chemin applicatif. Le cockpit pilote les services autorisés de ce profil development, lance le smoke Playwright local et publie son dernier rapport Allure sur `REPORTS_URL`. Le cluster exerce le même graphe applicatif, les mêmes recettes applicatives et le même routage Caddy que la cible `surplasse.com`. Aucun VPS public n'est encore provisionné.
+Au 2026-07-23, la documentation, le contrat OpenAPI, le Backend Quarkus, Commande, le Dashboard, la préfiguration statique de l'Onboarding et le package partagé sont exécutables. Le cluster Docker Compose local assemble Caddy, PostgreSQL, ces applications, Mailpit et la documentation sous `surplasse.test`. Le profil facultatif `frontend-experiment` ajoute Onboarding2, Commande2 et Dashboard2, fondés sur `design-system2`, pour comparer une direction Untitled UI conformément à l'[ADR-0033](../decisions/adr-0033-frontends-alternatifs-untitled-ui.md). Ces variantes restent absentes des routes et images de production. Un autre profil facultatif ajoute Prometheus et Grafana sans les placer dans le chemin applicatif. Le cockpit pilote les services autorisés du profil development, lance le smoke Playwright local et publie son dernier rapport Allure sur `REPORTS_URL`. Le cluster canonique exerce le même graphe applicatif, les mêmes recettes applicatives et le même routage Caddy que la cible `surplasse.com`. Aucun VPS public n'est encore provisionné.
 !!!
 
 !!! info URL locales canoniques
@@ -86,9 +86,14 @@ npm ci
 (cd frontends/dashboard && npm ci)        # Dashboard application
 (cd e2e && npm ci && npx playwright install chromium) # E2E and local browser
 (cd backend && ./mvnw dependency:resolve) # optional, quarkus:dev resolves them too
+
+# 4. Install the optional UI2 experiment when working on it
+npm run frontend2:install
 ```
 
 Le `npm ci` racine installe Retype, Spectral et OpenAPI Generator. Les frontends et `e2e/` ont chacun leur propre `package.json` et leurs propres dépendances : il n'y a pas de workspace npm global. Le package partagé `frontends/shared/` est consommé en source via une dépendance `file:../shared`, conformément à l'[ADR-0014](../decisions/adr-0014-liaison-shared.md). Il faut donc installer `shared` avant de vérifier Commande ou le Dashboard. L'Onboarding actuel est statique et n'a pas encore de dépendances npm. L'installation E2E télécharge seulement Chromium ; Firefox et WebKit ne font pas partie du smoke initial.
+
+`npm run frontend2:install` installe de façon verrouillée `shared`, `design-system2` et les trois applications suffixées `2`. Cette commande est facultative pour le développement canonique et identique sur macOS, Linux et Windows via WSL2. Les versions, prérequis et commandes isolées sont détaillés dans [Frontends alternatifs](frontends-alternatifs.md).
 
 ## Cycle de vie des composants actuels
 
@@ -106,6 +111,10 @@ Le `npm ci` racine installe Retype, Spectral et OpenAPI Generator. Les frontends
 | `frontends/commande` | Image statique Compose ou Vite avec `npm run dev` | Image NGINX statique construite avec le profil production |
 | `frontends/onboarding` | Image Node allowlistée ; la session Stripe intégrée est réservée au profil development | Même Dockerfile, fichiers statiques servis par NGINX sans pilote ni secret Stripe |
 | `frontends/dashboard` | Image statique Compose ou Vite avec `npm run dev`, port natif strict 5174 | Image NGINX statique construite avec le profil production |
+| `frontends/design-system2` | Bibliothèque TypeScript expérimentale ; `npm run check` et `npm test`, aucun serveur | Développement, build de validation et démo Pages seulement, absente du VPS |
+| `frontends/onboarding2` | Profil Compose `frontend-experiment` ou Vite sur le listener strict 5175 | Développement et démo statique Pages seulement, absente des routes `.com` et du VPS |
+| `frontends/commande2` | Profil Compose `frontend-experiment` ou Vite sur le listener strict 5176 | Développement et démo statique Pages seulement, absente des routes `.com` et du VPS |
+| `frontends/dashboard2` | Profil Compose `frontend-experiment` ou Vite sur le listener strict 5177 | Développement et démo statique Pages seulement, absente des routes `.com` et du VPS |
 | `scripts/dev-cockpit` | Serveur Node sans dépendance ; après `local:up`, `npm run local:cockpit` pilote les services autorisés de Compose development, lance les suites fixes et sert le rapport Allure local | Développement seulement, absent des builds et de la production |
 | `e2e/` | Lanceur Playwright et générateur Allure 3 ; vise explicitement `development`, `production` ou `custom` ; état sous `.surplasse/e2e/` | Outil local et GitHub Actions, absent des images et du VPS |
 | `compose.yaml`, `infra/caddy`, `infra/images`, `infra/observability` | Graphe, routage, recettes, règles et tableaux de bord sélectionnés par `scripts/compose.sh development` | Les mêmes fichiers avec `compose.production.yaml`, le profil production et une activation explicite de l'observabilité |
@@ -180,6 +189,10 @@ Chaque composant expose un petit jeu de commandes stables. Une ligne « vérific
 | racine | `npm run e2e:report -- <target>` | ouverture directe du rapport HTML autonome d'une cible, sans serveur permanent |
 | racine | `npm run backend:dev` | Backend en mode dev avec profil central injecté, rechargement à chaud, Dev Services et Dev UI |
 | racine | `npm run backend:verify` | compilation, tests et package Backend avec le profil central injecté ; utilise Java 25 local ou l'image Temurin 25 épinglée via Docker |
+| racine | `npm run frontend2:install` | installation verrouillée de `shared`, `design-system2`, Onboarding2, Commande2 et Dashboard2 |
+| racine | `npm run frontend2:check` | typecheck, lint, tests et builds des quatre packages expérimentaux |
+| racine | `npm run local:experiment:up` | construction et démarrage du cluster development avec le profil `frontend-experiment` |
+| racine | `npm run local:experiment:stop` | arrêt ciblé des trois applications UI2 sans arrêter le cluster canonique |
 | racine | `scripts/run-with-domain-profile.sh development ./backend/mvnw -f backend/pom.xml -pl order -am test` | exemple de vérification ciblée avec le même profil |
 | racine | `scripts/run-with-domain-profile.sh development ./backend/mvnw -f backend/pom.xml -pl identity -am test` | tests du module `identity`, sans processus autonome |
 | `frontends/shared/` | `npm run check && npm test` | typecheck et tests de la bibliothèque, sans serveur |
@@ -187,6 +200,10 @@ Chaque composant expose un petit jeu de commandes stables. Une ligne « vérific
 | `frontends/commande/` | `npm run lint && npm test && npm run build` | vérification complète de Commande |
 | `frontends/dashboard/` | `npm run dev` | serveur Vite du Dashboard avec rechargement à chaud, port strict 5174 |
 | `frontends/dashboard/` | `npm run lint && npm test && npm run build` | vérification complète du Dashboard |
+| `frontends/design-system2/` | `npm run check && npm test` | vérification de la bibliothèque UI2, sans serveur autonome |
+| `frontends/onboarding2/` | `npm run dev` | boucle Vite expérimentale sur le listener strict 5175 |
+| `frontends/commande2/` | `npm run dev` | boucle Vite expérimentale sur le listener strict 5176 |
+| `frontends/dashboard2/` | `npm run dev` | boucle Vite expérimentale sur le listener strict 5177 |
 | racine | `node scripts/dev-cockpit/onboarding-server.mjs` | boucle native facultative du serveur Onboarding, port privé 4173 |
 
 Pour le parcours nominal, lancer `npm run local:up`, puis ouvrir `https://surplasse.test` ou `https://surplasse.test/brand/board.html`. Le serveur Node de l'Onboarding ne sert que les fichiers publics explicitement autorisés : `.certs/`, les fichiers d'environnement et le reste du dépôt restent inaccessibles. Le cockpit complète le cluster en le pilotant par Compose. Les commandes natives restent disponibles séparément pour une boucle à chaud, puis la validation finale repasse par le cluster.
@@ -285,7 +302,7 @@ Dans le cluster, seul Caddy publie `127.0.0.1:443`. Tous les autres ports Compos
 | 9090 | Prometheus | aucune, réseau Compose seulement |
 | 3000 | Grafana | `GRAFANA_URL` via Caddy, réseau Compose seulement |
 
-Les commandes natives conservent 5173 pour Commande, 5174 pour le Dashboard, 4173 pour l'Onboarding, 4174 pour le cockpit, 5005 pour Retype, 5006 pour JDWP et 8080 pour Quarkus. Ces listeners servent à la mise au point et aux sondes, pas à définir des URL applicatives. Un port occupé doit faire échouer le lancement au lieu de glisser vers un voisin.
+Les commandes natives conservent 5173 pour Commande, 5174 pour le Dashboard, 4173 pour l'Onboarding, 4174 pour le cockpit, 5005 pour Retype, 5006 pour JDWP et 8080 pour Quarkus. L'expérience UI2 réserve 5175 à Onboarding2, 5176 à Commande2 et 5177 à Dashboard2. Ces listeners servent à la mise au point et aux sondes, pas à définir des URL applicatives. Un port occupé doit faire échouer le lancement au lieu de glisser vers un voisin.
 
 ## Variables d'environnement
 
@@ -352,6 +369,19 @@ npm run local:ps
 ```
 
 Compose démarre PostgreSQL, le Backend, les trois fronts, Mailpit, la documentation et Caddy, puis attend leurs healthchecks. Flyway applique les migrations et le seed de démonstration avant que le Backend devienne prêt. Caddy est le seul service publié sur l'hôte. Prometheus et Grafana restent arrêtés tant que le profil `observability` n'est pas demandé : leur absence ne change pas la readiness du Backend.
+
+Pour comparer les variantes UI2 sur les mêmes données, ajouter ensuite le profil expérimental :
+
+```bash
+npm run local:experiment:up
+curl --fail https://surplasse.test/_experiments/untitled/
+curl --fail 'https://le-cormoran.surplasse.test/_experiments/untitled/?table=tbl_2f8e6a4c0b9d7e1f'
+curl --fail https://dashboard.surplasse.test/_experiments/untitled/auth/login
+```
+
+`npm run local:experiment:stop` arrête seulement Onboarding2, Commande2 et Dashboard2. Les variantes ne possèdent ni volume ni donnée serveur propre. Leur arrêt ne demande donc ni sauvegarde, ni migration, ni retour arrière. Le cluster canonique continue de fonctionner.
+
+GitHub Pages publie aussi un [sélecteur de démos UI2](https://nclsppr.github.io/surplasse/_experiments/untitled/), puis un build distinct pour Onboarding2, Commande2 et Dashboard2. Ces fichiers portent `noindex` et servent uniquement à la revue visuelle publique du SHA construit. Ils utilisent le profil de configuration development, ne fournissent ni Backend, ni session, ni paiement et ne créent aucune route de production. La validation des parcours alimentés par les données reste celle du profil Compose local décrit ci-dessus.
 
 Pour observer le cluster, démarrer ensuite les deux services facultatifs :
 

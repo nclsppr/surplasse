@@ -101,6 +101,9 @@ jobs:
             -e ONBOARDING_UPSTREAM=onboarding:4173 \
             -e COMMANDE_UPSTREAM=commande:8080 \
             -e DASHBOARD_UPSTREAM=dashboard:8080 \
+            -e ONBOARDING2_UPSTREAM=onboarding2:8080 \
+            -e COMMANDE2_UPSTREAM=commande2:8080 \
+            -e DASHBOARD2_UPSTREAM=dashboard2:8080 \
             -e DOCS_UPSTREAM=docs:8080 \
             -e MAILPIT_UPSTREAM=mailpit:8025 \
             -e GRAFANA_UPSTREAM=grafana:3000 \
@@ -184,3 +187,87 @@ jobs:
       - run: npm test
       # The build includes TypeScript checking through tsc --noEmit.
       - run: npm run build
+
+  design-system2:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontends/design-system2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontends/design-system2/package-lock.json
+      - run: npm ci
+      - run: npm audit --omit=dev
+      - run: npm run check
+      - run: npm test
+
+  onboarding2:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontends/onboarding2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            frontends/design-system2/package-lock.json
+            frontends/onboarding2/package-lock.json
+      - run: npm ci --prefix ../design-system2
+      - run: npm ci
+      - run: npm audit --omit=dev
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build -- --mode development
+
+  commande2:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontends/commande2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            frontends/shared/package-lock.json
+            frontends/design-system2/package-lock.json
+            frontends/commande2/package-lock.json
+      - run: npm ci --prefix ../shared
+      - run: npm ci --prefix ../design-system2
+      - run: npm ci
+      - run: npm audit --omit=dev
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build -- --mode development
+
+  dashboard2:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontends/dashboard2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            frontends/shared/package-lock.json
+            frontends/design-system2/package-lock.json
+            frontends/dashboard2/package-lock.json
+      - run: npm ci --prefix ../shared
+      - run: npm ci --prefix ../design-system2
+      - run: npm ci
+      - run: npm audit --omit=dev
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build -- --mode development

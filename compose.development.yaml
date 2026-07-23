@@ -8,6 +8,9 @@ services:
       GRAFANA_UPSTREAM: grafana:3000
       LOCAL_CONTROL_UPSTREAM: host.docker.internal:4174
       LOCAL_CONTROL_TOKEN: ${LOCAL_CONTROL_TOKEN:?LOCAL_CONTROL_TOKEN is required}
+      ONBOARDING2_UPSTREAM: onboarding2:8080
+      COMMANDE2_UPSTREAM: commande2:8080
+      DASHBOARD2_UPSTREAM: dashboard2:8080
       SSL_CERT_FILE: /etc/caddy/tls/root-ca.pem
     volumes:
       - ./infra/caddy/tls/development.caddy:/etc/caddy/tls/profile.caddy:ro
@@ -39,6 +42,78 @@ services:
       STRIPE_PUBLISHABLE_KEY: ${VITE_STRIPE_PUBLISHABLE_KEY:-}
       STRIPE_CONNECT_PILOT_ACCOUNT_ID: ${STRIPE_CONNECT_PILOT_ACCOUNT_ID:-}
       STRIPE_CONNECT_PILOT_ESTABLISHMENT_NAME: ${STRIPE_CONNECT_PILOT_ESTABLISHMENT_NAME:-}
+
+  onboarding2:
+    profiles: [frontend-experiment]
+    image: ${IMAGE_REGISTRY:?IMAGE_REGISTRY is required}/onboarding2:${IMAGE_TAG:?IMAGE_TAG is required}
+    build:
+      context: .
+      dockerfile: infra/images/frontend2.Dockerfile
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:?NODE_IMAGE is required}
+        NGINX_IMAGE: ${NGINX_IMAGE:?NGINX_IMAGE is required}
+        FRONTEND_NAME: onboarding2
+        DOMAIN_PROFILE: development
+        VITE_STRIPE_PUBLISHABLE_KEY: ""
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+
+  commande2:
+    profiles: [frontend-experiment]
+    image: ${IMAGE_REGISTRY:?IMAGE_REGISTRY is required}/commande2:${IMAGE_TAG:?IMAGE_TAG is required}
+    build:
+      context: .
+      dockerfile: infra/images/frontend2.Dockerfile
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:?NODE_IMAGE is required}
+        NGINX_IMAGE: ${NGINX_IMAGE:?NGINX_IMAGE is required}
+        FRONTEND_NAME: commande2
+        DOMAIN_PROFILE: development
+        VITE_STRIPE_PUBLISHABLE_KEY: ${VITE_STRIPE_PUBLISHABLE_KEY:-}
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+
+  dashboard2:
+    profiles: [frontend-experiment]
+    image: ${IMAGE_REGISTRY:?IMAGE_REGISTRY is required}/dashboard2:${IMAGE_TAG:?IMAGE_TAG is required}
+    build:
+      context: .
+      dockerfile: infra/images/frontend2.Dockerfile
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:?NODE_IMAGE is required}
+        NGINX_IMAGE: ${NGINX_IMAGE:?NGINX_IMAGE is required}
+        FRONTEND_NAME: dashboard2
+        DOMAIN_PROFILE: development
+        VITE_STRIPE_PUBLISHABLE_KEY: ""
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
 
   docs:
     image: ${IMAGE_REGISTRY:?IMAGE_REGISTRY is required}/docs:${IMAGE_TAG:?IMAGE_TAG is required}
