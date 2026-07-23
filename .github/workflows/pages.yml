@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: "pages"
+  group: "pages-${{ github.workflow }}-${{ github.ref }}"
   cancel-in-progress: true
 
 jobs:
@@ -232,7 +232,12 @@ jobs:
       # npm 10.9.x ne crée pas le lien node_modules/.bin/retype à
       # l'installation (collision de noms de bin avec les paquets
       # plateforme retypeapp-*), donc la commande nue `retype` échouerait.
-      - run: npm run docs:build
+      - name: Build documentation
+        run: |
+          if ! npm run docs:build; then
+            echo "::warning::Retype a échoué une première fois, nouvelle tentative."
+            npm run docs:build
+          fi
       - name: Build the static experimental demos
         run: |
           set -euo pipefail
