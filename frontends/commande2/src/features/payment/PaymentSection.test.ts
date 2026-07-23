@@ -1,9 +1,9 @@
-import { loadStripe } from "@stripe/stripe-js";
+import { loadStripe } from "@stripe/stripe-js/pure";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { loadStripeForConnectedAccount } from "./stripe";
 
-vi.mock("@stripe/stripe-js", () => ({
+vi.mock("@stripe/stripe-js/pure", () => ({
   loadStripe: vi.fn(),
 }));
 
