@@ -13,8 +13,30 @@ on:
       - "infra/images/backend-entrypoint.sh"
       - "scripts/run-with-domain-profile.sh"
       - "package.json"
+      - "package-lock.json"
+      - "mise.toml"
+      - "mise.lock"
+      - ".github/workflows/backend.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+      - "api/**"
+      - "config/domains/**"
+      - "config/deployment/images.env"
+      - "infra/images/backend.Dockerfile"
+      - "infra/images/backend-entrypoint.sh"
+      - "scripts/run-with-domain-profile.sh"
+      - "package.json"
+      - "package-lock.json"
+      - "mise.toml"
+      - "mise.lock"
       - ".github/workflows/backend.yml"
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   verify:

@@ -85,7 +85,7 @@ Ne jamais « corriger » un ADR pour l'aligner sur une page plus récente. Soit 
 
 ## Registre des ADR
 
-Trente-quatre ADR sont consignés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'au déploiement commun par Docker Compose, à son cockpit local, à sa surveillance fonctionnelle, à son observabilité technique, au socle professionnel du Dashboard et aux expériences de frontends et de documentation alternatifs.
+Trente-six ADR sont consignés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'au déploiement commun par Docker Compose, à son cockpit local, à sa surveillance fonctionnelle, à son observabilité technique, au socle professionnel du Dashboard, aux expériences de frontends et de documentation alternatifs, ainsi qu'à l'outillage reproductible et aux mises à jour de dépendances.
 
 | Numéro | Titre | Statut | Lien |
 |---|---|---|---|
@@ -118,10 +118,12 @@ Trente-quatre ADR sont consignés à ce jour. Ils couvrent les choix structurant
 | 0027 | Playwright et Allure 3 pour les tests E2E | Accepté | [ADR-0027](adr-0027-playwright-allure-3.md) |
 | 0028 | Cockpit Compose et rapports Allure | Accepté | [ADR-0028](adr-0028-cockpit-compose-et-rapports-allure.md) |
 | 0029 | Observabilité Prometheus et Grafana non bloquante | Accepté | [ADR-0029](adr-0029-observabilite-prometheus-grafana.md) |
-| 0030 | Java 25 et Quarkus courant | Accepté | [ADR-0030](adr-0030-java-25-quarkus-courant.md) |
+| 0030 | Java 25 et Quarkus courant | Remplacé par ADR-0035 | [ADR-0030](adr-0030-java-25-quarkus-courant.md) |
 | 0031 | Équipes, rôles et vues métier | Accepté | [ADR-0031](adr-0031-equipes-roles-vues-metier.md) |
 | 0032 | Canal prépayé sans fonction de caisse | Accepté | [ADR-0032](adr-0032-canal-prepaye-sans-caisse.md) |
 | 0033 | Frontends alternatifs fondés sur Untitled UI | Accepté | [ADR-0033](adr-0033-frontends-alternatifs-untitled-ui.md) |
 | 0034 | Double rendu Retype et Nimbus à source unique | Accepté | [ADR-0034](adr-0034-double-rendu-retype-nimbus.md) |
+| 0035 | Java 25, Quarkus courant et outillage mise | Accepté | [ADR-0035](adr-0035-java-25-quarkus-courant-et-mise.md) |
+| 0036 | Renovate pour les mises à jour | Accepté | [ADR-0036](adr-0036-renovate-pour-les-mises-a-jour.md) |
 
 Les décisions encore ouvertes (par exemple le choix de la solution d'impression thermique ESC/POS mentionné dans la stack de référence) donneront lieu à de futurs ADR au fil de la [roadmap](../roadmap.md).

@@ -9,7 +9,7 @@ description: "Pourquoi le Backend utilise Java 25 et la version stable courante 
 
 ## Statut
 
-Accepté, 2026-07-22.
+Remplacé par [ADR-0035](adr-0035-java-25-quarkus-courant-et-mise.md), 2026-07-25.
 
 ## Contexte
 

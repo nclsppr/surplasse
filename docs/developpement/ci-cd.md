@@ -2,7 +2,7 @@
 label: CI/CD
 order: 70
 icon: workflow
-description: "Intégration et déploiement continus : le garde-fou du workflow sans PR, les workflows GitHub Actions et le déploiement sur le VPS."
+description: "Intégration et déploiement continus : main pour le travail humain, PR Renovate isolées, GitHub Actions et déploiement sur le VPS."
 ---
 
 # CI/CD
@@ -13,16 +13,38 @@ Pour le détail des environnements et de la topologie de production, voir [Envir
 
 ## Philosophie
 
-Le [workflow git](workflow-git.md) de Surplasse est volontairement minimal : une branche unique `main`, pas de pull request, des commits poussés le plus souvent possible. Ce choix supprime toute la mécanique de revue asynchrone, inutile pour un développeur seul, mais il supprime aussi le filet de sécurité qu'une PR apporte d'ordinaire.
+Le [workflow git](workflow-git.md) de Surplasse est volontairement minimal : une branche humaine unique `main`, pas de pull request humaine, des commits poussés le plus souvent possible. Renovate constitue la seule exception automatisée. Ses branches temporaires permettent de qualifier une mise à jour externe avant sa fusion manuelle.
 
 La CI est ce filet. Elle repose sur deux principes :
 
 1. **Chaque push sur `main` est potentiellement déployable.** Il n'existe pas de branche d'intégration ni de fenêtre de release : ce qui est sur `main` est ce qui part en production. La discipline de commit (une unité de travail vérifiée = un commit poussé) est la première ligne de défense, la CI est la seconde.
-2. **La CI est le garde-fou du workflow sans PR.** Tout ce qu'une revue humaine attraperait mécaniquement (build cassé, test rouge, contrat OpenAPI incompatible) doit être attrapé par un workflow. Un push qui casse la CI se corrige immédiatement, par un commit de correction ou un revert, avant toute autre tâche.
+2. **La CI est le garde-fou du workflow.** Tout ce qu'une revue humaine attraperait mécaniquement (build cassé, test rouge, contrat OpenAPI incompatible) doit être attrapé par un workflow. Un push qui casse la CI se corrige immédiatement. Une PR Renovate rouge n'est pas fusionnée.
 
 !!! info Vérifier avant de pousser
 La CI ne remplace pas la vérification locale, elle la confirme. Les commandes exécutées par les workflows (build, lint, [tests](tests.md)) sont les mêmes que celles lancées en local : un push ne devrait jamais découvrir un problème que le poste de travail pouvait détecter.
 !!!
+
+## Les mises à jour Renovate
+
+Surplasse utilise l'App GitHub Mend Renovate hébergée. Le bot n'est pas auto-hébergé, ne s'exécute pas dans un workflow du dépôt et n'est jamais installé sur le VPS. Il analyse les manifestes et ouvre les branches et pull requests nécessaires depuis le service Mend.
+
+La politique du dépôt est volontairement conservatrice :
+
+| Règle | Valeur |
+|---|---|
+| Fenêtre | lundi, de 0 h à 5 h, fuseau `Europe/Paris` |
+| Limite | trois branches et trois pull requests simultanées, deux nouvelles PR au maximum par heure |
+| Fusion | manuelle uniquement, aucun automerge |
+| Lots | mises à jour npm et Maven non majeures groupées par écosystème ; GitHub Actions non majeures et digests groupés |
+| Approbation préalable | toutes les versions majeures, Node, Java, Caddy, PostgreSQL, Quarkus, Stripe et OpenAPI Generator |
+| Visibilité | Dependency Dashboard GitHub intitulé « Mises à jour Renovate » |
+| Exception de sécurité | les alertes de vulnérabilité GitHub ignorent la fenêtre et les quotas pour proposer immédiatement une correction, sans automerge |
+
+Renovate couvre npm, Maven, Maven Wrapper, les dépendances Python, GitHub Actions, `mise.toml`, les directives de syntaxe Dockerfile, OpenAPI Generator, `oasdiff` et les images de `config/deployment/images.env`. Pour ces dernières, le tag lisible et le digest sont remplacés ensemble.
+
+L'App GitHub Mend Renovate hébergée ne peut pas exécuter `mise lock`. Une mise à jour de Node, Java ou Python peut donc proposer le nouveau pin, mais `mise.lock` est régénéré manuellement avec la version de `mise` déclarée dans `mise.toml`, relu puis ajouté à la branche du bot avant fusion. Surplasse ne contourne pas cette limite par un runner Renovate auto-hébergé ou un second bot d'écriture.
+
+Chaque PR Renovate exécute les workflows concernés par ses chemins. `pages.yml` s'exécute sans filtre afin de fournir une porte intégrée, mais son job `deploy` refuse toute référence autre que `refs/heads/main`. Le futur `images.yml` et le futur `deploy.yml` resteront eux aussi limités à `main`. Une PR peut donc construire, tester et produire des diagnostics, mais jamais publier GitHub Pages, une image de production ou un déploiement VPS.
 
 ## Le workflow Pages
 
@@ -30,40 +52,49 @@ Le fichier `.github/workflows/pages.yml` construit le site Retype et l'aperçu N
 
 | Élément | Valeur |
 |---|---|
-| Déclencheurs | `push` sur `main`, déclenchement manuel et horaire à la minute 37 |
+| Déclencheurs | `push` sur `main`, `pull_request` vers `main`, déclenchement manuel et horaire à la minute 37 |
 | Permissions | `contents: read` globalement ; `pages: write` et `id-token: write` accordés uniquement au job `deploy` |
 | Concurrence | Groupe `pages`, avec annulation des exécutions en cours (`cancel-in-progress`) |
 | Jobs | `quality` et `local-tests`, puis `build`, `deploy` et propagation différée d'un smoke rouge |
 
-Le job `quality` utilise le checkout exact du workflow. Il vérifie les profils de domaines, la démo statique, les assets de marque, le package partagé, puis le lint, les tests et le build de Commande, du Dashboard et des quatre packages UI2. Cette porte tourne sur les push et les lancements manuels. Elle est ignorée pendant l'exécution horaire, qui relit un SHA de `main` déjà qualifié.
+Le job `quality` utilise le checkout exact du workflow. Il vérifie les profils de domaines, la démo statique, les assets de marque, le package partagé, puis le lint, les tests et le build de Commande, du Dashboard et des quatre packages UI2. Cette porte tourne sur les push, les pull requests et les lancements manuels. Elle est ignorée pendant l'exécution horaire, qui relit un SHA de `main` déjà qualifié.
 
 Le job `local-tests` tourne en parallèle. Il installe Chromium, dérive le domaine development depuis le profil central, crée un certificat éphémère, démarre le cluster avec `npm run local:up`, puis exécute `npm run e2e:test -- development`. Son cache restaure et sauvegarde l'historique Allure de cette seule cible. Le rapport HTML autonome est exporté dans un petit artefact destiné au job `build`. Le pointeur, les publications, les résultats et les diagnostics restent aussi disponibles 30 jours dans un artefact rejouable. Le cluster et ses volumes sont supprimés à la fin du job.
 
 Le job `build` ne démarre que si `local-tests` a produit un rapport et si `quality` a réussi ou a été normalement ignoré pour l'horaire. Il enchaîne un nouveau checkout du même SHA, l'installation de Node 24 (`actions/setup-node@v4`), les installations verrouillées, une nouvelle vérification du fichier de domaines généré avec `npm run domains:check`, puis les deux builds documentaires. Une seule nouvelle tentative du build Retype absorbe son erreur Linux intermittente de capacité sans masquer un échec persistant. Nimbus exécute ses tests de conversion, le contrôle Astro, le lint et le build avec une origine et un chemin de base dérivés du dépôt Pages. L'assemblage génère explicitement le `runtime-config.js` du profil production, place la landing et le tunnel à la racine, les assets de marque sous `brand/`, la documentation Retype sous `docs/`, l'aperçu Nimbus `noindex` sous `/_experiments/nimbus-docs/`, le rapport Allure sous `local-tests/` et les trois builds UI2 `noindex` sous `/_experiments/untitled/`. Commande2 utilise seulement dans ce build une carte synthétique signalée. Dashboard2 ouvre une vue de service avec session, commandes et actions synthétiques conservées uniquement en mémoire. Ces modes ne s'activent pas dans les builds Compose ou Vite ordinaires. Le script npm invoque `node node_modules/retypeapp/retype.js` directement plutôt que la commande `retype` : npm 10.9.x ne crée pas le lien `node_modules/.bin/retype` à l'installation, à cause d'une collision de noms de bin avec les paquets plateforme retypeapp. Le site assemblé est publié comme artefact Pages via `actions/upload-pages-artifact@v3`.
 
-Le job `deploy` dépend de `build`. Il ne s'exécute que si la référence est `refs/heads/main`, cible l'environnement GitHub `github-pages` et publie l'artefact avec `actions/deploy-pages@v4`. Les permissions `pages: write` et `id-token: write` sont limitées à ce job ; les installations et validations précédentes restent en lecture seule sur le dépôt. Une suite UI rouge ne peut donc pas publier le SHA concerné, même si le workflow `Frontends` séparé termine plus tard.
+Le job `deploy` dépend de `build`. Il refuse explicitement l'événement `pull_request` et ne s'exécute que si la référence est `refs/heads/main`. Il cible alors l'environnement GitHub `github-pages` et publie l'artefact avec `actions/deploy-pages@v4`. Les permissions `pages: write` et `id-token: write` sont limitées à ce job ; les installations et validations précédentes restent en lecture seule sur le dépôt. Une suite UI rouge ou une PR Renovate ne peut donc pas publier le SHA concerné.
 
-Un smoke Playwright rouge produit quand même un rapport Allure rouge, puis le site est déployé avec ce diagnostic. Le job `local-tests-status` propage seulement ensuite le code d'échec au workflow. Une panne ne laisse donc pas croire que l'ancien rapport vert est encore le résultat courant. Une erreur d'infrastructure qui empêche de produire un rapport bloque le build et conserve le dernier site complet.
+Sur `main`, un smoke Playwright rouge produit quand même un rapport Allure rouge, puis le site est déployé avec ce diagnostic. Le job `local-tests-status` propage seulement ensuite le code d'échec au workflow. Sur une PR, le déploiement est ignoré et ce même job propage directement l'échec. Une panne ne laisse donc pas croire que l'ancien rapport vert est encore le résultat courant. Une erreur d'infrastructure qui empêche de produire un rapport bloque le build et conserve le dernier site complet.
 
-Ce workflow reste volontairement sans filtre de chemins. Chaque push sur `main` republie la démo. Ainsi, toute évolution de `brand/**` ou `frontends/**` produit un nouvel artefact public, même lorsque seul le Dashboard, Commande ou le package partagé change. Une évolution UI n'est terminée qu'après le succès des workflows `Frontends` et `Pages` pour le même SHA, puis le contrôle visuel de la démo publique en vue mobile et bureau.
+Ce workflow reste volontairement sans filtre de chemins. Chaque PR est qualifiée et chaque push sur `main` republie la démo. Ainsi, toute évolution de `brand/**` ou `frontends/**` produit un nouvel artefact public après sa présence sur `main`, même lorsque seul le Dashboard, Commande ou le package partagé change. Une évolution UI n'est terminée qu'après le succès des workflows `Frontends` et `Pages` pour le même SHA, puis le contrôle visuel de la démo publique en vue mobile et bureau.
 
 ## Les workflows
 
-Le monorepo suit un découpage par filtres de chemins (`paths`) : un push qui ne touche que `frontends/commande/` ne doit pas déclencher les tests du backend. `api.yml`, `backend.yml` et `frontends.yml` existent. `images.yml` et `deploy.yml` restent à créer maintenant que leurs recettes Compose sont disponibles.
+Le monorepo suit un découpage par filtres de chemins (`paths`) : un push ou une PR qui ne touche que `frontends/commande/` ne doit pas déclencher les tests du Backend. `api.yml`, `backend.yml`, `frontends.yml` et `e2e.yml` appliquent les mêmes filtres à `push` et `pull_request`. `images.yml` et `deploy.yml` restent à créer maintenant que leurs recettes Compose sont disponibles.
 
 | Workflow | Déclencheur (filtre de chemins) | Étapes |
 |---|---|---|
-| `pages.yml` | chaque `push` sur `main`, lancement manuel et chaque heure à la minute 37 | Porte qualité UI hors horaire, builds UI2, cluster Compose development jetable, smoke Playwright, rapport Allure public sous `/local-tests/`, builds Retype et Nimbus, puis déploiement GitHub Pages |
-| `api.yml` | `push`, chemins `api/**`, `openapitools.json`, `scripts/api/**` | Lint Spectral, contrôle de compatibilité `oasdiff` contre le commit précédent (dérogation par préfixe de commit `api!:`), fraîcheur de la génération (`npm run api:generate` puis `git diff --exit-code`) |
-| `backend.yml` | `push`, chemins `backend/**`, `api/**`, profils de domaines, wrapper ou `package.json` | Java 25 Temurin, cache Maven, `npm run backend:verify` : injection du profil, compilation, tests unitaires et d'intégration (PostgreSQL 17 via Testcontainers), métriques Micrometer et endpoint `/q/metrics`, contrat et formatage Spotless |
-| `frontends.yml` | `push`, chemins `frontends/**`, profils, scripts Compose et locaux, fichiers Compose, `infra/caddy/**`, `infra/images/**`, `infra/observability/**`, `brand/**`, `api/**` | Profils et QR générés, tests isolés du contrôleur Compose et des rapports du cockpit, syntaxe shell, modèles Compose avec et sans observabilité, refus des configurations dangereuses, validation de Caddy, CORS, package `shared`, lint, tests et builds des fronts |
-| `e2e.yml` | push ciblé sur le package ou sa configuration, chaque heure à la minute 17 après activation, plus déclenchement manuel | validation légère au push ; Chromium, smokes sans écriture, rapport Allure 3, historique propre à la cible, traces et artefact rejouable pour les lancements de surveillance |
+| `pages.yml` | chaque `push` sur `main`, chaque `pull_request` vers `main`, lancement manuel et chaque heure à la minute 37 | Porte qualité UI hors horaire, builds UI2, cluster Compose development jetable, smoke Playwright, rapport Allure, builds Retype et Nimbus ; déploiement GitHub Pages uniquement depuis `main` |
+| `api.yml` | `push` ou `pull_request`, chemins `api/**`, `openapitools.json`, `scripts/api/**`, manifestes npm et outillage `mise` | Lint Spectral, contrôle de compatibilité `oasdiff` contre le commit précédent (dérogation par préfixe de commit `api!:`), fraîcheur de la génération (`npm run api:generate` puis `git diff --exit-code`) |
+| `backend.yml` | `push` ou `pull_request`, chemins `backend/**`, `api/**`, profils de domaines, wrapper, `package.json` ou outillage `mise` | Java 25 Temurin, cache Maven, `npm run backend:verify` : injection du profil, compilation, tests unitaires et d'intégration (PostgreSQL 17 via Testcontainers), métriques Micrometer et endpoint `/q/metrics`, contrat et formatage Spotless |
+| `frontends.yml` | `push` ou `pull_request`, chemins `frontends/**`, profils, scripts Compose et locaux, fichiers Compose, `infra/caddy/**`, `infra/images/**`, `infra/observability/**`, `brand/**`, `api/**` ou outillage `mise` | Profils et QR générés, tests isolés du contrôleur Compose et des rapports du cockpit, syntaxe shell, modèles Compose avec et sans observabilité, refus des configurations dangereuses, validation de Caddy, CORS, package `shared`, lint, tests et builds des fronts |
+| `e2e.yml` | `push` ou `pull_request` ciblé sur le package, sa configuration ou l'outillage `mise`, chaque heure à la minute 17 après activation, plus déclenchement manuel | validation légère sur push et PR ; Chromium, smokes sans écriture, rapport Allure 3, historique propre à la cible, traces et artefact rejouable pour les lancements de surveillance |
+| `toolchain.yml` | `push` ou `pull_request`, `mise.toml`, `mise.lock`, `package.json`, `renovate.json5` ou le workflow lui-même | Validation de la configuration Renovate, installation réelle de Node, Java et Python depuis le lockfile sur Ubuntu, puis affichage des versions résolues |
 | `images.yml` (cible) | `push` sur `main`, chemins `backend/**`, `frontends/**`, `brand/**`, `config/domains/**`, `infra/images/**`, `infra/observability/**`, fichiers Compose | Build des quatre images applicatives et du Caddy DNS pour le profil production, contrôle qu'aucun artefact development n'entre dans les images, tag par SHA complet, push vers GHCR ; Prometheus et Grafana restent des images amont épinglées |
 | `deploy.yml` (cible) | Fin réussie de `images.yml` sur `main`, ou déclenchement manuel avec un SHA complet | Connexion SSH au VPS, sélection de `IMAGE_TAG`, wrapper Compose, attente des healthchecks publics |
 
-L'enchaînement sur un push touchant du code applicatif se lit ainsi :
+Une PR Renovate et sa fusion suivent deux chemins distincts :
 
 ```
+PR Renovate
+     |
+     +--> filtres de chemins --> validations concernées
+     +--> pages.yml           --> build et smoke, aucun déploiement
+     |
+     +--> fusion manuelle après CI verte
+                    |
+                    v
 push sur main
      |
      +--> filtres de chemins
@@ -78,7 +109,7 @@ push sur main
                 +--> deploy.yml  (cible, si images.yml réussit)
 ```
 
-La cible ne doit publier puis déployer les images qu'après la réussite des portes API, Backend et Frontends du même SHA. Cette dépendance reste à encoder avec les deux workflows manquants ; elle ne doit pas être remplacée par une simple course en parallèle.
+La cible ne doit publier puis déployer les images qu'après la réussite des portes API, Backend et Frontends du même SHA sur `main`. Cette dépendance reste à encoder avec les deux workflows manquants ; elle ne doit pas être remplacée par une simple course en parallèle. Une exécution `pull_request` ne peut jamais atteindre cette chaîne.
 
 Les jobs `domains` et `dev-cockpit` utilisent seulement Node 24 et son runner de tests natif. Le contrôleur Compose du cockpit y reçoit un exécuteur simulé : ce job ne démarre ni Docker, ni le cluster, ni Chromium. Les jobs `commande` et `dashboard` installent d'abord `frontends/shared/`, consommé en source conformément à l'ADR-0014, puis leur propre verrou npm. Le job Dashboard exécute successivement `npm run lint`, `npm test` et `npm run build`. Ce dernier inclut `tsc --noEmit` avant le build Vite. Aucun de ces outils de vérification ne devient un processus de production.
 
@@ -158,7 +189,7 @@ Le rollback redéploie le code, pas la base. Une migration Flyway qui supprime o
 
 ## Les secrets de CI
 
-Les secrets sont portés par les GitHub Environments, pas par des secrets de dépôt globaux. L'environnement `production` est associé au job de déploiement ; ses secrets ne sont exposés qu'aux exécutions sur `main`.
+Les secrets sont portés par les GitHub Environments, pas par des secrets de dépôt globaux. L'environnement `production` est associé au job de déploiement ; ses secrets ne sont exposés qu'aux exécutions sur `main`. Les PR Renovate exécutent uniquement des jobs en lecture sur le dépôt et ne reçoivent aucun secret de production.
 
 | Secret | Environnement | Usage |
 |---|---|---|

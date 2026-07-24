@@ -44,23 +44,24 @@ Aucun composant Untitled UI PRO n'est nécessaire. L'installation utilise seulem
 
 ## Prérequis par plateforme
 
-Les prérequis sont les mêmes que pour les frontends canoniques : Node 24 via nvm, npm, Docker et le plugin Docker Compose. Le cluster intégré exige aussi le DNS wildcard et le certificat local décrits dans [Domaines locaux](domaines-locaux.md).
+Les prérequis sont les mêmes que pour les frontends canoniques : `mise` 2026.7.13 ou plus, Node 24.18.0 fourni par le verrou, npm, Docker et le plugin Docker Compose. Le cluster intégré exige aussi le DNS wildcard et le certificat local décrits dans [Domaines locaux](domaines-locaux.md).
 
 | Plateforme | Procédure |
 |---|---|
-| macOS | Installer nvm et Node 24, puis Docker Desktop ou OrbStack. Exécuter `npm run local:setup` une fois pour les domaines et le certificat |
-| Windows | Utiliser Ubuntu sous WSL2, cloner le dépôt dans le système de fichiers WSL2 et suivre la procédure Linux. Docker Desktop utilise le backend WSL2 |
-| Linux | Installer nvm, Node 24, Docker Engine et le plugin Compose. Configurer le wildcard et le certificat selon la procédure Linux |
+| macOS | Installer `mise` avec Homebrew, exécuter `mise install --locked`, puis installer Docker Desktop ou OrbStack. Exécuter `npm run local:setup` une fois pour les domaines et le certificat |
+| Windows | Utiliser Ubuntu sous WSL2, cloner le dépôt dans le système de fichiers WSL2, puis suivre la procédure Linux pour `mise`. Docker Desktop utilise le backend WSL2 |
+| Linux | Installer `mise` avec le dépôt APT publié par mise ou `mise.run`, exécuter `mise install --locked`, puis installer Docker Engine et le plugin Compose. Configurer le wildcard et le certificat selon la procédure Linux |
 
 Le développement Windows natif hors WSL2 n'est pas supporté. En cas de divergence, Ubuntu LTS fait foi.
 
 ## Installation
 
-Depuis la racine du dépôt, activer la version Node et installer le socle partagé ainsi que les quatre packages :
+Depuis la racine du dépôt, approuver la configuration, installer la version Node verrouillée et installer le socle partagé ainsi que les quatre packages. `mise exec` garantit le même runtime dans un processus non interactif :
 
 ```bash
-nvm use
-npm run frontend2:install
+mise trust
+mise install --locked
+mise exec -- npm run frontend2:install
 ```
 
 La commande racine exécute l'installation verrouillée de chaque package. L'équivalent explicite, utile pour isoler une erreur, est :

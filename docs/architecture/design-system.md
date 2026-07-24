@@ -124,18 +124,18 @@ Le verrouillage horizontal étant large, le centre du QR porte exactement `brand
 Le générateur est un outil de build et de développement, absent de la production. Son installation et son exécution sont identiques sur macOS, Linux et Ubuntu sous WSL2 :
 
 ```bash
-# Create and populate an isolated Python environment
-python3 -m venv .venv-brand
-. .venv-brand/bin/activate
-python3 -m pip install --upgrade pip
-python3 -m pip install -r scripts/requirements.txt
+# Install the locked Python runtime and isolated dependencies
+mise trust
+mise install --locked
+mise exec -- npm run brand:install
 
 # Generate and verify both public domain profiles
-python3 scripts/generate_brand_assets.py
+mise exec -- npm run brand:generate
+mise exec -- npm run brand:check
 test -s brand/qr/qr-demo.png
 test -s brand/qr/qr-demo-development.png
 ```
 
-`deactivate` quitte l'environnement et `rm -rf .venv-brand` le supprime si aucune autre tâche ne l'utilise. Le script lit `config/domains/development.env` et `config/domains/production.env`, puis produit les QR `.test` et `.com` (modules arrondis encre sur ivoire, correction d'erreur haute pour tolérer la marque centrale) dans `brand/qr/`. Le fichier `qr-demo-development.png` sert en local et `qr-demo.png` reste l'exemple de production. Un exemple de sticker de table est dans `brand/qr/sticker.html`.
+L'environnement `.venv-brand` reste isolé et peut être supprimé lorsqu'aucune autre tâche ne l'utilise. Le script lit `config/domains/development.env` et `config/domains/production.env`, puis produit les QR `.test` et `.com` (modules arrondis encre sur ivoire, correction d'erreur haute pour tolérer la marque centrale) dans `brand/qr/`. Le fichier `qr-demo-development.png` sert en local et `qr-demo.png` reste l'exemple de production. Un exemple de sticker de table est dans `brand/qr/sticker.html`.
 
 Les SVG `brand/surplasse-logo-horizontal.svg`, `brand/surplasse-app-icon.svg`, `brand/surplasse-wordmark.svg` et `brand/surplasse-symbol.svg` sont les **sources** ; les QR et supports en sont dérivés. Un hook `PostToolUse` (`scripts/check_brand_assets.py`, branché dans `.claude/settings.json`) rappelle de régénérer ces assets dès que l'une de ces sources change, pour qu'ils ne se désynchronisent jamais du logo.

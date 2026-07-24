@@ -3,23 +3,32 @@
   "configurations": [
     {
       "name": "static",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "4180"],
+      "runtimeExecutable": "mise",
+      "runtimeArgs": ["exec", "--", "python", "-m", "http.server", "4180"],
       "port": 4180
     },
     {
       "name": "backend",
-      "runtimeExecutable": "bash",
+      "runtimeExecutable": "mise",
       "runtimeArgs": [
-        "-c",
-        "cd backend && if [ -z \"$JAVA_HOME\" ]; then export JAVA_HOME=$(/usr/libexec/java_home -v 25 2>/dev/null || ls -d $HOME/.sdkman/candidates/java/25*-tem $HOME/.jdks/jdk-25*/Contents/Home 2>/dev/null | head -1); fi; export PATH=\"$JAVA_HOME/bin:$PATH\"; exec ./mvnw quarkus:dev"
+        "exec",
+        "--",
+        "npm",
+        "run",
+        "backend:dev"
       ],
       "port": 8080
     },
     {
       "name": "commande",
-      "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd frontends/commande && exec npm run dev"],
+      "runtimeExecutable": "mise",
+      "runtimeArgs": [
+        "exec",
+        "--",
+        "bash",
+        "-c",
+        "cd frontends/commande && exec npm run dev"
+      ],
       "port": 5173
     }
   ]

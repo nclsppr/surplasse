@@ -234,9 +234,13 @@ PostgreSQL est sauvegardé de façon chiffrée, avec des copies hors du VPS de p
 
 ## Dépendances
 
-- Mises à jour régulières de toutes les dépendances (Maven côté backend, npm côté frontends et docs), intégrées par petits lots plutôt que par grandes campagnes.
-- Renovate est l'outil retenu pour proposer les mises à jour npm, Maven, GitHub Actions et du catalogue `config/deployment/images.env`, digest compris. Son bot n'est pas encore activé ; les mises à jour restent manuelles jusque-là.
-- Les images Docker sont reconstruites après chaque mise à jour validée des bases épinglées afin d'intégrer leurs correctifs.
+L'App GitHub Mend Renovate hébergée propose les mises à jour npm, Maven, Maven Wrapper, Python, GitHub Actions, `mise.toml`, OpenAPI Generator, `oasdiff`, les directives de syntaxe Dockerfile et le catalogue `config/deployment/images.env`. Dans ce catalogue, un changement remplace ensemble le tag lisible et le digest. Les images applicatives sont reconstruites après validation afin d'intégrer les correctifs des bases épinglées.
+
+Le bot ouvre ses pull requests le lundi entre 0 h et 5 h dans le fuseau `Europe/Paris`, avec trois branches et trois PR simultanées au maximum. Les alertes de vulnérabilité GitHub ignorent cette fenêtre et ces quotas afin de proposer immédiatement une correction. Il n'utilise aucun automerge, y compris pour ces alertes. Les versions majeures, Node, Java, Caddy, PostgreSQL, Quarkus, Stripe et OpenAPI Generator exigent une approbation dans le Dependency Dashboard. Chaque PR passe les contrôles correspondant à ses chemins, mais ne reçoit aucun secret de production et ne peut déclencher ni une publication Pages, ni une image de production, ni un déploiement VPS.
+
+Le service Mend n'est pas installé sur l'infrastructure Surplasse. Renovate et `mise` restent absents du VPS. La production contient Docker Engine et Compose seulement ; Java, Node, Python et les autres dépendances d'exécution restent dans les images.
+
+`mise.lock` est versionné afin d'épingler les téléchargements de l'outillage sur les plateformes supportées. L'App GitHub Mend Renovate hébergée ne peut pas exécuter `mise lock`. Toute mise à jour de Node, Java ou Python exige donc une régénération manuelle du lock, sa relecture et son ajout à la branche Renovate avant fusion. Cette limite n'est pas contournée par l'exécution de code du dépôt dans le service hébergé.
 
 ## Ce qui reste à trancher
 

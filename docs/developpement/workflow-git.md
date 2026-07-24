@@ -2,16 +2,20 @@
 label: Workflow git
 order: 20
 icon: git-commit
-description: Branche unique main, commits fréquents et vérifiés, format des messages, discipline avant push et gestion des retours en arrière.
+description: Branche humaine unique main, exception automatisée Renovate, commits vérifiés, discipline avant push et retours en arrière.
 ---
 
 # Workflow git
 
-Le dépôt Surplasse est un monorepo (voir l'[arborescence cible](../architecture/index.md)) géré avec un workflow volontairement minimal : une seule branche, pas de pull request, des commits petits, fréquents et vérifiés. Cette page décrit le modèle, le format des messages, ce qui ne se committe jamais, la discipline avant chaque push et la conduite à tenir quand un commit doit être annulé.
+Le dépôt Surplasse est un monorepo (voir l'[arborescence cible](../architecture/index.md)) géré avec un workflow volontairement minimal : tout le travail humain se fait sur `main`, les commits sont petits, fréquents et vérifiés, et Renovate constitue la seule exception automatisée sous forme de pull request. Cette page décrit le modèle, le format des messages, ce qui ne se committe jamais, la discipline avant chaque push et la conduite à tenir quand un commit doit être annulé.
 
-## Le modèle : une branche, pas de PR
+## Le modèle : une branche humaine, une exception automatisée
 
-Tout le travail se fait sur `main`. Il n'existe ni branche de fonctionnalité, ni branche de développement, ni pull request. On committe directement sur `main` et on pousse aussitôt, le plus souvent possible.
+Tout le travail humain se fait sur `main`. Il n'existe ni branche de fonctionnalité, ni branche de développement, ni pull request humaine. On committe directement sur `main` et on pousse aussitôt, le plus souvent possible.
+
+Renovate est la seule exception. L'App GitHub Mend Renovate hébergée crée des branches temporaires et des pull requests pour les mises à jour de dépendances. Elle ne pousse jamais directement sur `main`. Aucune autre automatisation ni contribution humaine ne reprend cette dérogation sans nouvelle décision explicite.
+
+Une pull request Renovate est fusionnée manuellement après réussite de ses contrôles. Aucun automerge n'est autorisé. Les versions majeures, la plateforme technique (Node, Java, Caddy, PostgreSQL, Quarkus et Stripe) et OpenAPI Generator restent en attente d'une approbation explicite dans le Dependency Dashboard avant même la création de leur pull request.
 
 ### L'unité committable
 
@@ -33,22 +37,23 @@ Un commit peut être petit (une phrase corrigée dans une page) ou plus large (u
 
 Ce modèle est adapté au contexte du projet et assumé comme tel :
 
-- **Développement solo.** Une PR est un outil de coordination entre plusieurs personnes. Sans relecteur humain, elle n'apporte que de la friction : création de branche, ouverture, merge, suppression, pour un contenu que personne d'autre ne relit.
+- **Développement solo.** Une PR humaine est un outil de coordination entre plusieurs personnes. Sans relecteur humain, elle n'apporte que de la friction : création de branche, ouverture, merge, suppression, pour un contenu que personne d'autre ne relit. La PR Renovate porte un autre rôle : isoler une mise à jour externe, afficher son contexte et obtenir une preuve CI avant fusion.
 - **Vélocité.** Committer et pousser souvent réduit la taille de chaque changement, rend l'historique lisible et limite le risque de perdre du travail. Un push par unité de travail vaut mieux qu'un push massif en fin de journée.
-- **La revue passe par les outils, pas par les PR.** La qualité est garantie par la chaîne de vérification : build docs, tests, typecheck strict, validation du contrat, et la CI décrite dans [CI/CD](ci-cd.md) qui rejoue tout à chaque push. Une revue par agent (analyse du diff avant commit) peut compléter, mais elle intervient avant le commit, pas dans une interface de PR.
+- **La revue humaine passe par les outils.** La qualité est garantie par la chaîne de vérification : build docs, tests, typecheck strict, validation du contrat, et la CI décrite dans [CI/CD](ci-cd.md) qui rejoue les contrôles à chaque push et sur les PR Renovate. Une revue par agent (analyse du diff avant commit) peut compléter le travail humain avant le commit. Une PR Renovate ajoute seulement une porte de validation pour du code produit par le bot.
 
 !!! info Et si l'équipe grandit ?
-Ce modèle est une décision réversible. Si un deuxième contributeur régulier rejoint le projet, le passage à des branches courtes avec PR se décide via un ADR dans [decisions](../decisions/index.md). Rien dans l'outillage actuel ne l'empêche.
+Ce modèle est une décision réversible. Si un deuxième contributeur régulier rejoint le projet, le passage à des branches courtes avec PR humaines se décide via un ADR dans [decisions](../decisions/index.md). La dérogation Renovate ne vaut pas précédent pour ce changement.
 !!!
 
 ### Les garde-fous
 
-L'absence de PR ne signifie pas l'absence de filet :
+L'absence de PR humaine ne signifie pas l'absence de filet :
 
-1. **La CI tourne sur chaque push** et signale immédiatement un état cassé sur `main`. Un push rouge se corrige en priorité, avant toute autre tâche.
+1. **La CI tourne sur chaque push et sur chaque PR Renovate.** Elle signale immédiatement un état cassé sur `main` et bloque la fusion d'une mise à jour automatisée rouge.
 2. **La vérification locale avant push** est obligatoire (voir [la discipline avant push](#la-discipline-avant-push)).
 3. **L'historique reste intact** : jamais de réécriture sur `main`, donc tout état antérieur est récupérable (voir [les retours en arrière](#les-retours-en-arrière)).
 4. **Le contrat fait autorité** : un changement d'API passe d'abord par `api/openapi.yaml`, ce qui rend les ruptures visibles à la génération des clients (voir [le contrat](../architecture/api.md)).
+5. **Une PR ne déploie rien.** Les validations s'exécutent sur la référence de la PR, mais GitHub Pages et le futur déploiement VPS restent réservés à `main`.
 
 ## Format des messages de commit
 
@@ -67,6 +72,7 @@ Les messages de commit sont en français, à l'impératif, et commencent par un 
 | `shared:` | Package partagé (`frontends/shared/`) | `shared: extrait le composant de badge de statut` |
 | `infra:` | Docker Compose, configuration VPS (`infra/`) | `infra: ajoute le service PostgreSQL au compose de dev` |
 | `ci:` | Workflows GitHub Actions | `ci: vérifie la fraîcheur du client API généré` |
+| `deps:` | Mises à jour produites par Renovate | `deps: mets à jour les dépendances npm non majeures` |
 
 Un commit qui traverse plusieurs périmètres prend le préfixe du périmètre principal. Si aucun ne domine, c'est le signe que le commit devrait être découpé.
 
@@ -100,11 +106,11 @@ Tout ce tableau est couvert par le `.gitignore` racine. Un fichier qui devrait y
 
 ### Le cas des sources générées depuis le contrat
 
-Le client TypeScript, les interfaces Java et les DTO générés depuis `api/openapi.yaml` sont committés. Cette exception aux artefacts reconstructibles est actée par l'[ADR-0013](../decisions/adr-0013-generateurs-openapi.md) : un clone peut compiler sans génération préalable, tandis que la CI exécute `npm run api:generate` puis refuse tout diff. Les sorties ne s'éditent jamais à la main. Toute modification passe par le contrat ou par `scripts/api/generate.mjs`.
+Le client TypeScript, les interfaces Java et les DTO générés depuis `api/openapi.yaml` sont committés. Cette exception aux artefacts reconstructibles est actée par l'[ADR-0013](../decisions/adr-0013-generateurs-openapi.md) : un clone peut compiler sans génération préalable, tandis que la CI exécute `npm run api:generate` puis refuse tout diff. Les sorties ne s'éditent jamais à la main. Toute modification passe par le contrat ou par `scripts/api/generate.mjs`. Une mise à jour Renovate d'OpenAPI Generator reste donc soumise à approbation et exige une régénération manuelle des sorties avant fusion.
 
 ## La discipline avant push
 
-Puisque `main` est la seule branche et qu'elle déploie (la doc aujourd'hui, les applications demain), chaque push est précédé d'une vérification locale proportionnée au périmètre touché :
+Puisque `main` est la seule branche humaine et qu'elle déploie (la doc aujourd'hui, les applications demain), chaque push humain est précédé d'une vérification locale proportionnée au périmètre touché :
 
 | Périmètre touché | Vérification obligatoire avant push |
 |---|---|
@@ -117,6 +123,10 @@ Puisque `main` est la seule branche et qu'elle déploie (la doc aujourd'hui, les
 La règle d'or : on ne vérifie pas tout à chaque fois, on vérifie ce que le commit touche. La CI, elle, rejoue l'ensemble et sert de filet pour les interactions entre périmètres qu'une vérification locale ciblée aurait manquées.
 
 Un push qui casse la CI n'est pas un drame, c'est un signal : la correction (ou le revert) devient la tâche prioritaire, avant tout nouveau développement.
+
+Renovate est exécuté le lundi entre 0 h et 5 h dans le fuseau `Europe/Paris`. Il maintient au maximum trois branches et trois pull requests simultanées. Le Dependency Dashboard permet d'approuver les mises à jour sensibles et de différer le reste sans ouvrir davantage de PR. Les corrections issues des alertes de vulnérabilité GitHub ignorent cette fenêtre et ces quotas afin d'être proposées immédiatement, mais conservent la CI et la fusion manuelle.
+
+Le fichier `mise.lock` est versionné avec `mise.toml`, mais l'App GitHub Mend Renovate hébergée ne peut pas exécuter `mise lock`. Lorsqu'une version de Node, Java ou Python change, le lock est régénéré manuellement sur un poste de développement, contrôlé dans le diff, puis ajouté à la PR avant fusion.
 
 ## Les retours en arrière
 

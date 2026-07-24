@@ -140,7 +140,7 @@ Commande et Dashboard intègrent le profil public pendant leur build Vite. Modif
 
 ```bash
 npm run domains:generate
-python3 scripts/generate_brand_assets.py
+npm run brand:generate
 npm run local:up
 ```
 

@@ -1,0 +1,49 @@
+name: Toolchain
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "mise.toml"
+      - "mise.lock"
+      - "package.json"
+      - "renovate.json5"
+      - ".github/workflows/toolchain.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "mise.toml"
+      - "mise.lock"
+      - "package.json"
+      - "renovate.json5"
+      - ".github/workflows/toolchain.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  renovate-configuration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Validate the Renovate configuration
+        run: npm run renovate:check
+
+  locked-runtimes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v4
+        with:
+          install: false
+          cache: false
+      - name: Install and show the locked runtime versions
+        run: |
+          mise install --locked
+          mise current

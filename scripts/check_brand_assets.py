@@ -28,7 +28,7 @@ BRAND_SOURCES = {
 if any(Path(file_path).as_posix().endswith(path) for path in BRAND_SOURCES):
     sys.stderr.write(
         "A Surplasse logo source changed. Derived assets may be stale. Run\n"
-        "    python3 scripts/generate_brand_assets.py\n"
+        "    npm run brand:generate\n"
         "then verify brand/qr/ (rounded QR modules, centered logo).\n"
     )
     sys.exit(2)

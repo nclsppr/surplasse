@@ -8,6 +8,20 @@ on:
       - "e2e/**"
       - "config/domains/**"
       - "package.json"
+      - "package-lock.json"
+      - "mise.toml"
+      - "mise.lock"
+      - ".github/workflows/e2e.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "e2e/**"
+      - "config/domains/**"
+      - "package.json"
+      - "package-lock.json"
+      - "mise.toml"
+      - "mise.lock"
       - ".github/workflows/e2e.yml"
   schedule:
     - cron: "17 * * * *"
@@ -39,7 +53,7 @@ permissions:
 
 jobs:
   configuration:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     defaults:
       run:

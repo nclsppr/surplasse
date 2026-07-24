@@ -29,6 +29,8 @@ Les trois fronts utilisent chacun un NGINX non privilégié en production pour s
 
 `config/deployment/images.env` centralise les images de base. Chaque référence porte un tag lisible et un digest multi-plateforme. Au 2026-07-22, le catalogue contient Caddy 2.11.4, PostgreSQL 17.10, Node 24.18.0, NGINX non privilégié 1.29.4, Eclipse Temurin 25.0.3, Mailpit 1.30.4, Prometheus 3.13.1 `busybox` et Grafana 13.1.1.
 
+L'App GitHub Mend Renovate hébergée surveille ce catalogue. Une proposition remplace le tag et le digest dans la même pull request, puis les workflows Backend, Frontends et Pages vérifient le graphe avant toute fusion manuelle. Les versions majeures et les images de plateforme sensibles restent soumises à une approbation dans le Dependency Dashboard. Aucun automerge n'est autorisé.
+
 Les images applicatives sont :
 
 | Image | Construction | Exécution |
@@ -43,7 +45,7 @@ Les outils de build ne sont pas présents dans les images statiques finales. Le 
 
 ## Préparer Ubuntu LTS
 
-La référence de production est la dernière Ubuntu LTS. Installer Docker Engine depuis le dépôt officiel Docker, avec les plugins Buildx et Compose. Ne pas installer Java, Node, PostgreSQL, NGINX ou Caddy sur l'hôte.
+La référence de production est la dernière Ubuntu LTS. Installer Docker Engine depuis le dépôt officiel Docker, avec les plugins Buildx et Compose. Ne pas installer Java, Node, Python, PostgreSQL, NGINX, Caddy, `mise` ou Renovate sur l'hôte. `mise` prépare seulement l'outillage hors production ; l'App Renovate s'exécute chez Mend. La pile de production reste entièrement pilotée par Compose.
 
 ```bash
 # Verify the host runtime after the official Docker installation
@@ -235,7 +237,7 @@ Cette suppression est irréversible pour l'historique opérationnel. Elle ne doi
 
 ## Mettre à jour et revenir en arrière
 
-Une livraison remplace seulement `IMAGE_TAG` dans `/etc/surplasse/production.env` par le nouveau SHA, puis exécute :
+Une livraison part exclusivement d'un SHA validé présent sur `main`. Une pull request Renovate peut construire et tester la pile, mais elle ne publie aucune image applicative et n'atteint jamais le VPS. Après la fusion manuelle et la réussite des portes de `main`, la livraison remplace seulement `IMAGE_TAG` dans `/etc/surplasse/production.env` par le nouveau SHA, puis exécute :
 
 ```bash
 git fetch origin <sha-complet>
@@ -246,7 +248,7 @@ scripts/compose.sh production up --detach --wait
 
 Le SHA du checkout et `IMAGE_TAG` doivent être identiques. Le wrapper refuse toute construction, récupération ou activation de production depuis un autre commit ou depuis un worktree sale. Les recettes Compose, les routes et les images restent ainsi alignées pendant une livraison et un retour arrière. Compose recrée les services dont l'image a changé. Le premier déploiement assume une courte interruption du Backend. Le retour arrière sélectionne le SHA sain précédent dans git et dans le fichier d'environnement, puis rejoue les deux commandes Compose. Les migrations Flyway restent additives : un retour arrière applicatif ne restaure pas la base.
 
-Une mise à jour d'image de base suit une autre voie. Renovate est l'outil recommandé pour proposer une modification unique de `config/deployment/images.env`, digest compris. Le dépôt n'a pas encore de bot Renovate configuré. La mise à jour reste donc manuelle jusqu'à son activation, puis passe par les builds et tests avant de produire un nouveau SHA applicatif.
+Une mise à jour d'image de base suit une autre voie. Renovate propose une modification unique de `config/deployment/images.env`, tag et digest compris. Le bot s'exécute le lundi entre 0 h et 5 h dans le fuseau `Europe/Paris`, avec trois branches et trois pull requests simultanées au maximum. Une alerte de vulnérabilité GitHub ignore cette fenêtre et ces quotas, mais jamais la CI ni la fusion manuelle. Les changements majeurs, Caddy, PostgreSQL, Node et Eclipse Temurin exigent une approbation préalable. Après la CI, une fusion humaine produit un nouveau SHA sur `main`. Seul ce SHA peut ensuite entrer dans la chaîne de construction et de déploiement.
 
 ## Données, sauvegarde et restauration
 

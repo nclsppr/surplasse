@@ -14,6 +14,8 @@ build/
 .certs/
 .venv-brand/
 .surplasse/
+mise.local.toml
+mise.local.lock
 
 # Système
 .DS_Store

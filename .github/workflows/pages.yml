@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
   schedule:
     - cron: "37 * * * *"
   workflow_dispatch:
@@ -359,7 +362,7 @@ jobs:
 
   deploy:
     needs: build
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
       pages: write
@@ -380,7 +383,7 @@ jobs:
     if: >-
       always() &&
       needs.local-tests.result == 'success' &&
-      needs.deploy.result == 'success' &&
+      (github.event_name == 'pull_request' || needs.deploy.result == 'success') &&
       needs.local-tests.outputs.tests_outcome == 'failure'
     runs-on: ubuntu-latest
     steps:

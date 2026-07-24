@@ -51,7 +51,7 @@ Les domaines sont des données de configuration. `config/domains/production.env`
 
 | Couche | Choix | Version de référence | Notes |
 |---|---|---|---|
-| Backend | Quarkus | 3.37.3 (dernière stable) | Java 25 (LTS), Maven multi-modules |
+| Backend | Quarkus | 3.37.3 (dernière stable) | Temurin 25.0.3+9 (LTS), Maven multi-modules |
 | ORM | Hibernate ORM avec Panache | livré par Quarkus | Repository pattern |
 | Base de données | PostgreSQL | 17 | Une seule base, schémas par domaine si besoin |
 | Migrations | Flyway | livré par Quarkus | Migrations versionnées, jamais de DDL manuel |
@@ -71,7 +71,9 @@ Les domaines sont des données de configuration. `config/domains/production.env`
 | Supervision | Prometheus et Grafana | 3.13.1 et 13.1.1 | Profil Compose `observability`, collecte pull interne, tableaux de bord provisionnés |
 | OS de production | Ubuntu | dernière LTS | Le VPS ; en cas de divergence de comportement entre systèmes, Ubuntu fait foi |
 | CI/CD | GitHub Actions | | Déploiement cible : VPS avec Docker Compose |
-| Node | 24 | via nvm | Pour l'outillage frontend et docs |
+| Outillage hôte | mise | 2026.7.13 ou plus | Installe les versions verrouillées ; développement et build seulement, absent du VPS |
+| Node | Node.js | 24.18.0 | via mise, pour l'outillage frontend et docs |
+| Python | CPython | 3.12.13 | via mise, pour les assets de marque seulement |
 
 Toute décision structurante est consignée dans un ADR sous `docs/decisions/`. Si une page contredit un ADR, l'ADR gagne.
 
@@ -310,7 +312,7 @@ docs/
 
 ## Workflow git
 
-- **Branche unique `main`, pas de PR** : on committe et on pousse directement, le plus souvent possible (une unité de travail vérifiée = un commit poussé).
+- **Branche unique `main`, pas de PR humaine** : on committe et on pousse directement, le plus souvent possible (une unité de travail vérifiée = un commit poussé). Seul Renovate peut créer des branches et des PR éphémères pour les mises à jour de dépendances. Elles passent les mêmes validations avant fusion et ne changent pas la branche de travail humaine.
 - Messages de commit en français, impératif, préfixés par le périmètre : `docs:`, `api:`, `backend:`, `front(commande):`, `infra:`, `ci:`.
 - Le build docs doit passer avant tout push touchant `docs/` : `npm run docs:build`.
 - **Démo GitHub Pages obligatoire pour toute évolution UI.** Toute modification de `brand/**` ou `frontends/**` doit être validée localement, committée et poussée sur `main` dans la même unité de travail. Le travail n'est terminé que lorsque les workflows `Frontends` et `Pages` ont réussi pour le SHA poussé et que la démo publique a été contrôlée visuellement en vue mobile et bureau, y compris le dernier écran du parcours. Un échec de validation, de déploiement ou un écart visuel est corrigé et redéployé avant de poursuivre la roadmap.
@@ -318,10 +320,12 @@ docs/
 ## Build et prévisualisation des docs
 
 ```bash
-npm install          # une fois
-npm ci --prefix docs-nimbus
-npm run docs:build   # build de vérification (sortie dans docs-site/)
-npm run docs:watch   # serveur local avec rechargement
+mise trust                 # une fois par clone
+mise install --locked      # une fois, puis après une mise à jour du verrou
+mise exec -- npm ci                     # dépendances racine verrouillées
+mise exec -- npm ci --prefix docs-nimbus
+mise exec -- npm run docs:build   # build de vérification (sortie dans docs-site/)
+mise exec -- npm run docs:watch   # serveur local avec rechargement
 npm run docs:nimbus:check
 npm run docs:nimbus:build
 ```

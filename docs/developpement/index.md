@@ -19,19 +19,20 @@ Le navigateur utilise exclusivement `https://surplasse.test` et ses sous-domaine
 
 ## Prérequis
 
-L'environnement de développement repose sur des gestionnaires de versions (nvm, SDKMAN) plutôt que sur des installations système : ils permettent d'épingler exactement les versions de référence du projet et de cohabiter avec d'autres projets sur la même machine.
+L'environnement de développement utilise `mise` comme gestionnaire unique des runtimes hôte. `mise.toml` déclare les versions de référence et `mise.lock` fixe leurs archives et leurs sommes de contrôle pour macOS ARM64, macOS x64, Linux ARM64 et Linux x64. Cette dernière plateforme couvre Ubuntu sous WSL2.
 
 | Outil | Version | Installation recommandée (macOS) | Installation recommandée (Linux) |
 |---|---|---|---|
 | git | 2.40 ou plus | livré avec les Command Line Tools (`xcode-select --install`) | paquet de la distribution (`apt install git`, `dnf install git`) |
-| Node.js | 24 | [nvm](https://github.com/nvm-sh/nvm) puis `nvm install 24` | nvm, identique |
-| Java (JDK) | 25 (LTS) | [SDKMAN](https://sdkman.io/) puis `sdk env install` depuis la racine | SDKMAN, identique |
+| mise | 2026.7.13 ou plus | `brew install mise` | dépôt APT publié par mise, ou installateur `mise.run` |
+| Node.js | 24.18.0 | installé par `mise install --locked` | identique |
+| Java (JDK) | Temurin 25.0.3+9 (LTS) | installé par `mise install --locked` | identique |
 | Maven | 3.9.16 | non requis : le wrapper `mvnw` est committé dans `backend/` | idem, le wrapper suffit |
 | Docker | Docker Engine 27 ou plus | Docker Desktop ou [OrbStack](https://orbstack.dev/) | Docker Engine + plugin Compose (paquets officiels Docker) |
 | Docker Compose | v2 (plugin `docker compose`) | inclus dans Docker Desktop et OrbStack | inclus dans les paquets officiels |
 | Compte Stripe | mode test | création sur [stripe.com](https://stripe.com), aucune donnée bancaire réelle requise | identique |
 | Stripe CLI | version courante | `brew install stripe/stripe-cli/stripe` | installation `apt` officielle décrite par [Stripe](https://docs.stripe.com/stripe-cli/install?locale=fr-FR) |
-| Python | 3.x, assets de marque seulement | `brew install python` | paquets `python3` et `python3-venv` de la distribution |
+| Python | 3.12.13, assets de marque seulement | installé par `mise install --locked` | identique |
 | dnsmasq | version Homebrew courante | installé par `npm run local:setup` | installation et intégration `systemd-resolved` manuelles |
 | mkcert | 1.4.x ou plus | installé par `npm run local:setup` | binaire officiel et paquet `libnss3-tools` |
 | Caddy | 2.11.4 | image épinglée, aucune installation hôte | image épinglée, construite avec le module DNS choisi |
@@ -40,22 +41,67 @@ L'environnement de développement repose sur des gestionnaires de versions (nvm,
 
 Précisions :
 
-- **Node 24 via nvm** : un fichier `.nvmrc` à la racine fixe la version. `nvm use` dans un terminal ouvert à la racine suffit à basculer.
-- **Java 25 via SDKMAN** : `.sdkmanrc` fixe Temurin 25.0.3. `sdk env install` installe cette version et `sdk env` l'active. La CI et les images utilisent aussi Temurin 25.
+- **mise** : `mise.toml` exige au minimum la version 2026.7.13. `mise.lock` verrouille Node 24.18.0, Temurin 25.0.3+9 et Python 3.12.13 sur les quatre plateformes prises en charge. L'activation du shell ajuste aussi `JAVA_HOME`. Pour un script, un IDE ou tout processus non interactif, utiliser `mise exec -- <commande>` afin de fournir le même environnement sans dépendre de l'initialisation du shell.
+- **Node 24.18.0** : il couvre npm, Vite, Retype, Nimbus, les scripts du contrat et le cockpit. L'image Node du catalogue Compose reste épinglée séparément pour les builds conteneurisés.
+- **Java 25 via Temurin** : `mise` fournit Temurin 25.0.3+9 aux boucles natives, à Maven et à la génération OpenAPI. La CI et les images utilisent également Temurin 25.
 - **Maven** : ne jamais dépendre d'un Maven global. Toutes les commandes backend passent par `./mvnw`, qui télécharge la bonne version de Maven au premier appel.
 - **Docker et Compose** : indispensables au cluster d'intégration. Compose démarre PostgreSQL, Caddy et tous les services avec la topologie destinée au VPS. Les Dev Services de Quarkus restent disponibles uniquement pour la boucle native `backend:dev`.
 - **Stripe en mode test** : les clés de test (`sk_test_...`, `pk_test_...`) suffisent pour tout le développement. Aucun paiement réel ne transite en local.
 - **Stripe CLI** : elle sert uniquement au développement pour relayer et rejouer les webhooks. Sous Windows, l'installation `apt` se fait dans WSL2. La CLI est absente de la production.
-- **Python 3** : il sert seulement à générer et vérifier les QR de marque avec `scripts/requirements.txt`. C'est un outil de développement et de CI, absent de l'exécution applicative et de la production.
+- **Python 3.12.13** : il sert seulement à générer et vérifier les QR de marque avec l'environnement isolé `.venv-brand` et `scripts/requirements.txt`. `mise` installe Python, pas ces dépendances. C'est un outil de développement et de CI, absent de l'exécution applicative et de la production.
 - **dnsmasq et mkcert** : développement seulement. dnsmasq fournit le wildcard local et mkcert le certificat approuvé par le poste. Ils sont absents de la production.
 - **Caddy** : un seul Caddy de bord et un routage commun. La surcharge locale monte mkcert ; la surcharge production cible Let's Encrypt par défi DNS-01.
 - **Playwright et Chromium** : outils de test locaux et CI uniquement. Ils pilotent la pile par ses URL HTTPS publiques et ne sont jamais copiés dans une image applicative ni installés sur le VPS.
 - **Prometheus et Grafana** : services facultatifs de développement et de production. Les images sont épinglées dans le catalogue commun. Ils ne sont ni installés sur l'hôte, ni requis pour démarrer le Backend. Grafana est servi par l'URL centrale seulement en développement.
 - **Bash, `curl` et `tar`** : présents par défaut sur macOS, Linux et WSL2, ils servent au contrôle de compatibilité OpenAPI. Ce sont uniquement des outils de build et de CI.
 
+`mise` ne démarre aucun service et ne remplace ni Docker Compose, ni les scripts npm, ni le wrapper Maven. Quitter le dépôt restaure les versions actives dans le répertoire parent. `mise` et ses runtimes sont absents du VPS, où les images Compose restent la seule source des runtimes applicatifs.
+
+### Installer et activer mise
+
+Sur macOS avec Zsh :
+
+```bash
+brew install mise
+echo 'eval "$(mise activate zsh)"' >> "${ZDOTDIR-$HOME}/.zshrc"
+exec zsh
+```
+
+Sur Ubuntu et Ubuntu sous WSL2, le dépôt APT publié par mise convient à Ubuntu 22.04 ou plus :
+
+```bash
+sudo apt update
+sudo apt install -y extrepo
+sudo extrepo enable mise
+sudo apt update
+sudo apt install -y mise
+echo 'eval "$(mise activate bash)"' >> ~/.bashrc
+exec bash
+```
+
+Si le dépôt APT n'est pas disponible sur la distribution utilisée, l'installateur officiel fournit une solution de repli sans gestionnaire de paquets :
+
+```bash
+curl https://mise.run | sh
+echo 'eval "$("$HOME/.local/bin/mise" activate bash)"' >> ~/.bashrc
+exec bash
+```
+
+Après le clonage, approuver la configuration du dépôt, installer strictement le verrou et vérifier les trois runtimes :
+
+```bash
+mise trust
+mise install --locked
+mise exec -- node --version
+mise exec -- java -version
+mise exec -- python --version
+```
+
+Les versions attendues sont respectivement `v24.18.0`, `25.0.3+9` et `3.12.13`. Répéter `mise install --locked` après toute modification acceptée de `mise.toml` ou `mise.lock`.
+
 ### Windows : passer par WSL2
 
-Le tableau ci-dessus couvre macOS et Linux. Sous Windows, la référence est [WSL2](https://learn.microsoft.com/windows/wsl/) avec une distribution Ubuntu : cloner le repo dans le système de fichiers WSL2 et suivre la colonne Linux (nvm, SDKMAN, wrapper Maven), avec Docker Desktop configuré sur le backend WSL2. Le développement natif Windows, hors WSL2, n'est pas supporté : trop d'outils et de scripts supposent un shell POSIX.
+Le tableau ci-dessus couvre macOS et Linux. Sous Windows, la référence est [WSL2](https://learn.microsoft.com/windows/wsl/) avec une distribution Ubuntu : cloner le repo dans le système de fichiers WSL2 et suivre la procédure Linux pour `mise` et le wrapper Maven, avec Docker Desktop configuré sur le backend WSL2. Le développement natif Windows, hors WSL2, n'est pas supporté : trop d'outils et de scripts supposent un shell POSIX.
 
 Ce choix a un avantage : WSL2 avec Ubuntu, c'est le système de la production. Le VPS tourne sous Ubuntu LTS (voir [Exploitation](../operations/index.md)) ; en cas de comportement divergent entre macOS, Windows et Linux, c'est Ubuntu qui fait foi.
 
@@ -76,9 +122,11 @@ L'installation se fait en deux temps : l'outillage commun à la racine, puis les
 git clone git@github.com:nclsppr/surplasse.git
 cd surplasse
 
-# 2. Install root tooling for documentation and the OpenAPI contract
-nvm use
+# 2. Install the locked host runtimes and root dependencies
+mise trust
+mise install --locked
 npm ci
+npm run brand:install
 npm ci --prefix docs-nimbus
 
 # 3. Install current component dependencies from the repository root
@@ -92,7 +140,7 @@ npm ci --prefix docs-nimbus
 npm run frontend2:install
 ```
 
-Le `npm ci` racine installe Retype, Spectral et OpenAPI Generator. `npm ci --prefix docs-nimbus` installe l'aperçu Nimbus 0.7.1 et Astro dans son verrou séparé. Les frontends et `e2e/` ont chacun leur propre `package.json` et leurs propres dépendances : il n'y a pas de workspace npm global. Le package partagé `frontends/shared/` est consommé en source via une dépendance `file:../shared`, conformément à l'[ADR-0014](../decisions/adr-0014-liaison-shared.md). Il faut donc installer `shared` avant de vérifier Commande ou le Dashboard. L'Onboarding actuel est statique et n'a pas encore de dépendances npm. L'installation E2E télécharge seulement Chromium ; Firefox et WebKit ne font pas partie du smoke initial.
+Le `npm ci` racine installe Retype, Spectral et OpenAPI Generator. `npm run brand:install` crée l'environnement Python isolé `.venv-brand` avec les versions de `scripts/requirements.txt`; `brand:generate` et `brand:check` l'utilisent ensuite sans polluer le Python géré par `mise`. `npm ci --prefix docs-nimbus` installe l'aperçu Nimbus 0.7.1 et Astro dans son verrou séparé. Les frontends et `e2e/` ont chacun leur propre `package.json` et leurs propres dépendances : il n'y a pas de workspace npm global. Le package partagé `frontends/shared/` est consommé en source via une dépendance `file:../shared`, conformément à l'[ADR-0014](../decisions/adr-0014-liaison-shared.md). Il faut donc installer `shared` avant de vérifier Commande ou le Dashboard. L'Onboarding actuel est statique et n'a pas encore de dépendances npm. L'installation E2E télécharge seulement Chromium ; Firefox et WebKit ne font pas partie du smoke initial.
 
 `npm run frontend2:install` installe de façon verrouillée `shared`, `design-system2` et les trois applications suffixées `2`. Cette commande est facultative pour le développement canonique et identique sur macOS, Linux et Windows via WSL2. Les versions, prérequis et commandes isolées sont détaillés dans [Frontends alternatifs](frontends-alternatifs.md).
 
@@ -221,7 +269,7 @@ Le détail des conventions par pile est dans les pages dédiées : [conventions 
 
 ### Cycle de vie de l'aperçu Nimbus
 
-Nimbus est un outil de développement, de build et de CI. Il ne conserve aucune donnée, ne monte aucun volume et ne tourne pas comme processus Node permanent. Node 24 est son seul prérequis hôte. Les commandes sont identiques sur macOS, Linux et Windows via Ubuntu sous WSL2 :
+Nimbus est un outil de développement, de build et de CI. Il ne conserve aucune donnée, ne monte aucun volume et ne tourne pas comme processus Node permanent. Node 24.18.0 fourni par `mise` est son seul prérequis hôte. Les commandes sont identiques sur macOS, Linux et Windows via Ubuntu sous WSL2 :
 
 ```bash
 # Install the locked dependencies
@@ -478,8 +526,8 @@ Les modules peuvent toujours être lancés dans des terminaux séparés pour une
 |---|---|---|
 | `Bind for 127.0.0.1:443 failed` | un autre reverse proxy occupe le port public local | identifier le processus avec `lsof -nP -iTCP:443 -sTCP:LISTEN`, l'arrêter, puis relancer `npm run local:up` |
 | un service reste `unhealthy` | son démarrage, une migration ou une configuration a échoué | lire `scripts/compose.sh development logs --tail 200 <service>` puis corriger la cause, sans changer son port interne |
-| erreurs de build frontend étranges, syntaxe non reconnue | mauvaise version de Node active | `node -v` doit afficher 24 ; sinon `nvm use` à la racine du repo |
-| `OpenAPI generation requires JDK 25`, `release version 25 not supported` ou erreur de compilation Java | JDK absent ou mauvaise version active | `java -version` doit afficher 25 ; à la racine, exécuter `sdk env install`, puis `sdk env` |
+| erreurs de build frontend étranges, syntaxe non reconnue | mauvaise version de Node active | `mise exec -- node --version` doit afficher `v24.18.0` ; sinon exécuter `mise install --locked` à la racine |
+| `OpenAPI generation requires JDK 25`, `release version 25 not supported` ou erreur de compilation Java | JDK absent ou mauvaise version active | `mise exec -- java -version` doit afficher `25.0.3+9` ; sinon exécuter `mise install --locked` à la racine |
 | Compose ou les Dev Services échouent avec `Could not connect to Docker` | le démon Docker n'est pas démarré | lancer Docker Desktop ou OrbStack, vérifier avec `docker info`, puis relancer la commande |
 | `docs:watch` ou `docs:build` échoue, binaire `retype` introuvable dans `.bin` | le lien `node_modules/.bin/retype` n'a pas été créé par npm | appeler Retype directement : `node node_modules/retypeapp/retype.js start --port 5005` (ou `build`) ; c'est d'ailleurs la forme utilisée par les scripts npm du `package.json` racine |
 | `docs:nimbus:check` ou `docs:nimbus:build` signale un front matter, un callout ou un lien invalide | l'adaptateur ne peut pas convertir une source Retype ou Nimbus refuse la sortie | corriger la source dans `docs/` ou ajouter une conversion testée dans `docs-nimbus/scripts/sync-content.mjs` ; ne jamais corriger la collection générée |

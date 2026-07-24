@@ -25,8 +25,42 @@ on:
       - "brand/**"
       - "api/**"
       - "package.json"
+      - "package-lock.json"
+      - "mise.toml"
+      - "mise.lock"
+      - ".github/workflows/frontends.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "frontends/**"
+      - "config/domains/**"
+      - "scripts/dev-cockpit/**"
+      - "scripts/generate_brand_assets.py"
+      - "scripts/requirements.txt"
+      - "scripts/lib/**"
+      - "scripts/*local-*.sh"
+      - "scripts/run-with-domain-profile.sh"
+      - "scripts/compose.sh"
+      - "scripts/test-compose-config.sh"
+      - "compose.yaml"
+      - "compose.*.yaml"
+      - ".dockerignore"
+      - "config/deployment/**"
+      - "infra/caddy/**"
+      - "infra/images/**"
+      - "infra/observability/**"
+      - "brand/**"
+      - "api/**"
+      - "package.json"
+      - "package-lock.json"
+      - "mise.toml"
+      - "mise.lock"
       - ".github/workflows/frontends.yml"
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   domains:

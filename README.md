@@ -24,18 +24,20 @@ La documentation complète vit dans [`docs/`](docs/). La procédure détaillée 
 
 ## Prérequis
 
-Le chemin automatisé cible macOS avec Homebrew. Il demande Node.js 24, Java 25 et Docker. Python 3 est requis seulement pour régénérer les QR de marque. Windows est supporté via Ubuntu sous WSL2, avec une configuration DNS et certificat supplémentaire côté Windows si le navigateur tourne sur l'hôte. Linux suit la procédure manuelle documentée.
+Le chemin automatisé cible macOS avec Homebrew. Il demande `mise` 2026.7.13 ou plus et Docker. Le fichier `mise.toml` et son verrou installent Node.js 24.18.0, Temurin 25.0.3+9 et Python 3.12.13. Python sert seulement à régénérer les QR de marque. Windows est supporté via Ubuntu sous WSL2, avec une configuration DNS et certificat supplémentaire côté Windows si le navigateur tourne sur l'hôte. Linux suit la procédure manuelle documentée. `mise` reste un outil de développement et de build, absent du VPS. Installer et activer d'abord `mise` selon la [procédure détaillée](docs/developpement/index.md#installer-et-activer-mise).
 
 Installer les dépendances du dépôt une fois :
 
 ```bash
-nvm use
-npm ci
-npm ci --prefix docs-nimbus
-(cd frontends/shared && npm ci)
-(cd frontends/commande && npm ci)
-(cd frontends/dashboard && npm ci)
-(cd e2e && npm ci && npx playwright install chromium)
+mise trust
+mise install --locked
+mise exec -- npm ci
+mise exec -- npm run brand:install
+mise exec -- npm ci --prefix docs-nimbus
+(cd frontends/shared && mise exec -- npm ci)
+(cd frontends/commande && mise exec -- npm ci)
+(cd frontends/dashboard && mise exec -- npm ci)
+(cd e2e && mise exec -- npm ci && mise exec -- npx playwright install chromium)
 ```
 
 Pour travailler sur l'expérience UI2, installer aussi ses quatre packages avec `npm run frontend2:install`.

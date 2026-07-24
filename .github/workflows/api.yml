@@ -8,8 +8,27 @@ on:
       - "api/**"
       - "openapitools.json"
       - "scripts/api/**"
+      - "package.json"
+      - "package-lock.json"
+      - "mise.toml"
+      - "mise.lock"
+      - ".github/workflows/api.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "api/**"
+      - "openapitools.json"
+      - "scripts/api/**"
+      - "package.json"
+      - "package-lock.json"
+      - "mise.toml"
+      - "mise.lock"
       - ".github/workflows/api.yml"
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   contract:

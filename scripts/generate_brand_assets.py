@@ -4,7 +4,7 @@
 Surplasse QR rules: rounded modules and the Surplasse mark centered.
 Re-run whenever the logo or brand changes. Requires `qrcode[pil]`.
 
-Usage: python3 scripts/generate_brand_assets.py [--check]
+Usage: npm run brand:generate, or npm run brand:check
 """
 import argparse
 import re
@@ -370,7 +370,7 @@ def check_assets() -> None:
         raise SystemExit(
             "Stale brand assets: "
             + ", ".join(stale)
-            + ". Run python3 scripts/generate_brand_assets.py."
+            + ". Run npm run brand:generate."
         )
     print("Brand QR assets match both domain profiles.")
 
