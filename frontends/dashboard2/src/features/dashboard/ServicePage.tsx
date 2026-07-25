@@ -13,7 +13,7 @@ import {
   servicePass960Url,
 } from "@surplasse/design-system2/assets/service-pass-960";
 import { ClipboardList, LogOut, RefreshCw, RotateCcw } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 
 import { dashboardClients, sessionCoordinator } from "../../app/runtime";
 import { Brand } from "../../components/Brand";

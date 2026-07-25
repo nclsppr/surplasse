@@ -1,6 +1,6 @@
 import { Brand, Button } from "@surplasse/design-system2";
 import { ArrowLeft } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 
 import { fr } from "../i18n/fr";
 

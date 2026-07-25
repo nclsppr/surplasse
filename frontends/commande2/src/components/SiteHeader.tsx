@@ -1,5 +1,5 @@
 import { Brand } from "@surplasse/design-system2";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 import { fr } from "../i18n/fr";
 

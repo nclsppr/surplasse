@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatPriceCents, queryKeys } from "@surplasse/shared";
 import type { Order } from "@surplasse/shared";

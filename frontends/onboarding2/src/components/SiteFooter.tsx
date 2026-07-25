@@ -1,6 +1,6 @@
 import { Brand } from "@surplasse/design-system2";
 import { ArrowUpRight } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 import { domainLinks } from "../app/runtime";
 import { fr } from "../i18n/fr";

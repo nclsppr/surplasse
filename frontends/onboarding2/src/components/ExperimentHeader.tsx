@@ -1,7 +1,7 @@
 import { Brand, Button } from "@surplasse/design-system2";
 import { LogIn, Menu, X } from "lucide-react";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 
 import { domainLinks } from "../app/runtime";
 import { fr } from "../i18n/fr";

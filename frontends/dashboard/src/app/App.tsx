@@ -1,5 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 
 import { LoginPage } from "../features/auth/LoginPage";
 import { MagicLinkPage } from "../features/auth/MagicLinkPage";

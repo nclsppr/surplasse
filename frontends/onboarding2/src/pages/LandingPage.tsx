@@ -25,7 +25,7 @@ import {
   ScanLine,
   UtensilsCrossed,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 
 import { ExperimentHeader } from "../components/ExperimentHeader";
 import { PagesDemoNotice } from "../components/PagesDemoNotice";

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 import { formatPriceCents } from "@surplasse/shared";
 import { ResponseError } from "@surplasse/shared";
 

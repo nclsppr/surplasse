@@ -10,7 +10,7 @@ import {
   servicePass960Url,
 } from "@surplasse/design-system2/assets/service-pass-960";
 import { ArrowLeft, ArrowRight, Camera, CheckCircle2, ExternalLink, ScanSearch } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 
 import { domainLinks, pagesDemoEnabled } from "../app/runtime";
 import { PagesDemoNotice } from "../components/PagesDemoNotice";

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import type { RestaurateurEstablishment } from "@surplasse/shared";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 
 import {
   canonicalEstablishmentSearch,

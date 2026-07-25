@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { RestaurateurSession } from "@surplasse/shared";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 
 import { magicLinkExchangeCoordinator, sessionCoordinator } from "../../app/runtime";
 import { AuthShell } from "../../components/AuthShell";

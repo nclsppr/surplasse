@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import type { RestaurateurSession } from "@surplasse/shared";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 
 import { dashboardClients, sessionCoordinator } from "../../app/runtime";
 import { Brand } from "../../components/Brand";

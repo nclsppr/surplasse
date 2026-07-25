@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { RestaurateurSession } from "@surplasse/shared";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation } from "react-router";
 
 import { Brand } from "../../components/Brand";
 import { fr } from "../../i18n/fr";
