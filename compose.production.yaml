@@ -64,6 +64,6 @@ secrets:
   dns_api_token:
     file: ${COMPOSE_SECRET_DNS_API_TOKEN_FILE:?COMPOSE_SECRET_DNS_API_TOKEN_FILE is required}
   jwt_jwks:
-    file: ${AUTH_JWT_JWKS_FILE:?AUTH_JWT_JWKS_FILE is required}
+    file: ${COMPOSE_SECRET_JWT_JWKS_FILE:?COMPOSE_SECRET_JWT_JWKS_FILE is required}
   jwt_private_key:
-    file: ${AUTH_JWT_PRIVATE_KEY_FILE:?AUTH_JWT_PRIVATE_KEY_FILE is required}
+    file: ${COMPOSE_SECRET_JWT_PRIVATE_KEY_FILE:?COMPOSE_SECRET_JWT_PRIVATE_KEY_FILE is required}

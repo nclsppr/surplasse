@@ -91,6 +91,10 @@ expect_failure() {
 }
 
 valid_fixture="${TEST_DIRECTORY}/production.env"
+printf '%s\n' 'test-private-key' >"${TEST_DIRECTORY}/jwt-private.pem"
+printf '%s\n' '{"keys":[]}' >"${TEST_DIRECTORY}/jwks.json"
+chmod 0600 "${TEST_DIRECTORY}/jwt-private.pem"
+chmod 0644 "${TEST_DIRECTORY}/jwks.json"
 write_fixture "$valid_fixture"
 bash "${SCRIPT_DIR}/compose.sh" development config --quiet
 if bash "${SCRIPT_DIR}/compose.sh" development --ansi never config --quiet \
@@ -121,24 +125,24 @@ fi
   printf 'Error: the materialized secret directory does not use mode 0700.\n' >&2
   exit 1
 }
-for secret_file in \
-  DNS_API_TOKEN \
-  GRAFANA_ADMIN_PASSWORD \
-  GRAFANA_SECRET_KEY \
-  POSTGRES_PASSWORD \
-  SMTP_PASSWORD \
-  SMTP_USERNAME \
-  STRIPE_ACCOUNT_WEBHOOK_SECRET \
-  STRIPE_PAYMENT_WEBHOOK_SECRET \
-  STRIPE_SECRET_KEY; do
-  if [[ "$secret_file" == DNS_API_TOKEN ]]; then
-    secret_path="${TEST_DIRECTORY}/secrets/compose/dns_api_token"
-  else
-    secret_path="${TEST_DIRECTORY}/secrets/compose/${secret_file}"
-  fi
+for secret_specification in \
+  AUTH_JWT_JWKS_FILE:jwt_jwks \
+  AUTH_JWT_PRIVATE_KEY_FILE:jwt_private_key \
+  DNS_API_TOKEN:dns_api_token \
+  GRAFANA_ADMIN_PASSWORD:GRAFANA_ADMIN_PASSWORD \
+  GRAFANA_SECRET_KEY:GRAFANA_SECRET_KEY \
+  POSTGRES_PASSWORD:POSTGRES_PASSWORD \
+  SMTP_PASSWORD:SMTP_PASSWORD \
+  SMTP_USERNAME:SMTP_USERNAME \
+  STRIPE_ACCOUNT_WEBHOOK_SECRET:STRIPE_ACCOUNT_WEBHOOK_SECRET \
+  STRIPE_PAYMENT_WEBHOOK_SECRET:STRIPE_PAYMENT_WEBHOOK_SECRET \
+  STRIPE_SECRET_KEY:STRIPE_SECRET_KEY; do
+  secret_label="${secret_specification%%:*}"
+  secret_file="${secret_specification#*:}"
+  secret_path="${TEST_DIRECTORY}/secrets/compose/${secret_file}"
   [[ -f "$secret_path" && ! -L "$secret_path" ]] || {
     printf 'Error: the wrapper did not materialize %s as a regular secret file.\n' \
-      "$secret_file" >&2
+      "$secret_label" >&2
     exit 1
   }
   if stat -c '%a' "$secret_path" >/dev/null 2>&1; then
@@ -146,12 +150,32 @@ for secret_file in \
   else
     secret_permissions="$(stat -f '%Lp' "$secret_path")"
   fi
-  [[ "$secret_permissions" == 600 ]] || {
-    printf 'Error: the materialized %s secret does not use mode 0600.\n' \
-      "$secret_file" >&2
+  [[ "$secret_permissions" == 444 ]] || {
+    printf 'Error: the materialized %s secret does not use read-only mode 0444.\n' \
+      "$secret_label" >&2
     exit 1
   }
 done
+if stat -c '%d:%i' "${secret_directory}/POSTGRES_PASSWORD" >/dev/null 2>&1; then
+  postgres_secret_identity="$(stat -c '%d:%i' "${secret_directory}/POSTGRES_PASSWORD")"
+else
+  postgres_secret_identity="$(stat -f '%d:%i' "${secret_directory}/POSTGRES_PASSWORD")"
+fi
+SURPLASSE_SECRETS_FILE="$valid_fixture" \
+  bash "${SCRIPT_DIR}/compose.sh" production config --quiet
+if stat -c '%d:%i' "${secret_directory}/POSTGRES_PASSWORD" >/dev/null 2>&1; then
+  repeated_postgres_secret_identity="$(
+    stat -c '%d:%i' "${secret_directory}/POSTGRES_PASSWORD"
+  )"
+else
+  repeated_postgres_secret_identity="$(
+    stat -f '%d:%i' "${secret_directory}/POSTGRES_PASSWORD"
+  )"
+fi
+[[ "$repeated_postgres_secret_identity" == "$postgres_secret_identity" ]] || {
+  printf 'Error: unchanged secret materialization replaced the mounted file.\n' >&2
+  exit 1
+}
 [[ "$(<"${TEST_DIRECTORY}/secrets/compose/POSTGRES_PASSWORD")" == \
   'postgres-password-test-only' ]] || {
   printf 'Error: the materialized PostgreSQL secret has unexpected content.\n' >&2
@@ -171,6 +195,8 @@ const expectedFileSecrets = [
   'dns_api_token',
   'grafana_admin_password',
   'grafana_secret_key',
+  'jwt_jwks',
+  'jwt_private_key',
   'postgres_password',
   'smtp_password',
   'smtp_username',
@@ -292,6 +318,7 @@ for (const leakedValue of [
   'grafana-password-test-only',
   'grafana-secret-test-only',
   'dns-token-test-only',
+  'test-private-key',
 ]) {
   if (JSON.stringify(model).includes(leakedValue)) {
     throw new Error('the resolved production model contains a secret value');
@@ -551,7 +578,15 @@ grep -Fq 'GRAFANA_ADMIN_USER must be configured' "$observability_profile_failure
 
 expect_failure "$valid_fixture" 'IMAGE_TAG must match the checked-out production commit' pull
 
-expect_failure "$valid_fixture" 'the JWT private key is missing, empty or unreadable' up --no-start
+missing_jwt_fixture="${TEST_DIRECTORY}/missing-jwt.env"
+sed \
+  "s#^AUTH_JWT_PRIVATE_KEY_FILE=.*#AUTH_JWT_PRIVATE_KEY_FILE=${TEST_DIRECTORY}/missing-jwt.pem#" \
+  "$valid_fixture" >"$missing_jwt_fixture"
+chmod 0600 "$missing_jwt_fixture"
+expect_failure \
+  "$missing_jwt_fixture" \
+  'the JWT private key is missing, empty or unreadable' \
+  config --quiet
 
 # The same pinned image that runs in Compose validates the tracked scrape and
 # alerting configuration, including all referenced rule files.

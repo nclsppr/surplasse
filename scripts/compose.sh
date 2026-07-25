@@ -147,22 +147,50 @@ prepare_secret_directory() {
   }
 }
 
+install_materialized_secret() {
+  local temporary_path="$1"
+  local target_path="$2"
+
+  if [[ -L "$target_path" ]]; then
+    rm -f "$temporary_path"
+    printf 'Error: a Compose secret target cannot be a symbolic link: %s\n' \
+      "$target_path" >&2
+    exit 1
+  fi
+  chmod 0444 "$temporary_path"
+
+  if [[ -f "$target_path" ]] && cmp -s "$temporary_path" "$target_path"; then
+    rm -f "$temporary_path"
+    chmod 0444 "$target_path"
+    return
+  fi
+  mv -f "$temporary_path" "$target_path"
+}
+
 materialize_secret() {
   local variable_name="$1"
   local file_name="$2"
   local target_path="${COMPOSE_SECRET_DIRECTORY}/${file_name}"
   local temporary_path
 
-  [[ ! -L "$target_path" ]] || {
-    printf 'Error: a Compose secret target cannot be a symbolic link: %s\n' \
-      "$target_path" >&2
-    exit 1
-  }
   temporary_path="$(mktemp "${COMPOSE_SECRET_DIRECTORY}/.${file_name}.XXXXXX")"
   printf '%s' "${!variable_name:-}" >"$temporary_path"
-  chmod 0600 "$temporary_path"
-  mv -f "$temporary_path" "$target_path"
+  install_materialized_secret "$temporary_path" "$target_path"
   export "COMPOSE_SECRET_${variable_name}_FILE=$target_path"
+}
+
+materialize_secret_file() {
+  local source_variable_name="$1"
+  local file_name="$2"
+  local export_variable_name="$3"
+  local source_path="${!source_variable_name:-}"
+  local target_path="${COMPOSE_SECRET_DIRECTORY}/${file_name}"
+  local temporary_path
+
+  temporary_path="$(mktemp "${COMPOSE_SECRET_DIRECTORY}/.${file_name}.XXXXXX")"
+  cp "$source_path" "$temporary_path"
+  install_materialized_secret "$temporary_path" "$target_path"
+  export "${export_variable_name}=$target_path"
 }
 
 if [[ "$PROFILE" == development ]]; then
@@ -347,14 +375,6 @@ if [[ "$PROFILE" == production ]]; then
       exit 1
     }
   fi
-  case "$compose_command" in
-    up | start | restart)
-      require_protected_file "$AUTH_JWT_PRIVATE_KEY_FILE" "the JWT private key"
-      require_private_permissions "$AUTH_JWT_PRIVATE_KEY_FILE" "the JWT private key"
-      require_protected_file "$AUTH_JWT_JWKS_FILE" "the JWT public JWKS"
-      ;;
-  esac
-
   release_action=false
   case "$compose_command" in
     build | pull | push | up | start | restart)
@@ -392,9 +412,22 @@ for secret_variable in \
   materialize_secret "$secret_variable" "$secret_variable"
 done
 if [[ "$PROFILE" == production ]]; then
+  require_protected_file "$AUTH_JWT_PRIVATE_KEY_FILE" "the JWT private key"
+  require_private_permissions "$AUTH_JWT_PRIVATE_KEY_FILE" "the JWT private key"
+  require_protected_file "$AUTH_JWT_JWKS_FILE" "the JWT public JWKS"
   materialize_secret DNS_API_TOKEN dns_api_token
+  materialize_secret_file \
+    AUTH_JWT_PRIVATE_KEY_FILE \
+    jwt_private_key \
+    COMPOSE_SECRET_JWT_PRIVATE_KEY_FILE
+  materialize_secret_file \
+    AUTH_JWT_JWKS_FILE \
+    jwt_jwks \
+    COMPOSE_SECRET_JWT_JWKS_FILE
 fi
 unset \
+  AUTH_JWT_JWKS_FILE \
+  AUTH_JWT_PRIVATE_KEY_FILE \
   DNS_API_TOKEN \
   GRAFANA_ADMIN_PASSWORD \
   GRAFANA_SECRET_KEY \
