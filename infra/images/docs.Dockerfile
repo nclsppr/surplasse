@@ -18,8 +18,9 @@ RUN npm ci --prefix docs-nimbus
 COPY docs ./docs
 COPY docs-nimbus ./docs-nimbus
 COPY brand ./brand
+COPY scripts/build-docs-with-retry.sh ./scripts/build-docs-with-retry.sh
 COPY retype.yml ./retype.yml
-RUN npm run docs:build \
+RUN bash scripts/build-docs-with-retry.sh \
     && NIMBUS_SITE_ORIGIN="${NIMBUS_SITE_ORIGIN}" \
        NIMBUS_BASE_PATH="${NIMBUS_BASE_PATH}" \
        npm --prefix docs-nimbus run build

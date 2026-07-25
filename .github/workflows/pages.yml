@@ -241,10 +241,7 @@ jobs:
       - name: Build documentation
         run: |
           set -euo pipefail
-          if ! npm run docs:build; then
-            echo "::warning::Retype a échoué une première fois, nouvelle tentative."
-            npm run docs:build
-          fi
+          bash scripts/build-docs-with-retry.sh
           repository_name="${GITHUB_REPOSITORY#*/}"
           export NIMBUS_SITE_ORIGIN="https://${GITHUB_REPOSITORY_OWNER}.github.io"
           export NIMBUS_BASE_PATH="/${repository_name}/_experiments/nimbus-docs"
