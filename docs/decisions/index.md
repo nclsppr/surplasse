@@ -85,7 +85,7 @@ Ne jamais « corriger » un ADR pour l'aligner sur une page plus récente. Soit 
 
 ## Registre des ADR
 
-Trente-six ADR sont consignés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'au déploiement commun par Docker Compose, à son cockpit local, à sa surveillance fonctionnelle, à son observabilité technique, au socle professionnel du Dashboard, aux expériences de frontends et de documentation alternatifs, ainsi qu'à l'outillage reproductible et aux mises à jour de dépendances.
+Trente-sept ADR sont consignés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'au déploiement commun par Docker Compose, à son cockpit local, à sa surveillance fonctionnelle, à son observabilité technique, au socle professionnel du Dashboard, aux expériences de frontends et de documentation alternatifs, ainsi qu'à l'outillage reproductible, aux mises à jour de dépendances et aux images de conteneurs vérifiables.
 
 | Numéro | Titre | Statut | Lien |
 |---|---|---|---|
@@ -125,5 +125,6 @@ Trente-six ADR sont consignés à ce jour. Ils couvrent les choix structurants d
 | 0034 | Double rendu Retype et Nimbus à source unique | Accepté | [ADR-0034](adr-0034-double-rendu-retype-nimbus.md) |
 | 0035 | Java 25, Quarkus courant et outillage mise | Accepté | [ADR-0035](adr-0035-java-25-quarkus-courant-et-mise.md) |
 | 0036 | Renovate pour les mises à jour | Accepté | [ADR-0036](adr-0036-renovate-pour-les-mises-a-jour.md) |
+| 0037 | Images de conteneurs durcies et vérifiables | Accepté | [ADR-0037](adr-0037-images-conteneurs-durcies.md) |
 
 Les décisions encore ouvertes (par exemple le choix de la solution d'impression thermique ESC/POS mentionné dans la stack de référence) donneront lieu à de futurs ADR au fil de la [roadmap](../roadmap.md).

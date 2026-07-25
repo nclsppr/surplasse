@@ -237,7 +237,10 @@ async function requestStripeAccountSession(stripeConfig) {
 export function loadStripePilotConfig(repoRoot, environment = process.env) {
   const backend = readOptionalDotenv(resolve(repoRoot, "backend/.env"));
   const commande = readOptionalDotenv(resolve(repoRoot, "frontends/commande/.env"));
-  const secretKey = firstConfigured(environment.STRIPE_SECRET_KEY, backend.STRIPE_SECRET_KEY);
+  const secretKey = firstConfigured(
+    readEnvironmentSecret(environment, "STRIPE_SECRET_KEY"),
+    backend.STRIPE_SECRET_KEY,
+  );
   const publishableKey = firstConfigured(
     environment.STRIPE_PUBLISHABLE_KEY,
     environment.VITE_STRIPE_PUBLISHABLE_KEY,
@@ -265,6 +268,16 @@ export function loadStripePilotConfig(repoRoot, environment = process.env) {
     throw new Error("The Stripe Connect pilot account ID is invalid.");
   }
   return Object.freeze({ secretKey, publishableKey, accountId, establishmentName });
+}
+
+function readEnvironmentSecret(environment, variableName) {
+  const directValue = firstConfigured(environment[variableName]);
+  const filePath = firstConfigured(environment[`${variableName}_FILE`]);
+  if (directValue && filePath) {
+    throw new Error(`${variableName} and ${variableName}_FILE cannot both be configured.`);
+  }
+  if (!filePath) return directValue;
+  return firstConfigured(readFileSync(filePath, "utf8"));
 }
 
 function readOptionalDotenv(path) {

@@ -35,7 +35,7 @@ La référence Untitled UI initiale correspond au commit public [`eaee6a5b9798fa
 | TypeScript | 5.9.3 | Développement, build et CI | Non |
 | Vite | 8.1.5 | Serveur de développement et build | Non |
 | Tailwind CSS | 4.3.3 | Génération des styles au build | Non |
-| NGINX non privilégié | 1.29.4-alpine, digest épinglé dans `config/deployment/images.env` | Runtime des trois images Compose expérimentales | Non, expérience absente |
+| NGINX non privilégié | 1.31.3-alpine, digest épinglé dans `config/deployment/images.env` | Runtime des trois images Compose expérimentales | Non, expérience absente |
 | React Aria Components | 1.19.0 | Comportements accessibles intégrés aux bundles | Non, expérience absente |
 | Lucide React | Version verrouillée dans les packages | Icônes intégrées aux bundles | Non, expérience absente |
 | Untitled UI React public | Commit épinglé ci-dessus | Source adaptée, pas un serveur ni un paquet publié | Non, expérience absente |

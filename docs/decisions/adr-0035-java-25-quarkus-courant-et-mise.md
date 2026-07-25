@@ -30,7 +30,7 @@ Surplasse est développé par une seule personne sur macOS, Linux et Windows via
 
 ## Décision
 
-Nous conservons le monolithe modulaire Quarkus et fixons **Java 25** comme version unique de compilation, de test et d'exécution du Backend. Le compilateur Maven cible la release 25. La génération OpenAPI, les tests et les images de build et d'exécution utilisent Temurin 25. Surplasse continue de suivre la **dernière version stable de Quarkus**, actuellement 3.37.3. Toute montée de version passe par les guides de migration, la vérification de l'alignement des extensions, la suite Backend complète, la construction de l'image et un contrôle de démarrage.
+Nous conservons le monolithe modulaire Quarkus et fixons **Java 25** comme version unique de compilation, de test et d'exécution du Backend. Le compilateur Maven cible la release 25. La génération OpenAPI, les tests et les images de build et d'exécution utilisent Temurin 25. Surplasse continue de suivre la **dernière version stable de Quarkus**, actuellement 3.37.4. Toute montée de version passe par les guides de migration, la vérification de l'alignement des extensions, la suite Backend complète, la construction de l'image et un contrôle de démarrage.
 
 Le Maven Wrapper reste l'unique fournisseur de Maven et fixe Maven 3.9.16. Surefire 3.5.4 et Spotless 3.8.0 restent épinglés dans le build. Aucun Maven global n'est requis.
 
@@ -74,6 +74,6 @@ PostgreSQL reste la source de vérité métier. Temporal n'entre ni dans le MVP 
 - [Démarrer avec mise](https://mise.jdx.dev/getting-started)
 - [Java avec mise](https://mise.jdx.dev/lang/java.html)
 - [Lockfile mise](https://mise.jdx.dev/dev-tools/mise-lock.html)
-- [Quarkus 3.37.3](https://quarkus.io/blog/quarkus-3-37-3-released/)
+- [Quarkus 3.37.4](https://quarkus.io/blog/quarkus-3-37-4-released/)
 - [Versions et maintenance de Quarkus](https://quarkus.io/releases/)
 - [Notes de version Maven 3.9.16](https://maven.apache.org/docs/3.9.16/release-notes.html)

@@ -1,5 +1,11 @@
 name: ${COMPOSE_PROJECT_NAME:?COMPOSE_PROJECT_NAME is required}
 
+x-logging: &default-logging
+  driver: local
+  options:
+    max-file: "3"
+    max-size: 10m
+
 services:
   edge:
     image: ${CADDY_IMAGE:?CADDY_IMAGE is required}
@@ -32,6 +38,11 @@ services:
           - ${APP_BASE_DOMAIN:?APP_BASE_DOMAIN is required}
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    logging: *default-logging
     healthcheck:
       test:
         - CMD-SHELL
@@ -59,20 +70,27 @@ services:
       QUARKUS_DATASOURCE_DEVSERVICES_ENABLED: "false"
       QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://postgresql:5432/${POSTGRES_DB:?POSTGRES_DB is required}
       QUARKUS_DATASOURCE_USERNAME: ${POSTGRES_USER:?POSTGRES_USER is required}
-      QUARKUS_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
-      STRIPE_PAYMENT_WEBHOOK_SECRET: ${STRIPE_PAYMENT_WEBHOOK_SECRET:-}
-      STRIPE_ACCOUNT_WEBHOOK_SECRET: ${STRIPE_ACCOUNT_WEBHOOK_SECRET:-}
+      QUARKUS_DATASOURCE_PASSWORD_FILE: /run/secrets/postgres_password
+      STRIPE_SECRET_KEY_FILE: /run/secrets/stripe_secret_key
+      STRIPE_PAYMENT_WEBHOOK_SECRET_FILE: /run/secrets/stripe_payment_webhook_secret
+      STRIPE_ACCOUNT_WEBHOOK_SECRET_FILE: /run/secrets/stripe_account_webhook_secret
       STRIPE_LIVE_MODE: ${STRIPE_LIVE_MODE:-false}
       AUTH_JWT_AUDIENCE: ${AUTH_JWT_AUDIENCE:-surplasse-dashboard}
       SMTP_HOST: ${SMTP_HOST:?SMTP_HOST is required}
       SMTP_PORT: ${SMTP_PORT:?SMTP_PORT is required}
-      SMTP_USERNAME: ${SMTP_USERNAME:-}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_USERNAME_FILE: /run/secrets/smtp_username
+      SMTP_PASSWORD_FILE: /run/secrets/smtp_password
       SMTP_FROM: ${SMTP_FROM:-}
       SMTP_TLS: ${SMTP_TLS:?SMTP_TLS is required}
       SMTP_START_TLS: ${SMTP_START_TLS:?SMTP_START_TLS is required}
       JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=75.0 -Djava.util.logging.manager=org.jboss.logmanager.LogManager}
+    secrets:
+      - postgres_password
+      - smtp_password
+      - smtp_username
+      - stripe_account_webhook_secret
+      - stripe_payment_webhook_secret
+      - stripe_secret_key
     depends_on:
       postgresql:
         condition: service_healthy
@@ -82,8 +100,13 @@ services:
       - /tmp
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    user: "10001:10001"
+    logging: *default-logging
+    stop_grace_period: 30s
     healthcheck:
-      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/q/health/ready"]
+      test: ["CMD", "/opt/surplasse/scripts/backend-healthcheck.sh"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -97,11 +120,15 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
       POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
     volumes:
       - postgresql_data:/var/lib/postgresql/data
     security_opt:
       - no-new-privileges:true
+    logging: *default-logging
+    stop_grace_period: 1m
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -125,6 +152,9 @@ services:
       - /tmp
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging: *default-logging
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4173/__health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 10s
@@ -142,12 +172,16 @@ services:
         NGINX_IMAGE: ${NGINX_IMAGE:?NGINX_IMAGE is required}
         FRONTEND_NAME: commande
         DOMAIN_PROFILE: ${DEPLOYMENT_PROFILE:?DEPLOYMENT_PROFILE is required}
-        VITE_STRIPE_PUBLISHABLE_KEY: ${VITE_STRIPE_PUBLISHABLE_KEY:-}
+        STRIPE_PUBLIC_VALUE: ${VITE_STRIPE_PUBLISHABLE_KEY:-}
     read_only: true
     tmpfs:
       - /tmp
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    user: "101:101"
+    logging: *default-logging
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/"]
       interval: 10s
@@ -165,12 +199,16 @@ services:
         NGINX_IMAGE: ${NGINX_IMAGE:?NGINX_IMAGE is required}
         FRONTEND_NAME: dashboard
         DOMAIN_PROFILE: ${DEPLOYMENT_PROFILE:?DEPLOYMENT_PROFILE is required}
-        VITE_STRIPE_PUBLISHABLE_KEY: ""
+        STRIPE_PUBLIC_VALUE: ""
     read_only: true
     tmpfs:
       - /tmp
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    user: "101:101"
+    logging: *default-logging
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/"]
       interval: 10s
@@ -199,6 +237,7 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
+    logging: *default-logging
     deploy:
       resources:
         limits:
@@ -216,8 +255,8 @@ services:
     image: ${GRAFANA_IMAGE:?GRAFANA_IMAGE is required}
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-observability-not-configured}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-grafana-admin-not-configured-use-compose-wrapper}
-      GF_SECURITY_SECRET_KEY: ${GRAFANA_SECRET_KEY:-grafana-secret-not-configured-use-compose-wrapper}
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+      GF_SECURITY_SECRET_KEY__FILE: /run/secrets/grafana_secret_key
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_AUTH_ANONYMOUS_ENABLED: "false"
       GF_ANALYTICS_REPORTING_ENABLED: "false"
@@ -228,6 +267,9 @@ services:
       GF_PLUGINS_CHECK_FOR_UPDATES: "false"
       GF_NEWS_NEWS_FEED_ENABLED: "false"
       GF_LOG_MODE: console
+    secrets:
+      - grafana_admin_password
+      - grafana_secret_key
     volumes:
       - ./infra/observability/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
       - ./infra/observability/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
@@ -243,6 +285,7 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
+    logging: *default-logging
     deploy:
       resources:
         limits:
@@ -254,6 +297,24 @@ services:
       timeout: 5s
       retries: 12
       start_period: 20s
+
+secrets:
+  grafana_admin_password:
+    file: ${COMPOSE_SECRET_GRAFANA_ADMIN_PASSWORD_FILE:?COMPOSE_SECRET_GRAFANA_ADMIN_PASSWORD_FILE is required}
+  grafana_secret_key:
+    file: ${COMPOSE_SECRET_GRAFANA_SECRET_KEY_FILE:?COMPOSE_SECRET_GRAFANA_SECRET_KEY_FILE is required}
+  postgres_password:
+    file: ${COMPOSE_SECRET_POSTGRES_PASSWORD_FILE:?COMPOSE_SECRET_POSTGRES_PASSWORD_FILE is required}
+  smtp_password:
+    file: ${COMPOSE_SECRET_SMTP_PASSWORD_FILE:?COMPOSE_SECRET_SMTP_PASSWORD_FILE is required}
+  smtp_username:
+    file: ${COMPOSE_SECRET_SMTP_USERNAME_FILE:?COMPOSE_SECRET_SMTP_USERNAME_FILE is required}
+  stripe_account_webhook_secret:
+    file: ${COMPOSE_SECRET_STRIPE_ACCOUNT_WEBHOOK_SECRET_FILE:?COMPOSE_SECRET_STRIPE_ACCOUNT_WEBHOOK_SECRET_FILE is required}
+  stripe_payment_webhook_secret:
+    file: ${COMPOSE_SECRET_STRIPE_PAYMENT_WEBHOOK_SECRET_FILE:?COMPOSE_SECRET_STRIPE_PAYMENT_WEBHOOK_SECRET_FILE is required}
+  stripe_secret_key:
+    file: ${COMPOSE_SECRET_STRIPE_SECRET_KEY_FILE:?COMPOSE_SECRET_STRIPE_SECRET_KEY_FILE is required}
 
 networks:
   default:

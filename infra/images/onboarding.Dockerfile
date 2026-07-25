@@ -1,8 +1,9 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.24.0@sha256:87999aa3d42bdc6bea60565083ee17e86d1f3339802f543c0d03998580f9cb89
+# check=error=true
 
-ARG NODE_IMAGE
-ARG NGINX_IMAGE
-ARG DOMAIN_PROFILE
+ARG NODE_IMAGE=scratch
+ARG NGINX_IMAGE=scratch
+ARG DOMAIN_PROFILE=production
 FROM ${NODE_IMAGE} AS prepare
 
 ARG DOMAIN_PROFILE

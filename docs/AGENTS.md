@@ -51,7 +51,7 @@ Les domaines sont des données de configuration. `config/domains/production.env`
 
 | Couche | Choix | Version de référence | Notes |
 |---|---|---|---|
-| Backend | Quarkus | 3.37.3 (dernière stable) | Temurin 25.0.3+9 (LTS), Maven multi-modules |
+| Backend | Quarkus | 3.37.4 (dernière stable) | Temurin 25.0.3+9 (LTS), Maven multi-modules |
 | ORM | Hibernate ORM avec Panache | livré par Quarkus | Repository pattern |
 | Base de données | PostgreSQL | 17 | Une seule base, schémas par domaine si besoin |
 | Migrations | Flyway | livré par Quarkus | Migrations versionnées, jamais de DDL manuel |

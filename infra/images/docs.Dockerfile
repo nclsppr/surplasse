@@ -1,7 +1,8 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.24.0@sha256:87999aa3d42bdc6bea60565083ee17e86d1f3339802f543c0d03998580f9cb89
+# check=error=true
 
-ARG NODE_IMAGE
-ARG NGINX_IMAGE
+ARG NODE_IMAGE=scratch
+ARG NGINX_IMAGE=scratch
 FROM ${NODE_IMAGE} AS build
 
 ARG NIMBUS_SITE_ORIGIN
@@ -13,8 +14,9 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
 COPY docs-nimbus/package.json docs-nimbus/package-lock.json ./docs-nimbus/
-RUN npm ci
-RUN npm ci --prefix docs-nimbus
+RUN --mount=type=cache,id=surplasse-npm,target=/root/.npm,sharing=locked \
+    npm ci \
+    && npm ci --prefix docs-nimbus
 COPY docs ./docs
 COPY docs-nimbus ./docs-nimbus
 COPY brand ./brand

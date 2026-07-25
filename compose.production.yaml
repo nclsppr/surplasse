@@ -13,8 +13,10 @@ services:
       - ${CADDY_HTTPS_BIND_ADDRESS:?CADDY_HTTPS_BIND_ADDRESS is required}:${CADDY_HTTPS_PORT:?CADDY_HTTPS_PORT is required}:443
     environment:
       CADDY_DNS_PROVIDER: ${CADDY_DNS_PROVIDER:?CADDY_DNS_PROVIDER is required}
-      DNS_API_TOKEN: ${DNS_API_TOKEN:?DNS_API_TOKEN is required}
+      DNS_API_TOKEN_FILE: /run/secrets/dns_api_token
       ONBOARDING_UPSTREAM: onboarding:8080
+    secrets:
+      - dns_api_token
     volumes:
       - ./infra/caddy/tls/production.caddy:/etc/caddy/tls/profile.caddy:ro
       - ./infra/caddy/routes/production.caddy:/etc/caddy/routes/profile.caddy:ro
@@ -25,15 +27,18 @@ services:
       AUTH_JWT_PRIVATE_KEY_PATH: /run/secrets/jwt-private.pem
       AUTH_JWT_JWKS_PATH: /run/secrets/jwks.json
       AUTH_JWT_KEY_ID: ${AUTH_JWT_KEY_ID:?AUTH_JWT_KEY_ID is required}
-    volumes:
-      - ${AUTH_JWT_PRIVATE_KEY_FILE:?AUTH_JWT_PRIVATE_KEY_FILE is required}:/run/secrets/jwt-private.pem:ro
-      - ${AUTH_JWT_JWKS_FILE:?AUTH_JWT_JWKS_FILE is required}:/run/secrets/jwks.json:ro
+    secrets:
+      - source: jwt_private_key
+        target: jwt-private.pem
+      - source: jwt_jwks
+        target: jwks.json
     restart: unless-stopped
 
   postgresql:
     restart: unless-stopped
 
   onboarding:
+    user: "101:101"
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/__health"]
     restart: unless-stopped
@@ -54,3 +59,11 @@ services:
     ports:
       - ${GRAFANA_BIND_ADDRESS:-127.0.0.1}:${GRAFANA_PORT:-3000}:3000
     restart: unless-stopped
+
+secrets:
+  dns_api_token:
+    file: ${COMPOSE_SECRET_DNS_API_TOKEN_FILE:?COMPOSE_SECRET_DNS_API_TOKEN_FILE is required}
+  jwt_jwks:
+    file: ${AUTH_JWT_JWKS_FILE:?AUTH_JWT_JWKS_FILE is required}
+  jwt_private_key:
+    file: ${AUTH_JWT_PRIVATE_KEY_FILE:?AUTH_JWT_PRIVATE_KEY_FILE is required}

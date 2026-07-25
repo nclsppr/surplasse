@@ -111,9 +111,12 @@ jobs:
           scripts/remove-local-domain.sh
           scripts/run-with-domain-profile.sh
           scripts/compose.sh
+          scripts/check-container-images.sh
           scripts/test-compose-config.sh
           scripts/verify-backend.sh
           infra/images/backend-entrypoint.sh
+          infra/images/backend-healthcheck.sh
+          infra/images/caddy-entrypoint.sh
       - name: Validate both Compose profiles and production guardrails
         run: npm run compose:config:test
       - name: Validate the local Caddyfile

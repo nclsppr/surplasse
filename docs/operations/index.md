@@ -47,7 +47,7 @@ La documentation Retype, l'aperçu Nimbus `noindex`, la préfiguration statique 
 |---|---|---|---|---|
 | Site public actuel | GitHub Pages | En service | Documentation Retype, aperçu Nimbus, marque, préfiguration statique de l'Onboarding et preuves visuelles UI2 | URL GitHub Pages |
 | Reverse proxy | Caddy 2.11.4 | Service Compose livré, VPS non provisionné | Terminaison TLS et routage par domaine | Ports 80 et 443, seul service du VPS exposé |
-| Backend | Quarkus 3.37.3, Java 25 | Image livrée, non déployée | API REST, logique métier, temps réel SSE et intégrations | `api.surplasse.com`, via Caddy |
+| Backend | Quarkus 3.37.4, Java 25 | Image livrée, non déployée | API REST, logique métier, temps réel SSE et intégrations | `api.surplasse.com`, via Caddy |
 | Onboarding | Fichiers statiques, NGINX interne | Image livrée, non déployée | Vitrine produit et tunnel d'embarquement | `surplasse.com`, via Caddy |
 | Commande | Build React statique, NGINX interne | Image livrée, non déployée | Mini-site, carte, commande et paiement | `{slug}.surplasse.com`, via Caddy |
 | Dashboard | Build React statique, NGINX interne | Image livrée, non déployée | Authentification, suivi SSE et avancement des commandes | `dashboard.surplasse.com`, via Caddy |

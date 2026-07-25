@@ -9,8 +9,8 @@ description: Deux environnements seulement, leurs domaines, certificats, profils
 
 Surplasse connaît deux environnements : le développement local et la production. Il n'existe pas de staging au lancement. Le cluster local et la production utilisent le même `compose.yaml`, les mêmes recettes applicatives et le même routage Caddy. Une surcharge explicite porte les différences de TLS, d'exposition et de services annexes. L'image Caddy de production ajoute seulement le module du fournisseur DNS retenu.
 
-!!! warning État réel au 2026-07-22
-Le cluster Compose local est implémenté et validé sous `surplasse.test`. La surcharge production, les images et le runbook Ubuntu sont versionnés, mais aucun VPS public n'est provisionné. Le premier trafic public reste bloqué par le choix du fournisseur DNS et de son module Caddy, le SMTP transactionnel, la publication des images GHCR, les CSP de Commande et du Dashboard et la mise en place des sauvegardes hors site.
+!!! warning État réel au 2026-07-26
+Le cluster Compose local est implémenté et validé sous `surplasse.test`. La surcharge production, les images applicatives, leur chaîne GHCR et le runbook Ubuntu sont versionnés, mais aucun VPS public n'est provisionné. Le premier trafic public reste bloqué par le choix du fournisseur DNS, de son module et de son image Caddy, le SMTP transactionnel, les CSP de Commande et du Dashboard et la mise en place des sauvegardes hors site.
 !!!
 
 ## Comparaison
@@ -65,6 +65,8 @@ Les fichiers de domaines ne contiennent aucun secret :
 
 `scripts/compose.sh` applique le profil avant de lire la configuration de déploiement. Son parseur dotenv n'exécute pas de commande shell. Il refuse dans les fichiers de déploiement et de secrets toute variable appartenant au profil de domaines, ainsi que les variables de contrôle du shell, de git, de Docker ou de Compose. Le passage en production sélectionne `production`, jamais une série de remplacements de `.test` par `.com`.
 
+Avant d'appeler Compose, le wrapper écrit atomiquement chaque valeur sensible dans un fichier hôte de mode `0600`, sous un répertoire de mode `0700`. Le répertoire local `.surplasse/compose-secrets/development/` est exclu de git et du contexte de build. Le répertoire de production `/etc/surplasse/secrets/compose/` reste sur le VPS. Compose utilise ces seuls fichiers comme sources et les monte sous `/run/secrets`. Le processus `docker compose` ne reçoit plus les valeurs directes après cette matérialisation.
+
 ## Configuration de déploiement
 
 | Fichier | Secret | Versionné |
@@ -79,7 +81,7 @@ Le catalogue d'images épingle chaque base par version et digest. Les paramètre
 
 ## Backend
 
-Le Backend reçoit au démarrage les valeurs dérivées du profil, puis les paramètres suivants :
+Le Backend reçoit au démarrage les valeurs dérivées du profil, puis les paramètres suivants. À la frontière Compose, les six valeurs sensibles du tableau utilisent un secret sous `/run/secrets` et une variable `*_FILE`. Le point d'entrée les charge seulement au démarrage du processus :
 
 | Variable | Rôle |
 |---|---|
@@ -100,13 +102,13 @@ Le Backend reçoit au démarrage les valeurs dérivées du profil, puis les para
 | `SMTP_FROM` | Adresse expéditrice |
 | `SMTP_TLS`, `SMTP_START_TLS` | Politique de chiffrement SMTP |
 
-En développement, Quarkus génère une paire JWT éphémère et envoie à `mailpit:1025`. En production, les deux fichiers JWT vivent sous `/etc/surplasse/secrets/` sur l'hôte et sont montés sous `/run/secrets/` dans le conteneur. Les chemins hôte ne sont jamais intégrés à l'image.
+En développement, Quarkus génère une paire JWT éphémère et envoie à `mailpit:1025`. En production, les deux fichiers JWT vivent sous `/etc/surplasse/secrets/` sur l'hôte et sont montés sous `/run/secrets/` dans le conteneur. Les chemins hôte ne sont jamais intégrés à l'image. Le mot de passe PostgreSQL, les trois secrets Stripe et les deux identifiants SMTP sont eux aussi montés comme fichiers, pas inscrits dans la configuration d'environnement du conteneur.
 
 Le Backend n'accorde jamais les credentials CORS. Caddy les ajoute seulement quand `Origin` correspond exactement à l'Onboarding ou au Dashboard du profil. Les mini-sites utilisent les routes publiques sans credentials.
 
 ## Frontends
 
-Commande et Dashboard ne reçoivent aucun secret à l'exécution. Le profil de domaine et la clé Stripe publiable de Commande sont injectés pendant le build Vite. Le Dockerfile accepte seulement `development` ou `production`. Toute variable Vite qui tente de redéfinir un domaine ou une URL dérivée fait échouer le build.
+Commande et Dashboard ne reçoivent aucun secret à l'exécution. Le profil de domaine et la clé Stripe publiable de Commande sont injectés pendant le build Vite. Cette clé est une configuration publique et peut venir de la variable de dépôt GitHub `VITE_STRIPE_PUBLISHABLE_KEY`. Le Dockerfile accepte seulement `development` ou `production`. Toute variable Vite qui tente de redéfinir un domaine ou une URL dérivée fait échouer le build.
 
 L'Onboarding charge un `runtime-config.js` généré pour un seul profil pendant la construction de son image. En développement, son serveur Node reçoit aussi `DEPLOYMENT_PROFILE`, valide le `Host` canonique et peut fournir la courte session Stripe test. En production, le même Dockerfile sélectionne une étape NGINX statique : aucun processus Node, secret Stripe ou endpoint de session n'entre dans l'image finale. Le fichier multi-profil versionné sert au développement natif, refuse les hostnames inconnus et n'est jamais copié tel quel dans l'image de production. GitHub Pages génère explicitement une variante production pendant son build.
 
@@ -147,7 +149,7 @@ Les volumes `prometheus_data` et `grafana_data` sont persistants mais reconstruc
 |---|---|
 | `POSTGRES_DB` | Nom de la base |
 | `POSTGRES_USER` | Utilisateur du conteneur et des sauvegardes |
-| `POSTGRES_PASSWORD` | Mot de passe, jetable en local et secret en production |
+| `POSTGRES_PASSWORD` | Source du secret Compose monté dans `POSTGRES_PASSWORD_FILE`, jetable en local et secret en production |
 
 Le volume `postgresql_data` persiste dans les deux environnements. Il peut être supprimé volontairement en local. Il est sauvegardé et restauré selon [Déploiement Compose](deploiement-compose.md) en production.
 

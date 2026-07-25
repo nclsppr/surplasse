@@ -7,9 +7,9 @@ description: Construction, configuration, démarrage, mise à jour, retour arri�
 
 # Déploiement Docker Compose
 
-La pile versionnée est maintenant exécutable. Elle sert au cluster local et constitue le socle du futur VPS. Son profil facultatif `observability` ajoute Prometheus et Grafana sans modifier les dépendances ni la readiness de la pile applicative. La production réelle n'est pas encore provisionnée : le fournisseur DNS, son module Caddy, le SMTP transactionnel, les CSP de Commande et du Dashboard, les sauvegardes hors site, la sonde externe avec son canal d'alerte et les images GHCR doivent être configurés avant le premier trafic réel.
+La pile versionnée est maintenant exécutable. Elle sert au cluster local et constitue le socle du futur VPS. Son profil facultatif `observability` ajoute Prometheus et Grafana sans modifier les dépendances ni la readiness de la pile applicative. La production réelle n'est pas encore provisionnée : le fournisseur DNS, son module et son image Caddy, le SMTP transactionnel, les CSP de Commande et du Dashboard, les sauvegardes hors site, la sonde externe avec son canal d'alerte et le VPS doivent être configurés avant le premier trafic réel. Les quatre images applicatives possèdent déjà leur chaîne GHCR.
 
-L'[ADR-0026](../decisions/adr-0026-compose-commun.md) fixe le modèle. Les trois fichiers ont des rôles distincts :
+L'[ADR-0026](../decisions/adr-0026-compose-commun.md) fixe le modèle et l'[ADR-0037](../decisions/adr-0037-images-conteneurs-durcies.md) sa politique de construction et de durcissement. Les trois fichiers ont des rôles distincts :
 
 | Fichier | Rôle |
 |---|---|
@@ -27,7 +27,7 @@ Les trois fronts utilisent chacun un NGINX non privilégié en production pour s
 
 ## Versions et images
 
-`config/deployment/images.env` centralise les images de base. Chaque référence porte un tag lisible et un digest multi-plateforme. Au 2026-07-22, le catalogue contient Caddy 2.11.4, PostgreSQL 17.10, Node 24.18.0, NGINX non privilégié 1.29.4, Eclipse Temurin 25.0.3, Mailpit 1.30.4, Prometheus 3.13.1 `busybox` et Grafana 13.1.1.
+`config/deployment/images.env` centralise les images de base. Chaque référence porte un tag lisible et un digest multi-plateforme. Au 2026-07-26, le catalogue contient Caddy 2.11.4, PostgreSQL 17.10, Node 24.18.0, NGINX non privilégié 1.31.3, Eclipse Temurin 25.0.3, Mailpit 1.30.4, Prometheus 3.13.1 `busybox` et Grafana 13.1.1.
 
 L'App GitHub Mend Renovate hébergée surveille ce catalogue. Une proposition remplace le tag et le digest dans la même pull request, puis les workflows Backend, Frontends et Pages vérifient le graphe avant toute fusion manuelle. Les versions majeures et les images de plateforme sensibles restent soumises à une approbation dans le Dependency Dashboard. Aucun automerge n'est autorisé.
 
@@ -41,7 +41,19 @@ Les images applicatives sont :
 | `dashboard` | TypeScript et Vite avec le profil choisi | NGINX non privilégié, utilisateur `101` |
 | `edge` | Caddy officiel en local, `xcaddy` avec le module DNS en production | Caddy 2.11.4 |
 
-Les outils de build ne sont pas présents dans les images statiques finales. Le Backend et l'image development de l'Onboarding conservent seulement le fichier de domaine sélectionné. Le profil Maven de l'artefact Backend de production exclut physiquement `db/seed/`, et le Dockerfile arrête la construction si cette ressource apparaît encore dans le JAR du catalogue. L'image production de l'Onboarding ne conserve que les fichiers statiques déjà configurés, sans Node ni profil development. Le contenu de `backend/.env`, les certificats, les dossiers `target`, `dist`, `node_modules` et les secrets sont exclus du contexte par `.dockerignore`.
+Les outils de build ne sont pas présents dans les images statiques finales. Le Backend et l'image development de l'Onboarding conservent seulement le fichier de domaine sélectionné. Le profil Maven de l'artefact Backend de production exclut physiquement `db/seed/`, et le Dockerfile arrête la construction si cette ressource apparaît encore dans le JAR du catalogue. L'image production de l'Onboarding ne conserve que les fichiers statiques déjà configurés, sans Node ni profil development. Le contenu de `backend/.env`, les certificats, les dossiers `target`, `dist`, `node_modules`, rapports, caches et secrets sont exclus du contexte par `.dockerignore`.
+
+Les Dockerfiles épinglent aussi le frontend Dockerfile par version et digest, activent les contrôles BuildKit en erreur et montent des caches npm ou Maven qui ne rejoignent jamais le runtime. `npm run images:check` valide toutes les recettes et tous leurs profils sans les construire. Le workflow `images.yml` construit et scanne les quatre images applicatives sur les pull requests concernées. Sur `main`, il les publie sous le SHA complet pour `linux/amd64`, avec labels OCI, SBOM, provenance maximale et attestation GitHub. Une vulnérabilité `HIGH` ou `CRITICAL` corrigible détectée par Trivy bloque la publication.
+
+L'image `edge` rejoindra cette chaîne après le choix du fournisseur DNS et de son module versionné. PostgreSQL, Prometheus, Grafana et Mailpit restent des images amont consommées directement avec leur digest.
+
+## Durcissement à l'exécution
+
+Le Backend et les serveurs statiques s'exécutent avec un utilisateur non privilégié, un système de fichiers en lecture seule, un `/tmp` explicite, `no-new-privileges` et toutes les capacités Linux supprimées. Caddy récupère seulement `NET_BIND_SERVICE`. PostgreSQL garde son point d'entrée officiel afin d'initialiser les permissions de son volume.
+
+Le wrapper matérialise atomiquement les valeurs sensibles du profil de déploiement dans des fichiers de mode `0600`. En développement, ils vivent sous `.surplasse/compose-secrets/development/`. En production, ils vivent sous `/etc/surplasse/secrets/compose/`, à côté des clés déjà protégées. Compose monte uniquement ces sources `file` sous `/run/secrets`, ce qui reste compatible avec un service en lecture seule. PostgreSQL et Grafana lisent leurs interfaces `*_FILE` natives. Le Backend, l'Onboarding de développement et Caddy chargent les fichiers nécessaires dans leur point d'entrée et refusent une valeur directe concurrente. Les fichiers JWT utilisent le même mécanisme depuis leur source protégée sur l'hôte. Une variable `ARG` Docker n'est jamais utilisée pour un secret.
+
+Tous les services utilisent le pilote de logs Docker `local`, avec trois fichiers de 10 Mo au maximum par conteneur. Les healthchecks n'ajoutent aucun paquet au runtime : le Backend effectue sa requête HTTP avec Bash, tandis que les autres images réutilisent leurs outils existants.
 
 ## Préparer Ubuntu LTS
 
@@ -101,7 +113,7 @@ scripts/compose.sh production config --quiet
 scripts/compose.sh production build
 ```
 
-`config` développe les secrets dans sa sortie complète. Utiliser `--quiet` dans les journaux partagés. En CI, les images applicatives seront construites puis poussées vers GHCR avec le SHA git. Une image existante ne doit jamais être reconstruite sous le même SHA.
+La sortie complète de `config` expose les paramètres résolus et les noms des sources de secrets. Utiliser `--quiet` dans les journaux partagés. En CI, les quatre images applicatives sont construites et scannées avant leur push vers GHCR avec le SHA git. Une image existante ne doit jamais être reconstruite sous le même SHA.
 
 ## Démarrer et contrôler
 
@@ -140,10 +152,10 @@ Les commandes de diagnostic restent bornées :
 scripts/compose.sh production ps
 scripts/compose.sh production logs --tail 200 edge backend postgresql
 scripts/compose.sh production exec backend \
-  curl --fail http://127.0.0.1:8080/q/health/ready
+  /opt/surplasse/scripts/backend-healthcheck.sh
 ```
 
-Le loopback de la dernière commande est une sonde technique interne au conteneur. Il ne devient jamais une URL publique.
+Le loopback utilisé par la dernière commande est une sonde technique interne au conteneur. Il ne devient jamais une URL publique.
 
 Avant le premier trafic, effectuer une exécution manuelle verte de `.github/workflows/e2e.yml`, définir le slug témoin public dans la variable de dépôt `E2E_PRODUCTION_ESTABLISHMENT_SLUG`, puis seulement activer `E2E_MONITORING_ENABLED=true`. Le workflow s'exécute ensuite chaque heure à la minute 17, conserve un rapport Allure 3 rejouable et isole l'historique `production`. Son échec complète la future sonde externe ; il ne la remplace pas.
 

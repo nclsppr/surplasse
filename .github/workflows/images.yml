@@ -1,0 +1,232 @@
+name: Container images
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+      - "frontends/**"
+      - "brand/**"
+      - "config/domains/**"
+      - "config/deployment/images.env"
+      - "infra/images/**"
+      - "scripts/check-container-images.sh"
+      - "scripts/compose.sh"
+      - "scripts/test-compose-config.sh"
+      - "compose.yaml"
+      - "compose.*.yaml"
+      - ".dockerignore"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/images.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+      - "frontends/**"
+      - "brand/**"
+      - "config/domains/**"
+      - "config/deployment/images.env"
+      - "infra/images/**"
+      - "scripts/check-container-images.sh"
+      - "scripts/compose.sh"
+      - "scripts/test-compose-config.sh"
+      - "compose.yaml"
+      - "compose.*.yaml"
+      - ".dockerignore"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/images.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: images-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_ROOT: ghcr.io/${{ github.repository }}
+  TRIVY_VERSION: v0.72.0
+
+jobs:
+  configuration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - name: Validate Dockerfiles with BuildKit
+        run: npm run images:check
+      - name: Validate both Compose profiles and production guardrails
+        run: npm run compose:config:test
+
+  build-and-scan:
+    needs: configuration
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: backend
+            dockerfile: infra/images/backend.Dockerfile
+          - image: onboarding
+            dockerfile: infra/images/onboarding.Dockerfile
+          - image: commande
+            dockerfile: infra/images/frontend.Dockerfile
+          - image: dashboard
+            dockerfile: infra/images/frontend.Dockerfile
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+      - name: Resolve pinned build arguments
+        id: arguments
+        env:
+          IMAGE_NAME: ${{ matrix.image }}
+          STRIPE_PUBLIC_VALUE: ${{ vars.VITE_STRIPE_PUBLISHABLE_KEY }}
+        run: |
+          source config/deployment/images.env
+          {
+            echo "value<<BUILD_ARGS"
+            case "$IMAGE_NAME" in
+              backend)
+                echo "TEMURIN_BUILD_IMAGE=$TEMURIN_BUILD_IMAGE"
+                echo "TEMURIN_RUNTIME_IMAGE=$TEMURIN_RUNTIME_IMAGE"
+                echo "DOMAIN_PROFILE=production"
+                ;;
+              onboarding)
+                echo "NODE_IMAGE=$NODE_IMAGE"
+                echo "NGINX_IMAGE=$NGINX_IMAGE"
+                echo "DOMAIN_PROFILE=production"
+                ;;
+              commande|dashboard)
+                echo "NODE_IMAGE=$NODE_IMAGE"
+                echo "NGINX_IMAGE=$NGINX_IMAGE"
+                echo "DOMAIN_PROFILE=production"
+                echo "FRONTEND_NAME=$IMAGE_NAME"
+                echo "STRIPE_PUBLIC_VALUE=$STRIPE_PUBLIC_VALUE"
+                ;;
+              *)
+                exit 64
+                ;;
+            esac
+            echo "BUILD_ARGS"
+          } >> "$GITHUB_OUTPUT"
+      - name: Build the production image
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          build-args: ${{ steps.arguments.outputs.value }}
+          load: true
+          pull: true
+          tags: surplasse-ci/${{ matrix.image }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.image }}-production
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}-production
+      - name: Scan HIGH and CRITICAL fixed vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          scan-type: image
+          image-ref: surplasse-ci/${{ matrix.image }}:${{ github.sha }}
+          format: table
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build-and-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: backend
+            dockerfile: infra/images/backend.Dockerfile
+          - image: onboarding
+            dockerfile: infra/images/onboarding.Dockerfile
+          - image: commande
+            dockerfile: infra/images/frontend.Dockerfile
+          - image: dashboard
+            dockerfile: infra/images/frontend.Dockerfile
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+      - uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4.5.1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Resolve pinned build arguments
+        id: arguments
+        env:
+          IMAGE_NAME: ${{ matrix.image }}
+          STRIPE_PUBLIC_VALUE: ${{ vars.VITE_STRIPE_PUBLISHABLE_KEY }}
+        run: |
+          source config/deployment/images.env
+          {
+            echo "value<<BUILD_ARGS"
+            case "$IMAGE_NAME" in
+              backend)
+                echo "TEMURIN_BUILD_IMAGE=$TEMURIN_BUILD_IMAGE"
+                echo "TEMURIN_RUNTIME_IMAGE=$TEMURIN_RUNTIME_IMAGE"
+                echo "DOMAIN_PROFILE=production"
+                ;;
+              onboarding)
+                echo "NODE_IMAGE=$NODE_IMAGE"
+                echo "NGINX_IMAGE=$NGINX_IMAGE"
+                echo "DOMAIN_PROFILE=production"
+                ;;
+              commande|dashboard)
+                echo "NODE_IMAGE=$NODE_IMAGE"
+                echo "NGINX_IMAGE=$NGINX_IMAGE"
+                echo "DOMAIN_PROFILE=production"
+                echo "FRONTEND_NAME=$IMAGE_NAME"
+                echo "STRIPE_PUBLIC_VALUE=$STRIPE_PUBLIC_VALUE"
+                ;;
+              *)
+                exit 64
+                ;;
+            esac
+            echo "BUILD_ARGS"
+          } >> "$GITHUB_OUTPUT"
+      - name: Push the immutable image with SBOM and provenance
+        id: push
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          build-args: ${{ steps.arguments.outputs.value }}
+          push: true
+          pull: true
+          platforms: linux/amd64
+          tags: ${{ env.IMAGE_ROOT }}/${{ matrix.image }}:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.image }}-production
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}-production
+          sbom: true
+          provenance: mode=max
+      - name: Publish the GitHub artifact attestation
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4.2.0
+        with:
+          subject-name: ${{ env.IMAGE_ROOT }}/${{ matrix.image }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true

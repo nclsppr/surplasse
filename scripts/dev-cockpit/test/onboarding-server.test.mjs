@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
 import {
   createOnboardingStaticServer,
   INTERNAL_HEALTH_PATH,
+  loadStripePilotConfig,
   ONBOARDING_HOST,
   ONBOARDING_PORT,
 } from "../onboarding-server.mjs";
@@ -254,6 +257,22 @@ test("Embedded Stripe onboarding stays disabled when local credentials are absen
 
   assert.equal(config.status, 404);
   assert.equal(session.status, 503);
+});
+
+test("Embedded Stripe onboarding reads its secret from a mounted file", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "surplasse-onboarding-secret-"));
+  const secretPath = join(directory, "stripe-secret-key");
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  await writeFile(secretPath, "sk_test_fromfile\n", { mode: 0o600 });
+
+  const config = loadStripePilotConfig(directory, {
+    STRIPE_SECRET_KEY_FILE: secretPath,
+    STRIPE_PUBLISHABLE_KEY: "pk_test_example",
+    STRIPE_CONNECT_PILOT_ACCOUNT_ID: "acct_testpilot",
+    STRIPE_CONNECT_PILOT_ESTABLISHMENT_NAME: "La Paprika",
+  });
+
+  assert.equal(config.secretKey, "sk_test_fromfile");
 });
 
 test("Onboarding static server never exposes repository files or traversal targets", async (t) => {

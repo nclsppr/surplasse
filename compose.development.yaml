@@ -1,3 +1,9 @@
+x-development-logging: &development-logging
+  driver: local
+  options:
+    max-file: "3"
+    max-size: 10m
+
 services:
   edge:
     ports:
@@ -34,14 +40,17 @@ services:
         condition: service_healthy
 
   onboarding:
+    user: "1000:1000"
     environment:
       ONBOARDING_HOST: 0.0.0.0
       ONBOARDING_PORT: 4173
       ONBOARDING_STRIPE_PILOT_ENABLED: ${ONBOARDING_STRIPE_PILOT_ENABLED:-false}
-      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_SECRET_KEY_FILE: /run/secrets/stripe_secret_key
       STRIPE_PUBLISHABLE_KEY: ${VITE_STRIPE_PUBLISHABLE_KEY:-}
       STRIPE_CONNECT_PILOT_ACCOUNT_ID: ${STRIPE_CONNECT_PILOT_ACCOUNT_ID:-}
       STRIPE_CONNECT_PILOT_ESTABLISHMENT_NAME: ${STRIPE_CONNECT_PILOT_ESTABLISHMENT_NAME:-}
+    secrets:
+      - stripe_secret_key
 
   onboarding2:
     profiles: [frontend-experiment]
@@ -54,12 +63,16 @@ services:
         NGINX_IMAGE: ${NGINX_IMAGE:?NGINX_IMAGE is required}
         FRONTEND_NAME: onboarding2
         DOMAIN_PROFILE: development
-        VITE_STRIPE_PUBLISHABLE_KEY: ""
+        STRIPE_PUBLIC_VALUE: ""
     read_only: true
     tmpfs:
       - /tmp
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    user: "101:101"
+    logging: *development-logging
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/"]
       interval: 10s
@@ -78,12 +91,16 @@ services:
         NGINX_IMAGE: ${NGINX_IMAGE:?NGINX_IMAGE is required}
         FRONTEND_NAME: commande2
         DOMAIN_PROFILE: development
-        VITE_STRIPE_PUBLISHABLE_KEY: ${VITE_STRIPE_PUBLISHABLE_KEY:-}
+        STRIPE_PUBLIC_VALUE: ${VITE_STRIPE_PUBLISHABLE_KEY:-}
     read_only: true
     tmpfs:
       - /tmp
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    user: "101:101"
+    logging: *development-logging
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/"]
       interval: 10s
@@ -102,12 +119,16 @@ services:
         NGINX_IMAGE: ${NGINX_IMAGE:?NGINX_IMAGE is required}
         FRONTEND_NAME: dashboard2
         DOMAIN_PROFILE: development
-        VITE_STRIPE_PUBLISHABLE_KEY: ""
+        STRIPE_PUBLIC_VALUE: ""
     read_only: true
     tmpfs:
       - /tmp
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    user: "101:101"
+    logging: *development-logging
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/"]
       interval: 10s
@@ -130,6 +151,10 @@ services:
       - /tmp
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    user: "101:101"
+    logging: *development-logging
     healthcheck:
       test:
         [
@@ -151,6 +176,9 @@ services:
       - /tmp
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging: *development-logging
     healthcheck:
       test: ["CMD", "/mailpit", "readyz"]
       interval: 5s

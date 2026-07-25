@@ -43,7 +43,7 @@ write_fixture() {
     'CADDY_HTTPS_PORT=443' \
     'POSTGRES_DB=surplasse' \
     'POSTGRES_USER=surplasse' \
-    'POSTGRES_PASSWORD=test-only' \
+    'POSTGRES_PASSWORD=postgres-password-test-only' \
     'STRIPE_SECRET_KEY=sk_live_test_only' \
     'STRIPE_PAYMENT_WEBHOOK_SECRET=whsec_payment_test_only' \
     'STRIPE_ACCOUNT_WEBHOOK_SECRET=whsec_account_test_only' \
@@ -56,7 +56,7 @@ write_fixture() {
     'SMTP_HOST=smtp.example.invalid' \
     'SMTP_PORT=587' \
     'SMTP_USERNAME=test-user' \
-    'SMTP_PASSWORD=test-only' \
+    'SMTP_PASSWORD=smtp-password-test-only' \
     'SMTP_FROM=no-reply@example.invalid' \
     'SMTP_TLS=false' \
     'SMTP_START_TLS=REQUIRED' \
@@ -64,11 +64,11 @@ write_fixture() {
     "GRAFANA_BIND_ADDRESS=${grafana_bind_address}" \
     "GRAFANA_PORT=${grafana_port}" \
     'GRAFANA_ADMIN_USER=test-admin' \
-    'GRAFANA_ADMIN_PASSWORD=test-only' \
-    'GRAFANA_SECRET_KEY=test-only-secret-key' \
+    'GRAFANA_ADMIN_PASSWORD=grafana-password-test-only' \
+    'GRAFANA_SECRET_KEY=grafana-secret-test-only' \
     "CADDY_DNS_MODULE=${dns_module}" \
     'CADDY_DNS_PROVIDER=example' \
-    'DNS_API_TOKEN=test-only' \
+    'DNS_API_TOKEN=dns-token-test-only' \
     'ONBOARDING_STRIPE_PILOT_ENABLED=false' \
     >"$target"
   chmod 0600 "$target"
@@ -111,13 +111,75 @@ fi
 COMPOSE_PROFILES=observability SURPLASSE_SECRETS_FILE="$valid_fixture" \
   bash "${SCRIPT_DIR}/compose.sh" production config --format json \
   >"${TEST_DIRECTORY}/production-compose.json"
+secret_directory="${TEST_DIRECTORY}/secrets/compose"
+if stat -c '%a' "$secret_directory" >/dev/null 2>&1; then
+  secret_directory_permissions="$(stat -c '%a' "$secret_directory")"
+else
+  secret_directory_permissions="$(stat -f '%Lp' "$secret_directory")"
+fi
+[[ "$secret_directory_permissions" == 700 ]] || {
+  printf 'Error: the materialized secret directory does not use mode 0700.\n' >&2
+  exit 1
+}
+for secret_file in \
+  DNS_API_TOKEN \
+  GRAFANA_ADMIN_PASSWORD \
+  GRAFANA_SECRET_KEY \
+  POSTGRES_PASSWORD \
+  SMTP_PASSWORD \
+  SMTP_USERNAME \
+  STRIPE_ACCOUNT_WEBHOOK_SECRET \
+  STRIPE_PAYMENT_WEBHOOK_SECRET \
+  STRIPE_SECRET_KEY; do
+  secret_path="${TEST_DIRECTORY}/secrets/compose/${secret_file}"
+  [[ -f "$secret_path" && ! -L "$secret_path" ]] || {
+    printf 'Error: the wrapper did not materialize %s as a regular secret file.\n' \
+      "$secret_file" >&2
+    exit 1
+  }
+  if stat -c '%a' "$secret_path" >/dev/null 2>&1; then
+    secret_permissions="$(stat -c '%a' "$secret_path")"
+  else
+    secret_permissions="$(stat -f '%Lp' "$secret_path")"
+  fi
+  [[ "$secret_permissions" == 600 ]] || {
+    printf 'Error: the materialized %s secret does not use mode 0600.\n' \
+      "$secret_file" >&2
+    exit 1
+  }
+done
+[[ "$(<"${TEST_DIRECTORY}/secrets/compose/POSTGRES_PASSWORD")" == \
+  'postgres-password-test-only' ]] || {
+  printf 'Error: the materialized PostgreSQL secret has unexpected content.\n' >&2
+  exit 1
+}
 node - "${TEST_DIRECTORY}/production-compose.json" <<'NODE'
 const { readFileSync } = require('node:fs');
 
 const model = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+const backend = model.services.backend;
+const edge = model.services.edge;
 const onboarding = model.services.onboarding;
+const postgresql = model.services.postgresql;
 const prometheus = model.services.prometheus;
 const grafana = model.services.grafana;
+const expectedFileSecrets = [
+  'dns_api_token',
+  'grafana_admin_password',
+  'grafana_secret_key',
+  'postgres_password',
+  'smtp_password',
+  'smtp_username',
+  'stripe_account_webhook_secret',
+  'stripe_payment_webhook_secret',
+  'stripe_secret_key',
+];
+for (const secretName of expectedFileSecrets) {
+  const secret = model.secrets?.[secretName];
+  if (!secret?.file || Object.hasOwn(secret, 'environment')) {
+    throw new Error(`${secretName} is not sourced from a host file`);
+  }
+}
 for (const developmentOnlyService of [
   'docs',
   'mailpit',
@@ -161,6 +223,13 @@ if (!onboarding.healthcheck?.test?.includes('wget')) {
 if (model.services.edge.environment?.ONBOARDING_UPSTREAM !== 'onboarding:8080') {
   throw new Error('production Caddy does not target the NGINX Onboarding port');
 }
+if (
+  Object.hasOwn(edge.environment ?? {}, 'DNS_API_TOKEN') ||
+  edge.environment?.DNS_API_TOKEN_FILE !== '/run/secrets/dns_api_token' ||
+  !edge.secrets?.some((secret) => secret.source === 'dns_api_token')
+) {
+  throw new Error('production Caddy does not consume the DNS token as a Compose secret');
+}
 const edgeHealthcheck = model.services.edge.healthcheck?.test?.join(' ') ?? '';
 if (
   !edgeHealthcheck.includes('caddy validate') ||
@@ -170,6 +239,109 @@ if (
 }
 if (!model.services.edge.networks?.default?.aliases?.includes('surplasse.com')) {
   throw new Error('production Caddy cannot resolve its public apex to the edge container');
+}
+const directBackendSecrets = [
+  'QUARKUS_DATASOURCE_PASSWORD',
+  'SMTP_PASSWORD',
+  'SMTP_USERNAME',
+  'STRIPE_ACCOUNT_WEBHOOK_SECRET',
+  'STRIPE_PAYMENT_WEBHOOK_SECRET',
+  'STRIPE_SECRET_KEY',
+];
+for (const variableName of directBackendSecrets) {
+  if (Object.hasOwn(backend.environment ?? {}, variableName)) {
+    throw new Error(`production Backend exposes ${variableName} directly`);
+  }
+  if (!backend.environment?.[`${variableName}_FILE`]?.startsWith('/run/secrets/')) {
+    throw new Error(`production Backend does not load ${variableName} from a secret file`);
+  }
+}
+if (
+  Object.hasOwn(postgresql.environment ?? {}, 'POSTGRES_PASSWORD') ||
+  postgresql.environment?.POSTGRES_PASSWORD_FILE !== '/run/secrets/postgres_password'
+) {
+  throw new Error('production PostgreSQL does not consume its password as a Compose secret');
+}
+for (const target of ['jwt-private.pem', 'jwks.json']) {
+  if (
+    !backend.secrets?.some(
+      (secret) => secret.target === target || secret.target?.endsWith(`/${target}`),
+    )
+  ) {
+    throw new Error(`production Backend is missing the ${target} secret mount`);
+  }
+}
+if (
+  Object.hasOwn(grafana.environment ?? {}, 'GF_SECURITY_ADMIN_PASSWORD') ||
+  Object.hasOwn(grafana.environment ?? {}, 'GF_SECURITY_SECRET_KEY') ||
+  grafana.environment?.GF_SECURITY_ADMIN_PASSWORD__FILE !== '/run/secrets/grafana_admin_password' ||
+  grafana.environment?.GF_SECURITY_SECRET_KEY__FILE !== '/run/secrets/grafana_secret_key'
+) {
+  throw new Error('production Grafana does not consume its credentials as Compose secrets');
+}
+for (const leakedValue of [
+  'sk_live_test_only',
+  'whsec_payment_test_only',
+  'whsec_account_test_only',
+  'postgres-password-test-only',
+  'smtp-password-test-only',
+  'grafana-password-test-only',
+  'grafana-secret-test-only',
+  'dns-token-test-only',
+]) {
+  if (JSON.stringify(model).includes(leakedValue)) {
+    throw new Error('the resolved production model contains a secret value');
+  }
+}
+if (
+  backend.healthcheck?.test?.[1] !== '/opt/surplasse/scripts/backend-healthcheck.sh' ||
+  JSON.stringify(backend.healthcheck).includes('curl')
+) {
+  throw new Error('production Backend does not use the package-free healthcheck');
+}
+const expectedApplicationUsers = {
+  backend: '10001:10001',
+  onboarding: '101:101',
+  commande: '101:101',
+  dashboard: '101:101',
+};
+for (const [serviceName, expectedUser] of Object.entries(expectedApplicationUsers)) {
+  const service = model.services[serviceName];
+  if (
+    service.user !== expectedUser ||
+    service.read_only !== true ||
+    !service.security_opt?.includes('no-new-privileges:true')
+  ) {
+    throw new Error(`${serviceName} is missing its non-root or read-only hardening`);
+  }
+}
+for (const serviceName of ['edge', 'backend', 'onboarding', 'commande', 'dashboard', 'prometheus', 'grafana']) {
+  const service = model.services[serviceName];
+  if (!service.cap_drop?.includes('ALL')) {
+    throw new Error(`${serviceName} is missing capability hardening`);
+  }
+}
+for (const serviceName of [
+  'edge',
+  'backend',
+  'postgresql',
+  'onboarding',
+  'commande',
+  'dashboard',
+  'prometheus',
+  'grafana',
+]) {
+  const service = model.services[serviceName];
+  if (
+    service.logging?.driver !== 'local' ||
+    service.logging?.options?.['max-size'] !== '10m' ||
+    service.logging?.options?.['max-file'] !== '3'
+  ) {
+    throw new Error(`${serviceName} is missing bounded local logs`);
+  }
+}
+if (backend.stop_grace_period !== '30s' || postgresql.stop_grace_period !== '1m0s') {
+  throw new Error('Backend or PostgreSQL is missing its graceful stop window');
 }
 const defaultNetworkConfig = model.networks?.default?.ipam?.config?.[0];
 if (
@@ -219,7 +391,10 @@ node - "${TEST_DIRECTORY}/development-observability.json" <<'NODE'
 const { readFileSync } = require('node:fs');
 
 const model = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+const backend = model.services.backend;
 const docs = model.services.docs;
+const onboarding = model.services.onboarding;
+const postgresql = model.services.postgresql;
 if (docs.build?.args?.NIMBUS_SITE_ORIGIN !== 'https://docs.surplasse.test') {
   throw new Error('development Nimbus does not use the centrally derived documentation origin');
 }
@@ -247,6 +422,22 @@ if (model.services.grafana.environment?.GF_AUTH_ANONYMOUS_ENABLED !== 'true') {
 }
 if (model.services.grafana.ports) {
   throw new Error('development Grafana bypasses Caddy with a published host port');
+}
+for (const [service, variableName] of [
+  [backend, 'STRIPE_SECRET_KEY'],
+  [backend, 'QUARKUS_DATASOURCE_PASSWORD'],
+  [postgresql, 'POSTGRES_PASSWORD'],
+  [onboarding, 'STRIPE_SECRET_KEY'],
+]) {
+  if (Object.hasOwn(service.environment ?? {}, variableName)) {
+    throw new Error(`development Compose exposes ${variableName} directly`);
+  }
+}
+if (
+  onboarding.environment?.STRIPE_SECRET_KEY_FILE !== '/run/secrets/stripe_secret_key' ||
+  !onboarding.secrets?.some((secret) => secret.source === 'stripe_secret_key')
+) {
+  throw new Error('development Onboarding does not consume the Stripe key as a Compose secret');
 }
 NODE
 

@@ -7,7 +7,7 @@ description: "Intégration et déploiement continus : main pour le travail humai
 
 # CI/CD
 
-Surplasse s'appuie sur GitHub Actions pour l'intégration continue et cible un déploiement continu. Les workflows Pages, API, Backend, Frontends et E2E existent. Les Dockerfiles, le socle Compose commun, ses deux surcharges, le profil facultatif d'observabilité et le runbook Ubuntu sont versionnés. La publication des images dans GHCR et le déploiement automatisé sur le VPS restent à livrer dans `images.yml` et `deploy.yml`.
+Surplasse s'appuie sur GitHub Actions pour l'intégration continue et cible un déploiement continu. Les workflows Pages, API, Backend, Frontends, E2E et Images existent. Les Dockerfiles, le socle Compose commun, ses deux surcharges, le profil facultatif d'observabilité et le runbook Ubuntu sont versionnés. `images.yml` construit, scanne et publie les quatre images applicatives dans GHCR. L'image Caddy DNS et le déploiement automatisé sur le VPS restent à livrer après le choix du fournisseur, dans la chaîne Images puis `deploy.yml`.
 
 Pour le détail des environnements et de la topologie de production, voir [Environnements](../operations/environnements.md) et [Exploitation](../operations/index.md).
 
@@ -44,7 +44,7 @@ Renovate couvre npm, Maven, Maven Wrapper, les dépendances Python, GitHub Actio
 
 L'App GitHub Mend Renovate hébergée ne peut pas exécuter `mise lock`. Une mise à jour de Node, Java ou Python peut donc proposer le nouveau pin, mais `mise.lock` est régénéré manuellement avec la version de `mise` déclarée dans `mise.toml`, relu puis ajouté à la branche du bot avant fusion. Surplasse ne contourne pas cette limite par un runner Renovate auto-hébergé ou un second bot d'écriture.
 
-Chaque PR Renovate exécute les workflows concernés par ses chemins. `pages.yml` s'exécute sans filtre afin de fournir une porte intégrée, mais son job `deploy` refuse toute référence autre que `refs/heads/main`. Le futur `images.yml` et le futur `deploy.yml` resteront eux aussi limités à `main`. Une PR peut donc construire, tester et produire des diagnostics, mais jamais publier GitHub Pages, une image de production ou un déploiement VPS.
+Chaque PR Renovate exécute les workflows concernés par ses chemins. `pages.yml` s'exécute sans filtre afin de fournir une porte intégrée, mais son job `deploy` refuse toute référence autre que `refs/heads/main`. `images.yml` construit et scanne sur la PR, mais son job `publish` reste limité à `main`. Le futur `deploy.yml` appliquera la même limite. Une PR peut donc construire, tester et produire des diagnostics, mais jamais publier GitHub Pages, une image de production ou un déploiement VPS.
 
 ## Le workflow Pages
 
@@ -71,7 +71,7 @@ Ce workflow reste volontairement sans filtre de chemins. Chaque PR est qualifié
 
 ## Les workflows
 
-Le monorepo suit un découpage par filtres de chemins (`paths`) : un push ou une PR qui ne touche que `frontends/commande/` ne doit pas déclencher les tests du Backend. `api.yml`, `backend.yml`, `frontends.yml` et `e2e.yml` appliquent les mêmes filtres à `push` et `pull_request`. `images.yml` et `deploy.yml` restent à créer maintenant que leurs recettes Compose sont disponibles.
+Le monorepo suit un découpage par filtres de chemins (`paths`) : un push ou une PR qui ne touche que `frontends/commande/` ne doit pas déclencher les tests du Backend. `api.yml`, `backend.yml`, `frontends.yml`, `e2e.yml` et `images.yml` appliquent les mêmes filtres à `push` et `pull_request`. `deploy.yml` reste à créer une fois le VPS et l'image Caddy prêts.
 
 | Workflow | Déclencheur (filtre de chemins) | Étapes |
 |---|---|---|
@@ -81,7 +81,7 @@ Le monorepo suit un découpage par filtres de chemins (`paths`) : un push ou une
 | `frontends.yml` | `push` ou `pull_request`, chemins `frontends/**`, profils, scripts Compose et locaux, fichiers Compose, `infra/caddy/**`, `infra/images/**`, `infra/observability/**`, `brand/**`, `api/**` ou outillage `mise` | Profils et QR générés, tests isolés du contrôleur Compose et des rapports du cockpit, syntaxe shell, modèles Compose avec et sans observabilité, refus des configurations dangereuses, validation de Caddy, CORS, package `shared`, lint, tests et builds des fronts |
 | `e2e.yml` | `push` ou `pull_request` ciblé sur le package, sa configuration ou l'outillage `mise`, chaque heure à la minute 17 après activation, plus déclenchement manuel | validation légère sur push et PR ; Chromium, smokes sans écriture, rapport Allure 3, historique propre à la cible, traces et artefact rejouable pour les lancements de surveillance |
 | `toolchain.yml` | `push` ou `pull_request`, `mise.toml`, `mise.lock`, `package.json`, `renovate.json5` ou le workflow lui-même | Validation de la configuration Renovate, installation réelle de Node, Java et Python depuis le lockfile sur Ubuntu, puis affichage des versions résolues |
-| `images.yml` (cible) | `push` sur `main`, chemins `backend/**`, `frontends/**`, `brand/**`, `config/domains/**`, `infra/images/**`, `infra/observability/**`, fichiers Compose | Build des quatre images applicatives et du Caddy DNS pour le profil production, contrôle qu'aucun artefact development n'entre dans les images, tag par SHA complet, push vers GHCR ; Prometheus et Grafana restent des images amont épinglées |
+| `images.yml` | `push` sur `main` ou `pull_request`, chemins `backend/**`, `frontends/**`, `brand/**`, profils, recettes d'images, scripts et fichiers Compose | Contrôles BuildKit et Compose, build production des quatre images applicatives, scan Trivy bloquant ; sur `main` seulement, tag par SHA complet, push `linux/amd64` vers GHCR, SBOM, provenance et attestation |
 | `deploy.yml` (cible) | Fin réussie de `images.yml` sur `main`, ou déclenchement manuel avec un SHA complet | Connexion SSH au VPS, sélection de `IMAGE_TAG`, wrapper Compose, attente des healthchecks publics |
 
 Une PR Renovate et sa fusion suivent deux chemins distincts :
@@ -104,12 +104,24 @@ push sur main
      |         +--> api.yml         (si api/ touché)
      |         +--> pages.yml       (à chaque push sur main)
      |
-     +--> images.yml  (cible, si une recette ou un module déployé change)
+     +--> images.yml  (si une recette ou un module déployé change)
                 |
                 +--> deploy.yml  (cible, si images.yml réussit)
 ```
 
-La cible ne doit publier puis déployer les images qu'après la réussite des portes API, Backend et Frontends du même SHA sur `main`. Cette dépendance reste à encoder avec les deux workflows manquants ; elle ne doit pas être remplacée par une simple course en parallèle. Une exécution `pull_request` ne peut jamais atteindre cette chaîne.
+La publication d'un SHA peut se faire en parallèle des autres portes : une image immuable présente dans GHCR n'est pas une promotion. Le futur `deploy.yml` devra attendre la réussite des portes API, Backend, Frontends, Pages et Images du même SHA sur `main` avant de rendre ce SHA actif sur le VPS. Une exécution `pull_request` ne peut jamais atteindre la publication ni le déploiement.
+
+## Le workflow Images
+
+`images.yml` commence par `npm run images:check` et `npm run compose:config:test`. La première commande exécute les contrôles du frontend Dockerfile épinglé sur toutes les recettes et variantes. La seconde résout les profils development et production, puis vérifie notamment que les secrets sensibles viennent de fichiers hôte protégés et passent sous `/run/secrets`, que les valeurs directes ont disparu de la configuration des conteneurs, que les capacités, utilisateurs et systèmes de fichiers correspondent à la politique et que les logs ont une rotation bornée.
+
+Une matrice construit ensuite `backend`, `onboarding`, `commande` et `dashboard` pour le profil production. Les caches npm et Maven de BuildKit sont conservés dans le cache GitHub Actions, sans entrer dans les couches finales. Chaque image chargée localement est analysée par Trivy 0.72.0. Une vulnérabilité `HIGH` ou `CRITICAL` disposant d'un correctif arrête le workflow. Les actions GitHub, Docker, Trivy et d'attestation sont toutes épinglées par SHA.
+
+Sur une PR, le workflow s'arrête après le scan. Sur un push vers `main`, une seconde matrice reconstruit depuis le même SHA et publie seulement le tag immuable `ghcr.io/nclsppr/surplasse/<image>:<sha-complet>`. BuildKit ajoute les labels OCI, la SBOM et la provenance maximale. GitHub atteste ensuite le digest poussé avec l'identité OIDC du workflow. Les permissions `packages: write`, `id-token: write` et `attestations: write` existent uniquement dans ce job.
+
+La publication initiale cible `linux/amd64`. Si le VPS retenu utilise ARM, le changement doit précéder son provisionnement : la CI construira et scannera chaque architecture avant de publier un manifeste commun. L'image `edge` reste exclue tant que `CADDY_DNS_MODULE` et le fournisseur ne sont pas décidés. Les images PostgreSQL, Prometheus, Grafana et Mailpit continuent à venir directement de leur éditeur avec un digest.
+
+La clé Stripe publiable de Commande peut être fournie par la variable de dépôt `VITE_STRIPE_PUBLISHABLE_KEY`. Elle est publique et intégrée par Vite. Aucun secret Stripe, SMTP, PostgreSQL, JWT ou DNS n'entre dans le workflow ou dans un argument de build.
 
 Les jobs `domains` et `dev-cockpit` utilisent seulement Node 24 et son runner de tests natif. Le contrôleur Compose du cockpit y reçoit un exécuteur simulé : ce job ne démarre ni Docker, ni le cluster, ni Chromium. Les jobs `commande` et `dashboard` installent d'abord `frontends/shared/`, consommé en source conformément à l'ADR-0014, puis leur propre verrou npm. Le job Dashboard exécute successivement `npm run lint`, `npm test` et `npm run build`. Ce dernier inclut `tsc --noEmit` avant le build Vite. Aucun de ces outils de vérification ne devient un processus de production.
 
@@ -197,7 +209,7 @@ Les secrets sont portés par les GitHub Environments, pas par des secrets de dé
 | `VPS_USER` | `production` | Utilisateur de déploiement (non privilégié) |
 | `VPS_SSH_KEY` | `production` | Clé privée SSH dédiée au déploiement |
 
-Le push vers GHCR utilise le `GITHUB_TOKEN` éphémère du workflow, aucun secret supplémentaire n'est requis. Les secrets applicatifs (Stripe, API OpenAI, base de données) ne transitent jamais par la CI : ils vivent dans le fichier d'environnement du VPS, décrit dans [Environnements](../operations/environnements.md). La CI sait déployer, elle ne sait pas ce que l'application déploie.
+Le push vers GHCR utilise le `GITHUB_TOKEN` éphémère du workflow, aucun secret supplémentaire n'est requis. Les secrets applicatifs (Stripe, API OpenAI, base de données) ne transitent jamais par la CI : ils vivent dans le fichier d'environnement du VPS, décrit dans [Environnements](../operations/environnements.md). La seule valeur Stripe du build est la clé publiable, stockée comme variable GitHub non secrète. La CI sait déployer, elle ne sait pas ce que l'application déploie.
 
 Cette séparation borne le rayon d'action d'une compromission : un secret de CI qui fuite donne au pire un accès SSH restreint au compte de déploiement, pas les clés Stripe live. Elle simplifie aussi la rotation : changer une clé applicative se fait sur le VPS et se prend en compte au redémarrage du service concerné, sans toucher à GitHub.
 

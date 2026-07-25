@@ -128,6 +128,43 @@ require_private_permissions() {
   }
 }
 
+prepare_secret_directory() {
+  local directory_path="$1"
+  [[ "$directory_path" == /* ]] || {
+    printf 'Error: the Compose secret directory must use an absolute path.\n' >&2
+    exit 1
+  }
+  [[ ! -L "$directory_path" ]] || {
+    printf 'Error: the Compose secret directory cannot be a symbolic link: %s\n' \
+      "$directory_path" >&2
+    exit 1
+  }
+  mkdir -p "$directory_path"
+  chmod 0700 "$directory_path"
+  [[ -d "$directory_path" && ! -L "$directory_path" ]] || {
+    printf 'Error: invalid Compose secret directory: %s\n' "$directory_path" >&2
+    exit 1
+  }
+}
+
+materialize_secret() {
+  local variable_name="$1"
+  local file_name="$2"
+  local target_path="${COMPOSE_SECRET_DIRECTORY}/${file_name}"
+  local temporary_path
+
+  [[ ! -L "$target_path" ]] || {
+    printf 'Error: a Compose secret target cannot be a symbolic link: %s\n' \
+      "$target_path" >&2
+    exit 1
+  }
+  temporary_path="$(mktemp "${COMPOSE_SECRET_DIRECTORY}/.${file_name}.XXXXXX")"
+  printf '%s' "${!variable_name:-}" >"$temporary_path"
+  chmod 0600 "$temporary_path"
+  mv -f "$temporary_path" "$target_path"
+  export "COMPOSE_SECRET_${variable_name}_FILE=$target_path"
+}
+
 if [[ "$PROFILE" == development ]]; then
   load_environment_file "${REPOSITORY_ROOT}/backend/.env" || true
   load_environment_file "${REPOSITORY_ROOT}/frontends/commande/.env" || true
@@ -135,6 +172,14 @@ if [[ "$PROFILE" == development ]]; then
     printf 'Error: missing development deployment profile.\n' >&2
     exit 1
   }
+  for optional_secret in \
+    SMTP_PASSWORD \
+    SMTP_USERNAME \
+    STRIPE_ACCOUNT_WEBHOOK_SECRET \
+    STRIPE_PAYMENT_WEBHOOK_SECRET \
+    STRIPE_SECRET_KEY; do
+    export "$optional_secret=${!optional_secret:-}"
+  done
   export LOCAL_TLS_CERTIFICATE_FILE="${REPOSITORY_ROOT}/.certs/${APP_BASE_DOMAIN}.pem"
   export LOCAL_TLS_PRIVATE_KEY_FILE="${REPOSITORY_ROOT}/.certs/${APP_BASE_DOMAIN}-key.pem"
   if [[ -z "${LOCAL_TLS_CA_FILE:-}" ]]; then
@@ -175,6 +220,7 @@ if [[ "$PROFILE" == development ]]; then
     exit 1
   }
   export LOCAL_CONTROL_TOKEN
+  COMPOSE_SECRET_DIRECTORY="${REPOSITORY_ROOT}/.surplasse/compose-secrets/development"
   COMPOSE_OVERRIDE="${REPOSITORY_ROOT}/compose.development.yaml"
 else
   SECRETS_FILE="${SURPLASSE_SECRETS_FILE:-}"
@@ -231,6 +277,7 @@ else
     printf 'Error: CADDY_DNS_PROVIDER must be a valid Caddy provider identifier.\n' >&2
     exit 1
   }
+  COMPOSE_SECRET_DIRECTORY="$(dirname "$SECRETS_FILE")/secrets/compose"
   COMPOSE_OVERRIDE="${REPOSITORY_ROOT}/compose.production.yaml"
 fi
 
@@ -331,6 +378,32 @@ if [[ "$PROFILE" == production ]]; then
     }
   fi
 fi
+
+prepare_secret_directory "$COMPOSE_SECRET_DIRECTORY"
+for secret_variable in \
+  GRAFANA_ADMIN_PASSWORD \
+  GRAFANA_SECRET_KEY \
+  POSTGRES_PASSWORD \
+  SMTP_PASSWORD \
+  SMTP_USERNAME \
+  STRIPE_ACCOUNT_WEBHOOK_SECRET \
+  STRIPE_PAYMENT_WEBHOOK_SECRET \
+  STRIPE_SECRET_KEY; do
+  materialize_secret "$secret_variable" "$secret_variable"
+done
+if [[ "$PROFILE" == production ]]; then
+  materialize_secret DNS_API_TOKEN dns_api_token
+fi
+unset \
+  DNS_API_TOKEN \
+  GRAFANA_ADMIN_PASSWORD \
+  GRAFANA_SECRET_KEY \
+  POSTGRES_PASSWORD \
+  SMTP_PASSWORD \
+  SMTP_USERNAME \
+  STRIPE_ACCOUNT_WEBHOOK_SECRET \
+  STRIPE_PAYMENT_WEBHOOK_SECRET \
+  STRIPE_SECRET_KEY
 
 exec docker compose \
   --project-directory "$REPOSITORY_ROOT" \

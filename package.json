@@ -31,6 +31,7 @@
     "local:logs": "bash scripts/compose.sh development logs --follow",
     "local:ps": "bash scripts/compose.sh development ps",
     "compose:config:test": "bash scripts/test-compose-config.sh",
+    "images:check": "bash scripts/check-container-images.sh",
     "e2e:install": "npm --prefix e2e run browser:install",
     "e2e:check": "npm --prefix e2e run check",
     "e2e:report:export": "npm --prefix e2e run report:export --",
