@@ -131,7 +131,11 @@ for secret_file in \
   STRIPE_ACCOUNT_WEBHOOK_SECRET \
   STRIPE_PAYMENT_WEBHOOK_SECRET \
   STRIPE_SECRET_KEY; do
-  secret_path="${TEST_DIRECTORY}/secrets/compose/${secret_file}"
+  if [[ "$secret_file" == DNS_API_TOKEN ]]; then
+    secret_path="${TEST_DIRECTORY}/secrets/compose/dns_api_token"
+  else
+    secret_path="${TEST_DIRECTORY}/secrets/compose/${secret_file}"
+  fi
   [[ -f "$secret_path" && ! -L "$secret_path" ]] || {
     printf 'Error: the wrapper did not materialize %s as a regular secret file.\n' \
       "$secret_file" >&2
