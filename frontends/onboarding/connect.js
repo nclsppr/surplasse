@@ -1,4 +1,4 @@
-(function configureStripeConnectPilot() {
+(function configureStripeConnect() {
   "use strict";
 
   window.StripeConnect = window.StripeConnect || {};
@@ -36,6 +36,12 @@
     const announcement = document.getElementById("connect-announcement");
     const onboardingContainer = document.getElementById("onboarding-container");
     const notificationContainer = document.getElementById("notification-container");
+    const dashboardLink = document.getElementById("fallback-dashboard");
+    const dashboardUrl = window.SURPLASSE_DOMAIN_CONFIG?.DASHBOARD_URL;
+
+    if (dashboardLink && dashboardUrl) {
+      dashboardLink.href = `${dashboardUrl}/auth/login`;
+    }
 
     loader.hidden = false;
     fallback.hidden = true;
@@ -49,14 +55,18 @@
       });
       const config = await configResponse.json().catch(() => ({}));
       if (!configResponse.ok || typeof config.publishableKey !== "string") {
-        const staticPreview = configResponse.status === 404;
+        const publicStaticPage = configResponse.status === 404;
         showFallback({
-          title: staticPreview ? "Aperçu public uniquement" : "Le pilote n'est pas configuré.",
-          message: staticPreview
-            ? "Le formulaire Stripe réel est volontairement désactivé sur la démonstration publique. Il fonctionne seulement dans l'environnement local sécurisé du pilote."
-            : "Ajoutez les variables Stripe du compte pilote local, puis relancez l'Onboarding.",
-          retry: !staticPreview,
-          context: staticPreview ? "Démonstration publique" : "Configuration locale requise",
+          title: publicStaticPage
+            ? "Activation des paiements indisponible"
+            : "La configuration Stripe est incomplète.",
+          message: publicStaticPage
+            ? "Reprenez l'activation depuis votre espace restaurant pour ouvrir le formulaire sécurisé."
+            : "Vérifiez la configuration Stripe de l'établissement, puis relancez l'Onboarding.",
+          retry: !publicStaticPage,
+          context: publicStaticPage
+            ? "Activation à reprendre depuis le Dashboard"
+            : "Configuration Stripe requise",
         });
         return;
       }
@@ -106,7 +116,7 @@
         title: "Impossible de charger le formulaire.",
         message: "La connexion sécurisée à Stripe n'a pas abouti. Vérifiez votre réseau puis réessayez.",
         retry: true,
-        context: "Connexion au compte pilote interrompue",
+        context: "Connexion sécurisée interrompue",
       });
     } finally {
       initializing = false;

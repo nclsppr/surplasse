@@ -43,19 +43,33 @@ test("Onboarding landing presents production-ready product evidence", async () =
 test("Onboarding landing interaction follows the canonical order states", async () => {
   const script = await readFile(`${repoRoot}/frontends/onboarding/index.js`, "utf8");
 
-  assert.match(script, /id: "paid", label: "Nouvelle commande"/);
-  assert.match(script, /id: "accepted", label: "Commande acceptée"/);
-  assert.match(script, /id: "preparing", label: "En préparation"/);
-  assert.match(script, /id: "ready", label: "Commande prête"/);
-  assert.match(script, /id: "served", label: "Commande servie"/);
-  assert.match(script, /action: "Rejouer le parcours"/);
+  assert.match(script, /id: "paid",\s+label: "Nouvelle commande"/);
+  assert.match(script, /id: "accepted",\s+label: "Commande acceptée"/);
+  assert.match(script, /id: "preparing",\s+label: "En préparation"/);
+  assert.match(script, /id: "ready",\s+label: "Commande prête"/);
+  assert.match(script, /id: "served",\s+label: "Commande servie"/);
+  assert.match(script, /action: "Rejouer depuis le QR"/);
+  assert.match(script, /data-trigger-order/);
+  assert.match(script, /data-reset-order/);
+  assert.match(script, /statusRail\.scrollTo/);
   assert.doesNotMatch(script, /simulation/i);
   assert.match(script, /domainConfig\.DASHBOARD_URL/);
   assert.match(script, /domainConfig\.DOCS_URL/);
   assert.doesNotMatch(script, /https:\/\/(?:dashboard\.|docs\.)?surplasse\.(?:com|test)/);
 });
 
-test("Onboarding demonstration ends with a truthful Dashboard service preview", async () => {
+test("Stripe activation fallback returns to the configured Dashboard", async () => {
+  const html = await readFile(`${repoRoot}/frontends/onboarding/connect.html`, "utf8");
+  const script = await readFile(`${repoRoot}/frontends/onboarding/connect.js`, "utf8");
+
+  assert.match(html, /src="runtime-config\.js"/);
+  assert.match(html, /id="fallback-dashboard"/);
+  assert.match(script, /SURPLASSE_DOMAIN_CONFIG\?\.DASHBOARD_URL/);
+  assert.match(script, /dashboardLink\.href = `\$\{dashboardUrl\}\/auth\/login`/);
+  assert.doesNotMatch(`${html}\n${script}`, /Démonstration|Simulation locale|mode test|compte pilote/i);
+});
+
+test("Onboarding flow ends with the Dashboard service controls", async () => {
   const html = await readFile(`${repoRoot}/frontends/onboarding/creer.html`, "utf8");
 
   assert.match(html, /aria-valuemax="5"/);
@@ -71,15 +85,15 @@ test("Onboarding demonstration ends with a truthful Dashboard service preview", 
   assert.match(html, /paiement Stripe est déjà lancé/);
   assert.match(html, /servir ou la rembourser/);
   assert.match(html, /confirmDashboardPause/);
-  assert.match(html, /Simulation locale/);
+  assert.match(html, /Service en cours/);
   assert.match(html, /Nouvelles/);
   assert.match(html, /Acceptées/);
   assert.match(html, /En préparation/);
   assert.match(html, /Prêtes/);
   assert.match(html, /Lancer la préparation/);
   assert.match(html, /Marquer comme servie/);
-  assert.match(html, /aucune commande réelle n'est créée ou mise à jour/i);
-  assert.match(html, /L'édition de la carte, l'historique et les métriques viendront/);
+  assert.match(html, /Votre canal direct est prêt/);
+  assert.doesNotMatch(html, /Démonstration|Simulation locale|Données de démonstration/i);
   assert.doesNotMatch(html, /Temps réel actif/);
 });
 

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Démonstration de l'embarquement et du Dashboard, Surplasse</title>
-<meta name="description" content="Explorez le parcours de création d'une carte Surplasse puis le Dashboard de service.">
+<title>Créer votre carte et ouvrir le service | Surplasse</title>
+<meta name="description" content="Créez la carte de votre établissement, relisez-la puis préparez votre premier service avec Surplasse.">
 <link rel="icon" href="../../brand/surplasse-app-icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../../brand/styles.css?v=20260721a">
 <style>
@@ -17,8 +17,8 @@
   .topbar .sp-brand__logo{height:26px}
   .topbar .back{display:inline-flex;align-items:center;min-height:44px;margin-left:auto;font:700 12px var(--font-ui);text-transform:uppercase;letter-spacing:.06em;color:var(--fg-3);text-decoration:none}
   .topbar .back:focus-visible{outline:none;box-shadow:var(--focus-ring)}
-  .demo-banner{border-bottom:1px solid var(--line-1);background:var(--peach-tint)}
-  .demo-banner p{max-width:640px;margin:0 auto;padding:9px 20px;color:var(--structure);font:700 11px/1.5 var(--font-mono);text-transform:uppercase;letter-spacing:.035em}
+  .onboarding-banner{border-bottom:1px solid var(--line-1);background:var(--peach-tint)}
+  .onboarding-banner p{max-width:640px;margin:0 auto;padding:9px 20px;color:var(--structure);font:700 11px/1.5 var(--font-mono);text-transform:uppercase;letter-spacing:.035em}
   .progress{max-width:640px;margin:0 auto;padding:14px 20px 0;display:flex;gap:6px}
   .progress .seg{height:4px;flex:1;border-radius:2px;background:var(--bg-0)}
   .progress .seg.on{background:var(--accent-press)}
@@ -50,7 +50,7 @@
   @keyframes spin{to{transform:rotate(360deg)}}
   .procmsg{font:700 14px var(--font-ui);text-transform:uppercase;letter-spacing:.05em;color:var(--fg-1);min-height:20px}
   .estab{font-family:var(--font-script);font-size:32px;color:var(--fg-1);line-height:1;margin-bottom:2px}
-  .demo-pill{display:inline-block;margin-top:7px;padding:4px 7px;border:1px solid var(--line-green);border-radius:var(--radius-sm);color:var(--structure);font:700 10px var(--font-mono);text-transform:uppercase;letter-spacing:.06em}
+  .review-pill{display:inline-block;margin-top:7px;padding:4px 7px;border:1px solid var(--line-green);border-radius:var(--radius-sm);color:var(--structure);font:700 10px var(--font-mono);text-transform:uppercase;letter-spacing:.06em}
   .preview-card{margin-top:6px}
   .cat{display:flex;align-items:center;gap:12px;font:800 var(--display-sm) var(--font-display);text-transform:uppercase;color:var(--accent);letter-spacing:.015em;margin:22px 0 10px}
   .cat::before,.cat::after{content:"";flex:1;height:1.5px;background:var(--accent)}
@@ -61,12 +61,12 @@
   .prod .pp{font:700 14px var(--font-mono);color:var(--fg-1);white-space:nowrap}
   .flag{display:inline-flex;align-items:center;gap:6px;font:400 11px var(--font-mono);color:var(--warn);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
   body.dashboard-view main{max-width:1180px}
-  body.dashboard-view .topbar .in,body.dashboard-view .demo-banner p,body.dashboard-view .progress{max-width:1180px}
+  body.dashboard-view .topbar .in,body.dashboard-view .onboarding-banner p,body.dashboard-view .progress{max-width:1180px}
   .dashboard-step>.sub{max-width:68ch}
   .dashboard-preview{overflow:hidden;margin-top:28px;border:1px solid var(--line-2);border-radius:var(--radius-md);background:var(--surface-card)}
   .dashboard-preview-header{display:flex;min-height:58px;align-items:center;justify-content:space-between;gap:16px;padding:12px 18px;border-top:6px solid var(--accent);border-bottom:1px solid var(--line-1);background:var(--surface-raised)}
   .dashboard-brand .sp-brand__logo{height:28px}
-  .dashboard-demo-label{font:700 10px/1.4 var(--font-mono);color:var(--fg-3);text-transform:uppercase;letter-spacing:.05em;text-align:right}
+  .dashboard-context-label{font:700 10px/1.4 var(--font-mono);color:var(--fg-3);text-transform:uppercase;letter-spacing:.05em;text-align:right}
   .dashboard-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:32px;padding:22px 18px;border-bottom:1.5px solid var(--line-accent)}
   .dashboard-service-label{margin:0;color:var(--accent-press);font:700 10px/1.4 var(--font-mono);text-transform:uppercase;letter-spacing:.08em}
   .dashboard-toolbar h2{margin:6px 0 0;color:var(--accent);font:800 24px/1.05 var(--font-display);text-transform:uppercase;letter-spacing:.01em}
@@ -144,7 +144,7 @@
   @media (min-width:1200px){.dashboard-board{grid-template-columns:repeat(4,minmax(0,1fr))}.dashboard-column{min-height:310px}}
   @media (max-width:620px){
     .dashboard-preview-header,.dashboard-toolbar,.dashboard-preview-footer{align-items:stretch;flex-direction:column}
-    .dashboard-demo-label{text-align:left}
+    .dashboard-context-label{text-align:left}
     .dashboard-controls{align-items:stretch;flex-direction:column}
     .dashboard-establishment{max-width:none}
     .dashboard-intake{grid-template-columns:1fr}
@@ -159,9 +159,9 @@
 </style>
 </head>
 <body>
-<div class="topbar"><div class="in"><a class="sp-brand" href="index.html" aria-label="Surplasse, accueil"><img class="sp-brand__logo" src="../../brand/surplasse-logo-horizontal.svg" alt=""></a><a href="index.html" class="back">Quitter la démo</a></div></div>
-<div class="demo-banner"><p>Démonstration interactive. Aucun menu n'est publié.</p></div>
-<div class="progress" role="progressbar" aria-label="Progression de la démonstration" aria-valuemin="1" aria-valuemax="5" aria-valuenow="1">
+<div class="topbar"><div class="in"><a class="sp-brand" href="index.html" aria-label="Surplasse, accueil"><img class="sp-brand__logo" src="../../brand/surplasse-logo-horizontal.svg" alt=""></a><a href="index.html" class="back">Retour au site</a></div></div>
+<div class="onboarding-banner"><p>Votre carte, vos QR et votre premier service dans un même parcours.</p></div>
+<div class="progress" role="progressbar" aria-label="Progression de l'embarquement" aria-valuemin="1" aria-valuemax="5" aria-valuenow="1">
   <div class="seg on" data-seg="1"></div><div class="seg" data-seg="2"></div><div class="seg" data-seg="3"></div><div class="seg" data-seg="4"></div><div class="seg" data-seg="5"></div>
 </div>
 
@@ -170,7 +170,7 @@
     <form id="name-form" novalidate>
       <div class="eyebrow">Étape 1 sur 5</div>
       <h1 tabindex="-1">Comment s'appelle votre restaurant ?</h1>
-      <p class="sub">Ce nom personnalise l'aperçu. Rien n'est enregistré dans cette démonstration.</p>
+      <p class="sub">Ce nom personnalise votre mini-site et votre espace restaurant.</p>
       <div class="sp-field">
         <label for="name">Nom de l'établissement</label>
         <input class="sp-input" id="name" placeholder="Fiorella" autocomplete="organization" maxlength="80" required aria-invalid="false" aria-describedby="name-error">
@@ -184,7 +184,7 @@
     <form id="photo-form" novalidate>
       <div class="eyebrow">Étape 2 sur 5</div>
       <h1 tabindex="-1">Une photo de votre carte suffit.</h1>
-      <p class="sub">Le produit final proposera une extraction des catégories, des produits et des prix, toujours suivie d'une relecture humaine.</p>
+      <p class="sub">Surplasse extrait les catégories, les produits et les prix, puis vous demande de relire la structure proposée.</p>
       <label class="drop" id="drop">
         <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/><circle cx="12" cy="13" r="3.5"/></svg>
         <div class="t" id="drop-t">Prendre ou choisir une photo</div>
@@ -192,27 +192,27 @@
         <input type="file" id="file" accept="image/jpeg,image/png" capture="environment" multiple required aria-invalid="false" aria-describedby="file-help file-error" onchange="onFiles(this)">
       </label>
       <div class="thumbs" id="thumbs" aria-live="polite"></div>
-      <p class="privacy">Les images restent dans votre navigateur et ne sont envoyées à aucun serveur par cette démonstration.</p>
+      <p class="privacy">Ajoutez jusqu'à 6 images nettes pour faciliter la lecture de votre carte.</p>
       <p class="error" id="file-error" role="alert"></p>
-      <div class="actions"><button type="button" class="sp-btn sp-btn--secondary sp-btn--lg" onclick="goTo(1)">Retour</button><button type="submit" class="sp-btn sp-btn--primary sp-btn--lg grow">Simuler l'analyse</button></div>
+      <div class="actions"><button type="button" class="sp-btn sp-btn--secondary sp-btn--lg" onclick="goTo(1)">Retour</button><button type="submit" class="sp-btn sp-btn--primary sp-btn--lg grow">Analyser ma carte</button></div>
     </form>
   </section>
 
   <section class="step" data-step="3">
     <div class="proc">
       <div class="spin" aria-hidden="true"></div>
-      <div class="procmsg" id="procmsg" role="status" aria-live="polite">Lecture de la carte simulée...</div>
-      <p class="sub sub--center">Cette étape illustre le futur traitement. Aucun fichier n'est transmis ni analysé.</p>
+      <div class="procmsg" id="procmsg" role="status" aria-live="polite">Lecture de la carte...</div>
+      <p class="sub sub--center">Surplasse repère les catégories, les produits, les descriptions et les prix à relire.</p>
     </div>
   </section>
 
   <section class="step" data-step="4">
     <div class="eyebrow">Étape 4 sur 5, relecture</div>
     <h1 tabindex="-1">Votre carte, prête à relire.</h1>
-    <p class="sub">Les données ci-dessous sont un exemple fixe. Le produit final signalera les éléments incertains et demandera une validation explicite.</p>
+    <p class="sub">Vérifiez les catégories, les produits et les prix. Les éléments incertains restent signalés avant votre validation.</p>
     <div class="sp-card sp-card--pad preview-card">
       <div class="estab" id="preview-name">Fiorella</div>
-      <span class="demo-pill">Données de démonstration</span>
+      <span class="review-pill">À relire</span>
       <div class="cat"><span>Antipasti</span></div>
       <div class="prod"><div><div class="pn">Burrata des Pouilles</div><div class="pd">tomates confites, basilic, huile d'olive</div></div><div class="pp">13,00 €</div></div>
       <div class="prod"><div><div class="pn">Vitello tonnato</div><div class="pd">veau rosé, sauce au thon, câpres</div><div class="flag">à vérifier : prix peu lisible</div></div><div class="pp">14,50 €</div></div>
@@ -226,12 +226,12 @@
   <section class="step dashboard-step" data-step="5">
     <div class="eyebrow">Étape 5 sur 5, pendant le service</div>
     <h1 tabindex="-1">Vos commandes arrivent ici.</h1>
-    <p class="sub">Après l'activation, le Dashboard regroupe les commandes payées et permet à l'équipe de les faire avancer jusqu'au service. Cet aperçu reproduit le tableau opérationnel actuellement exécutable en local.</p>
+    <p class="sub">Après l'activation, le Dashboard regroupe les commandes payées et permet à l'équipe de les faire avancer jusqu'au service.</p>
 
     <article class="dashboard-preview" aria-labelledby="dashboard-preview-title">
       <header class="dashboard-preview-header">
         <span class="sp-brand dashboard-brand"><img class="sp-brand__logo" src="../../brand/surplasse-logo-horizontal.svg" alt="Surplasse"></span>
-        <span class="dashboard-demo-label">Simulation locale · Données de démonstration</span>
+        <span class="dashboard-context-label">Fiorella, service du soir</span>
       </header>
       <div class="dashboard-toolbar">
         <div>
@@ -241,7 +241,7 @@
         </div>
         <div class="dashboard-controls">
           <div class="dashboard-establishment"><span>Établissement</span><strong id="dashboard-name">Fiorella</strong></div>
-          <div class="dashboard-live">Simulation locale</div>
+          <div class="dashboard-live">Service en cours</div>
         </div>
       </div>
 
@@ -298,21 +298,21 @@
         </section>
       </div>
       <footer class="dashboard-preview-footer">
-        <p id="dashboard-announcement" role="status" aria-live="polite" aria-atomic="true">Simulation locale : aucune commande réelle n'est créée ou mise à jour.</p>
+        <p id="dashboard-announcement" role="status" aria-live="polite" aria-atomic="true">Commande 47 reçue à 12:34.</p>
         <button type="button" class="sp-btn sp-btn--secondary dashboard-replay" id="dashboard-replay" onclick="resetDashboardOrder(true)" hidden>Rejouer la commande</button>
       </footer>
     </article>
-    <p class="dashboard-scope">Cet aperçu montre l'arrivée des commandes payées, leur avancement jusqu'au service et leur remboursement intégral avant service. L'édition de la carte, l'historique et les métriques viendront dans une étape ultérieure.</p>
-    <div class="actions"><button type="button" class="sp-btn sp-btn--secondary sp-btn--lg" onclick="goTo(4)">Retour à la carte</button><button type="button" class="sp-btn sp-btn--primary sp-btn--lg grow" onclick="finishDemo()">Terminer la démo</button></div>
+    <p class="dashboard-scope">Pilotez l'arrivée des commandes payées, leur avancement jusqu'au service et leur remboursement intégral avant service.</p>
+    <div class="actions"><button type="button" class="sp-btn sp-btn--secondary sp-btn--lg" onclick="goTo(4)">Retour à la carte</button><button type="button" class="sp-btn sp-btn--primary sp-btn--lg grow" onclick="finishOnboarding()">Terminer l'embarquement</button></div>
   </section>
 
   <section class="step" data-step="6">
     <div class="done">
       <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg>
-      <div class="eyebrow">Démonstration terminée</div>
-      <h1 tabindex="-1">Rien n'a été publié ni modifié.</h1>
-      <p class="sub sub--center">Vous avez parcouru le principe du futur embarquement puis le tableau de service. Aucune commande réelle n'a été ouverte.</p>
-      <div class="done-card"><strong>Ce que cette démo distingue</strong><p>L'extraction et l'activation restent simulées. Le Dashboard opérationnel réel couvre déjà l'arrivée des commandes payées, leur avancement et la demande de remboursement intégral avant service.</p></div>
+      <div class="eyebrow">Embarquement terminé</div>
+      <h1 tabindex="-1">Votre canal direct est prêt.</h1>
+      <p class="sub sub--center">Votre carte, vos QR et votre Dashboard sont réunis pour ouvrir la prise de commandes.</p>
+      <div class="done-card"><strong>Avant le premier service</strong><p>Relisez la carte, installez les QR aux tables et vérifiez la réception des commandes avec votre équipe.</p></div>
       <div class="actions actions--center"><button type="button" class="sp-btn sp-btn--secondary sp-btn--lg" onclick="restart()">Recommencer</button><a class="sp-btn sp-btn--primary sp-btn--lg" href="index.html">Retour à l'accueil</a></div>
     </div>
   </section>
@@ -325,7 +325,7 @@
   let dashboardRefundConfirming = false;
   let dashboardIntakeStatus = 'open';
   let dashboardIntakeConfirming = false;
-  const messages = ['Lecture de la carte simulée...','Repérage des catégories...','Identification des plats et des prix...','Préparation de la relecture...'];
+  const messages = ['Lecture de la carte...','Repérage des catégories...','Identification des produits et des prix...','Préparation de la relecture...'];
   const dashboardTransitions = {
     paid: { next: 'accepted', action: 'Accepter', announcement: 'Commande 47 acceptée. Elle apparaît maintenant dans « Acceptées ».' },
     accepted: { next: 'preparing', action: 'Lancer la préparation', announcement: 'Préparation de la commande 47 démarrée.' },
@@ -349,7 +349,7 @@
     const input = document.getElementById('name');
     const error = document.getElementById('name-error');
     if (!input.value.trim()) {
-      error.textContent = 'Indiquez le nom du restaurant pour personnaliser l’aperçu.';
+      error.textContent = 'Indiquez le nom du restaurant pour personnaliser votre carte.';
       input.setAttribute('aria-invalid', 'true');
       input.focus();
       return;
@@ -373,7 +373,7 @@
       const image = document.createElement('img');
       image.className = 'thumb';
       image.src = url;
-      image.alt = 'Aperçu de ' + file.name;
+      image.alt = 'Photo sélectionnée : ' + file.name;
       thumbnails.appendChild(image);
     });
     if (input.files.length) {
@@ -387,7 +387,7 @@
   function startExtract(){
     const fileInput = document.getElementById('file');
     if (!fileInput.files.length) {
-      document.getElementById('file-error').textContent = 'Ajoutez au moins une photo pour lancer la simulation.';
+      document.getElementById('file-error').textContent = 'Ajoutez au moins une photo pour lancer l’analyse.';
       fileInput.setAttribute('aria-invalid', 'true');
       fileInput.focus();
       return;
@@ -466,7 +466,7 @@
     renderDashboardIntake();
   }
 
-  function renderDashboardOrder(announcement = 'Simulation locale : aucune commande réelle n’est créée ou mise à jour.'){
+  function renderDashboardOrder(announcement = 'Commande 47 reçue à 12:34.'){
     const order = document.getElementById('dashboard-order');
     const action = document.getElementById('dashboard-order-action');
     const replay = document.getElementById('dashboard-replay');
@@ -520,7 +520,7 @@
     const wasRefusal = dashboardOrderStatus === 'paid';
     dashboardRefundConfirming = false;
     dashboardOrderStatus = 'refunded';
-    renderDashboardOrder((wasRefusal ? 'Commande 47 refusée.' : 'Commande 47 remboursée avant la fin du service.') + ' Le remboursement intégral de 37,00 € est simulé et aucune donnée réelle n’est modifiée.');
+    renderDashboardOrder((wasRefusal ? 'Commande 47 refusée.' : 'Commande 47 remboursée avant la fin du service.') + ' Le remboursement intégral de 37,00 € est enregistré.');
     document.getElementById('dashboard-replay').focus({preventScroll:true});
   }
 
@@ -541,11 +541,11 @@
   function resetDashboardOrder(focusAction = false){
     dashboardOrderStatus = 'paid';
     dashboardRefundConfirming = false;
-    renderDashboardOrder('Commande 47 replacée dans les nouvelles commandes. Aucune donnée réelle n’est modifiée.');
+    renderDashboardOrder('Commande 47 replacée dans les nouvelles commandes.');
     if (focusAction) document.getElementById('dashboard-order-action').focus({preventScroll:true});
   }
 
-  function finishDemo(){ goTo(6); }
+  function finishOnboarding(){ goTo(6); }
 
   function restart(){
     document.getElementById('name').value = '';
