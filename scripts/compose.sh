@@ -400,6 +400,12 @@ if [[ "$PROFILE" == production ]]; then
 fi
 
 prepare_secret_directory "$COMPOSE_SECRET_DIRECTORY"
+if [[ "$PROFILE" == development && -f "$LOCAL_TLS_PRIVATE_KEY_FILE" ]]; then
+  materialize_secret_file \
+    LOCAL_TLS_PRIVATE_KEY_FILE \
+    local_tls_private_key \
+    LOCAL_TLS_PRIVATE_KEY_FILE
+fi
 for secret_variable in \
   GRAFANA_ADMIN_PASSWORD \
   GRAFANA_SECRET_KEY \
