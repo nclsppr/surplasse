@@ -32,7 +32,7 @@ Le contrat est le seul artefact lu par les quatre applications et par les géné
 
 ## Règles de rédaction
 
-Le contrat est rédigé **en anglais** : chemins, identifiants, `summary`, `description` et exemples. Le français reste la langue de la documentation Retype ; le contrat, lui, est un artefact de code.
+Le contrat est rédigé **en anglais** : chemins, identifiants, `summary`, `description` et exemples. Le français reste la langue de la documentation Nimbus ; le contrat, lui, est un artefact de code.
 
 | Règle | Détail |
 |---|---|

@@ -17,7 +17,5 @@
 **/playwright-report
 **/target
 **/test-results
-docs-site
 docs-nimbus/src/content/docs
 e2e
-retype.manifest

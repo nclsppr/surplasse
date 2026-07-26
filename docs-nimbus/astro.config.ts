@@ -13,22 +13,24 @@ function requireEnvironment(name: string): string {
 }
 
 const siteOrigin = requireEnvironment("NIMBUS_SITE_ORIGIN");
-const basePath = requireEnvironment("NIMBUS_BASE_PATH").replace(/\/+$/, "");
+const rawBasePath = requireEnvironment("NIMBUS_BASE_PATH");
 
-if (!basePath.startsWith("/")) {
+if (!rawBasePath.startsWith("/")) {
   throw new Error("NIMBUS_BASE_PATH must start with '/'.");
 }
+
+const basePath = rawBasePath === "/" ? "" : rawBasePath.replace(/\/+$/, "");
 
 const nimbusConfig = defineNimbusConfig({
   site: siteOrigin,
   title: "Surplasse Docs",
   description:
-    "Aperçu Nimbus de la documentation produit, technique et opérationnelle de Surplasse.",
+    "Documentation produit, technique et opérationnelle de Surplasse.",
   locale: "fr",
   homeLabel: "Accueil",
   github: "https://github.com/nclsppr/surplasse",
   editPattern: null,
-  socialImageAlt: "Aperçu de la documentation Surplasse avec Nimbus",
+  socialImageAlt: "Documentation Surplasse avec Nimbus",
   sidebar: {
     defaultCollapsed: true,
   },

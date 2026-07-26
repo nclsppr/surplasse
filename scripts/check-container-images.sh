@@ -33,7 +33,7 @@ check_dockerfile infra/images/docs.Dockerfile \
   --build-arg "NODE_IMAGE=${NODE_IMAGE}" \
   --build-arg "NGINX_IMAGE=${NGINX_IMAGE}" \
   --build-arg NIMBUS_SITE_ORIGIN=https://docs.example.invalid \
-  --build-arg NIMBUS_BASE_PATH=/_experiments/nimbus-docs
+  --build-arg NIMBUS_BASE_PATH=/
 
 for frontend_name in commande dashboard; do
   check_dockerfile infra/images/frontend.Dockerfile \

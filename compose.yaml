@@ -18,6 +18,7 @@ services:
       ONBOARDING_UPSTREAM: onboarding:4173
       COMMANDE_UPSTREAM: commande:8080
       DASHBOARD_UPSTREAM: dashboard:8080
+      DOCS_UPSTREAM: docs:8080
     volumes:
       - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -30,6 +31,8 @@ services:
       commande:
         condition: service_healthy
       dashboard:
+        condition: service_healthy
+      docs:
         condition: service_healthy
     networks:
       default:
@@ -200,6 +203,32 @@ services:
         FRONTEND_NAME: dashboard
         DOMAIN_PROFILE: ${DEPLOYMENT_PROFILE:?DEPLOYMENT_PROFILE is required}
         STRIPE_PUBLIC_VALUE: ""
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    user: "101:101"
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+
+  docs:
+    image: ${IMAGE_REGISTRY:?IMAGE_REGISTRY is required}/docs:${IMAGE_TAG:?IMAGE_TAG is required}
+    build:
+      context: .
+      dockerfile: infra/images/docs.Dockerfile
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:?NODE_IMAGE is required}
+        NGINX_IMAGE: ${NGINX_IMAGE:?NGINX_IMAGE is required}
+        NIMBUS_SITE_ORIGIN: ${DOCS_URL:?DOCS_URL is required}
+        NIMBUS_BASE_PATH: /
     read_only: true
     tmpfs:
       - /tmp

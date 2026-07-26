@@ -59,6 +59,13 @@ https://{$APP_BASE_DOMAIN}, https://*.{$APP_BASE_DOMAIN} {
 		}
 	}
 
+	@docs host docs.{$APP_BASE_DOMAIN}
+	handle @docs {
+		reverse_proxy {$DOCS_UPSTREAM} {
+			import forwarded_headers
+		}
+	}
+
 	import /etc/caddy/routes/profile.caddy
 
 	@dashboard host dashboard.{$APP_BASE_DOMAIN}

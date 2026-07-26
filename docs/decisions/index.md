@@ -85,7 +85,7 @@ Ne jamais « corriger » un ADR pour l'aligner sur une page plus récente. Soit 
 
 ## Registre des ADR
 
-Trente-sept ADR sont consignés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'au déploiement commun par Docker Compose, à son cockpit local, à sa surveillance fonctionnelle, à son observabilité technique, au socle professionnel du Dashboard, aux expériences de frontends et de documentation alternatifs, ainsi qu'à l'outillage reproductible, aux mises à jour de dépendances et aux images de conteneurs vérifiables.
+Trente-huit ADR sont consignés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'au déploiement commun par Docker Compose, à son cockpit local, à sa surveillance fonctionnelle, à son observabilité technique, au socle professionnel du Dashboard, aux expériences de frontends, à la documentation Nimbus canonique, ainsi qu'à l'outillage reproductible, aux mises à jour de dépendances et aux images de conteneurs vérifiables.
 
 | Numéro | Titre | Statut | Lien |
 |---|---|---|---|
@@ -97,7 +97,7 @@ Trente-sept ADR sont consignés à ce jour. Ils couvrent les choix structurants 
 | 0006 | SSE pour le temps réel | Accepté | [ADR-0006](adr-0006-sse.md) |
 | 0007 | Stripe pour les paiements | Remplacé par ADR-0020 | [ADR-0007](adr-0007-stripe.md) |
 | 0008 | Magic link pour l'authentification des restaurateurs | Accepté | [ADR-0008](adr-0008-magic-link.md) |
-| 0009 | Retype pour la documentation | Accepté | [ADR-0009](adr-0009-retype.md) |
+| 0009 | Retype pour la documentation | Remplacé par ADR-0038 | [ADR-0009](adr-0009-retype.md) |
 | 0010 | Fournisseur IA (OpenAI derrière interface) | Accepté | [ADR-0010](adr-0010-fournisseur-ia.md) |
 | 0011 | Visuels de plats générés | Remplacé par ADR-0025 | [ADR-0011](adr-0011-visuels-plats.md) |
 | 0012 | Tailwind et shadcn/ui | Accepté | [ADR-0012](adr-0012-tailwind-shadcn.md) |
@@ -122,9 +122,10 @@ Trente-sept ADR sont consignés à ce jour. Ils couvrent les choix structurants 
 | 0031 | Équipes, rôles et vues métier | Accepté | [ADR-0031](adr-0031-equipes-roles-vues-metier.md) |
 | 0032 | Canal prépayé sans fonction de caisse | Accepté | [ADR-0032](adr-0032-canal-prepaye-sans-caisse.md) |
 | 0033 | Frontends alternatifs fondés sur Untitled UI | Accepté | [ADR-0033](adr-0033-frontends-alternatifs-untitled-ui.md) |
-| 0034 | Double rendu Retype et Nimbus à source unique | Accepté | [ADR-0034](adr-0034-double-rendu-retype-nimbus.md) |
+| 0034 | Double rendu Retype et Nimbus à source unique | Remplacé par ADR-0038 | [ADR-0034](adr-0034-double-rendu-retype-nimbus.md) |
 | 0035 | Java 25, Quarkus courant et outillage mise | Accepté | [ADR-0035](adr-0035-java-25-quarkus-courant-et-mise.md) |
 | 0036 | Renovate pour les mises à jour | Accepté | [ADR-0036](adr-0036-renovate-pour-les-mises-a-jour.md) |
 | 0037 | Images de conteneurs durcies et vérifiables | Accepté | [ADR-0037](adr-0037-images-conteneurs-durcies.md) |
+| 0038 | Nimbus comme documentation canonique | Accepté | [ADR-0038](adr-0038-nimbus-documentation-canonique.md) |
 
 Les décisions encore ouvertes (par exemple le choix de la solution d'impression thermique ESC/POS mentionné dans la stack de référence) donneront lieu à de futurs ADR au fil de la [roadmap](../roadmap.md).

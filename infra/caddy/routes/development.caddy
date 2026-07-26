@@ -37,45 +37,6 @@ handle @commande2 {
 	}
 }
 
-@docs_root {
-	host docs.{$APP_BASE_DOMAIN}
-	path /
-}
-handle @docs_root {
-	rewrite * /surplasse/docs/
-	reverse_proxy {$DOCS_UPSTREAM} {
-		import forwarded_headers
-	}
-}
-
-@docs_nimbus {
-	host docs.{$APP_BASE_DOMAIN}
-	path /_experiments/nimbus-docs /_experiments/nimbus-docs/*
-}
-handle @docs_nimbus {
-	reverse_proxy {$DOCS_UPSTREAM} {
-		import forwarded_headers
-	}
-}
-
-@docs_pretty {
-	host docs.{$APP_BASE_DOMAIN}
-	not path /surplasse/docs /surplasse/docs/*
-}
-handle @docs_pretty {
-	rewrite * /surplasse/docs{uri}
-	reverse_proxy {$DOCS_UPSTREAM} {
-		import forwarded_headers
-	}
-}
-
-@docs host docs.{$APP_BASE_DOMAIN}
-handle @docs {
-	reverse_proxy {$DOCS_UPSTREAM} {
-		import forwarded_headers
-	}
-}
-
 @local_control host local.{$APP_BASE_DOMAIN}
 handle @local_control {
 	reverse_proxy {$LOCAL_CONTROL_UPSTREAM} {

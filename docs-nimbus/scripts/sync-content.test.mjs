@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 import {
-  convertRetypeDocument,
+  convertSourceDocument,
   destinationFor,
 } from "./sync-content.mjs";
 
-test("maps Retype metadata and removes the body H1", () => {
+test("maps source metadata and removes the body H1", () => {
   const source = `---
 label: Accueil
 order: 1
@@ -19,18 +19,19 @@ description: La page d'accueil.
 Contenu.
 `;
 
-  const result = convertRetypeDocument(source, "README.md", "/preview");
+  const result = convertSourceDocument(source, "README.md", "/preview");
 
   assert.match(result.content, /^---\ntitle: Surplasse\n/);
   assert.match(result.content, /description: La page d'accueil\./);
   assert.match(result.content, /sidebar:\n  order: 1\n  label: Accueil/);
-  assert.match(result.content, /noindex: true\nsearchable: true/);
+  assert.match(result.content, /searchable: true/);
+  assert.doesNotMatch(result.content, /noindex:/);
   assert.doesNotMatch(result.content, /icon:/);
   assert.doesNotMatch(result.content, /^# Surplasse$/m);
   assert.match(result.content, /\nContenu\.\n$/);
 });
 
-test("converts Retype callouts and Markdown file links", () => {
+test("converts source callouts and Markdown file links", () => {
   const source = `---
 label: Exemple
 description: Exemple de conversion.
@@ -43,7 +44,7 @@ Lire [la décision](../decisions/index.md#statut), [les décisions](../decisions
 !!!
 `;
 
-  const result = convertRetypeDocument(
+  const result = convertSourceDocument(
     source,
     "guides/exemple.md",
     "/preview",
@@ -55,7 +56,22 @@ Lire [la décision](../decisions/index.md#statut), [les décisions](../decisions
   );
 });
 
-test("removes Retype heading ids that MDX would parse as expressions", () => {
+test("generates root-relative links for the canonical domain", () => {
+  const source = `---
+label: Exemple
+---
+
+# Exemple
+
+Lire [la décision](../decisions/index.md).
+`;
+
+  const result = convertSourceDocument(source, "guides/exemple.md", "/");
+
+  assert.match(result.content, /\[la décision\]\(\/decisions\/\)/);
+});
+
+test("removes source heading ids that MDX would parse as expressions", () => {
   const source = `---
 label: Exemple
 ---
@@ -69,7 +85,7 @@ label: Exemple
 \`\`\`
 `;
 
-  const result = convertRetypeDocument(source, "exemple.md", "/preview");
+  const result = convertSourceDocument(source, "exemple.md", "/preview");
 
   assert.match(result.content, /^## Section stable$/m);
   assert.doesNotMatch(result.content, /^## Section stable \{#section-stable\}$/m);
@@ -87,7 +103,7 @@ test("writes the derived collection as MDX so Nimbus transforms directives", () 
   );
 });
 
-test("does not rewrite Retype markers inside fenced code", () => {
+test("does not rewrite source markers inside fenced code", () => {
   const source = `---
 label: Exemple
 ---
@@ -100,21 +116,21 @@ label: Exemple
 \`\`\`
 `;
 
-  const result = convertRetypeDocument(source, "exemple.md", "/preview");
+  const result = convertSourceDocument(source, "exemple.md", "/preview");
 
   assert.match(result.content, /!!! warning Exemple littéral\n!!!/);
   assert.doesNotMatch(result.content, /:::warning/);
 });
 
-test("rejects malformed Retype documents", () => {
+test("rejects malformed source documents", () => {
   assert.throws(
-    () => convertRetypeDocument("# Sans front matter\n", "bad.md", "/preview"),
+    () => convertSourceDocument("# Sans front matter\n", "bad.md", "/preview"),
     /Missing YAML frontmatter/,
   );
 
   assert.throws(
     () =>
-      convertRetypeDocument(
+      convertSourceDocument(
         `---
 label: Sans titre
 ---

@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - "backend/**"
+      - "docs/**"
+      - "docs-nimbus/**"
       - "frontends/**"
       - "brand/**"
       - "config/domains/**"
@@ -25,6 +27,8 @@ on:
       - main
     paths:
       - "backend/**"
+      - "docs/**"
+      - "docs-nimbus/**"
       - "frontends/**"
       - "brand/**"
       - "config/domains/**"
@@ -83,6 +87,8 @@ jobs:
             dockerfile: infra/images/frontend.Dockerfile
           - image: dashboard
             dockerfile: infra/images/frontend.Dockerfile
+          - image: docs
+            dockerfile: infra/images/docs.Dockerfile
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
@@ -93,6 +99,8 @@ jobs:
           STRIPE_PUBLIC_VALUE: ${{ vars.VITE_STRIPE_PUBLISHABLE_KEY }}
         run: |
           source config/deployment/images.env
+          source config/domains/production.env
+          docs_origin="${APP_SCHEME}://docs.${APP_BASE_DOMAIN}"
           {
             echo "value<<BUILD_ARGS"
             case "$IMAGE_NAME" in
@@ -112,6 +120,12 @@ jobs:
                 echo "DOMAIN_PROFILE=production"
                 echo "FRONTEND_NAME=$IMAGE_NAME"
                 echo "STRIPE_PUBLIC_VALUE=$STRIPE_PUBLIC_VALUE"
+                ;;
+              docs)
+                echo "NODE_IMAGE=$NODE_IMAGE"
+                echo "NGINX_IMAGE=$NGINX_IMAGE"
+                echo "NIMBUS_SITE_ORIGIN=$docs_origin"
+                echo "NIMBUS_BASE_PATH=/"
                 ;;
               *)
                 exit 64
@@ -164,6 +178,8 @@ jobs:
             dockerfile: infra/images/frontend.Dockerfile
           - image: dashboard
             dockerfile: infra/images/frontend.Dockerfile
+          - image: docs
+            dockerfile: infra/images/docs.Dockerfile
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
@@ -179,6 +195,8 @@ jobs:
           STRIPE_PUBLIC_VALUE: ${{ vars.VITE_STRIPE_PUBLISHABLE_KEY }}
         run: |
           source config/deployment/images.env
+          source config/domains/production.env
+          docs_origin="${APP_SCHEME}://docs.${APP_BASE_DOMAIN}"
           {
             echo "value<<BUILD_ARGS"
             case "$IMAGE_NAME" in
@@ -198,6 +216,12 @@ jobs:
                 echo "DOMAIN_PROFILE=production"
                 echo "FRONTEND_NAME=$IMAGE_NAME"
                 echo "STRIPE_PUBLIC_VALUE=$STRIPE_PUBLIC_VALUE"
+                ;;
+              docs)
+                echo "NODE_IMAGE=$NODE_IMAGE"
+                echo "NGINX_IMAGE=$NGINX_IMAGE"
+                echo "NIMBUS_SITE_ORIGIN=$docs_origin"
+                echo "NIMBUS_BASE_PATH=/"
                 ;;
               *)
                 exit 64

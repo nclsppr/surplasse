@@ -47,10 +47,10 @@ Deux décisions protègent cette trajectoire :
 
 ### Livrables
 
-- Documentation Retype complète : produit, architecture, développement, opérations.
+- Documentation Nimbus complète : produit, architecture, développement, opérations.
 - Conventions de contribution (terminologie canonique, style, workflow git) dans `docs/AGENTS.md`.
 - Premiers ADR pour les décisions déjà prises (stack, contract-first, monorepo).
-- CI de la documentation : build Retype vérifié à chaque push et sur les pull requests Renovate, déploiement automatique sur GitHub Pages depuis `main` seulement.
+- CI de la documentation : build Nimbus vérifié à chaque push et sur les pull requests Renovate, déploiement automatique sur GitHub Pages depuis `main` seulement.
 
 ### Risques et parades
 

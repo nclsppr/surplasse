@@ -22,7 +22,7 @@ Le navigateur utilise toujours une URL HTTPS dérivée de `config/domains/develo
 | `commande` | Build Vite statique du profil de développement | Même Dockerfile, build du profil de production |
 | `dashboard` | Build Vite statique du profil de développement | Même Dockerfile, build du profil de production |
 | `mailpit` | SMTP et boîte jetable | Absent, remplacé par le SMTP transactionnel |
-| `docs` | Build Retype statique | Absent du VPS, publié sur GitHub Pages |
+| `docs` | Build Nimbus statique servi par NGINX | Même image sur le VPS, également publiée sur GitHub Pages |
 | `prometheus` | Collecte interne des métriques Backend, profil `observability` | Même service facultatif, sans port public |
 | `grafana` | Tableau de bord opérationnel sur l'URL centrale, profil `observability` | Même service facultatif, accessible seulement par port loopback et tunnel SSH |
 

@@ -9,7 +9,6 @@ services:
     ports:
       - ${CADDY_HTTPS_BIND_ADDRESS:?CADDY_HTTPS_BIND_ADDRESS is required}:${CADDY_HTTPS_PORT:?CADDY_HTTPS_PORT is required}:443
     environment:
-      DOCS_UPSTREAM: docs:8080
       MAILPIT_UPSTREAM: mailpit:8025
       GRAFANA_UPSTREAM: grafana:3000
       LOCAL_CONTROL_UPSTREAM: host.docker.internal:4174
@@ -131,36 +130,6 @@ services:
     logging: *development-logging
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/"]
-      interval: 10s
-      timeout: 5s
-      retries: 6
-      start_period: 5s
-
-  docs:
-    image: ${IMAGE_REGISTRY:?IMAGE_REGISTRY is required}/docs:${IMAGE_TAG:?IMAGE_TAG is required}
-    build:
-      context: .
-      dockerfile: infra/images/docs.Dockerfile
-      args:
-        NODE_IMAGE: ${NODE_IMAGE:?NODE_IMAGE is required}
-        NGINX_IMAGE: ${NGINX_IMAGE:?NGINX_IMAGE is required}
-        NIMBUS_SITE_ORIGIN: ${DOCS_URL:?DOCS_URL is required}
-        NIMBUS_BASE_PATH: /_experiments/nimbus-docs
-    read_only: true
-    tmpfs:
-      - /tmp
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    user: "101:101"
-    logging: *development-logging
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "wget --quiet --spider http://127.0.0.1:8080/surplasse/docs/ && wget --quiet --spider http://127.0.0.1:8080/_experiments/nimbus-docs/",
-        ]
       interval: 10s
       timeout: 5s
       retries: 6

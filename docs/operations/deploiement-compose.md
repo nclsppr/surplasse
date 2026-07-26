@@ -7,14 +7,14 @@ description: Construction, configuration, démarrage, mise à jour, retour arri�
 
 # Déploiement Docker Compose
 
-La pile versionnée est maintenant exécutable. Elle sert au cluster local et constitue le socle du futur VPS. Son profil facultatif `observability` ajoute Prometheus et Grafana sans modifier les dépendances ni la readiness de la pile applicative. La production réelle n'est pas encore provisionnée : le fournisseur DNS, son module et son image Caddy, le SMTP transactionnel, les CSP de Commande et du Dashboard, les sauvegardes hors site, la sonde externe avec son canal d'alerte et le VPS doivent être configurés avant le premier trafic réel. Les quatre images applicatives possèdent déjà leur chaîne GHCR.
+La pile versionnée est maintenant exécutable. Elle sert au cluster local et constitue le socle du futur VPS. Son profil facultatif `observability` ajoute Prometheus et Grafana sans modifier les dépendances ni la readiness de la pile applicative. La production réelle n'est pas encore provisionnée : le VPS, le DNS `.com`, le module DNS et l'image Caddy, le SMTP transactionnel, les CSP de Commande et du Dashboard, les sauvegardes hors site et la sonde externe avec son canal d'alerte doivent être configurés avant le premier trafic réel. Les cinq images applicatives possèdent déjà leur chaîne GHCR.
 
 L'[ADR-0026](../decisions/adr-0026-compose-commun.md) fixe le modèle et l'[ADR-0037](../decisions/adr-0037-images-conteneurs-durcies.md) sa politique de construction et de durcissement. Les trois fichiers ont des rôles distincts :
 
 | Fichier | Rôle |
 |---|---|
-| `compose.yaml` | Graphe commun : Caddy, PostgreSQL, Backend, Onboarding, Commande et Dashboard ; Prometheus et Grafana dans le profil `observability` |
-| `compose.development.yaml` | Certificat mkcert, publication locale de 443, Mailpit, documentation et routes protégées vers le cockpit, son rapport et Grafana |
+| `compose.yaml` | Graphe commun : Caddy, PostgreSQL, Backend, Onboarding, Commande, Dashboard et documentation Nimbus ; Prometheus et Grafana dans le profil `observability` |
+| `compose.development.yaml` | Certificat mkcert, publication locale de 443, Mailpit et routes protégées vers le cockpit, son rapport et Grafana |
 | `compose.production.yaml` | Publication de 80 et 443, TLS DNS-01, clés JWT, redémarrage automatique ; Grafana sur la boucle locale seulement |
 
 `scripts/compose.sh` applique toujours le socle puis une seule surcharge. Appeler directement `docker compose` sans ces deux fichiers et sans profil n'est pas supporté.
@@ -23,7 +23,7 @@ L'[ADR-0026](../decisions/adr-0026-compose-commun.md) fixe le modèle et l'[ADR-
 
 Il existe un seul Caddy de bord par pile. Il termine TLS, redirige HTTP vers HTTPS en production, applique la frontière CORS et route les noms d'hôte. Il est le seul conteneur publié sur les interfaces réseau accessibles. Grafana peut publier un port supplémentaire uniquement sur `127.0.0.1` du VPS lorsque l'observabilité est activée.
 
-Les trois fronts utilisent chacun un NGINX non privilégié en production pour servir leurs fichiers statiques. Le profil development de l'Onboarding substitue son petit serveur Node afin de fournir la session Stripe test locale. Ces serveurs internes ne terminent pas TLS et ne sont pas des reverse proxies publics. PostgreSQL, Backend et les trois fronts ne publient aucun port hôte dans le socle commun.
+Les trois fronts et la documentation utilisent chacun un NGINX non privilégié en production pour servir leurs fichiers statiques. Le profil development de l'Onboarding substitue son petit serveur Node afin de fournir la session Stripe test locale. Ces serveurs internes ne terminent pas TLS et ne sont pas des reverse proxies publics. PostgreSQL, Backend, documentation et fronts ne publient aucun port hôte dans le socle commun.
 
 ## Versions et images
 
@@ -39,11 +39,12 @@ Les images applicatives sont :
 | `onboarding` | Configuration JavaScript générée pour le profil choisi | Node 24 en développement, NGINX non privilégié et utilisateur `101` en production |
 | `commande` | TypeScript et Vite avec le profil choisi | NGINX non privilégié, utilisateur `101` |
 | `dashboard` | TypeScript et Vite avec le profil choisi | NGINX non privilégié, utilisateur `101` |
+| `docs` | Nimbus 0.8.2 et Astro avec l'origine documentaire du profil | NGINX non privilégié, utilisateur `101` |
 | `edge` | Caddy officiel en local, `xcaddy` avec le module DNS en production | Caddy 2.11.4 |
 
 Les outils de build ne sont pas présents dans les images statiques finales. Le Backend et l'image development de l'Onboarding conservent seulement le fichier de domaine sélectionné. Le profil Maven de l'artefact Backend de production exclut physiquement `db/seed/`, et le Dockerfile arrête la construction si cette ressource apparaît encore dans le JAR du catalogue. L'image production de l'Onboarding ne conserve que les fichiers statiques déjà configurés, sans Node ni profil development. Le contenu de `backend/.env`, les certificats, les dossiers `target`, `dist`, `node_modules`, rapports, caches et secrets sont exclus du contexte par `.dockerignore`.
 
-Les Dockerfiles épinglent aussi le frontend Dockerfile par version et digest, activent les contrôles BuildKit en erreur et montent des caches npm ou Maven qui ne rejoignent jamais le runtime. `npm run images:check` valide toutes les recettes et tous leurs profils sans les construire. Le workflow `images.yml` construit et scanne les quatre images applicatives sur les pull requests concernées. Sur `main`, il les publie sous le SHA complet pour `linux/amd64`, avec labels OCI, SBOM, provenance maximale et attestation GitHub. Une vulnérabilité `HIGH` ou `CRITICAL` corrigible détectée par Trivy bloque la publication.
+Les Dockerfiles épinglent aussi le frontend Dockerfile par version et digest, activent les contrôles BuildKit en erreur et montent des caches npm ou Maven qui ne rejoignent jamais le runtime. `npm run images:check` valide toutes les recettes et tous leurs profils sans les construire. Le workflow `images.yml` construit et scanne les cinq images applicatives sur les pull requests concernées. Sur `main`, il les publie sous le SHA complet pour `linux/amd64`, avec labels OCI, SBOM, provenance maximale et attestation GitHub. Une vulnérabilité `HIGH` ou `CRITICAL` corrigible détectée par Trivy bloque la publication.
 
 L'image `edge` rejoindra cette chaîne après le choix du fournisseur DNS et de son module versionné. PostgreSQL, Prometheus, Grafana et Mailpit restent des images amont consommées directement avec leur digest.
 
@@ -81,7 +82,7 @@ install -m 0600 \
   /etc/surplasse/production.env
 ```
 
-Remplacer chaque valeur `change-me`. Le fichier contient les paramètres de déploiement et les secrets. Il ne contient jamais `APP_BASE_DOMAIN`, `APP_BASE_URL`, `API_URL`, `DASHBOARD_URL` ou `COOKIE_DOMAIN`. Ces valeurs viennent exclusivement de `config/domains/production.env`. Le parseur refuse toute tentative de les redéfinir. Le wrapper exige aussi un mode qui interdit tout accès au groupe et aux autres utilisateurs.
+Remplacer chaque valeur `change-me`. Le fichier contient les paramètres de déploiement et les secrets. Il ne contient jamais `APP_BASE_DOMAIN`, `APP_BASE_URL`, `API_URL`, `DASHBOARD_URL`, `DOCS_URL` ou `COOKIE_DOMAIN`. Ces valeurs viennent exclusivement de `config/domains/production.env`. Le parseur refuse toute tentative de les redéfinir. Le wrapper exige aussi un mode qui interdit tout accès au groupe et aux autres utilisateurs.
 
 Les prérequis bloquants sont :
 
@@ -89,7 +90,7 @@ Les prérequis bloquants sont :
 - les secrets Stripe live et `STRIPE_LIVE_MODE=true` ;
 - la clé privée JWT, le JWKS, le `kid` et leurs chemins hôte ;
 - un SMTP transactionnel avec STARTTLS ou TLS selon son port ;
-- un fournisseur DNS supporté par Caddy, son module Go épinglé par version, son identifiant Caddy et un jeton limité à la zone ;
+- un fournisseur DNS supporté par Caddy, son module Go épinglé par version, son identifiant Caddy et un jeton limité à la zone `surplasse.com` ;
 - une CSP explicite et testée pour Commande et le Dashboard, avec les seules origines API et Stripe nécessaires ;
 - `ONBOARDING_STRIPE_PILOT_ENABLED=false`.
 
@@ -113,7 +114,7 @@ scripts/compose.sh production config --quiet
 scripts/compose.sh production build
 ```
 
-La sortie complète de `config` expose les paramètres résolus et les noms des sources de secrets. Utiliser `--quiet` dans les journaux partagés. En CI, les quatre images applicatives sont construites et scannées avant leur push vers GHCR avec le SHA git. Une image existante ne doit jamais être reconstruite sous le même SHA.
+La sortie complète de `config` expose les paramètres résolus et les noms des sources de secrets. Utiliser `--quiet` dans les journaux partagés. En CI, les cinq images applicatives sont construites et scannées avant leur push vers GHCR avec le SHA git. Une image existante ne doit jamais être reconstruite sous le même SHA.
 
 ## Démarrer et contrôler
 
@@ -130,9 +131,10 @@ curl --fail https://api.surplasse.com/q/health/ready
 curl --fail https://surplasse.com/
 curl --fail https://dashboard.surplasse.com/
 curl --fail https://le-cormoran.surplasse.com/
+curl --fail https://docs.surplasse.com/
 ```
 
-`--wait` exige un état sain pour PostgreSQL, le Backend, les trois fronts et Caddy. Flyway applique les migrations avant que le Backend devienne prêt. Caddy doit charger sa configuration et servir son identité de bord en HTTPS. Une impossibilité de servir HTTPS, une erreur de migration ou un secret invalide maintient le déploiement en échec. La validité publique complète du certificat reste contrôlée par le smoke externe, qui garde une validation TLS stricte en production.
+`--wait` exige un état sain pour PostgreSQL, le Backend, les trois fronts, la documentation et Caddy. Flyway applique les migrations avant que le Backend devienne prêt. Caddy doit charger sa configuration et servir son identité de bord en HTTPS. Une impossibilité de servir HTTPS, une erreur de migration ou un secret invalide maintient le déploiement en échec. La validité publique complète des certificats reste contrôlée par le smoke externe, qui garde une validation TLS stricte en production.
 
 Depuis un poste d'exploitation ou GitHub Actions, jamais en installant Node sur le VPS, rejouer ensuite le smoke navigateur avec le même profil public :
 

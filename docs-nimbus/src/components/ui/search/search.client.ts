@@ -1,4 +1,6 @@
+import { mount } from "@cloudflare/nimbus-docs/client";
 import type { SearchProvider, SearchResult } from "@cloudflare/nimbus-docs/types";
+import { provider } from "./providers/pagefind";
 
 export interface SearchConfig {
   input: HTMLInputElement;
@@ -199,3 +201,71 @@ export function initSearch(config: SearchConfig): SearchInstance {
     },
   };
 }
+
+type SearchDialogElement = HTMLDialogElement & {
+  __openSearchDialog?: () => void;
+};
+
+function primaryDialog(): SearchDialogElement | null {
+  return document.querySelector<SearchDialogElement>(
+    "[data-search-dialog][data-search-ready]",
+  );
+}
+
+let globalsBound = false;
+
+function bindGlobals() {
+  if (globalsBound) return;
+  globalsBound = true;
+
+  document.addEventListener("click", (event) => {
+    const trigger = (event.target as Element | null)?.closest(
+      "[data-search-trigger]",
+    );
+    if (!trigger) return;
+    primaryDialog()?.__openSearchDialog?.();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (
+      !(event.metaKey || event.ctrlKey) ||
+      event.key.toLowerCase() !== "k"
+    ) {
+      return;
+    }
+    const dialog = primaryDialog();
+    if (!dialog) return;
+    event.preventDefault();
+    if (dialog.open) dialog.close();
+    else dialog.__openSearchDialog?.();
+  });
+}
+
+mount("[data-search-dialog]", (root) => {
+  const dialog = root as SearchDialogElement;
+  dialog.setAttribute("data-search-ready", "true");
+
+  const input = dialog.querySelector<HTMLInputElement>("[data-search-input]");
+  const resultsContainer =
+    dialog.querySelector<HTMLElement>("[data-search-results]");
+  const emptyState =
+    dialog.querySelector<HTMLElement>("[data-search-empty]");
+  if (!input || !resultsContainer || !emptyState) return () => {};
+
+  const search = initSearch({
+    input,
+    resultsContainer,
+    emptyState,
+    provider,
+    onNavigate: () => dialog.close(),
+  });
+
+  dialog.__openSearchDialog = () => {
+    if (!dialog.open) dialog.showModal();
+    void search.reset();
+  };
+
+  return () => search.destroy();
+});
+
+bindGlobals();

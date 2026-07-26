@@ -86,12 +86,12 @@ function convertCallouts(body, sourcePath) {
     const opening = line.match(/^!!!\s+([a-z]+)(?:\s+(.+))?\s*$/);
     if (opening) {
       if (activeCallout !== null) {
-        throw new Error(`Nested Retype callout in ${sourcePath}`);
+        throw new Error(`Nested callout in ${sourcePath}`);
       }
 
       const [, type, title] = opening;
       if (!allowedCalloutTypes.has(type)) {
-        throw new Error(`Unsupported Retype callout type "${type}" in ${sourcePath}`);
+        throw new Error(`Unsupported callout type "${type}" in ${sourcePath}`);
       }
 
       activeCallout = type;
@@ -103,13 +103,13 @@ function convertCallouts(body, sourcePath) {
   }
 
   if (activeCallout !== null) {
-    throw new Error(`Unclosed Retype callout in ${sourcePath}`);
+    throw new Error(`Unclosed callout in ${sourcePath}`);
   }
 
   return converted.join("\n");
 }
 
-function convertRetypeHeadingIds(body) {
+function convertSourceHeadingIds(body) {
   const lines = body.split(/\r?\n/);
   const converted = [];
   let activeFence = null;
@@ -138,6 +138,9 @@ function convertRetypeHeadingIds(body) {
 
 function normalizeBasePath(value) {
   const rawBasePath = value.trim();
+  if (rawBasePath === "") {
+    return "";
+  }
   if (!rawBasePath.startsWith("/")) {
     throw new Error("NIMBUS_BASE_PATH must start with '/'.");
   }
@@ -188,7 +191,7 @@ function convertInternalLinks(body, sourcePath, basePath) {
   );
 }
 
-export function convertRetypeDocument(
+export function convertSourceDocument(
   source,
   sourcePath = "document.md",
   basePath = "/",
@@ -211,12 +214,11 @@ export function convertRetypeDocument(
         : {}),
       label,
     },
-    noindex: true,
     searchable: true,
   };
 
   const body = convertInternalLinks(
-    convertRetypeHeadingIds(
+    convertSourceHeadingIds(
       convertCallouts(bodyWithoutTitle, sourcePath),
     ),
     sourcePath,
@@ -279,7 +281,6 @@ function syntheticIndexContent(indexData, children) {
       ...(Number.isInteger(indexData.order) ? { order: indexData.order } : {}),
       label,
     },
-    noindex: true,
     searchable: true,
   };
 
@@ -413,7 +414,7 @@ export async function syncContent() {
   for (const sourcePath of sourceFiles) {
     const relativePath = toPosixPath(path.relative(sourceRoot, sourcePath));
     const outputPath = destinationFor(sourcePath);
-    const converted = convertRetypeDocument(
+    const converted = convertSourceDocument(
       await readFile(sourcePath, "utf8"),
       relativePath,
       normalizedBasePath,

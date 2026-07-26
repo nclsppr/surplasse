@@ -10,7 +10,7 @@ description: Prérequis, installation, commandes, ports et premier lancement de 
 Cette page est le point d'entrée de la section développement : ce qu'il faut installer sur sa machine, comment cloner et lancer le monorepo, quelles commandes exécuter dans chaque répertoire et comment diagnostiquer les problèmes les plus fréquents. Pour comprendre ce que l'on fait tourner avant de le lancer, lire d'abord la [vue d'ensemble de l'architecture](../architecture/index.md).
 
 !!! info État actuel
-Au 2026-07-23, la documentation, le contrat OpenAPI, le Backend Quarkus, Commande, le Dashboard, la préfiguration statique de l'Onboarding et le package partagé sont exécutables. Le cluster Docker Compose local assemble Caddy, PostgreSQL, ces applications, Mailpit et les rendus Retype et Nimbus de la documentation sous `surplasse.test`. Nimbus reste un aperçu non indexé généré depuis les sources Retype canoniques, conformément à l'[ADR-0034](../decisions/adr-0034-double-rendu-retype-nimbus.md). Le profil facultatif `frontend-experiment` ajoute Onboarding2, Commande2 et Dashboard2, fondés sur `design-system2`, pour comparer une direction Untitled UI conformément à l'[ADR-0033](../decisions/adr-0033-frontends-alternatifs-untitled-ui.md). Ces variantes restent absentes des routes et images de production. Un autre profil facultatif ajoute Prometheus et Grafana sans les placer dans le chemin applicatif. Le cockpit pilote les services autorisés du profil development, lance le smoke Playwright local et publie son dernier rapport Allure sur `REPORTS_URL`. Le cluster canonique exerce le même graphe applicatif, les mêmes recettes applicatives et le même routage Caddy que la cible `surplasse.com`. Aucun VPS public n'est encore provisionné.
+Au 2026-07-26, la documentation, le contrat OpenAPI, le Backend Quarkus, Commande, le Dashboard, la préfiguration statique de l'Onboarding et le package partagé sont exécutables. Le cluster Docker Compose local assemble Caddy, PostgreSQL, ces applications, Mailpit et la documentation Nimbus canonique sous `surplasse.test`, conformément à l'[ADR-0038](../decisions/adr-0038-nimbus-documentation-canonique.md). Le profil facultatif `frontend-experiment` ajoute Onboarding2, Commande2 et Dashboard2, fondés sur `design-system2`, pour comparer une direction Untitled UI conformément à l'[ADR-0033](../decisions/adr-0033-frontends-alternatifs-untitled-ui.md). Ces variantes restent absentes des routes et images de production. Un autre profil facultatif ajoute Prometheus et Grafana sans les placer dans le chemin applicatif. Le cockpit pilote les services autorisés du profil development, lance le smoke Playwright local et publie son dernier rapport Allure sur `REPORTS_URL`. Le cluster canonique exerce le même graphe applicatif, les mêmes recettes applicatives et le même routage Caddy que les cibles `surplasse.com` et `docs.surplasse.com`. Aucun VPS public n'est encore provisionné.
 !!!
 
 !!! info URL locales canoniques
@@ -42,7 +42,7 @@ L'environnement de développement utilise `mise` comme gestionnaire unique des r
 Précisions :
 
 - **mise** : `mise.toml` exige au minimum la version 2026.7.13. `mise.lock` verrouille Node 24.18.0, Temurin 25.0.3+9 et Python 3.12.13 sur les quatre plateformes prises en charge. L'activation du shell ajuste aussi `JAVA_HOME`. Pour un script, un IDE ou tout processus non interactif, utiliser `mise exec -- <commande>` afin de fournir le même environnement sans dépendre de l'initialisation du shell.
-- **Node 24.18.0** : il couvre npm, Vite, Retype, Nimbus, les scripts du contrat et le cockpit. L'image Node du catalogue Compose reste épinglée séparément pour les builds conteneurisés.
+- **Node 24.18.0** : il couvre npm, Vite, Nimbus, les scripts du contrat et le cockpit. L'image Node du catalogue Compose reste épinglée séparément pour les builds conteneurisés.
 - **Java 25 via Temurin** : `mise` fournit Temurin 25.0.3+9 aux boucles natives, à Maven et à la génération OpenAPI. La CI et les images utilisent également Temurin 25.
 - **Maven** : ne jamais dépendre d'un Maven global. Toutes les commandes backend passent par `./mvnw`, qui télécharge la bonne version de Maven au premier appel.
 - **Docker et Compose** : indispensables au cluster d'intégration. Compose démarre PostgreSQL, Caddy et tous les services avec la topologie destinée au VPS. Les Dev Services de Quarkus restent disponibles uniquement pour la boucle native `backend:dev`.
@@ -140,7 +140,7 @@ npm ci --prefix docs-nimbus
 npm run frontend2:install
 ```
 
-Le `npm ci` racine installe Retype, Spectral et OpenAPI Generator. `npm run brand:install` crée l'environnement Python isolé `.venv-brand` avec les versions de `scripts/requirements.txt`; `brand:generate` et `brand:check` l'utilisent ensuite sans polluer le Python géré par `mise`. `npm ci --prefix docs-nimbus` installe l'aperçu Nimbus 0.7.1 et Astro dans son verrou séparé. Les frontends et `e2e/` ont chacun leur propre `package.json` et leurs propres dépendances : il n'y a pas de workspace npm global. Le package partagé `frontends/shared/` est consommé en source via une dépendance `file:../shared`, conformément à l'[ADR-0014](../decisions/adr-0014-liaison-shared.md). Il faut donc installer `shared` avant de vérifier Commande ou le Dashboard. L'Onboarding actuel est statique et n'a pas encore de dépendances npm. L'installation E2E télécharge seulement Chromium ; Firefox et WebKit ne font pas partie du smoke initial.
+Le `npm ci` racine installe Spectral et OpenAPI Generator. `npm run brand:install` crée l'environnement Python isolé `.venv-brand` avec les versions de `scripts/requirements.txt`; `brand:generate` et `brand:check` l'utilisent ensuite sans polluer le Python géré par `mise`. `npm ci --prefix docs-nimbus` installe Nimbus 0.8.2 et Astro dans leur verrou séparé. Les frontends et `e2e/` ont chacun leur propre `package.json` et leurs propres dépendances : il n'y a pas de workspace npm global. Le package partagé `frontends/shared/` est consommé en source via une dépendance `file:../shared`, conformément à l'[ADR-0014](../decisions/adr-0014-liaison-shared.md). Il faut donc installer `shared` avant de vérifier Commande ou le Dashboard. L'Onboarding actuel est statique et n'a pas encore de dépendances npm. L'installation E2E télécharge seulement Chromium ; Firefox et WebKit ne font pas partie du smoke initial.
 
 `npm run frontend2:install` installe de façon verrouillée `shared`, `design-system2` et les trois applications suffixées `2`. Cette commande est facultative pour le développement canonique et identique sur macOS, Linux et Windows via WSL2. Les versions, prérequis et commandes isolées sont détaillés dans [Frontends alternatifs](frontends-alternatifs.md).
 
@@ -148,8 +148,8 @@ Le `npm ci` racine installe Retype, Spectral et OpenAPI Generator. `npm run bran
 
 | Composant | Nature et lancement local | Destination |
 |---|---|---|
-| `docs/` | Source Markdown canonique lue directement par Retype et convertie au build pour Nimbus | Retype et aperçu Nimbus statiques publiés sur GitHub Pages, absents du VPS applicatif |
-| `docs-nimbus/` | Adaptateur, thème et build Astro servis par l'image `docs` de Compose | Aperçu non indexé sous `/_experiments/nimbus-docs/`, absent du profil production |
+| `docs/` | Source Markdown canonique convertie au build pour Nimbus | Contenu de la documentation publiée sur les deux origines |
+| `docs-nimbus/` | Adaptateur, thème et build Astro servis par l'image `docs` de Compose | Nimbus sous `/docs/` sur GitHub Pages et à la racine du domaine documentaire en développement comme en production |
 | `brand/` | Ressources statiques ; prévisualisation avec le serveur statique décrit plus bas | Intégré aux fronts et au site Pages, aucun processus autonome |
 | `api/openapi.yaml` | Contrat vérifié par `npm run api:lint` et généré par `npm run api:generate` | Artefact de build ; copie exposée par le Backend, aucun service autonome |
 | `backend/common` | Bibliothèque Maven ; `scripts/run-with-domain-profile.sh development ./backend/mvnw -f backend/pom.xml -pl common -am test` | Embarquée dans le Backend, aucun conteneur distinct |
@@ -177,8 +177,7 @@ Le `npm ci` racine installe Retype, Spectral et OpenAPI Generator. `npm run bran
 | Mailpit `axllent/mailpit:v1.30.4` | Développement seulement. Capture les emails du module `identity` sur les ports loopback 1025 et 8025, sans volume persistant | Absent de la CI et de la production. Un fournisseur SMTP transactionnel prendra le relais |
 | Stripe CLI | Développement seulement, pour relayer et rejouer les webhooks | Absente. Stripe appelle directement le webhook public du Backend |
 | Stripe | Compte et clés de test | Service SaaS requis avec comptes Connect et clés live |
-| Retype | Prévisualisation locale et build CI | Aucun processus Retype. Le résultat statique est publié sur GitHub Pages |
-| Nimbus 0.7.1 et Astro 7 | Build statique dans l'image `docs`, vérification locale et GitHub Actions | Aucun processus Node. L'aperçu statique est publié sur GitHub Pages, pas sur le VPS |
+| Nimbus 0.8.2 et Astro 7 | Prévisualisation, vérification locale, image `docs` et GitHub Actions | Build statique servi par NGINX dans l'image `docs`, derrière Caddy sur `docs.surplasse.com` |
 | MinIO | Prévu avec le domaine `generation`, pas encore installé | Absent de la pile tant que le module applicatif n'existe pas |
 | dnsmasq | Requis pour le wildcard `*.surplasse.test`, instance locale sans donnée | Absent ; le fournisseur DNS public porte l'apex et le wildcard `.com` |
 | mkcert | Requis pour le certificat local approuvé, sans donnée applicative | Absent ; Let's Encrypt fournit le certificat public |
@@ -215,11 +214,9 @@ Chaque composant expose un petit jeu de commandes stables. Une ligne « vérific
 | Répertoire | Commande | Effet |
 |---|---|---|
 | racine | `npm run docs:watch` | serveur local de la documentation avec rechargement (port 5005) |
-| racine | `npm run docs:build` | build de vérification des docs (sortie dans `docs-site/`), obligatoire avant tout push touchant `docs/` |
-| racine | `npm run docs:nimbus:sync` | reconstruction de la collection Nimbus ignorée depuis `docs/` |
-| racine | `npm run docs:nimbus:check` | tests de conversion, contrôle Astro, build de la table de routes et lint Nimbus |
-| racine | `npm run docs:nimbus:build` | build statique Nimbus avec le profil de domaines development |
-| racine | `npm run docs:build:all` | builds Retype puis Nimbus depuis la même source |
+| racine | `npm run docs:sync` | reconstruction de la collection Nimbus ignorée depuis `docs/` |
+| racine | `npm run docs:build` | tests de conversion, contrôle Astro, build statique, Pagefind et lint Nimbus, obligatoire avant tout push touchant `docs/` |
+| racine | `npm run docs:check` | alias explicite de la vérification complète `docs:build` |
 | racine | `npm run api:lint` | lint Spectral du contrat |
 | racine | `npm run api:generate` | régénération des interfaces Java, du client TypeScript et de la copie Swagger UI |
 | racine | `npm run api:diff` | contrôle de compatibilité du contrat par rapport à la révision de référence |
@@ -267,7 +264,7 @@ Le package E2E n'a ni port permanent, ni conteneur, ni volume. Chaque lancement 
 
 Le détail des conventions par pile est dans les pages dédiées : [conventions React](conventions-react.md), [conventions Quarkus](conventions-quarkus.md), [conventions API et contrat](conventions-api.md). La stratégie de test complète est décrite dans [tests](tests.md).
 
-### Cycle de vie de l'aperçu Nimbus
+### Cycle de vie de la documentation Nimbus
 
 Nimbus est un outil de développement, de build et de CI. Il ne conserve aucune donnée, ne monte aucun volume et ne tourne pas comme processus Node permanent. Node 24.18.0 fourni par `mise` est son seul prérequis hôte. Les commandes sont identiques sur macOS, Linux et Windows via Ubuntu sous WSL2 :
 
@@ -276,23 +273,19 @@ Nimbus est un outil de développement, de build et de CI. Il ne conserve aucune 
 npm ci --prefix docs-nimbus
 
 # Rebuild the derived collection, verify it and produce the static build
-npm run docs:nimbus:check
+npm run docs:build
 
-# Produce only the static build when the full check has already passed
-npm run docs:nimbus:build
-
-# Build and serve both documentation renderers through the canonical HTTPS route
+# Build and serve the canonical documentation through HTTPS
 npm run local:up
 curl --fail https://docs.surplasse.test/
-curl --fail https://docs.surplasse.test/_experiments/nimbus-docs/
 
 # Stop the static documentation container with the rest of the local cluster
 npm run local:stop
 ```
 
-`DOCS_URL` vient du profil `development`. Le wrapper en dérive l'origine Nimbus et fixe son chemin de base. Aucun littéral de domaine n'existe dans le projet Nimbus. L'image `docs` construit Retype et Nimbus, puis NGINX sert leurs deux sorties statiques. Caddy garde Retype à la racine de `DOCS_URL` et réserve `/_experiments/nimbus-docs/` à l'aperçu.
+`DOCS_URL` vient du profil sélectionné. Le wrapper en dérive l'origine Nimbus et utilise le chemin de base `/` pour Compose. Aucun littéral de domaine n'existe dans le projet Nimbus. L'image `docs` construit Nimbus, puis NGINX sert sa sortie statique. Caddy publie cette sortie à la racine de `DOCS_URL`.
 
-Les auteurs modifient seulement `docs/`. `docs-nimbus/scripts/sync-content.mjs` recrée la collection ignorée avant chaque commande. Supprimer le dossier généré ne perd aucun contenu. Pour retirer toute l'expérience, supprimer `docs-nimbus/`, les scripts npm et la route Caddy correspondante, puis reconstruire l'image `docs`. Aucun arrêt, sauvegarde, restauration ou migration de données supplémentaire n'est nécessaire.
+Les auteurs modifient seulement `docs/`. `docs-nimbus/scripts/sync-content.mjs` recrée la collection ignorée avant chaque commande. Supprimer le dossier généré ne perd aucun contenu. L'image ne conserve aucune donnée. Son arrêt, son redémarrage et son remplacement suivent les commandes Compose communes. Aucune sauvegarde ni restauration propre à la documentation n'est nécessaire.
 
 ### Cycle de vie du module `identity`
 
@@ -384,7 +377,7 @@ Dans le cluster, seul Caddy publie `127.0.0.1:443`. Tous les autres ports Compos
 | 9090 | Prometheus | aucune, réseau Compose seulement |
 | 3000 | Grafana | `GRAFANA_URL` via Caddy, réseau Compose seulement |
 
-Les commandes natives conservent 5173 pour Commande, 5174 pour le Dashboard, 4173 pour l'Onboarding, 4174 pour le cockpit, 5005 pour Retype, 5006 pour JDWP et 8080 pour Quarkus. L'expérience UI2 réserve 5175 à Onboarding2, 5176 à Commande2 et 5177 à Dashboard2. Ces listeners servent à la mise au point et aux sondes, pas à définir des URL applicatives. Un port occupé doit faire échouer le lancement au lieu de glisser vers un voisin.
+Les commandes natives conservent 5173 pour Commande, 5174 pour le Dashboard, 4173 pour l'Onboarding, 4174 pour le cockpit, 5005 pour Nimbus, 5006 pour JDWP et 8080 pour Quarkus. L'expérience UI2 réserve 5175 à Onboarding2, 5176 à Commande2 et 5177 à Dashboard2. Ces listeners servent à la mise au point et aux sondes, pas à définir des URL applicatives. Un port occupé doit faire échouer le lancement au lieu de glisser vers un voisin.
 
 ## Variables d'environnement
 
@@ -396,7 +389,7 @@ cp frontends/commande/.env.example frontends/commande/.env
 cp frontends/dashboard/.env.example frontends/dashboard/.env
 ```
 
-Le domaine racine public est centralisé dans `config/domains/development.env` et `config/domains/production.env`. Le chargeur en dérive toutes les URL applicatives. Les fichiers `.env` propres aux applications gardent uniquement les secrets factices et les réglages qui ne décrivent pas la topologie. Les variables principales sont :
+Le domaine racine public et l'hôte documentaire sont centralisés dans `config/domains/development.env` et `config/domains/production.env`. Le chargeur en dérive toutes les URL applicatives. Les fichiers `.env` propres aux applications gardent uniquement les secrets factices et les réglages qui ne décrivent pas la topologie. Les variables principales sont :
 
 `npm run backend:dev` lance Maven depuis `backend/`, ce qui permet à Quarkus de charger `backend/.env`. Le wrapper ajoute ensuite le profil de domaines central sans recopier ses URL dans ce fichier local. Le cockpit ne lance pas de processus Quarkus natif : il pilote le service Backend de Compose et exécute les suites de qualité par leurs commandes fixes à la racine.
 
@@ -410,8 +403,8 @@ Le domaine racine public est centralisé dans `config/domains/development.env` e
 | `STRIPE_LIVE_MODE` | Backend | mode attendu des objets et webhooks Stripe ; `false` en développement et test, `true` en production | non, `false` en développement |
 | `OPENAI_API_KEY` | Backend | future clé API OpenAI pour le domaine `generation`, absent actuellement | non, future phase 3 |
 | `QUARKUS_DATASOURCE_JDBC_URL` | Backend | DSN PostgreSQL interne | injectée par Compose ; Dev Services la fournit dans la boucle native |
-| `APP_SCHEME`, `APP_BASE_DOMAIN` | tous | racine unique dont dérivent les URL publiques et les mini-sites | oui, fournis par le profil versionné |
-| `APP_BASE_URL`, `ONBOARDING_URL`, `DASHBOARD_URL`, `API_URL`, `DOCS_URL` | tous | origines canoniques calculées depuis `APP_BASE_DOMAIN` | oui, dérivées par le chargeur central |
+| `APP_SCHEME`, `APP_BASE_DOMAIN` | tous | racine dont dérivent les URL produit et les mini-sites | oui, fournis par le profil versionné |
+| `APP_BASE_URL`, `ONBOARDING_URL`, `DASHBOARD_URL`, `API_URL`, `DOCS_URL` | tous | origines canoniques calculées depuis le domaine produit, dont `docs.` pour Nimbus | oui, dérivées par le chargeur central |
 | `LOCAL_CONTROL_URL`, `MAILPIT_URL`, `REPORTS_URL`, `GRAFANA_URL` | outillage development | cockpit, Mailpit, dernier rapport Allure local et interface Grafana locale | dérivées uniquement pour development |
 | `PROBLEM_TYPE_BASE` | Backend, Commande et Dashboard | base canonique des types RFC 9457, toujours `https://surplasse.com/problems/` même en local | oui, fournie par le profil versionné |
 | `RESERVED_SUBDOMAINS` | Commande et infrastructure | noms exclus des slugs d'établissement | oui, fourni par le profil versionné |
@@ -465,7 +458,7 @@ curl --fail https://dashboard.surplasse.test/_experiments/untitled/auth/login
 
 GitHub Pages publie aussi un [sélecteur de démos UI2](https://nclsppr.github.io/surplasse/_experiments/untitled/), puis un build distinct pour Onboarding2, Commande2 et Dashboard2. Ces fichiers portent `noindex` et servent uniquement à la revue visuelle publique du SHA construit. Ils utilisent le profil de configuration development, ne fournissent ni Backend, ni session réelle, ni paiement et ne créent aucune route de production. Dashboard2 y emploie une session et des commandes synthétiques en mémoire pour rendre le tableau de service visible. La validation des parcours alimentés par les données reste celle du profil Compose local décrit ci-dessus.
 
-Le même site Pages publie l'[aperçu Nimbus](https://nclsppr.github.io/surplasse/_experiments/nimbus-docs/) depuis les Markdown de `docs/`. Il porte `noindex`, ne remplace pas Retype sous `/docs/` et ne correspond à aucun service du VPS. Sa validation compare le même SHA dans les deux moteurs.
+Le même site Pages publie la [documentation Nimbus](https://nclsppr.github.io/surplasse/docs/) depuis les Markdown de `docs/`. Ce build est indexable et utilise le chemin de base `/surplasse/docs`. Le profil Compose produit séparément le build racine destiné à `docs.surplasse.com`.
 
 Pour observer le cluster, démarrer ensuite les deux services facultatifs :
 
@@ -529,8 +522,8 @@ Les modules peuvent toujours être lancés dans des terminaux séparés pour une
 | erreurs de build frontend étranges, syntaxe non reconnue | mauvaise version de Node active | `mise exec -- node --version` doit afficher `v24.18.0` ; sinon exécuter `mise install --locked` à la racine |
 | `OpenAPI generation requires JDK 25`, `release version 25 not supported` ou erreur de compilation Java | JDK absent ou mauvaise version active | `mise exec -- java -version` doit afficher `25.0.3+9` ; sinon exécuter `mise install --locked` à la racine |
 | Compose ou les Dev Services échouent avec `Could not connect to Docker` | le démon Docker n'est pas démarré | lancer Docker Desktop ou OrbStack, vérifier avec `docker info`, puis relancer la commande |
-| `docs:watch` ou `docs:build` échoue, binaire `retype` introuvable dans `.bin` | le lien `node_modules/.bin/retype` n'a pas été créé par npm | appeler Retype directement : `node node_modules/retypeapp/retype.js start --port 5005` (ou `build`) ; c'est d'ailleurs la forme utilisée par les scripts npm du `package.json` racine |
-| `docs:nimbus:check` ou `docs:nimbus:build` signale un front matter, un callout ou un lien invalide | l'adaptateur ne peut pas convertir une source Retype ou Nimbus refuse la sortie | corriger la source dans `docs/` ou ajouter une conversion testée dans `docs-nimbus/scripts/sync-content.mjs` ; ne jamais corriger la collection générée |
+| `docs:watch` ou `docs:build` échoue avant Astro | les dépendances Nimbus ne sont pas installées ou le profil de domaines est invalide | exécuter `npm ci --prefix docs-nimbus`, puis `npm run domains:check` et relancer la commande |
+| `docs:build` signale un front matter, un callout ou un lien invalide | l'adaptateur ne peut pas convertir la source ou Nimbus refuse la sortie | corriger la source dans `docs/` ou ajouter une conversion testée dans `docs-nimbus/scripts/sync-content.mjs` ; ne jamais corriger la collection générée |
 | le front affiche des erreurs réseau vers l'API | le Backend ou Caddy est malsain, ou l'image du profil est périmée | lancer `npm run domains:check`, `npm run local:ps`, puis reconstruire avec `npm run local:up` |
 | le cockpit demande d'exécuter `local:up` ou répond 502 | le jeton amont ou le Caddy development n'existe pas encore | lancer `npm run local:up`, puis relancer `npm run local:cockpit` dans un autre terminal |
 | `grafana.surplasse.test` répond 502 | le profil `observability` n'est pas démarré ou Grafana est malsain | démarrer `prometheus grafana` avec le wrapper, puis lire `scripts/compose.sh development logs --tail 200 grafana prometheus` |

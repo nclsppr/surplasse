@@ -8,7 +8,7 @@ Surplasse est un canal de commande directe pour les restaurants indépendants : 
 
 | Répertoire | Contenu | État |
 |---|---|---|
-| `docs/`, `docs-nimbus/` | Source Markdown canonique, rendu Retype et aperçu Nimbus dérivé | Retype disponible, Nimbus expérimental |
+| `docs/`, `docs-nimbus/` | Source Markdown canonique, rendu Nimbus et adaptateur | Documentation canonique disponible |
 | `api/` | Contrat OpenAPI, source de vérité de l'API | Disponible |
 | `backend/` | Backend Quarkus et modules métier | Image Compose disponible |
 | `frontends/commande/` | Mini-site client React | Image Compose disponible |
@@ -105,8 +105,7 @@ GitHub Actions lance aussi un cluster Compose development jetable à chaque push
 | `https://www.surplasse.test` | redirection vers l'Onboarding |
 | `https://dashboard.surplasse.test` | Dashboard |
 | `https://api.surplasse.test` | Backend |
-| `https://docs.surplasse.test` | documentation Retype locale |
-| `https://docs.surplasse.test/_experiments/nimbus-docs/` | aperçu Nimbus local, généré depuis `docs/` |
+| `https://docs.surplasse.test` | documentation Nimbus locale, générée depuis `docs/` |
 | `https://local.surplasse.test` | cockpit local |
 | `https://mail.surplasse.test` | Mailpit |
 | `https://reports.surplasse.test` | dernier rapport Allure development |
@@ -190,9 +189,6 @@ npm run local:cors:test
 npm run local:cockpit:test
 npm run docs:watch
 npm run docs:build
-npm run docs:nimbus:check
-npm run docs:nimbus:build
-npm run docs:build:all
 npm run e2e:check
 npm run e2e:test -- development
 ```

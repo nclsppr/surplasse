@@ -1,6 +1,6 @@
 # AGENTS.md : conventions et terminologie canonique
 
-Ce fichier est la source de vérité pour toute contribution à la documentation et au code de Surplasse. Il est exclu du build Retype (voir `retype.yml`). Toute page de documentation doit respecter la terminologie, la stack et le style définis ici. En cas de contradiction entre une page et ce fichier, ce fichier gagne, et la page doit être corrigée.
+Ce fichier est la source de vérité pour toute contribution à la documentation et au code de Surplasse. Il est exclu de la collection Nimbus par l'adaptateur documentaire. Toute page de documentation doit respecter la terminologie, la stack et le style définis ici. En cas de contradiction entre une page et ce fichier, ce fichier gagne, et la page doit être corrigée.
 
 ## Le produit en bref
 
@@ -64,7 +64,7 @@ Les domaines sont des données de configuration. `config/domains/production.env`
 | Auth restaurateur | Magic link par email, session JWT en cookie HttpOnly | MVP | Le client final n'a jamais de compte |
 | IA | API OpenAI (derrière interface) | modèles courants | Extraction de carte et données publiques (vision) ; génération de visuels de plats à l'embarquement et depuis le Dashboard |
 | Impression | Imprimante thermique ESC/POS | à trancher (ADR) | Tickets cuisine optionnels |
-| Docs | Retype et Nimbus | Retype 4.6+, Nimbus 0.7.1 | Retype canonique ; aperçu Nimbus dérivé et non indexé sur GitHub Pages |
+| Docs | Nimbus | Nimbus 0.8.2 | Rendu canonique indexable, publié sur le domaine documentaire et sous `/docs` sur GitHub Pages |
 | Reverse proxy | Caddy | 2.11.4 | Routage commun ; mkcert en local, TLS wildcard DNS-01 en production |
 | Tests E2E | Playwright et Allure Report | 1.61 et 3 | Chromium, historique JSONL isolé par cible, rapport rejouable |
 | Métriques Backend | Micrometer, registre Prometheus | livré par Quarkus | `/q/metrics` interne, métriques techniques et métier à faible cardinalité |
@@ -236,8 +236,8 @@ En prose, les entités métier s'écrivent en minuscule : la commande, un produi
 
 ```
 surplasse/
-├── docs/                    # Source Markdown canonique des deux rendus
-├── docs-nimbus/             # Rendu Nimbus expérimental et adaptateur
+├── docs/                    # Source Markdown canonique
+├── docs-nimbus/             # Rendu Nimbus canonique et adaptateur
 ├── brand/                   # Charte graphique : tokens, polices, composants, QR
 ├── api/
 │   └── openapi.yaml         # Le contrat, source de vérité de l'API
@@ -303,12 +303,12 @@ docs/
 - Front matter YAML en tête de chaque page : `label` (titre court pour la sidebar), `order` (entier, tri croissant), `icon` (nom Octicon, optionnel), `description` (une phrase, pour le SEO).
 - Chaque dossier a un `index.yml` (`label`, `order`, `expanded`) et, s'il a un contenu propre, un `index.md`.
 - Liens internes en chemins relatifs vers les fichiers `.md` (`../architecture/api.md`).
-- Composants Retype autorisés : callouts (`!!! info`, `!!! warning`), onglets (`+++`), accordéons (`==-`), badges. Ne pas en abuser : un callout par section maximum.
-- Diagrammes en ASCII dans des blocs de code (Retype ne rend pas mermaid). Les garder simples et alignés.
+- Callouts autorisés dans la source : `!!! info`, `!!! warning`, `!!! danger`, `!!! tip`, `!!! note`, `!!! caution` et `!!! important`. L'adaptateur les convertit en directives Nimbus. Ne pas en abuser : un callout par section maximum.
+- Diagrammes en ASCII dans des blocs de code. Le site Nimbus n'active pas Mermaid. Les garder simples et alignés.
 - Pas d'images tant qu'il n'y a pas de produit à montrer.
 - `docs/` est la seule source éditoriale. Ne jamais modifier ni committer `docs-nimbus/src/content/docs/`, qui est régénéré avant chaque commande Nimbus.
-- Le rendu Nimbus convertit le front matter, les index, les liens `.md` et les callouts actuellement utilisés. Avant d'introduire un autre composant Retype, ajouter sa conversion et son test dans `docs-nimbus/scripts/sync-content.test.mjs`.
-- `npm run docs:build` reste la porte obligatoire avant tout push touchant `docs/`. `npm run docs:build:all` vérifie en plus l'aperçu Nimbus.
+- L'adaptateur Nimbus convertit le front matter, les index, les liens `.md` et les callouts actuellement utilisés. Avant d'introduire une nouvelle syntaxe éditoriale, ajouter sa conversion et son test dans `docs-nimbus/scripts/sync-content.test.mjs`.
+- `npm run docs:build` est la porte obligatoire avant tout push touchant `docs/`. Il exécute les tests, le contrôle Astro, le build, Pagefind et le lint Nimbus.
 
 ## Workflow git
 
@@ -324,10 +324,8 @@ mise trust                 # une fois par clone
 mise install --locked      # une fois, puis après une mise à jour du verrou
 mise exec -- npm ci                     # dépendances racine verrouillées
 mise exec -- npm ci --prefix docs-nimbus
-mise exec -- npm run docs:build   # build de vérification (sortie dans docs-site/)
-mise exec -- npm run docs:watch   # serveur local avec rechargement
-npm run docs:nimbus:check
-npm run docs:nimbus:build
+mise exec -- npm run docs:build   # vérification Nimbus complète
+mise exec -- npm run docs:watch   # serveur Nimbus local avec rechargement
 ```
 
-Le déploiement est automatique : chaque push sur `main` publie le site (documentation Retype, aperçu Nimbus non indexé, landing statique, tunnel avec aperçu du Dashboard, assets de marque et dernier rapport Allure development de CI) sur GitHub Pages via `.github/workflows/pages.yml`. Le workflow actualise aussi ce rapport chaque heure sous `/local-tests/`.
+Le déploiement Pages est automatique : chaque push sur `main` publie la documentation Nimbus sous `/docs/`, la landing statique, le tunnel avec aperçu du Dashboard, les assets de marque et le dernier rapport Allure development via `.github/workflows/pages.yml`. Le workflow actualise aussi ce rapport chaque heure sous `/local-tests/`. L'image `docs` sert le même rendu à la racine de `DOCS_URL` dans les profils Compose.

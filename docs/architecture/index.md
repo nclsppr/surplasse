@@ -123,7 +123,8 @@ Points saillants :
 
 ```
 surplasse/
-├── docs/                    # Documentation Retype (ce site)
+├── docs/                    # Source Markdown de la documentation Nimbus
+├── docs-nimbus/             # Rendu Nimbus et adaptateur
 ├── api/
 │   └── openapi.yaml         # Le contrat, source de vérité de l'API
 ├── backend/                 # Quarkus (Maven multi-modules)
@@ -144,7 +145,7 @@ surplasse/
 
 | Répertoire | Contenu |
 |---|---|
-| `docs/` | La présente documentation, construite avec Retype et publiée sur GitHub Pages |
+| `docs/` et `docs-nimbus/` | La présente documentation, construite avec Nimbus et publiée sur son domaine dédié ainsi que sur GitHub Pages |
 | `api/openapi.yaml` | Le contrat OpenAPI 3.1, point de départ de tout changement d'API |
 | `backend/` | L'API Quarkus 3.37.4 en Java 25, un module Maven par domaine métier |
 | `frontends/shared/` | Le package partagé : design system, client TypeScript généré depuis le contrat, utilitaires communs |

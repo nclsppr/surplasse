@@ -229,22 +229,17 @@ jobs:
             frontends/commande2/package-lock.json
             frontends/dashboard2/package-lock.json
       - run: npm ci
-      - name: Install Nimbus dependencies
+      - name: Install documentation dependencies
         run: npm ci --prefix docs-nimbus
       - name: Install experimental frontend dependencies
         run: npm run frontend2:install
       - run: npm run domains:check
-      # docs:build invoque le wrapper retype.js via node directement :
-      # npm 10.9.x ne crée pas le lien node_modules/.bin/retype à
-      # l'installation (collision de noms de bin avec les paquets
-      # plateforme retypeapp-*), donc la commande nue `retype` échouerait.
       - name: Build documentation
         run: |
           set -euo pipefail
-          bash scripts/build-docs-with-retry.sh
           repository_name="${GITHUB_REPOSITORY#*/}"
           export NIMBUS_SITE_ORIGIN="https://${GITHUB_REPOSITORY_OWNER}.github.io"
-          export NIMBUS_BASE_PATH="/${repository_name}/_experiments/nimbus-docs"
+          export NIMBUS_BASE_PATH="/${repository_name}/docs"
           npm --prefix docs-nimbus run check
       - name: Build the static experimental demos
         run: |
@@ -276,12 +271,8 @@ jobs:
           # Assets de marque (polices, tokens, styles, composants, QR)
           cp -R brand/. site/brand/
           rm -f site/brand/qr/qr-demo-development.png
-          # Documentation Retype sous /docs
-          cp -R docs-site/. site/docs/
-          # Aperçu Nimbus généré depuis les mêmes Markdown
-          nimbus_root="site/_experiments/nimbus-docs"
-          mkdir -p "${nimbus_root}"
-          cp -R docs-nimbus/dist/. "${nimbus_root}/"
+          # Documentation Nimbus canonique sous /docs
+          cp -R docs-nimbus/dist/. site/docs/
           # Preuves visuelles UI2, isolées des routes produit et sans Backend Pages
           experiment_root="site/_experiments/untitled"
           mkdir -p \

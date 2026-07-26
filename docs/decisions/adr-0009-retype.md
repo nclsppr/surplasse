@@ -9,7 +9,7 @@ description: Choix de Retype comme générateur du site de documentation, déplo
 
 ## Statut
 
-**Accepté**, 2026-07-18.
+Remplacé par ADR-0038, 2026-07-26.
 
 ## Contexte
 

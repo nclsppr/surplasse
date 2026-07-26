@@ -8,9 +8,9 @@ REPOSITORY_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 COMMAND="${1:-}"
 case "$COMMAND" in
-  build | check | sync) ;;
+  build | check | dev | sync) ;;
   *)
-    printf 'Error: usage: scripts/run-nimbus-docs.sh <build|check|sync>\n' >&2
+    printf 'Error: usage: scripts/run-docs.sh <build|check|dev|sync>\n' >&2
     exit 1
     ;;
 esac
@@ -22,6 +22,6 @@ shift
 }
 
 export NIMBUS_SITE_ORIGIN="${DOCS_URL%/}"
-export NIMBUS_BASE_PATH="/_experiments/nimbus-docs"
+export NIMBUS_BASE_PATH="/"
 
 exec npm --prefix "${REPOSITORY_ROOT}/docs-nimbus" run "$COMMAND" -- "$@"

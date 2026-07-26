@@ -63,7 +63,7 @@ Les messages de commit sont en français, à l'impératif, et commencent par un 
 
 | Préfixe | Périmètre | Exemple |
 |---|---|---|
-| `docs:` | Documentation Retype (`docs/`) | `docs: ajoute la page workflow git` |
+| `docs:` | Documentation Nimbus (`docs/` et `docs-nimbus/`) | `docs: ajoute la page workflow git` |
 | `api:` | Le contrat (`api/openapi.yaml`) | `api: ajoute l'endpoint de revendication d'un espace` |
 | `backend:` | Backend Quarkus (`backend/`) | `backend: implémente la transition de statut d'une commande` |
 | `front(commande):` | Application Commande | `front(commande): affiche les options d'un produit dans le panier` |
@@ -98,7 +98,7 @@ Le corps explique le pourquoi. Le comment est dans le diff, inutile de le paraph
 | Secrets | clés Stripe, clé API OpenAI, tokens, mots de passe | Un secret poussé est un secret compromis, même supprimé ensuite |
 | Fichiers d'environnement | `.env`, `.env.local` | Contiennent des secrets ou des valeurs propres à une machine |
 | Dépendances | `node_modules/`, artefacts Maven dans `target/` | Reconstructibles depuis `package-lock.json` et `pom.xml` |
-| Sortie de build docs | `docs-site/` | Régénérée par `npm run docs:build`, déployée par la CI |
+| Sortie de build docs | `docs-nimbus/dist/` | Régénérée par `npm run docs:build`, déployée par la CI |
 | Artefacts de build et caches | `dist/`, `target/`, caches d'outils | Reconstructibles depuis leur source |
 | Fichiers locaux d'IDE ou d'OS | `.idea/`, `.DS_Store` | Propres à une machine |
 

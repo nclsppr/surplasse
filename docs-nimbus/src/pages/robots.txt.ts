@@ -6,7 +6,7 @@ export const prerender = true;
 export function GET() {
   const body = [
     "User-agent: *",
-    `Disallow: ${withBase("/")}`,
+    `Allow: ${withBase("/")}`,
     "",
     `Sitemap: ${absoluteSiteUrl("/sitemap-index.xml", config.site)}`,
     "",

@@ -186,6 +186,7 @@ const { readFileSync } = require('node:fs');
 
 const model = JSON.parse(readFileSync(process.argv[2], 'utf8'));
 const backend = model.services.backend;
+const docs = model.services.docs;
 const edge = model.services.edge;
 const onboarding = model.services.onboarding;
 const postgresql = model.services.postgresql;
@@ -211,7 +212,6 @@ for (const secretName of expectedFileSecrets) {
   }
 }
 for (const developmentOnlyService of [
-  'docs',
   'mailpit',
   'onboarding2',
   'commande2',
@@ -222,7 +222,6 @@ for (const developmentOnlyService of [
   }
 }
 for (const developmentOnlyUpstream of [
-  'DOCS_UPSTREAM',
   'MAILPIT_UPSTREAM',
   'LOCAL_CONTROL_UPSTREAM',
   'LOCAL_CONTROL_TOKEN',
@@ -252,6 +251,15 @@ if (!onboarding.healthcheck?.test?.includes('wget')) {
 }
 if (model.services.edge.environment?.ONBOARDING_UPSTREAM !== 'onboarding:8080') {
   throw new Error('production Caddy does not target the NGINX Onboarding port');
+}
+if (edge.environment?.DOCS_UPSTREAM !== 'docs:8080') {
+  throw new Error('production Caddy does not target the canonical documentation host');
+}
+if (
+  docs.build?.args?.NIMBUS_SITE_ORIGIN !== 'https://docs.surplasse.com' ||
+  docs.build?.args?.NIMBUS_BASE_PATH !== '/'
+) {
+  throw new Error('production Nimbus does not use the canonical documentation origin');
 }
 if (
   Object.hasOwn(edge.environment ?? {}, 'DNS_API_TOKEN') ||
@@ -335,6 +343,7 @@ const expectedApplicationUsers = {
   onboarding: '101:101',
   commande: '101:101',
   dashboard: '101:101',
+  docs: '101:101',
 };
 for (const [serviceName, expectedUser] of Object.entries(expectedApplicationUsers)) {
   const service = model.services[serviceName];
@@ -346,7 +355,7 @@ for (const [serviceName, expectedUser] of Object.entries(expectedApplicationUser
     throw new Error(`${serviceName} is missing its non-root or read-only hardening`);
   }
 }
-for (const serviceName of ['edge', 'backend', 'onboarding', 'commande', 'dashboard', 'prometheus', 'grafana']) {
+for (const serviceName of ['edge', 'backend', 'onboarding', 'commande', 'dashboard', 'docs', 'prometheus', 'grafana']) {
   const service = model.services[serviceName];
   if (!service.cap_drop?.includes('ALL')) {
     throw new Error(`${serviceName} is missing capability hardening`);
@@ -359,6 +368,7 @@ for (const serviceName of [
   'onboarding',
   'commande',
   'dashboard',
+  'docs',
   'prometheus',
   'grafana',
 ]) {
@@ -387,7 +397,7 @@ if (!prometheus || !grafana) {
 if (!Object.hasOwn(model.services.backend.networks ?? {}, 'observability') || model.networks?.observability?.internal !== true) {
   throw new Error('Backend and monitoring do not share the isolated observability network');
 }
-for (const serviceName of ['edge', 'backend', 'onboarding', 'commande', 'dashboard']) {
+for (const serviceName of ['edge', 'backend', 'onboarding', 'commande', 'dashboard', 'docs']) {
   const dependencies = Object.keys(model.services[serviceName].depends_on ?? {});
   if (dependencies.includes('prometheus') || dependencies.includes('grafana')) {
     throw new Error(`${serviceName} unexpectedly depends on observability`);
@@ -429,15 +439,12 @@ const postgresql = model.services.postgresql;
 if (docs.build?.args?.NIMBUS_SITE_ORIGIN !== 'https://docs.surplasse.test') {
   throw new Error('development Nimbus does not use the centrally derived documentation origin');
 }
-if (docs.build?.args?.NIMBUS_BASE_PATH !== '/_experiments/nimbus-docs') {
-  throw new Error('development Nimbus does not use its isolated experimental route');
+if (docs.build?.args?.NIMBUS_BASE_PATH !== '/') {
+  throw new Error('development Nimbus is not built for the documentation-domain root');
 }
 const docsHealthcheck = docs.healthcheck?.test?.join(' ') ?? '';
-if (
-  !docsHealthcheck.includes('/surplasse/docs/') ||
-  !docsHealthcheck.includes('/_experiments/nimbus-docs/')
-) {
-  throw new Error('development documentation healthcheck does not cover both static renderers');
+if (!docsHealthcheck.includes('http://127.0.0.1:8080/')) {
+  throw new Error('development documentation healthcheck does not cover Nimbus');
 }
 if (model.services.edge.environment?.GRAFANA_UPSTREAM !== 'grafana:3000') {
   throw new Error('development Caddy does not receive the internal Grafana upstream');

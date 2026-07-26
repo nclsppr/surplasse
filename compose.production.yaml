@@ -49,6 +49,9 @@ services:
   dashboard:
     restart: unless-stopped
 
+  docs:
+    restart: unless-stopped
+
   prometheus:
     restart: unless-stopped
 

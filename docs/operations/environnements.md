@@ -10,7 +10,7 @@ description: Deux environnements seulement, leurs domaines, certificats, profils
 Surplasse connaît deux environnements : le développement local et la production. Il n'existe pas de staging au lancement. Le cluster local et la production utilisent le même `compose.yaml`, les mêmes recettes applicatives et le même routage Caddy. Une surcharge explicite porte les différences de TLS, d'exposition et de services annexes. L'image Caddy de production ajoute seulement le module du fournisseur DNS retenu.
 
 !!! warning État réel au 2026-07-26
-Le cluster Compose local est implémenté et validé sous `surplasse.test`. La surcharge production, les images applicatives, leur chaîne GHCR et le runbook Ubuntu sont versionnés, mais aucun VPS public n'est provisionné. Le premier trafic public reste bloqué par le choix du fournisseur DNS, de son module et de son image Caddy, le SMTP transactionnel, les CSP de Commande et du Dashboard et la mise en place des sauvegardes hors site.
+Le cluster Compose local est implémenté et validé sous `surplasse.test`. La surcharge production, les images applicatives, leur chaîne GHCR et le runbook Ubuntu sont versionnés, mais aucun VPS public n'est provisionné. Le premier trafic public reste bloqué par le provisionnement du VPS, la configuration du wildcard DNS `.com`, le choix du module DNS de Caddy, le SMTP transactionnel, les CSP de Commande et du Dashboard et la mise en place des sauvegardes hors site.
 !!!
 
 ## Comparaison
@@ -26,7 +26,7 @@ Le cluster Compose local est implémenté et validé sous `surplasse.test`. La s
 | Stripe | Mode test exclusivement | Mode live exclusivement |
 | Email | Mailpit | Fournisseur SMTP transactionnel |
 | Certificat | mkcert monté en lecture seule | Let's Encrypt wildcard par DNS-01 |
-| Services annexes | Mailpit, rendus Retype et Nimbus, cockpit et rapport Allure development sur l'hôte ; Prometheus et Grafana facultatifs | Prometheus et Grafana facultatifs ; Grafana sur loopback seulement |
+| Services annexes | Mailpit, documentation Nimbus, cockpit et rapport Allure development sur l'hôte ; Prometheus et Grafana facultatifs | Documentation Nimbus ; Prometheus et Grafana facultatifs ; Grafana sur loopback seulement |
 | Images applicatives | Tags locaux `development` | Tags immuables par SHA git |
 
 Aucune clé live, donnée réelle ou sauvegarde de production ne doit se trouver sur un poste local. Le serveur Onboarding peut créer une courte session Stripe Connect seulement en `development`. Le wrapper exige que cette capacité soit désactivée en `production`.
@@ -40,7 +40,7 @@ Aucune clé live, donnée réelle ou sauvegarde de production ne doit se trouver
 | `{slug}.surplasse.com` | `{slug}.surplasse.test` | Commande |
 | `dashboard.surplasse.com` | `dashboard.surplasse.test` | Dashboard |
 | `api.surplasse.com` | `api.surplasse.test` | Backend |
-| `docs.surplasse.com` sur GitHub Pages | `docs.surplasse.test` dans Compose | Retype canonique et aperçu Nimbus sous `/_experiments/nimbus-docs/` |
+| `docs.surplasse.com` dans Compose | `docs.surplasse.test` dans Compose | Documentation Nimbus canonique |
 | absent | `local.surplasse.test` | Cockpit de développement |
 | SMTP externe | `mail.surplasse.test` | Mailpit |
 | absent | `reports.surplasse.test` | Dernier rapport Allure development servi par le cockpit |
@@ -48,7 +48,7 @@ Aucune clé live, donnée réelle ou sauvegarde de production ne doit se trouver
 
 Les noms `www`, `api`, `dashboard`, `docs`, `app`, `admin`, `local`, `mail`, `reports` et `grafana` sont réservés et exclus des slugs d'établissement. `app` et `admin` ne correspondent à aucune application actuelle. `reports` et `grafana` restent réservés en production même si aucun service ne les y publie.
 
-Le wildcard permet de créer un mini-site sans nouvelle opération DNS. Il couvre un sous-domaine direct, pas un niveau imbriqué. Caddy route l'apex vers l'Onboarding, `api` vers le Backend, `dashboard` vers le Dashboard et tout autre sous-domaine non réservé vers Commande.
+Le wildcard permet de créer un mini-site sans nouvelle opération DNS. Il couvre un sous-domaine direct, pas un niveau imbriqué. Caddy route l'apex vers l'Onboarding, `api` vers le Backend, `dashboard` vers le Dashboard, `docs` vers Nimbus et tout autre sous-domaine non réservé vers Commande.
 
 ## Source de vérité
 
@@ -59,7 +59,7 @@ Les fichiers de domaines ne contiennent aucun secret :
 | `config/domains/development.env` | `APP_SCHEME`, `APP_BASE_DOMAIN`, `PROBLEM_TYPE_BASE`, `COOKIE_DOMAIN`, `RESERVED_SUBDOMAINS` |
 | `config/domains/production.env` | Les mêmes clés pour la production |
 
-`scripts/run-with-domain-profile.sh` dérive `APP_BASE_URL`, `ONBOARDING_URL`, `DASHBOARD_URL`, `API_URL`, `DOCS_URL` et `CORS_PUBLIC_ORIGINS`. `LOCAL_CONTROL_URL`, `MAILPIT_URL`, `REPORTS_URL` et `GRAFANA_URL` existent seulement en développement. Aucun profil ne répète une URL complète.
+`scripts/run-with-domain-profile.sh` dérive `APP_BASE_URL`, `ONBOARDING_URL`, `DASHBOARD_URL`, `API_URL`, `DOCS_URL` et `CORS_PUBLIC_ORIGINS`. `DOCS_URL` utilise toujours le sous-domaine direct `docs` de `APP_BASE_DOMAIN`. `LOCAL_CONTROL_URL`, `MAILPIT_URL`, `REPORTS_URL` et `GRAFANA_URL` existent seulement en développement. Aucun profil ne répète une URL complète.
 
 `COOKIE_DOMAIN` reste vide. Les cookies `surplasse_session` et `surplasse_refresh` sont hôte uniquement sur l'API, `Secure`, `HttpOnly`, `SameSite=Lax` et `Path=/`. Définir un domaine parent les exposerait aux mini-sites.
 
@@ -162,7 +162,7 @@ surplasse.com.        A      <IP du VPS>
 *.surplasse.com.      A      <IP du VPS>
 ```
 
-Le certificat wildcard exige le défi DNS-01. `CADDY_DNS_MODULE` sélectionne le module ajouté par `xcaddy` avec une version ou un commit explicite, `CADDY_DNS_PROVIDER` sélectionne sa directive et `DNS_API_TOKEN` autorise seulement la modification de la zone nécessaire. Ces trois variables sont obligatoires. Le dépôt ne fournit aucune valeur implicite tant que le fournisseur n'est pas choisi.
+Le certificat wildcard de `surplasse.com` couvre `docs.surplasse.com` et exige le défi DNS-01. `CADDY_DNS_MODULE` sélectionne le module ajouté par `xcaddy` avec une version ou un commit explicite, `CADDY_DNS_PROVIDER` sélectionne sa directive et `DNS_API_TOKEN` autorise seulement la modification de cette zone. Ces trois variables sont obligatoires. Le dépôt ne fournit aucune valeur implicite tant que le fournisseur n'est pas choisi.
 
 Caddy persiste son état ACME dans `caddy_data`. Une sonde externe doit surveiller l'expiration du certificat. La procédure locale dnsmasq et mkcert vit dans [Domaines locaux](../developpement/domaines-locaux.md).
 

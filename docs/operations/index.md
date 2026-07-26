@@ -37,16 +37,17 @@ Surplasse est développé et exploité par une seule personne. Ce fait dicte tou
 - **Tout dans Docker Compose, sur un VPS unique.** Pas d'orchestrateur, pas de cluster, pas de cloud managé au lancement. Un seul VPS, un socle `compose.yaml`, une surcharge production et un seul endroit où regarder. Kubernetes résout des problèmes que Surplasse n'a pas.
 - **Tout redéployable depuis git.** Le VPS ne contient aucun état de configuration qui ne soit pas reconstructible : les fichiers Compose vivent à la racine, la configuration du reverse proxy dans `infra/caddy/`, les images sont taggées par SHA dans le registre, les secrets sont les seuls éléments provisionnés à la main (et documentés dans [Environnements](environnements.md)). Perdre le VPS doit coûter une restauration de sauvegarde et un déploiement, pas une archéologie.
 
-Les seules dépendances externes sont des services SaaS qui portent leur propre exploitation : Stripe pour le paiement, l'API OpenAI pour l'extraction de carte, le futur fournisseur SMTP transactionnel pour les emails, GitHub pour le code, la CI et la documentation.
+Les seules dépendances externes sont des services SaaS qui portent leur propre exploitation : Stripe pour le paiement, l'API OpenAI pour l'extraction de carte, le futur fournisseur SMTP transactionnel pour les emails, GitHub pour le code, la CI et le miroir documentaire Pages.
 
 ## Inventaire des services en production
 
-La documentation Retype, l'aperçu Nimbus `noindex`, la préfiguration statique de l'Onboarding et les démos UI2 `noindex` sont actuellement publiés sur GitHub Pages. Nimbus est généré depuis la même source Markdown que Retype et ne constitue pas encore la documentation canonique. Les aperçus expérimentaux ne joignent aucun Backend public et ne constituent pas des routes produit. Les images et services ci-dessous sont construits et testés dans le cluster local. Ils ne prouvent pas qu'un VPS public existe.
+La documentation Nimbus canonique, la préfiguration statique de l'Onboarding et les démos UI2 `noindex` sont actuellement publiées sur GitHub Pages. Nimbus utilise `docs/` comme source éditoriale et apparaît sous `/docs/`. Les aperçus UI2 ne joignent aucun Backend public et ne constituent pas des routes produit. Les images et services ci-dessous sont construits et testés dans le cluster local. Ils ne prouvent pas qu'un VPS public existe.
 
 | Service | Techno | Statut | Rôle | Exposition |
 |---|---|---|---|---|
-| Site public actuel | GitHub Pages | En service | Documentation Retype, aperçu Nimbus, marque, préfiguration statique de l'Onboarding et preuves visuelles UI2 | URL GitHub Pages |
+| Site public actuel | GitHub Pages | En service | Documentation Nimbus, marque, préfiguration statique de l'Onboarding et preuves visuelles UI2 | `/surplasse/docs/` et autres routes Pages |
 | Reverse proxy | Caddy 2.11.4 | Service Compose livré, VPS non provisionné | Terminaison TLS et routage par domaine | Ports 80 et 443, seul service du VPS exposé |
+| Documentation | Nimbus 0.8.2, Astro et NGINX interne | Image livrée, non déployée | Documentation canonique générée depuis `docs/` | `docs.surplasse.com`, via Caddy |
 | Backend | Quarkus 3.37.4, Java 25 | Image livrée, non déployée | API REST, logique métier, temps réel SSE et intégrations | `api.surplasse.com`, via Caddy |
 | Onboarding | Fichiers statiques, NGINX interne | Image livrée, non déployée | Vitrine produit et tunnel d'embarquement | `surplasse.com`, via Caddy |
 | Commande | Build React statique, NGINX interne | Image livrée, non déployée | Mini-site, carte, commande et paiement | `{slug}.surplasse.com`, via Caddy |
@@ -111,9 +112,27 @@ scripts/compose.sh production stop dashboard
 
 Une mise à jour remplace l'image par un nouveau SHA. Un retour arrière redéploie le dernier SHA sain, sans restauration de données. Le Dashboard n'a ni sauvegarde, ni restauration, ni migration propre : toute donnée métier reste dans PostgreSQL derrière le Backend. L'absence actuelle de VPS et de DNS public reste distincte de la disponibilité de l'artefact.
 
+### Cycle de vie de Nimbus sous Ubuntu LTS
+
+Nimbus 0.8.2 construit la documentation depuis `docs/` au moyen de l'adaptateur versionné dans `docs-nimbus/`. L'image finale contient seulement les fichiers statiques et NGINX non privilégié. Elle ne conserve aucune donnée ni aucun volume.
+
+```bash
+cd /path/to/surplasse
+npm ci --prefix docs-nimbus
+npm run docs:build
+
+export SURPLASSE_SECRETS_FILE=/etc/surplasse/production.env
+scripts/compose.sh production up --detach --wait docs
+scripts/compose.sh production restart docs
+curl --fail https://docs.surplasse.com/
+scripts/compose.sh production stop docs
+```
+
+Une mise à jour remplace l'image par un nouveau SHA. Un retour arrière redéploie le dernier SHA sain. Le miroir GitHub Pages est construit indépendamment depuis la même source et ne remplace pas le contrôle de santé de `docs.surplasse.com`.
+
 Sur le choix du reverse proxy : Traefik excelle dans la découverte dynamique de conteneurs et brille dans des environnements où les services vont et viennent, au prix d'une configuration par labels plus verbeuse et d'un modèle mental plus riche. Caddy fait la même chose ici avec un fichier de configuration court et lisible. L'image de production est prête à intégrer par `xcaddy` le module DNS du fournisseur retenu. Le choix du fournisseur et du module reste un blocage explicite avant le premier VPS.
 
-Chaque front est empaqueté dans une image immuable et utilise NGINX non privilégié en production. Le serveur Node allowlisté de l'Onboarding existe seulement dans son image development afin de servir la session Stripe test locale. Les images de production seront taggées par SHA par la CI. Le détail des images et des commandes vit dans [Déploiement Compose](deploiement-compose.md).
+Chaque frontend et la documentation sont empaquetés dans une image immuable et utilisent NGINX non privilégié en production. Le serveur Node allowlisté de l'Onboarding existe seulement dans son image development afin de servir la session Stripe test locale. Les images de production sont taggées par SHA par la CI. Le détail des images et des commandes vit dans [Déploiement Compose](deploiement-compose.md).
 
 ## Topologie
 
@@ -125,20 +144,20 @@ Chaque front est empaqueté dans une image immuable et utilise NGINX non privil�
   .............................|........................... VPS
                                v
                         +-------------+
-                        |    Caddy    |   certificat wildcard
+                        |    Caddy    |   certificats
                         +------+------+   *.surplasse.com
-                               |
-         +----------+---------+---------+----------+
-         v          v                   v          v
-   +----------+ +----------+     +-----------+ +----------+
-   |Onboarding| | Commande |     | Dashboard | | Backend  |
-   |(statique)| |(statique)|     | (statique)| | (Quarkus)|
-   +----------+ +----------+     +-----------+ +----+-----+
-                                                    |
-                                                    v
-                                       +------------+
-                                       | PostgreSQL |
-                                       +------------+
+                               |          docs.surplasse.com
+         +----------+----------+----------+----------+
+         v          v          v          v          v
+   +----------+ +----------+ +---------+ +--------+ +----------+
+   |Onboarding| | Commande | |Dashboard| |  Docs  | | Backend  |
+   |(statique)| |(statique)| |(statique)| |(Nimbus)| | (Quarkus)|
+   +----------+ +----------+ +---------+ +--------+ +----+-----+
+                                                         |
+                                                         v
+                                                  +------------+
+                                                  | PostgreSQL |
+                                                  +------------+
 
    +------------+    scrape pull    +---------+
    | Prometheus | <---------------- | Backend |
@@ -152,7 +171,7 @@ Chaque front est empaqueté dans une image immuable et utilise NGINX non privil�
 
 Seul Caddy écoute sur l'extérieur. PostgreSQL et Prometheus ne sont joignables que depuis le réseau interne Compose. Le Backend est le seul service applicatif à parler à PostgreSQL. Prometheus collecte le Backend, jamais l'inverse. Grafana rejoint le réseau interne pour lire Prometheus. Il n'a aucune route publique en production et son éventuel port hôte écoute seulement sur la boucle locale pour un tunnel SSH. MinIO n'entre pas dans la pile avant l'implémentation du domaine `generation`. Les appels sortants vers Stripe et le SMTP partent du Backend.
 
-Le routage de Caddy est purement par nom d'hôte : `api.surplasse.com` vers le backend, `dashboard.surplasse.com` vers le Dashboard, `surplasse.com` vers l'Onboarding, et tout autre sous-domaine `*.surplasse.com` vers Commande, qui résout le slug côté application. La correspondance entre domaines et certificats est détaillée dans [Environnements](environnements.md).
+Le routage de Caddy est purement par nom d'hôte : `api.surplasse.com` vers le backend, `dashboard.surplasse.com` vers le Dashboard, `surplasse.com` vers l'Onboarding, `docs.surplasse.com` vers Nimbus et tout autre sous-domaine `*.surplasse.com` vers Commande, qui résout le slug côté application. La correspondance entre domaines et certificats est détaillée dans [Environnements](environnements.md).
 
 ## Le VPS lui-même
 

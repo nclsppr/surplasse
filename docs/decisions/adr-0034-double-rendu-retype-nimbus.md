@@ -9,7 +9,7 @@ description: "Un adaptateur de build produit un aperçu Nimbus depuis les source
 
 ## Statut
 
-Accepté, 2026-07-23.
+Remplacé par ADR-0038, 2026-07-26.
 
 ## Contexte
 

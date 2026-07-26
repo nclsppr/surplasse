@@ -133,7 +133,7 @@ export function createRegistry(_repoRoot, developmentUrls) {
       id: "docs",
       service: "docs",
       label: "Documentation",
-      description: "Documentation Retype construite et servie par le cluster.",
+      description: "Documentation Nimbus construite et servie par le cluster.",
       group: "tools",
       ports: [8080],
       publicHealth: publicHealth(urls.docs),
