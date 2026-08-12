@@ -81,7 +81,7 @@ curl --fail https://api.surplasse.com/q/health/ready
 scripts/compose.sh production stop backend
 ```
 
-Le démarrage exige PostgreSQL, les migrations Flyway, les clés JWT RS256 montées hors image et la configuration SMTP décrite dans [Environnements](environnements.md#backend). Flyway applique les migrations jusqu'à V14 avant que la readiness passe à `UP`. Une mise à jour ou un retour arrière redéploie l'image Backend entière : il n'existe aucune opération propre à `identity`. Ubuntu LTS fait foi.
+Le démarrage exige PostgreSQL, les migrations Flyway, les clés JWT RS256 montées hors image et la configuration SMTP décrite dans [Environnements](environnements.md#backend). En production Atlas, le job one-shot du même digest applique les migrations jusqu'à V14 avec `surplasse_migrator`, puis le Backend démarre avec `surplasse_runtime` et la migration automatique désactivée. Une mise à jour ou un retour arrière redéploie l'image Backend entière : il n'existe aucune opération propre à `identity`. Ubuntu LTS fait foi.
 
 ### Cycle de vie du Dashboard sous Ubuntu LTS
 

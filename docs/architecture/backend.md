@@ -203,7 +203,7 @@ La première marche reste composée de transactions locales, d'événements pers
 | `quarkus-rest-jackson` | Endpoints REST (Jakarta REST) avec sérialisation JSON Jackson, support natif de Mutiny pour le SSE |
 | `quarkus-hibernate-orm-panache` | ORM Hibernate et pattern repository Panache pour la couche d'accès aux données |
 | `quarkus-jdbc-postgresql` | Pilote JDBC PostgreSQL, seule base du système |
-| `quarkus-flyway` | Exécution des migrations versionnées au démarrage, jamais de DDL manuel |
+| `quarkus-flyway` | Migrations versionnées au démarrage en développement et test, commande one-shot dédiée en production Atlas, jamais de DDL manuel |
 | `quarkus-mailer` | Envoi des emails transactionnels (magic links, notifications) |
 | `quarkus-smallrye-jwt` | Vérification des JWT restaurateur signés en RS256 |
 | `quarkus-smallrye-jwt-build` | Émission des JWT restaurateur avec la clé privée courante |

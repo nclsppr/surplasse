@@ -114,8 +114,10 @@ jobs:
           scripts/check-container-images.sh
           scripts/test-compose-config.sh
           scripts/verify-backend.sh
+          scripts/test-backend-migration-image.sh
           infra/images/backend-entrypoint.sh
           infra/images/backend-healthcheck.sh
+          infra/images/backend-migrate.sh
           infra/images/caddy-entrypoint.sh
       - name: Validate both Compose profiles and production guardrails
         run: npm run compose:config:test

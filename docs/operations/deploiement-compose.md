@@ -19,6 +19,8 @@ L'[ADR-0026](../decisions/adr-0026-compose-commun.md) fixe le modèle et l'[ADR-
 
 `scripts/compose.sh` applique toujours le socle puis une seule surcharge. Appeler directement `docker compose` sans ces deux fichiers et sans profil n'est pas supporté.
 
+Dans toute cette page, les exemples qui appellent `scripts/compose.sh production` décrivent exclusivement le chemin historique du monorepo. Ils ne constituent jamais une commande Atlas, y compris quand ils ciblent un seul service.
+
 ## Où se trouve Caddy
 
 Il existe un seul Caddy de bord par pile. Il termine TLS, redirige HTTP vers HTTPS en production, applique la frontière CORS et route les noms d'hôte. Il est le seul conteneur publié sur les interfaces réseau accessibles. Grafana peut publier un port supplémentaire uniquement sur `127.0.0.1` du VPS lorsque l'observabilité est activée.
@@ -45,6 +47,8 @@ Les images applicatives sont :
 Les outils de build ne sont pas présents dans les images statiques finales. Le Backend et l'image development de l'Onboarding conservent seulement le fichier de domaine sélectionné. Le profil Maven de l'artefact Backend de production exclut physiquement `db/seed/`, et le Dockerfile arrête la construction si cette ressource apparaît encore dans le JAR du catalogue. L'image production de l'Onboarding ne conserve que les fichiers statiques déjà configurés, sans Node ni profil development. Le contenu de `backend/.env`, les certificats, les dossiers `target`, `dist`, `node_modules`, rapports, caches et secrets sont exclus du contexte par `.dockerignore`.
 
 Les Dockerfiles épinglent aussi le frontend Dockerfile par version et digest, activent les contrôles BuildKit en erreur et montent des caches npm ou Maven qui ne rejoignent jamais le runtime. `npm run images:check` valide toutes les recettes et tous leurs profils sans les construire. Le workflow `images.yml` construit et scanne les cinq images applicatives sur les pull requests concernées. Sur `main`, il les publie sous le SHA complet pour `linux/amd64`, avec labels OCI, SBOM, provenance maximale et attestation GitHub. Une vulnérabilité `HIGH` ou `CRITICAL` corrigible détectée par Trivy bloque la publication.
+
+L'image Backend contient aussi `/opt/surplasse/scripts/backend-migrate.sh`. Cette commande ne constitue pas une sixième image. Elle permet à un orchestrateur externe d'exécuter le même digest avec le rôle `surplasse_migrator`, puis comme service HTTP avec le rôle `surplasse_runtime` et `QUARKUS_FLYWAY_MIGRATE_AT_START=false`. Aucun contrôleur Atlas exécutable ni surcharge Compose Atlas n'est toutefois livré dans ce dépôt. La présence du script ne suffit donc pas à activer cette séparation. Le détail de la cible est fixé par l'[ADR-0039](../decisions/adr-0039-migrations-production-separees.md).
 
 L'image `edge` rejoindra cette chaîne après le choix du fournisseur DNS et de son module versionné. PostgreSQL, Prometheus, Grafana et Mailpit restent des images amont consommées directement avec leur digest.
 
@@ -118,7 +122,19 @@ La sortie complète de `config` expose les paramètres résolus et les noms des 
 
 ## Démarrer et contrôler
 
-Sur Ubuntu LTS :
+### Contrat de migration Atlas, non exécutable depuis ce dépôt
+
+Un contrôleur Atlas conforme ne démarre jamais le Backend avant la migration. Il suit cet ordre : vérifier PostgreSQL 17, vérifier les rôles et les fichiers de secrets, exécuter le job one-shot avec le digest Backend sélectionné, vérifier que Flyway a appliqué V1 à V14, puis démarrer les cinq services longs. Le job rejoint uniquement le réseau privé `db_surplasse`. Il ne publie aucun port et utilise `restart: "no"`.
+
+Le point d'entrée refuse un mot de passe direct. Il exige `QUARKUS_DATASOURCE_PASSWORD_FILE`, `QUARKUS_DATASOURCE_JDBC_URL`, `QUARKUS_DATASOURCE_USERNAME` et `DEPLOYMENT_PROFILE=production`. Il charge les migrations présentes dans les modules Backend, les applique, écrit seulement un résultat sans secret, puis quitte avec un statut non nul au premier échec. Le contrôleur ne doit jamais contourner ce statut.
+
+Ce dépôt ne fournit actuellement aucune commande de contrôleur Atlas. `scripts/compose.sh production` pilote la pile historique du monorepo : elle ne crée ni job de migration séparé, ni identités `surplasse_migrator` et `surplasse_runtime`, et elle ne désactive pas `migrate-at-start` pour le service HTTP. Les opérateurs ne doivent utiliser ni `scripts/compose.sh production up`, ni les commandes de mise à jour associées pour déployer Atlas. Le déploiement Atlas reste bloqué tant que son contrôleur exécutable et sa commande exacte ne sont pas disponibles et documentés.
+
+Les environnements de développement et de test gardent aussi la migration au démarrage du Backend.
+
+### Chemin Compose historique du monorepo
+
+Les commandes suivantes s'appliquent uniquement à la pile historique. Elles ne valident pas la porte de migration Atlas et ne doivent pas être exécutées pour Atlas. Sur Ubuntu LTS :
 
 ```bash
 export SURPLASSE_SECRETS_FILE=/etc/surplasse/production.env
@@ -134,7 +150,7 @@ curl --fail https://le-cormoran.surplasse.com/
 curl --fail https://docs.surplasse.com/
 ```
 
-`--wait` exige un état sain pour PostgreSQL, le Backend, les trois fronts, la documentation et Caddy. Flyway applique les migrations avant que le Backend devienne prêt. Caddy doit charger sa configuration et servir son identité de bord en HTTPS. Une impossibilité de servir HTTPS, une erreur de migration ou un secret invalide maintient le déploiement en échec. La validité publique complète des certificats reste contrôlée par le smoke externe, qui garde une validation TLS stricte en production.
+`--wait` exige un état sain pour PostgreSQL, le Backend, les trois fronts, la documentation et Caddy. Dans ce chemin historique, le processus HTTP Backend applique lui-même les migrations Flyway avant de devenir prêt. Ce comportement ne met en oeuvre ni job séparé, ni rôle PostgreSQL runtime privé des droits de migration. Caddy doit charger sa configuration et servir son identité de bord en HTTPS. Une impossibilité de servir HTTPS, une erreur de migration ou un secret invalide maintient le déploiement en échec. La validité publique complète des certificats reste contrôlée par le smoke externe, qui garde une validation TLS stricte en production.
 
 Depuis un poste d'exploitation ou GitHub Actions, jamais en installant Node sur le VPS, rejouer ensuite le smoke navigateur avec le même profil public :
 
@@ -251,7 +267,7 @@ Cette suppression est irréversible pour l'historique opérationnel. Elle ne doi
 
 ## Mettre à jour et revenir en arrière
 
-Une livraison part exclusivement d'un SHA validé présent sur `main`. Une pull request Renovate peut construire et tester la pile, mais elle ne publie aucune image applicative et n'atteint jamais le VPS. Après la fusion manuelle et la réussite des portes de `main`, la livraison remplace seulement `IMAGE_TAG` dans `/etc/surplasse/production.env` par le nouveau SHA, puis exécute :
+Dans le chemin historique du monorepo, une livraison part exclusivement d'un SHA validé présent sur `main`. Une pull request Renovate peut construire et tester la pile, mais elle ne publie aucune image applicative et n'atteint jamais le VPS. Après la fusion manuelle et la réussite des portes de `main`, la livraison remplace seulement `IMAGE_TAG` dans `/etc/surplasse/production.env` par le nouveau SHA, puis exécute :
 
 ```bash
 git fetch origin <sha-complet>
@@ -260,7 +276,7 @@ scripts/compose.sh production pull
 scripts/compose.sh production up --detach --wait
 ```
 
-Le SHA du checkout et `IMAGE_TAG` doivent être identiques. Le wrapper refuse toute construction, récupération ou activation de production depuis un autre commit ou depuis un worktree sale. Les recettes Compose, les routes et les images restent ainsi alignées pendant une livraison et un retour arrière. Compose recrée les services dont l'image a changé. Le premier déploiement assume une courte interruption du Backend. Le retour arrière sélectionne le SHA sain précédent dans git et dans le fichier d'environnement, puis rejoue les deux commandes Compose. Les migrations Flyway restent additives : un retour arrière applicatif ne restaure pas la base.
+Le SHA du checkout et `IMAGE_TAG` doivent être identiques. Le wrapper refuse toute construction, récupération ou activation de production depuis un autre commit ou depuis un worktree sale. Les recettes Compose, les routes et les images restent ainsi alignées pendant une livraison et un retour arrière historiques. Compose recrée les services dont l'image a changé. Le premier déploiement assume une courte interruption du Backend. Le retour arrière sélectionne le SHA sain précédent dans git et dans le fichier d'environnement, puis rejoue les deux commandes Compose. Cette procédure ne remplace pas la commande Atlas encore absente. Les migrations Flyway restent additives : un retour arrière applicatif ne restaure pas la base.
 
 Une mise à jour d'image de base suit une autre voie. Renovate propose une modification unique de `config/deployment/images.env`, tag et digest compris. Le bot s'exécute le lundi entre 0 h et 5 h dans le fuseau `Europe/Paris`, avec trois branches et trois pull requests simultanées au maximum. Une alerte de vulnérabilité GitHub ignore cette fenêtre et ces quotas, mais jamais la CI ni la fusion manuelle. Les changements majeurs, Caddy, PostgreSQL, Node et Eclipse Temurin exigent une approbation préalable. Après la CI, une fusion humaine produit un nouveau SHA sur `main`. Seul ce SHA peut ensuite entrer dans la chaîne de construction et de déploiement.
 
