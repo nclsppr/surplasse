@@ -4,6 +4,15 @@ set -euo pipefail
 
 SURPLASSE_REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+source "$SURPLASSE_REPO_ROOT/config/deployment/images.env"
+: "${POSTGRES_IMAGE:?POSTGRES_IMAGE is required}"
+: "${TEMURIN_BUILD_IMAGE:?TEMURIN_BUILD_IMAGE is required}"
+
+# The canonical verification command must exercise the same immutable
+# PostgreSQL 17 build selected for production, including on Java-equipped
+# hosts where Quarkus starts Dev Services directly.
+export QUARKUS_DATASOURCE_DEVSERVICES_IMAGE_NAME="$POSTGRES_IMAGE"
+
 run_verification() {
   exec bash "$SURPLASSE_REPO_ROOT/scripts/run-with-domain-profile.sh" \
     development \
@@ -23,9 +32,6 @@ if ! command -v docker >/dev/null 2>&1 || ! docker info >/dev/null 2>&1; then
   exit 1
 fi
 
-source "$SURPLASSE_REPO_ROOT/config/deployment/images.env"
-: "${TEMURIN_BUILD_IMAGE:?TEMURIN_BUILD_IMAGE is required}"
-
 mkdir -p "$SURPLASSE_REPO_ROOT/.surplasse/maven"
 
 SURPLASSE_DOCKER_SOCKET_GROUP="$(
@@ -44,6 +50,7 @@ exec docker run --rm \
   --group-add "$SURPLASSE_DOCKER_SOCKET_GROUP" \
   --env MAVEN_USER_HOME=/workspace/.surplasse/maven \
   --env DOCKER_HOST=unix:///var/run/docker.sock \
+  --env QUARKUS_DATASOURCE_DEVSERVICES_IMAGE_NAME \
   --volume "$SURPLASSE_REPO_ROOT:/workspace" \
   --volume /var/run/docker.sock:/var/run/docker.sock \
   --workdir /workspace \
