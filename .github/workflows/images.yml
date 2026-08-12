@@ -14,6 +14,7 @@ on:
       - "config/deployment/images.env"
       - "infra/images/**"
       - "scripts/check-container-images.sh"
+      - "scripts/test-backend-migration-image.sh"
       - "scripts/compose.sh"
       - "scripts/test-compose-config.sh"
       - "compose.yaml"
@@ -35,6 +36,7 @@ on:
       - "config/deployment/images.env"
       - "infra/images/**"
       - "scripts/check-container-images.sh"
+      - "scripts/test-backend-migration-image.sh"
       - "scripts/compose.sh"
       - "scripts/test-compose-config.sh"
       - "compose.yaml"
@@ -144,6 +146,11 @@ jobs:
           tags: surplasse-ci/${{ matrix.image }}:${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.image }}-production
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}-production
+      - name: Run the Backend migration command against PostgreSQL 17
+        if: matrix.image == 'backend'
+        run: >-
+          ./scripts/test-backend-migration-image.sh
+          surplasse-ci/backend:${{ github.sha }}
       - name: Scan HIGH and CRITICAL fixed vulnerabilities
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:

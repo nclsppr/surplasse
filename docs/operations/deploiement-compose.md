@@ -46,6 +46,8 @@ Les outils de build ne sont pas présents dans les images statiques finales. Le 
 
 Les Dockerfiles épinglent aussi le frontend Dockerfile par version et digest, activent les contrôles BuildKit en erreur et montent des caches npm ou Maven qui ne rejoignent jamais le runtime. `npm run images:check` valide toutes les recettes et tous leurs profils sans les construire. Le workflow `images.yml` construit et scanne les cinq images applicatives sur les pull requests concernées. Sur `main`, il les publie sous le SHA complet pour `linux/amd64`, avec labels OCI, SBOM, provenance maximale et attestation GitHub. Une vulnérabilité `HIGH` ou `CRITICAL` corrigible détectée par Trivy bloque la publication.
 
+L'image Backend contient aussi `/opt/surplasse/scripts/backend-migrate.sh`. Cette commande ne constitue pas une sixième image. L'adaptateur Atlas l'exécute une fois avec le rôle `surplasse_migrator`, puis démarre le même digest comme service HTTP avec le rôle `surplasse_runtime` et `QUARKUS_FLYWAY_MIGRATE_AT_START=false`. Le détail de cette séparation est fixé par l'[ADR-0039](../decisions/adr-0039-migrations-production-separees.md).
+
 L'image `edge` rejoindra cette chaîne après le choix du fournisseur DNS et de son module versionné. PostgreSQL, Prometheus, Grafana et Mailpit restent des images amont consommées directement avec leur digest.
 
 ## Durcissement à l'exécution
@@ -117,6 +119,14 @@ scripts/compose.sh production build
 La sortie complète de `config` expose les paramètres résolus et les noms des sources de secrets. Utiliser `--quiet` dans les journaux partagés. En CI, les cinq images applicatives sont construites et scannées avant leur push vers GHCR avec le SHA git. Une image existante ne doit jamais être reconstruite sous le même SHA.
 
 ## Démarrer et contrôler
+
+### Porte de migration Atlas
+
+L'adaptateur Atlas ne démarre jamais le Backend avant la migration. Son contrôleur suit cet ordre : vérifier PostgreSQL 17, vérifier les rôles et les fichiers de secrets, exécuter le job one-shot avec le digest Backend sélectionné, vérifier que Flyway a appliqué V1 à V14, puis démarrer les cinq services longs. Le job rejoint uniquement le réseau privé `db_surplasse`. Il ne publie aucun port et utilise `restart: "no"`.
+
+Le point d'entrée refuse un mot de passe direct. Il exige `QUARKUS_DATASOURCE_PASSWORD_FILE`, `QUARKUS_DATASOURCE_JDBC_URL`, `QUARKUS_DATASOURCE_USERNAME` et `DEPLOYMENT_PROFILE=production`. Il charge les migrations présentes dans les modules Backend, les applique, écrit seulement un résultat sans secret, puis quitte avec un statut non nul au premier échec. Le contrôleur ne doit jamais contourner ce statut.
+
+La pile Compose historique du monorepo conserve sa migration au démarrage tant qu'elle n'utilise pas l'adaptateur Atlas. Les environnements de développement et de test gardent ce comportement. La production Atlas doit toujours fournir l'override explicite qui le désactive pour le service HTTP.
 
 Sur Ubuntu LTS :
 

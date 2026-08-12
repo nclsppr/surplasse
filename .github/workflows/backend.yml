@@ -12,7 +12,9 @@ on:
       - "infra/images/backend.Dockerfile"
       - "infra/images/backend-entrypoint.sh"
       - "infra/images/backend-healthcheck.sh"
+      - "infra/images/backend-migrate.sh"
       - "scripts/check-container-images.sh"
+      - "scripts/test-backend-migration-image.sh"
       - "scripts/run-with-domain-profile.sh"
       - "package.json"
       - "package-lock.json"
@@ -30,7 +32,9 @@ on:
       - "infra/images/backend.Dockerfile"
       - "infra/images/backend-entrypoint.sh"
       - "infra/images/backend-healthcheck.sh"
+      - "infra/images/backend-migrate.sh"
       - "scripts/check-container-images.sh"
+      - "scripts/test-backend-migration-image.sh"
       - "scripts/run-with-domain-profile.sh"
       - "package.json"
       - "package-lock.json"
@@ -69,3 +73,5 @@ jobs:
             --build-arg DOMAIN_PROFILE=production \
             --tag surplasse/backend:production-check \
             .
+      - name: Run the production migration command against PostgreSQL 17
+        run: ./scripts/test-backend-migration-image.sh surplasse/backend:production-check
