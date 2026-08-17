@@ -23,8 +23,8 @@ Trois choix structurants minimisent le risque à la source :
 
 Le reste de la posture découle de ce socle : sessions courtes, autorisations filtrées par établissement, validation stricte des entrées, chiffrement en transit partout.
 
-!!! info État actuel au 2026-07-22
-Le catalogue, la commande, le paiement et le module Backend `identity` sont implémentés localement. Le cluster Compose exerce aussi la frontière CORS commune, le proxy de confiance, les cookies sécurisés et le routage HTTPS prévu pour le VPS. La lecture paginée, l'avancement des commandes et le flux SSE authentifient le restaurateur et vérifient son appartenance à l'établissement avant toute opération métier. Le profil facultatif `observability` collecte les métriques Backend sur le réseau interne et Caddy refuse publiquement `/q/metrics`. Rien n'est encore déployé en production. L'identité s'exécute dans l'unique processus Backend, sans service autonome.
+!!! info État actuel au 2026-08-18
+Le catalogue, la commande, le paiement et le module Backend `identity` sont implémentés localement. Le cluster Compose exerce la frontière CORS commune, le proxy de confiance, les cookies sécurisés et le routage HTTPS. Le dépôt publie un candidat OCI attesté pour Atlas, mais Surplasse y reste `enabled: false`. Aucun service, secret, rôle PostgreSQL, migration ou route Surplasse n'y est activé. L'identité s'exécute dans l'unique processus Backend, sans service autonome.
 !!!
 
 ## Durcissements Dashboard avant production {#durcissements-dashboard-avant-production}
@@ -36,7 +36,7 @@ Le parcours local protège déjà le jeton de magic link, les cookies et l'autor
 | CORS avec cookies | Livré et vérifié localement | Quarkus accepte l'apex et les sous-domaines directs comme origines publiques, mais refuse les credentials dans tous ses profils, y compris `%prod`. Le Caddy commun les rétablit seulement après comparaison exacte avec `DASHBOARD_URL` ou `ONBOARDING_URL`. Les tests refusent les credentials à un mini-site et à une origine externe. La production utilise cette même branche, sélectionnée par profil. |
 | Rotation entre onglets | Livré et vérifié localement | Le Dashboard place le renouvellement sous un Web Lock exclusif commun à tous les onglets. Une fois le verrou acquis, il relit d'abord la session : si un autre onglet l'a déjà renouvelée, la requête initiale est rejouée sans nouvelle rotation. Sinon, un seul refresh token est consommé. BroadcastChannel propage la nouvelle session ou la déconnexion. Sans Web Locks, le Dashboard échoue de manière sûre et demande une nouvelle connexion au lieu de risquer une réutilisation du refresh token. Les tests unitaires couvrent la coordination et un scénario réel à deux onglets a conservé la session avec une seule rotation en base. |
 
-La configuration `%prod` échoue désormais de manière sûre : Quarkus n'accorde jamais seul les credentials et le Caddy commun ne les ajoute qu'aux deux origines exactes du profil. Cette fermeture ne vaut pas autorisation de déployer le Dashboard tant que le VPS, son DNS, ses secrets et les autres portes du pilote ne sont pas prêts. La coordination ne modifie pas le protocole de rotation côté serveur ; elle complète la décision de session de l'[ADR-0008](../decisions/adr-0008-magic-link.md).
+La configuration `%prod` échoue désormais de manière sûre : Quarkus n'accorde jamais seul les credentials et Caddy ne les ajoute qu'aux deux origines exactes du profil. Cette fermeture ne vaut pas autorisation de déployer le Dashboard tant que les réseaux, la route Atlas, le DNS Surplasse, les secrets et les autres portes du pilote ne sont pas prêts. La coordination ne modifie pas le protocole de rotation côté serveur ; elle complète la décision de session de l'[ADR-0008](../decisions/adr-0008-magic-link.md).
 
 ## Modèle de menaces
 
@@ -176,7 +176,7 @@ Les deux endpoints de webhook sont les seuls endpoints publics non couverts par 
 
 `/q/metrics` est un endpoint d'administration interne. Prometheus le collecte directement sur `backend:8080` dans le réseau Compose. Le Caddy commun refuse explicitement le chemin sur l'hôte public de l'API, avant le proxy vers Quarkus. Une régression de cette fermeture fait échouer les contrôles de configuration et doit bloquer un déploiement.
 
-Prometheus ne publie aucun port hôte et n'a aucune route Caddy. Grafana est accessible par son URL centrale uniquement en développement. En production, il ne reçoit aucun domaine public : son port est lié à la boucle locale du VPS, puis atteint depuis un poste autorisé par tunnel SSH. L'accès anonyme est désactivé et le mot de passe administrateur vient de `/etc/surplasse/production.env`, protégé en mode `0600`. Le pare-feu ne reçoit aucune règle pour Grafana ou Prometheus.
+Prometheus ne publie aucun port hôte et n'a aucune route Caddy. Grafana est accessible par son URL centrale uniquement en développement. Dans le chemin Compose historique, son port de production est lié à la boucle locale et son secret vient de `/etc/surplasse/production.env`. Sur Atlas, Prometheus, Grafana, leurs versions et leurs secrets appartiennent à la plateforme partagée de `vps-infra`. L'intégration Surplasse y reste désactivée. Aucun de ces chemins ne crée de règle publique pour Grafana ou Prometheus.
 
 La source Grafana provisionnée est Prometheus seulement. Grafana ne possède donc aucun mot de passe PostgreSQL et ne peut pas lire les commandes ou restaurateurs. Les métriques utilisent des labels à cardinalité bornée. Aucun identifiant, slug, email, IP, jeton, montant ou message libre n'entre dans une série. Les volumes de la chaîne contiennent un historique opérationnel agrégé et restent accessibles uniquement au compte de déploiement via Docker.
 
@@ -184,12 +184,12 @@ La source Grafana provisionnée est Prometheus seulement. Grafana ne possède do
 
 | Règle | Détail |
 |---|---|
-| Variables d'environnement uniquement | Tous les secrets (clés Stripe, clé API OpenAI, clé privée de signature JWT, identifiants SMTP, mot de passe PostgreSQL et mot de passe administrateur Grafana) sont injectés par l'environnement ou montés hors image, jamais codés en dur |
+| Configuration injectée ou montée | Les paramètres non secrets passent par la configuration d'exécution. Les secrets (clés Stripe, clé API OpenAI, clé privée de signature JWT, identifiants SMTP et mots de passe PostgreSQL) viennent de fichiers montés hors image, jamais d'une valeur codée en dur ou incluse dans le bundle OCI |
 | Jamais dans git | Aucun secret dans l'historique, y compris dans les fichiers de configuration Docker Compose : les valeurs sensibles sont référencées, pas inscrites |
 | `.env.example` committé | Un fichier d'exemple liste toutes les variables attendues, avec des valeurs vides ou factices, pour documenter la configuration sans rien exposer |
 | Rotation | Les secrets sont rotables sans modification de code : rotation planifiée au moins annuelle, immédiate en cas de suspicion de fuite. Pour le JWT, le JWKS conserve temporairement les clés publiques courante et précédente afin de laisser expirer les sessions signées avant la bascule |
 
-Le premier VPS utilise `/etc/surplasse/production.env`, hors du dépôt et inaccessible au groupe et aux autres utilisateurs. Les clés JWT sont des fichiers distincts montés en lecture seule. Les copies maîtresses et la procédure de récupération vivent dans le gestionnaire de mots de passe de l'opérateur. Un coffre serveur dédié n'est pas retenu au lancement.
+`/etc/surplasse/production.env` appartient uniquement au chemin Compose historique du monorepo. Atlas attend des fichiers séparés sous `/etc/vps/secrets/surplasse/`, pré-provisionnés par l'opérateur avec les propriétaires et modes exacts. Le contrôleur applicatif vérifie leurs chemins, leurs métadonnées et leur allocation par service sans lire ni persister leurs octets. Il ne crée jamais une valeur opérateur à partir d'une release. Les copies maîtresses et la procédure de récupération vivent dans le gestionnaire de mots de passe de l'opérateur. Un coffre serveur dédié n'est pas retenu au lancement.
 
 Sous Ubuntu LTS, qui fait foi pour la production, `AUTH_JWT_PRIVATE_KEY_PATH` pointe vers la clé privée RS256 courante, `AUTH_JWT_KEY_ID` vers son `kid`, et `AUTH_JWT_JWKS_PATH` vers le jeu de clés publiques de vérification. L'émetteur suit obligatoirement `API_URL` et `AUTH_JWT_AUDIENCE` verrouille l'audience. Les fichiers de clés sont montés en lecture seule hors de l'image. La procédure de rotation et l'inventaire complet des variables vivent dans [Environnements](../operations/environnements.md#backend).
 
@@ -238,7 +238,7 @@ L'App GitHub Mend Renovate hébergée propose les mises à jour npm, Maven, Mave
 
 Le bot ouvre ses pull requests le lundi entre 0 h et 5 h dans le fuseau `Europe/Paris`, avec trois branches et trois PR simultanées au maximum. Les alertes de vulnérabilité GitHub ignorent cette fenêtre et ces quotas afin de proposer immédiatement une correction. Il n'utilise aucun automerge, y compris pour ces alertes. Les versions majeures, Node, Java, Caddy, PostgreSQL, Quarkus, Stripe et OpenAPI Generator exigent une approbation dans le Dependency Dashboard. Chaque PR passe les contrôles correspondant à ses chemins, mais ne reçoit aucun secret de production et ne peut déclencher ni une publication Pages, ni une image de production, ni un déploiement VPS.
 
-Le service Mend n'est pas installé sur l'infrastructure Surplasse. Renovate et `mise` restent absents du VPS. La production contient Docker Engine et Compose seulement ; Java, Node, Python et les autres dépendances d'exécution restent dans les images.
+Le service Mend n'est pas installé sur l'infrastructure Surplasse. Renovate et `mise` restent absents du runtime de production. Java, Node et les autres dépendances applicatives restent dans les images. Atlas possède en plus les contrôleurs et services hôte documentés par `vps-infra` : ils ne sont ni fournis ni modifiés par le dépôt Surplasse.
 
 `mise.lock` est versionné afin d'épingler les téléchargements de l'outillage sur les plateformes supportées. L'App GitHub Mend Renovate hébergée ne peut pas exécuter `mise lock`. Toute mise à jour de Node, Java ou Python exige donc une régénération manuelle du lock, sa relecture et son ajout à la branche Renovate avant fusion. Cette limite n'est pas contournée par l'exécution de code du dépôt dans le service hébergé.
 
@@ -247,6 +247,6 @@ Le service Mend n'est pas installé sur l'infrastructure Surplasse. Renovate et 
 | Sujet | Piste | Où sera consignée la décision |
 |---|---|---|
 | Durée exacte de la session client anonyme | 2 heures glissantes | Le contrat et un ADR si le sujet s'avère structurant |
-| Seuil de passage à un coffre serveur dédié | Seulement si les secrets ou les opérateurs se multiplient réellement ; le fichier protégé et le coffre humain suffisent au premier VPS | ADR dédié si le seuil est atteint |
+| Seuil de passage à un coffre serveur dédié | Seulement si les secrets ou les opérateurs se multiplient réellement ; les fichiers Atlas séparés et le coffre humain suffisent au lancement | ADR dédié si le seuil est atteint |
 | Seuils de limitation hors demande de magic link et futur stockage partagé des compteurs | Calibrage avant activation de chaque endpoint, stockage partagé avant toute seconde instance | Documentation d'exploitation |
 | Plafond de taille des téléversements | De l'ordre de 10 Mo par image | Le contrat |

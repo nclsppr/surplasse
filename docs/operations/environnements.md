@@ -7,10 +7,10 @@ description: Deux environnements seulement, leurs domaines, certificats, profils
 
 # Environnements
 
-Surplasse connaît deux environnements : le développement local et la production. Il n'existe pas de staging au lancement. Le cluster local et la production utilisent le même `compose.yaml`, les mêmes recettes applicatives et le même routage Caddy. Une surcharge explicite porte les différences de TLS, d'exposition et de services annexes. L'image Caddy de production ajoute seulement le module du fournisseur DNS retenu.
+Surplasse connaît deux environnements : le développement local et la production. Il n'existe pas de staging au lancement. Le cluster local exerce les mêmes recettes applicatives et le même contrat de domaines que la cible de production. Sur Atlas, le bundle applicatif rejoint une plateforme Caddy, PostgreSQL et observabilité possédée par `vps-infra`. Le Compose historique du monorepo n'est pas la commande d'exploitation d'Atlas.
 
-!!! warning État réel au 2026-07-26
-Le cluster Compose local est implémenté et validé sous `surplasse.test`. La surcharge production, les images applicatives, leur chaîne GHCR et le runbook Ubuntu sont versionnés, mais aucun VPS public n'est provisionné. Le premier trafic public reste bloqué par le provisionnement du VPS, la configuration du wildcard DNS `.com`, le choix du module DNS de Caddy, le SMTP transactionnel, les CSP de Commande et du Dashboard et la mise en place des sauvegardes hors site.
+!!! warning État réel au 2026-08-18
+Atlas et sa plateforme partagée existent. Le candidat Surplasse est publié par digest, mais son entrée de production reste `enabled: false` dans `vps-infra`. Aucun service, base, rôle, secret, certificat wildcard, route ou DNS Surplasse n'y est activé. Le premier trafic public reste bloqué par la préparation PostgreSQL et sa restauration, les secrets, le SMTP transactionnel, Stripe live, les CSP de Commande et du Dashboard, les rattachements réseau et les sondes publiques strictes.
 !!!
 
 ## Comparaison
@@ -19,15 +19,15 @@ Le cluster Compose local est implémenté et validé sous `surplasse.test`. La s
 |---|---|---|
 | Profil | `development` | `production` |
 | Domaine racine | `surplasse.test` | `surplasse.com` |
-| Hôte | macOS, Linux ou Ubuntu sous WSL2 | VPS Ubuntu LTS |
-| Orchestration | `compose.yaml` et `compose.development.yaml` | `compose.yaml` et `compose.production.yaml` |
-| Données | Seed réinitialisable, aucune donnée réelle | Données réelles, sauvegarde quotidienne |
-| PostgreSQL | Volume Compose local | Volume Compose persistant |
+| Hôte | macOS, Linux ou Ubuntu sous WSL2 | Atlas, VPS Ubuntu LTS provisionné, application désactivée |
+| Orchestration | `compose.yaml` et `compose.development.yaml` | `application-release@sha256` admise et activée uniquement par `vps-infra` |
+| Données | Seed réinitialisable, aucune donnée réelle | Aucune base Surplasse active ; données réelles et sauvegarde quotidienne après activation |
+| PostgreSQL | Volume Compose local | Plateforme partagée, base et rôles Surplasse à provisionner |
 | Stripe | Mode test exclusivement | Mode live exclusivement |
-| Email | Mailpit | Fournisseur SMTP transactionnel |
-| Certificat | mkcert monté en lecture seule | Let's Encrypt wildcard par DNS-01 |
-| Services annexes | Mailpit, documentation Nimbus, cockpit et rapport Allure development sur l'hôte ; Prometheus et Grafana facultatifs | Documentation Nimbus ; Prometheus et Grafana facultatifs ; Grafana sur loopback seulement |
-| Images applicatives | Tags locaux `development` | Tags immuables par SHA git |
+| Email | Mailpit | Relais SMTP transactionnel géré, à sélectionner et activer |
+| Certificat | mkcert monté en lecture seule | Cible Let's Encrypt wildcard par DNS-01 OVH, non activée pour Surplasse |
+| Services annexes | Mailpit, documentation Nimbus, cockpit et rapport Allure development sur l'hôte ; Prometheus 3.13.1 et Grafana 13.1.1 facultatifs | Image de documentation, cible et règles Prometheus et tableau de bord Grafana publiés ; runtimes Atlas Prometheus 3.13.2 et Grafana 13.1.3 possédés par `vps-infra` ; intégration Surplasse inactive |
+| Images applicatives | Tags locaux `development` | Références digest liées par `application-release` |
 
 Aucune clé live, donnée réelle ou sauvegarde de production ne doit se trouver sur un poste local. Le serveur Onboarding peut créer une courte session Stripe Connect seulement en `development`. Le wrapper exige que cette capacité soit désactivée en `production`.
 
@@ -74,7 +74,8 @@ Avant d'appeler Compose, le wrapper écrit atomiquement chaque valeur sensible s
 | `config/deployment/images.env` | Non | Oui |
 | `config/deployment/development.env` | Non, identifiants PostgreSQL jetables seulement | Oui |
 | `backend/.env` et `frontends/commande/.env` | Clés Stripe test | Non |
-| `/etc/surplasse/production.env` | Secrets et paramètres du VPS | Non |
+| `/etc/surplasse/production.env` | Chemin du Compose historique, non utilisé pour Atlas | Non |
+| `/etc/vps/secrets/surplasse/` | Cible Atlas des secrets par fichier, actuellement non matérialisée | Non |
 | `config/deployment/production.env.example` | Non, modèle sans valeur réelle | Oui |
 
 Le catalogue d'images épingle chaque base par version et digest. Les paramètres réseau, ports et noms d'image restent variables. Les adresses de services telles que `postgresql:5432` sont des noms internes au graphe Compose, pas des références à un environnement public.
@@ -102,7 +103,7 @@ Le Backend reçoit au démarrage les valeurs dérivées du profil, puis les para
 | `SMTP_FROM` | Adresse expéditrice |
 | `SMTP_TLS`, `SMTP_START_TLS` | Politique de chiffrement SMTP |
 
-En développement, Quarkus génère une paire JWT éphémère et envoie à `mailpit:1025`. En production, les deux fichiers JWT vivent sous `/etc/surplasse/secrets/` sur l'hôte et sont montés sous `/run/secrets/` dans le conteneur. Les chemins hôte ne sont jamais intégrés à l'image. Le mot de passe PostgreSQL, les trois secrets Stripe et les deux identifiants SMTP sont eux aussi montés comme fichiers, pas inscrits dans la configuration d'environnement du conteneur.
+En développement, Quarkus génère une paire JWT éphémère et envoie à `mailpit:1025`. Sur Atlas, les fichiers JWT, PostgreSQL, Stripe et SMTP doivent vivre sous `/etc/vps/secrets/surplasse/`, avec une allocation distincte entre migrateur, runtime et services statiques. Ils sont montés sous `/run/secrets/` dans les conteneurs. Aucun de ces fichiers n'est matérialisé tant que l'activation reste bloquée. Les chemins hôte et les valeurs ne sont jamais intégrés à l'image.
 
 Le Backend n'accorde jamais les credentials CORS. Caddy les ajoute seulement quand `Origin` correspond exactement à l'Onboarding ou au Dashboard du profil. Les mini-sites utilisent les routes publiques sans credentials.
 
@@ -162,7 +163,7 @@ surplasse.com.        A      <IP du VPS>
 *.surplasse.com.      A      <IP du VPS>
 ```
 
-Le certificat wildcard de `surplasse.com` couvre `docs.surplasse.com` et exige le défi DNS-01. `CADDY_DNS_MODULE` sélectionne le module ajouté par `xcaddy` avec une version ou un commit explicite, `CADDY_DNS_PROVIDER` sélectionne sa directive et `DNS_API_TOKEN` autorise seulement la modification de cette zone. Ces trois variables sont obligatoires. Le dépôt ne fournit aucune valeur implicite tant que le fournisseur n'est pas choisi.
+Le certificat wildcard de `surplasse.com` couvre `docs.surplasse.com` et exige le défi DNS-01. La plateforme Atlas a retenu OVH et construit Caddy avec le module `caddy-dns/ovh` épinglé. La décision de fournisseur n'est donc plus ouverte. En revanche, l'identité ACME bornée à la zone, ses secrets, la route wildcard et la bascule des enregistrements Surplasse ne sont pas activés. Ils restent des portes de production appartenant à `vps-infra`.
 
 Caddy persiste son état ACME dans `caddy_data`. Une sonde externe doit surveiller l'expiration du certificat. La procédure locale dnsmasq et mkcert vit dans [Domaines locaux](../developpement/domaines-locaux.md).
 

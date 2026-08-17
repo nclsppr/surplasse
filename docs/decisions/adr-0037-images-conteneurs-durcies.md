@@ -60,9 +60,9 @@ Le workflow `images.yml` construit les quatre images applicatives de production 
 
 La première exécution bloquante a conduit à passer NGINX de `1.29.4-alpine` à `1.31.3-alpine`, Quarkus de `3.37.3` à `3.37.4` et `jackson-core` à `2.22.1`. Ces versions rendent les quatre images applicatives conformes à la politique au moment de la décision. L'override `jackson-core` reste explicite dans le BOM du projet jusqu'à ce qu'une plateforme Quarkus retenue fournisse une version au moins équivalente.
 
-Seul un push sur `main` peut publier dans GHCR. Le tag est le SHA git complet et n'est jamais réutilisé. Chaque image reçoit les labels OCI de source et de révision, une SBOM, une provenance BuildKit maximale et une attestation GitHub liée à son digest. La cible initiale est `linux/amd64`, architecture du runner et du futur VPS de référence. Un VPS ARM imposerait d'étendre la matrice, de scanner chaque variante et de publier un manifeste multi-architecture avant son provisionnement.
+Seul un push sur `main` peut publier dans GHCR. Le tag est le SHA git complet et n'est jamais réutilisé. Chaque image reçoit les labels OCI de source et de révision, une SBOM, une provenance BuildKit maximale et une attestation GitHub liée à son digest. Le contrat Atlas cible `linux/amd64`. Une cible ARM imposerait d'étendre ensemble la matrice productrice et l'admission Atlas, de scanner chaque variante et de publier un manifeste multi-architecture avant toute activation.
 
-L'image `edge` reste hors de cette publication tant que le fournisseur DNS et son module Caddy versionné ne sont pas décidés. Les images amont PostgreSQL, Prometheus, Grafana et Mailpit restent consommées directement par digest. Cette limite est une porte explicite du premier déploiement, pas une valeur implicite dans le workflow.
+L'image `edge` reste hors de cette publication. Le bord Atlas appartient à la plateforme partagée de `vps-infra`, qui a retenu OVH et épingle le module `caddy-dns/ovh`. Le producteur Surplasse ne publie donc pas Caddy et ne reçoit aucun secret DNS. Les images amont PostgreSQL, Prometheus, Grafana et Mailpit restent consommées directement par digest dans les contextes qui les possèdent.
 
 ## Conséquences
 
@@ -81,7 +81,7 @@ L'image `edge` reste hors de cette publication tant que le fournisseur DNS et so
 - `ignore-unfixed` laisse visibles mais non bloquantes les vulnérabilités sans correctif ; elles doivent rester surveillées par les mises à jour Renovate.
 - L'override `jackson-core` doit être retiré dès que le BOM Quarkus sélectionné fournit une version au moins égale.
 - La publication ne couvre initialement que `linux/amd64`.
-- L'image Caddy de production ne peut pas être publiée avant le choix du fournisseur DNS.
+- L'image Caddy de production n'appartient plus à la publication applicative : elle est construite et admise séparément par `vps-infra` avec le module OVH épinglé.
 - Compose améliore la distribution des secrets, mais le moteur Docker et l'utilisateur capable de le piloter restent une frontière de confiance élevée.
 
 ## Références

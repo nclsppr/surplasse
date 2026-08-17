@@ -48,7 +48,7 @@ L'adaptateur applique une frontière explicite :
 
 Les tests de l'adaptateur couvrent le front matter, les titres, les liens, les callouts et les marqueurs présents dans les blocs de code. Toute nouvelle syntaxe propre à Retype doit être ajoutée à l'adaptateur avec un test avant d'être utilisée dans `docs/`. Les auteurs ne modifient jamais la collection Nimbus générée.
 
-L'aperçu est publié sous `/_experiments/nimbus-docs/`. En développement, Caddy le sert sur le domaine documentaire dérivé du profil. Sur GitHub Pages, il est assemblé à côté du site Retype. Retype reste sous `/docs/`. Nimbus est absent du profil Compose production et du futur VPS.
+L'aperçu est publié sous `/_experiments/nimbus-docs/`. En développement, Caddy le sert sur le domaine documentaire dérivé du profil. Sur GitHub Pages, il est assemblé à côté du site Retype. Retype reste sous `/docs/`. Cette collection expérimentale est absente du profil Compose de production et du candidat Atlas.
 
 La version de `@cloudflare/nimbus-docs` est verrouillée dans `docs-nimbus/package-lock.json`. Une mise à jour est explicite et doit faire passer les tests de conversion, le contrôle Astro, le build Retype, le build Nimbus et une revue navigateur des deux rendus.
 

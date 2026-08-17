@@ -52,7 +52,7 @@ Toute version majeure exige une approbation dans le Dependency Dashboard avant c
 
 L'automerge est désactivé pour toutes les dépendances. Le mainteneur lit les notes de version utiles, attend une CI verte, complète si nécessaire les preuves propres au composant, puis fusionne manuellement. Une mise à jour de `mise.toml` doit aussi fournir un `mise.lock` cohérent. Si l'application hébergée ne peut pas régénérer ce lockfile, le mainteneur exécute `mise lock` et ajoute le résultat à la branche du bot avant fusion.
 
-Les branches et PR créées par Renovate constituent l'unique exception au workflow humain direct sur `main`. Elles sont éphémères et ne servent jamais au développement de fonctionnalités. Les workflows de validation écoutent les PR vers `main` avec des permissions de lecture. La publication GitHub Pages, la future publication des images et le déploiement restent réservés à un SHA fusionné sur `main`.
+Les branches et PR créées par Renovate constituent l'unique exception au workflow humain direct sur `main`. Elles sont éphémères et ne servent jamais au développement de fonctionnalités. Les workflows de validation écoutent les PR vers `main` avec des permissions de lecture. La publication GitHub Pages, des images et de l'artefact `application-release` reste réservée à un SHA exact fusionné sur `main`. Cette publication produit un candidat immuable et ne déploie pas Surplasse : Atlas décide séparément de son admission et de son activation.
 
 ## Conséquences
 

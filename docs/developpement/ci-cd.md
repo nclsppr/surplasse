@@ -2,12 +2,12 @@
 label: CI/CD
 order: 70
 icon: workflow
-description: "Intégration et déploiement continus : main pour le travail humain, PR Renovate isolées, GitHub Actions et déploiement sur le VPS."
+description: "Intégration continue, publication de candidats OCI depuis main et activation Atlas séparée."
 ---
 
 # CI/CD
 
-Surplasse s'appuie sur GitHub Actions pour l'intégration continue et prépare un déploiement continu piloté par Atlas. Les workflows Pages, API, Backend, Frontends, E2E, Images et VPS integration existent. Les Dockerfiles, les piles Compose locale et historique, le bundle applicatif Atlas et le runbook Ubuntu sont versionnés. `images.yml` construit, scanne et publie les cinq images applicatives dans GHCR. `vps-integration.yml` publie ensuite un digest `application-release` attesté. Il ne se connecte pas au VPS et n'active aucun service.
+Surplasse s'appuie sur GitHub Actions pour l'intégration continue et la publication de candidats pilotés ensuite par Atlas. Les workflows Pages, API, Backend, Frontends, E2E, Images et VPS integration existent. Les Dockerfiles, les piles Compose locale et historique et le bundle applicatif Atlas sont versionnés. `images.yml` construit, scanne et publie les cinq images applicatives dans GHCR. `vps-integration.yml` publie ensuite un digest `application-release` attesté. Il ne se connecte pas au VPS et n'active aucun service. Le runbook qui peut muter Atlas appartient à `vps-infra`.
 
 Pour le détail des environnements et de la topologie de production, voir [Environnements](../operations/environnements.md) et [Exploitation](../operations/index.md).
 
@@ -17,7 +17,7 @@ Le [workflow git](workflow-git.md) de Surplasse est volontairement minimal : une
 
 La CI est ce filet. Elle repose sur deux principes :
 
-1. **Chaque push sur `main` est potentiellement déployable.** Il n'existe pas de branche d'intégration ni de fenêtre de release : ce qui est sur `main` est ce qui part en production. La discipline de commit (une unité de travail vérifiée = un commit poussé) est la première ligne de défense, la CI est la seconde.
+1. **Chaque push sur `main` est un candidat potentiel, pas un déploiement.** Il n'existe pas de branche d'intégration ni de fenêtre de release. Les portes vertes du SHA exact autorisent la publication d'une `application-release` immuable. Atlas résout ensuite le sommet canonique, revérifie les preuves et n'active que si le contrat protégé est explicitement activé. Surplasse reste actuellement `enabled: false`.
 2. **La CI est le garde-fou du workflow.** Tout ce qu'une revue humaine attraperait mécaniquement (build cassé, test rouge, contrat OpenAPI incompatible) doit être attrapé par un workflow. Un push qui casse la CI se corrige immédiatement. Une PR Renovate rouge n'est pas fusionnée.
 
 !!! info Vérifier avant de pousser
@@ -120,7 +120,7 @@ Une matrice construit ensuite `backend`, `onboarding`, `commande` et `dashboard`
 
 Sur une PR, le workflow s'arrête après le scan. Sur un push vers `main`, une seconde matrice reconstruit depuis le même SHA et publie seulement le tag immuable `ghcr.io/nclsppr/surplasse/<image>:<sha-complet>`. BuildKit ajoute les labels OCI, la SBOM et la provenance maximale. GitHub atteste ensuite le digest poussé avec l'identité OIDC du workflow. Les permissions `packages: write`, `id-token: write` et `attestations: write` existent uniquement dans ce job.
 
-La publication initiale cible `linux/amd64`. Si le VPS retenu utilise ARM, le changement doit précéder son provisionnement : la CI construira et scannera chaque architecture avant de publier un manifeste commun. L'image `edge` reste exclue tant que `CADDY_DNS_MODULE` et le fournisseur ne sont pas décidés. Les images PostgreSQL, Prometheus, Grafana et Mailpit continuent à venir directement de leur éditeur avec un digest.
+Le contrat Atlas cible `linux/amd64`. Une autre architecture exigerait une évolution commune du producteur et du contrôleur avant publication. L'image `edge` reste exclue car Caddy appartient à la plateforme partagée de `vps-infra`, qui a retenu OVH et épingle son module DNS. Les images PostgreSQL, Prometheus, Grafana et Mailpit continuent à venir directement de leur éditeur avec un digest dans les contextes qui les possèdent.
 
 La clé Stripe publiable de Commande peut être fournie par la variable de dépôt `VITE_STRIPE_PUBLISHABLE_KEY`. Elle est publique et intégrée par Vite. Aucun secret Stripe, SMTP, PostgreSQL, JWT ou DNS n'entre dans le workflow ou dans un argument de build.
 
@@ -136,7 +136,7 @@ Le déploiement applicatif normal ne dépend pas du profil facultatif. Une indis
 
 Le workflow `.github/workflows/pages.yml` exerce la cible `development` à la minute 37 de chaque heure. Il publie le dernier rapport sur [nclsppr.github.io/surplasse/local-tests/](https://nclsppr.github.io/surplasse/local-tests/). Cette preuve valide les images construites depuis `main`, le graphe Compose, Caddy, PostgreSQL, le Backend et les frontends dans un runner jetable. Elle ne mesure pas le poste local d'un développeur et ne dépend d'aucun secret applicatif.
 
-Le workflow `.github/workflows/e2e.yml` valide au push le résolveur de cibles et le chargement de toutes les spécifications, sans installer de navigateur ni joindre un environnement. Son horaire `17 * * * *` évite le début exact de l'heure, souvent chargé chez GitHub. Il cible le profil `production`, mais le job planifié reste ignoré tant que la variable de dépôt `E2E_MONITORING_ENABLED` ne vaut pas `true`. Cette porte empêche de signaler comme panne une production qui n'est pas encore provisionnée.
+Le workflow `.github/workflows/e2e.yml` valide au push le résolveur de cibles et le chargement de toutes les spécifications, sans installer de navigateur ni joindre un environnement. Son horaire `17 * * * *` évite le début exact de l'heure, souvent chargé chez GitHub. Il cible le profil `production`, mais le job planifié reste ignoré tant que la variable de dépôt `E2E_MONITORING_ENABLED` ne vaut pas `true`. Cette porte empêche de signaler comme panne la route Surplasse qui n'est pas encore activée sur Atlas.
 
 Un lancement manuel choisit `production` ou `custom`. La seconde option exige `target_id` et `base_domain`, puis accepte un `establishment_slug` facultatif. Elle permet de rejouer le même rapport sur un deuxième serveur ou une future UAT. Elle ne construit pas cette UAT et ne remplace pas son profil de domaines applicatif. Les rapports produits restent dans les artefacts GitHub Actions et ne sont pas publiés par le cockpit local.
 
@@ -170,7 +170,7 @@ Une planification GitHub peut démarrer en retard ou être omise lors d'une fort
 Deux règles transversales :
 
 - **Le contrat d'abord.** Toute modification de `api/openapi.yaml` passe par `api.yml` avant que backend ou frontends ne consomment la nouvelle version. Une rupture de compatibilité détectée par `oasdiff` fait échouer le workflow ; elle n'est acceptée que si elle est assumée et documentée (voir [le contrat](../architecture/api.md)).
-- **Des images immuables.** Une image est construite une seule fois, taggée par le SHA du commit qui l'a produite, et n'est jamais reconstruite ni re-taggée. Déployer, c'est choisir un SHA ; revenir en arrière, c'est en choisir un autre.
+- **Des releases immuables.** Une image est construite une seule fois, taggée par le SHA du commit qui l'a produite, et n'est jamais reconstruite ni re-taggée. Le producteur publie un candidat lié au SHA. Atlas active une référence `application-release@sha256` après ses propres preuves.
 
 ## La publication applicative pour Atlas
 
@@ -196,7 +196,11 @@ Le bundle `vps-integration` contient seulement le graphe applicatif et ses inté
 
 Le descripteur `application-release` est le seul signal admis par Atlas. Il lie les cinq images, le bundle, les migrations et les sondes au même SHA. Les tags `sha-<SHA>` servent à la découverte. Atlas doit résoudre puis conserver la référence `@sha256`, vérifier l'attestation et refuser toute référence mutable.
 
-Cette publication ne prouve pas que l'activation réelle est possible. Atlas reste responsable de la matérialisation des secrets, du fournisseur DNS, de PostgreSQL 17, de la migration, de l'activation atomique, des sondes et du retour au dernier digest sain. L'[ADR-0040](../decisions/adr-0040-publication-oci-applicative-pour-atlas.md) fixe la frontière complète.
+!!! info Première preuve productrice
+La première preuve distante retenue porte sur la révision `b3df325fd8266b8a0a73e8b4ee3a936683861a15`, qui était le sommet de `main` pendant l'exécution [VPS integration release 32068614255](https://github.com/nclsppr/surplasse/actions/runs/32068614255). Elle a publié `vps-integration@sha256:1c193f79052ed618cdd62b769ca066dfd2190612788a416279591f211af15b9d` et `application-release@sha256:68a479690817cc55a19985a19f0d524007eeb4a8f240656397fa4d313d0a7b4e`. Ces références sont une preuve historique, pas un sommet durable : chaque nouveau push sur `main` doit publier son propre candidat. Cette preuve s'arrête à la publication. Surplasse reste `enabled: false` sur Atlas.
+!!!
+
+Cette publication ne prouve pas que l'activation réelle est possible. Atlas reste responsable de la vérification des fichiers de secrets pré-provisionnés, de l'identité DNS-01 OVH, de PostgreSQL 17, des rôles, de la migration, des réseaux et routes, des sondes et de la politique de reprise. Après migration, le runtime précédent ne peut redémarrer que si sa compatibilité avec le schéma est attestée ; sinon le contrôleur doit s'arrêter pour une reprise explicite vers l'avant. L'[ADR-0040](../decisions/adr-0040-publication-oci-applicative-pour-atlas.md) fixe la frontière complète. Sa première preuve de mise en oeuvre consigne un candidat historique et l'absence d'activation Surplasse.
 
 !!! warning Migrations et rollback
 Le rollback redéploie le code, pas la base. Une migration Flyway qui supprime ou renomme une colonne casserait la version précédente du backend. La convention est donc : les migrations destructives sont découpées en deux déploiements (d'abord le code qui n'utilise plus la colonne, puis la migration qui la supprime).
@@ -206,7 +210,7 @@ Le rollback redéploie le code, pas la base. Une migration Flyway qui supprime o
 
 La publication utilise seulement le `GITHUB_TOKEN` éphémère avec des permissions bornées : lecture des exécutions et du dépôt, écriture des paquets et des attestations, puis identité OIDC. Elle n'utilise ni clé SSH, ni adresse du VPS, ni secret applicatif. Le job de pull request conserve la permission globale `contents: read` et ne publie rien.
 
-Les secrets applicatifs Stripe, JWT, SMTP et PostgreSQL ne transitent jamais par le bundle ou le workflow. Le Compose publié contient leurs noms de montage et les chemins attendus sous `/etc/vps/secrets/surplasse`, sans valeur. Le contrôleur Atlas matérialise ces fichiers sur le VPS et doit échouer avant migration si un prérequis manque.
+Les secrets applicatifs Stripe, JWT, SMTP et PostgreSQL ne transitent jamais par le bundle ou le workflow. Le Compose publié contient leurs noms de montage et les chemins attendus sous `/etc/vps/secrets/surplasse`, sans valeur. L'opérateur pré-provisionne les fichiers exacts hors de la release. Le contrôleur Atlas vérifie leurs chemins, leurs métadonnées et leur allocation par service sans lire ni persister leurs octets. Il doit échouer avant migration si un prérequis manque.
 
 ## Pas de staging, et c'est assumé
 
@@ -214,7 +218,7 @@ Il n'y a que deux environnements : le poste de développement local et la produc
 
 - **Le coût de la pièce mobile.** Un staging est un deuxième VPS (ou une deuxième pile Compose) à maintenir, sauvegarder, superviser et garder synchrone. Pour un développeur seul, ce coût d'entretien dépasse le bénéfice tant que le trafic est faible.
 - **La fidélité illusoire.** Un staging sans données réelles, sans trafic réel et sans webhooks Stripe live ne reproduit pas la production ; il donne surtout une fausse confiance. Le cluster Compose local exerce déjà le graphe, les images, Caddy, PostgreSQL et Stripe en mode test avec le profil development.
-- **Le déploiement est réversible.** Images immuables taggées par SHA, rollback en une relance de workflow, migrations additives : le coût d'un déploiement raté est borné et court.
+- **La cible impose une reprise bornée.** Images et release immuables, journal transactionnel et migrations additives rendent le retour applicatif possible. L'activation reste toutefois bloquée tant que la compatibilité descendante des migrations, la restauration et le comportement du bord pendant la reprise ne sont pas prouvés.
 
 Quand une fonctionnalité est trop risquée pour partir directement en production, la réponse est un feature flag léger : une variable de configuration lue au démarrage, qui masque la fonctionnalité tant qu'elle n'est pas prête. Pas de plateforme de feature flags dédiée à ce stade ; une entrée de configuration par flag suffit.
 

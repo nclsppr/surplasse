@@ -9,8 +9,8 @@ description: Healthchecks, métriques Micrometer, collecte Prometheus, tableau d
 
 Surplasse dispose d'une première chaîne de métriques reproductible : le Backend expose Micrometer, Prometheus collecte les séries et Grafana provisionne leur visualisation. L'[ADR-0029](../decisions/adr-0029-observabilite-prometheus-grafana.md) fixe sa séparation avec le chemin applicatif.
 
-!!! info État réel au 2026-07-22
-Le code, les configurations, les règles et le tableau de bord sont livrés dans le dépôt et peuvent être exercés avec le profil Compose facultatif `observability`. Aucun VPS de production n'est encore provisionné. Les règles Prometheus sont évaluées localement, mais elles n'envoient aucune notification car Alertmanager n'est pas installé. La sonde externe et son canal d'alerte restent une porte du premier déploiement.
+!!! info État réel au 2026-08-18
+Le code, les configurations, les règles et le tableau de bord sont livrés dans le dépôt et peuvent être exercés avec le profil Compose facultatif `observability`. Atlas existe, mais la cible Prometheus, les règles et le tableau de bord Surplasse n'y sont pas activés. Les règles sont évaluées localement sans notification, car Alertmanager n'est pas installé. La sonde externe et son canal d'alerte restent une porte de l'activation Surplasse.
 !!!
 
 ## Principe non bloquant
@@ -58,10 +58,10 @@ curl --fail https://api.surplasse.test/q/health/ready
 | Composant | Version | Rôle | Exposition |
 |---|---:|---|---|
 | Registre Micrometer Prometheus | fourni par Quarkus 3.37.4 | Produit les métriques automatiques et métier dans le processus Backend | `/q/metrics` sur le réseau Compose, refusé par Caddy depuis le domaine API |
-| Prometheus | 3.13.1, variante `busybox` | Collecte, conserve et évalue les règles | Réseau Compose seulement, aucune route Caddy ni port hôte |
-| Grafana | 13.1.1 | Affiche le tableau de bord provisionné | `GRAFANA_URL` derrière Caddy en développement ; port loopback et tunnel SSH en production |
+| Prometheus | 3.13.1 dans le profil local et historique ; 3.13.2 `busybox` sur Atlas | Collecte, conserve et évalue les règles | Réseau Compose seulement, aucune route Caddy ni port hôte |
+| Grafana | 13.1.1 dans le profil local et historique ; 13.1.3 `slim` sur Atlas | Affiche le tableau de bord provisionné | `GRAFANA_URL` derrière Caddy en développement ; port loopback et tunnel SSH en production |
 
-Le catalogue `config/deployment/images.env` épingle les deux images par tag et digest. Prometheus utilise `prometheus_data`, Grafana `grafana_data`. La rétention Prometheus est de 7 jours en développement et de 15 jours dans l'exemple de production. Ces volumes sont persistants mais reconstructibles : les configurations, règles, sources et tableaux de bord canoniques vivent dans `infra/observability/`. PostgreSQL reste l'unique sauvegarde métier obligatoire.
+Le catalogue `config/deployment/images.env` épingle les deux images du profil local et du chemin historique par tag et digest. La production Atlas reçoit ses versions depuis `vps-infra` : le bundle Surplasse fournit uniquement sa cible, ses règles et son tableau de bord. Prometheus utilise `prometheus_data`, Grafana `grafana_data`. La rétention Prometheus est de 7 jours en développement et de 15 jours dans l'exemple historique de production. Ces volumes sont persistants mais reconstructibles : les configurations, règles, sources et tableaux de bord canoniques vivent dans Git. PostgreSQL reste l'unique sauvegarde métier obligatoire.
 
 ## Healthchecks
 
@@ -182,7 +182,7 @@ Les seuils initiaux sont des garde-fous à calibrer avec du trafic réel. Un éc
 
 ## Logs et données personnelles
 
-Au premier déploiement, les logs restent consultés par `scripts/compose.sh <profil> logs`. Le Backend émet du JSON structuré en production et du texte lisible en développement. Loki n'est pas installé.
+En local et dans le chemin Compose historique, les logs se consultent par `scripts/compose.sh <profil> logs`. Sur Atlas, les commandes bornées et l'identité des projets Compose appartiennent au runbook `vps-infra`. Le Backend émet du JSON structuré en production et du texte lisible en développement. Loki n'est pas installé.
 
 !!! warning Aucune donnée personnelle dans les logs ou métriques
 Ne jamais journaliser ni étiqueter une adresse email, un prénom, un jeton, une charge utile de webhook ou une donnée de carte. Les logs peuvent porter des identifiants techniques opaques pour un diagnostic court. Les métriques restent agrégées et sans identifiant. La rétention des logs est plafonnée à 30 jours selon la page [RGPD](rgpd.md).
@@ -192,13 +192,13 @@ Ne jamais journaliser ni étiqueter une adresse email, un prénom, un jeton, une
 
 En développement, le profil de domaines dérive `GRAFANA_URL`. Caddy route uniquement cet hôte vers Grafana. La lecture anonyme locale est limitée au rôle `Viewer` et le compte administrateur jetable vient du profil de déploiement versionné. Le cockpit affiche le service et son lien lorsqu'il est disponible. Prometheus reste interne et se consulte par ses fichiers, ses logs ou une commande dans le conteneur, pas par une URL navigateur alternative.
 
-En production, Grafana n'a aucun nom DNS ni route Caddy. Son port est publié sur `127.0.0.1` du VPS uniquement. Depuis un poste d'exploitation :
+Après une future activation Surplasse, Grafana n'aura aucun nom DNS ni route Caddy. Son port sera publié sur `127.0.0.1` du VPS uniquement. Depuis un poste d'exploitation :
 
 ```bash
 ssh -N -L 3000:127.0.0.1:3000 <utilisateur>@<vps>
 ```
 
-Le navigateur ouvre alors l'extrémité locale du tunnel. Ce loopback est un accès d'administration privé, pas une URL applicative ni une valeur à introduire dans un profil de domaines. L'accès anonyme est désactivé et les identifiants Grafana de production viennent du fichier protégé du VPS.
+Le navigateur ouvrira alors l'extrémité locale du tunnel. Ce loopback est un accès d'administration privé, pas une URL applicative ni une valeur à introduire dans un profil de domaines. L'accès anonyme restera désactivé et les identifiants Grafana de production viendront des fichiers protégés de la plateforme.
 
 Le détail des commandes de démarrage, arrêt, mise à jour et recréation des volumes vit dans [Déploiement Compose](deploiement-compose.md#observabilite-facultative).
 

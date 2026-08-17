@@ -11,6 +11,12 @@ description: Une chaîne de métriques Prometheus et Grafana facultative, privé
 
 Accepté, 2026-07-22.
 
+## État de mise en oeuvre Atlas au 2026-08-18
+
+Les versions Prometheus 3.13.1 et Grafana 13.1.1 de cette décision restent celles du profil Compose local et du chemin de production historique du monorepo. Le bundle Atlas publie seulement la cible et les règles Prometheus ainsi que le tableau de bord Grafana Surplasse. Il ne publie ni ne choisit les images de ces deux services.
+
+La plateforme partagée de `vps-infra` épingle séparément Prometheus 3.13.2 `busybox` et Grafana 13.1.3 `slim`. Elle reste l'autorité pour leurs versions, leurs volumes, leurs secrets et leurs commandes de cycle de vie en production. L'intégration Surplasse n'y est pas activée.
+
 ## Contexte
 
 Le pilote doit détecter une dégradation avant qu'un restaurateur ou un client la signale. Les healthchecks de Docker Compose et les smokes Playwright prouvent respectivement la santé instantanée des conteneurs et quelques parcours publics. Ils ne conservent pas les séries temporelles nécessaires pour observer une hausse des erreurs HTTP, une chute des paiements confirmés, un pool JDBC saturé ou une JVM sous pression.
