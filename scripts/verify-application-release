@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+"""Verify a canonical shared Atlas application-release descriptor."""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPT_DIR / "lib"))
+
+from application_release import ApplicationReleaseError, validate_release  # noqa: E402
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--release", required=True)
+    parser.add_argument("--revision", required=True)
+    parser.add_argument("--expected-images")
+    parser.add_argument("--migrations")
+    parser.add_argument("--probes")
+    args = parser.parse_args()
+    try:
+        validate_release(
+            Path(args.release).read_bytes(),
+            revision=args.revision,
+            expected_images=(
+                Path(args.expected_images).read_bytes()
+                if args.expected_images
+                else None
+            ),
+            migrations=Path(args.migrations).read_bytes() if args.migrations else None,
+            probes=Path(args.probes).read_bytes() if args.probes else None,
+        )
+    except (ApplicationReleaseError, OSError) as exc:
+        print(f"application release verification failed: {exc}", file=sys.stderr)
+        return 1
+    print("application release descriptor verified")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

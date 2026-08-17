@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+"""Build a canonical shared Atlas application-release descriptor."""
+
+from __future__ import annotations
+
+import argparse
+import os
+import sys
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPT_DIR / "lib"))
+
+from application_release import (  # noqa: E402
+    ApplicationReleaseError,
+    build_release,
+)
+from vps_integration import sha256  # noqa: E402
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--revision", required=True)
+    parser.add_argument("--expected-images", required=True)
+    parser.add_argument("--integration-reference", required=True)
+    parser.add_argument("--migrations", required=True)
+    parser.add_argument("--probes", required=True)
+    parser.add_argument("--output", required=True)
+    parser.add_argument("--github-output")
+    args = parser.parse_args()
+    try:
+        result = build_release(
+            revision=args.revision,
+            expected_images=Path(args.expected_images).read_bytes(),
+            integration_reference=args.integration_reference,
+            migrations=Path(args.migrations).read_bytes(),
+            probes=Path(args.probes).read_bytes(),
+        )
+        output = Path(args.output)
+        if output.exists() or output.is_symlink():
+            raise ApplicationReleaseError("release output must not exist")
+        output.write_bytes(result)
+        os.chmod(output, 0o600)
+        if args.github_output:
+            github_output = Path(args.github_output)
+            if github_output.is_symlink() or not github_output.is_file():
+                raise ApplicationReleaseError(
+                    "GitHub output must be an existing regular file"
+                )
+            with github_output.open("a", encoding="utf-8") as destination:
+                destination.write(f"release={output}\n")
+                destination.write(f"release_digest={sha256(result)}\n")
+                destination.write(f"release_size={len(result)}\n")
+    except (ApplicationReleaseError, OSError) as exc:
+        print(f"application release build failed: {exc}", file=sys.stderr)
+        return 1
+    print(f"application release built: {sha256(result)}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

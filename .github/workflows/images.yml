@@ -4,25 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - "backend/**"
-      - "docs/**"
-      - "docs-nimbus/**"
-      - "frontends/**"
-      - "brand/**"
-      - "config/domains/**"
-      - "config/deployment/images.env"
-      - "infra/images/**"
-      - "scripts/check-container-images.sh"
-      - "scripts/test-backend-migration-image.sh"
-      - "scripts/compose.sh"
-      - "scripts/test-compose-config.sh"
-      - "compose.yaml"
-      - "compose.*.yaml"
-      - ".dockerignore"
-      - "package.json"
-      - "package-lock.json"
-      - ".github/workflows/images.yml"
   pull_request:
     branches:
       - main
@@ -41,10 +22,20 @@ on:
       - "scripts/test-compose-config.sh"
       - "compose.yaml"
       - "compose.*.yaml"
+      - "deployment/vps/**"
       - ".dockerignore"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/images.yml"
+      - ".github/workflows/vps-integration.yml"
+      - "scripts/*vps*"
+      - "scripts/*application-release*"
+      - "scripts/lib/application_release.py"
+      - "scripts/lib/release_gate.py"
+      - "scripts/lib/vps_*.py"
+      - "tests/test_application_release.py"
+      - "tests/test_release_gate.py"
+      - "tests/test_vps_*.py"
   workflow_dispatch:
 
 permissions:

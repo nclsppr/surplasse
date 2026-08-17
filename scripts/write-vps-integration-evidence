@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+"""Write canonical evidence for one verified VPS integration artifact."""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPT_DIR / "lib"))
+
+from vps_integration import IntegrationError, evidence_bytes, sha256  # noqa: E402
+
+
+def positive(value: str) -> int:
+    parsed = int(value)
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("positive integer required")
+    return parsed
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--artifact-reference", required=True)
+    parser.add_argument("--archive", required=True)
+    parser.add_argument("--inventory", required=True)
+    parser.add_argument("--revision", required=True)
+    parser.add_argument("--created", required=True)
+    parser.add_argument("--run-id", required=True, type=positive)
+    parser.add_argument("--run-attempt", required=True, type=positive)
+    parser.add_argument("--output", required=True)
+    args = parser.parse_args()
+    try:
+        result = evidence_bytes(
+            artifact_reference=args.artifact_reference,
+            archive_bytes=Path(args.archive).read_bytes(),
+            inventory_bytes=Path(args.inventory).read_bytes(),
+            revision=args.revision,
+            created=args.created,
+            run_id=args.run_id,
+            run_attempt=args.run_attempt,
+        )
+        output = Path(args.output)
+        if output.exists() or output.is_symlink():
+            raise IntegrationError("evidence output must not exist")
+        output.write_bytes(result)
+    except (IntegrationError, OSError, ValueError) as exc:
+        print(f"VPS integration evidence failed: {exc}", file=sys.stderr)
+        return 1
+    print(f"VPS integration evidence written: {args.output} ({sha256(result)})")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

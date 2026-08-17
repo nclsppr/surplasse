@@ -7,7 +7,7 @@ description: Construction, configuration, démarrage, mise à jour, retour arri�
 
 # Déploiement Docker Compose
 
-La pile versionnée est maintenant exécutable. Elle sert au cluster local et constitue le socle du futur VPS. Son profil facultatif `observability` ajoute Prometheus et Grafana sans modifier les dépendances ni la readiness de la pile applicative. La production réelle n'est pas encore provisionnée : le VPS, le DNS `.com`, le module DNS et l'image Caddy, le SMTP transactionnel, les CSP de Commande et du Dashboard, les sauvegardes hors site et la sonde externe avec son canal d'alerte doivent être configurés avant le premier trafic réel. Les cinq images applicatives possèdent déjà leur chaîne GHCR.
+La pile versionnée est maintenant exécutable. Elle sert au cluster local et conserve un chemin de production historique distinct. Son profil facultatif `observability` ajoute Prometheus et Grafana sans modifier les dépendances ni la readiness de la pile applicative. Le dépôt publie aussi un bundle applicatif secret-free pour Atlas, sans activer la production. Le VPS, le DNS `.com`, le module DNS et l'image Caddy, le SMTP transactionnel, les CSP de Commande et du Dashboard, les sauvegardes hors site et la sonde externe avec son canal d'alerte doivent être configurés avant le premier trafic réel.
 
 L'[ADR-0026](../decisions/adr-0026-compose-commun.md) fixe le modèle et l'[ADR-0037](../decisions/adr-0037-images-conteneurs-durcies.md) sa politique de construction et de durcissement. Les trois fichiers ont des rôles distincts :
 
@@ -16,6 +16,7 @@ L'[ADR-0026](../decisions/adr-0026-compose-commun.md) fixe le modèle et l'[ADR-
 | `compose.yaml` | Graphe commun : Caddy, PostgreSQL, Backend, Onboarding, Commande, Dashboard et documentation Nimbus ; Prometheus et Grafana dans le profil `observability` |
 | `compose.development.yaml` | Certificat mkcert, publication locale de 443, Mailpit et routes protégées vers le cockpit, son rapport et Grafana |
 | `compose.production.yaml` | Publication de 80 et 443, TLS DNS-01, clés JWT, redémarrage automatique ; Grafana sur la boucle locale seulement |
+| `deployment/vps/compose.yaml` | Services applicatifs Atlas seulement : cinq services longs, job de migration dédié, réseaux externes et montages de secrets sans valeurs |
 
 `scripts/compose.sh` applique toujours le socle puis une seule surcharge. Appeler directement `docker compose` sans ces deux fichiers et sans profil n'est pas supporté.
 
@@ -48,7 +49,7 @@ Les outils de build ne sont pas présents dans les images statiques finales. Le 
 
 Les Dockerfiles épinglent aussi le frontend Dockerfile par version et digest, activent les contrôles BuildKit en erreur et montent des caches npm ou Maven qui ne rejoignent jamais le runtime. `npm run images:check` valide toutes les recettes et tous leurs profils sans les construire. Le workflow `images.yml` construit et scanne les cinq images applicatives sur les pull requests concernées. Sur `main`, il les publie sous le SHA complet pour `linux/amd64`, avec labels OCI, SBOM, provenance maximale et attestation GitHub. Une vulnérabilité `HIGH` ou `CRITICAL` corrigible détectée par Trivy bloque la publication.
 
-L'image Backend contient aussi `/opt/surplasse/scripts/backend-migrate.sh`. Cette commande ne constitue pas une sixième image. Elle permet à un orchestrateur externe d'exécuter le même digest avec le rôle `surplasse_migrator`, puis comme service HTTP avec le rôle `surplasse_runtime` et `QUARKUS_FLYWAY_MIGRATE_AT_START=false`. Aucun contrôleur Atlas exécutable ni surcharge Compose Atlas n'est toutefois livré dans ce dépôt. La présence du script ne suffit donc pas à activer cette séparation. Le détail de la cible est fixé par l'[ADR-0039](../decisions/adr-0039-migrations-production-separees.md).
+L'image Backend contient aussi `/opt/surplasse/scripts/backend-migrate.sh`. Cette commande ne constitue pas une sixième image. `deployment/vps/compose.yaml` permet à Atlas d'exécuter le même digest avec le rôle `surplasse_migrator`, puis comme service HTTP avec le rôle `surplasse_runtime` et `QUARKUS_FLYWAY_MIGRATE_AT_START=false`. Le contrôleur Atlas reste dans `vps-infra`. La présence du bundle ne suffit donc pas à activer cette séparation. Le détail de la migration est fixé par l'[ADR-0039](../decisions/adr-0039-migrations-production-separees.md) et la publication par l'[ADR-0040](../decisions/adr-0040-publication-oci-applicative-pour-atlas.md).
 
 L'image `edge` rejoindra cette chaîne après le choix du fournisseur DNS et de son module versionné. PostgreSQL, Prometheus, Grafana et Mailpit restent des images amont consommées directement avec leur digest.
 
@@ -122,13 +123,13 @@ La sortie complète de `config` expose les paramètres résolus et les noms des 
 
 ## Démarrer et contrôler
 
-### Contrat de migration Atlas, non exécutable depuis ce dépôt
+### Contrat de migration Atlas publié, activation externe
 
 Un contrôleur Atlas conforme ne démarre jamais le Backend avant la migration. Il suit cet ordre : vérifier PostgreSQL 17, vérifier les rôles et les fichiers de secrets, exécuter le job one-shot avec le digest Backend sélectionné, vérifier que Flyway a appliqué V1 à V14, puis démarrer les cinq services longs. Le job rejoint uniquement le réseau privé `db_surplasse`. Il ne publie aucun port et utilise `restart: "no"`.
 
 Le point d'entrée refuse un mot de passe direct. Il exige `QUARKUS_DATASOURCE_PASSWORD_FILE`, `QUARKUS_DATASOURCE_JDBC_URL`, `QUARKUS_DATASOURCE_USERNAME` et `DEPLOYMENT_PROFILE=production`. Il charge les migrations présentes dans les modules Backend, les applique, écrit seulement un résultat sans secret, puis quitte avec un statut non nul au premier échec. Le contrôleur ne doit jamais contourner ce statut.
 
-Ce dépôt ne fournit actuellement aucune commande de contrôleur Atlas. `scripts/compose.sh production` pilote la pile historique du monorepo : elle ne crée ni job de migration séparé, ni identités `surplasse_migrator` et `surplasse_runtime`, et elle ne désactive pas `migrate-at-start` pour le service HTTP. Les opérateurs ne doivent utiliser ni `scripts/compose.sh production up`, ni les commandes de mise à jour associées pour déployer Atlas. Le déploiement Atlas reste bloqué tant que son contrôleur exécutable et sa commande exacte ne sont pas disponibles et documentés.
+Ce dépôt publie le Compose applicatif, l'inventaire des migrations et les références d'images dans `vps-integration`, puis les lie dans `application-release`. Il ne fournit aucune commande de contrôleur Atlas. `scripts/compose.sh production` pilote la pile historique du monorepo : les opérateurs ne doivent utiliser ni cette commande, ni ses commandes de mise à jour pour déployer Atlas. Le contrôleur de `vps-infra` doit vérifier le digest et l'attestation, fournir les réseaux et secrets, exécuter le profil `migration`, puis activer les cinq services longs.
 
 Les environnements de développement et de test gardent aussi la migration au démarrage du Backend.
 
