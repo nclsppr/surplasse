@@ -7,7 +7,7 @@ description: "Intégration et déploiement continus : main pour le travail humai
 
 # CI/CD
 
-Surplasse s'appuie sur GitHub Actions pour l'intégration continue et cible un déploiement continu. Les workflows Pages, API, Backend, Frontends, E2E et Images existent. Les Dockerfiles, le socle Compose commun, ses deux surcharges, le profil facultatif d'observabilité et le runbook Ubuntu sont versionnés. `images.yml` construit, scanne et publie les cinq images applicatives dans GHCR. L'image Caddy DNS et le déploiement automatisé sur le VPS restent à livrer après le choix du fournisseur, dans la chaîne Images puis `deploy.yml`.
+Surplasse s'appuie sur GitHub Actions pour l'intégration continue et prépare un déploiement continu piloté par Atlas. Les workflows Pages, API, Backend, Frontends, E2E, Images et VPS integration existent. Les Dockerfiles, les piles Compose locale et historique, le bundle applicatif Atlas et le runbook Ubuntu sont versionnés. `images.yml` construit, scanne et publie les cinq images applicatives dans GHCR. `vps-integration.yml` publie ensuite un digest `application-release` attesté. Il ne se connecte pas au VPS et n'active aucun service.
 
 Pour le détail des environnements et de la topologie de production, voir [Environnements](../operations/environnements.md) et [Exploitation](../operations/index.md).
 
@@ -44,7 +44,7 @@ Renovate couvre npm, Maven, Maven Wrapper, les dépendances Python, GitHub Actio
 
 L'App GitHub Mend Renovate hébergée ne peut pas exécuter `mise lock`. Une mise à jour de Node, Java ou Python peut donc proposer le nouveau pin, mais `mise.lock` est régénéré manuellement avec la version de `mise` déclarée dans `mise.toml`, relu puis ajouté à la branche du bot avant fusion. Surplasse ne contourne pas cette limite par un runner Renovate auto-hébergé ou un second bot d'écriture.
 
-Chaque PR Renovate exécute les workflows concernés par ses chemins. `pages.yml` s'exécute sans filtre afin de fournir une porte intégrée, mais son job `deploy` refuse toute référence autre que `refs/heads/main`. `images.yml` construit et scanne sur la PR, mais son job `publish` reste limité à `main`. Le futur `deploy.yml` appliquera la même limite. Une PR peut donc construire, tester et produire des diagnostics, mais jamais publier GitHub Pages, une image de production ou un déploiement VPS.
+Chaque PR Renovate exécute les workflows concernés par ses chemins. `pages.yml` s'exécute sans filtre afin de fournir une porte intégrée, mais son job `deploy` refuse toute référence autre que `refs/heads/main`. `images.yml` construit et scanne sur la PR, mais son job `publish` reste limité à `main`. `vps-integration.yml` construit deux fois le bundle et le descripteur avec des digests factices stricts dans le job `Validate application release`. Une PR peut donc construire, tester et produire des diagnostics, mais jamais publier GitHub Pages, une image de production, une release OCI ou un déploiement VPS.
 
 ## Le workflow Pages
 
@@ -71,7 +71,7 @@ Ce workflow reste volontairement sans filtre de chemins. Chaque PR est qualifié
 
 ## Les workflows
 
-Le monorepo suit un découpage par filtres de chemins (`paths`) : un push ou une PR qui ne touche que `frontends/commande/` ne doit pas déclencher les tests du Backend. `api.yml`, `backend.yml`, `frontends.yml`, `e2e.yml` et `images.yml` appliquent les mêmes filtres à `push` et `pull_request`. `deploy.yml` reste à créer une fois le VPS et l'image Caddy prêts.
+Le monorepo suit un découpage par filtres de chemins (`paths`) : un push ou une PR qui ne touche que `frontends/commande/` ne doit pas déclencher les tests du Backend. `api.yml`, `backend.yml`, `frontends.yml` et `e2e.yml` appliquent leurs filtres à `push` et `pull_request`. `images.yml` conserve ses filtres sur les PR, mais s'exécute sur chaque push de `main`. Cette exception garantit que tout SHA susceptible de produire une `application-release` possède ses cinq images propres et ne réutilise jamais les digests d'un commit précédent.
 
 | Workflow | Déclencheur (filtre de chemins) | Étapes |
 |---|---|---|
@@ -82,7 +82,7 @@ Le monorepo suit un découpage par filtres de chemins (`paths`) : un push ou une
 | `e2e.yml` | `push` ou `pull_request` ciblé sur le package, sa configuration ou l'outillage `mise`, chaque heure à la minute 17 après activation, plus déclenchement manuel | validation légère sur push et PR ; Chromium, smokes sans écriture, rapport Allure 3, historique propre à la cible, traces et artefact rejouable pour les lancements de surveillance |
 | `toolchain.yml` | `push` ou `pull_request`, `mise.toml`, `mise.lock`, `package.json`, `renovate.json5` ou le workflow lui-même | Validation de la configuration Renovate, installation réelle de Node, Java et Python depuis le lockfile sur Ubuntu, puis affichage des versions résolues |
 | `images.yml` | `push` sur `main` ou `pull_request`, chemins `backend/**`, `docs/**`, `docs-nimbus/**`, `frontends/**`, `brand/**`, profils, recettes d'images, scripts et fichiers Compose | Contrôles BuildKit et Compose, build production des cinq images applicatives, scan Trivy bloquant ; sur `main` seulement, tag par SHA complet, push `linux/amd64` vers GHCR, SBOM, provenance et attestation |
-| `deploy.yml` (cible) | Fin réussie de `images.yml` sur `main`, ou déclenchement manuel avec un SHA complet | Connexion SSH au VPS, sélection de `IMAGE_TAG`, wrapper Compose, attente des healthchecks publics |
+| `vps-integration.yml` | chaque `push` sur `main` et chaque `pull_request` vers `main` | Sur PR, tests adversariaux et double build déterministe sans publication ; sur `main`, attente bornée des portes du même SHA, validation des cinq images attestées, publication et aller-retour ORAS de `vps-integration` puis `application-release` |
 
 Une PR Renovate et sa fusion suivent deux chemins distincts :
 
@@ -104,12 +104,13 @@ push sur main
      |         +--> api.yml         (si api/ touché)
      |         +--> pages.yml       (à chaque push sur main)
      |
-     +--> images.yml  (si une recette ou un module déployé change)
+     +--> images.yml              (chaque push, cinq images du SHA)
+     +--> vps-integration.yml     (attend Images, Pages et les portes observées)
                 |
-                +--> deploy.yml  (cible, si images.yml réussit)
+                +--> application-release@sha256 (signal Atlas)
 ```
 
-La publication d'un SHA peut se faire en parallèle des autres portes : une image immuable présente dans GHCR n'est pas une promotion. Le futur `deploy.yml` devra attendre la réussite des portes API, Backend, Frontends, Pages et Images du même SHA sur `main` avant de rendre ce SHA actif sur le VPS. Une exécution `pull_request` ne peut jamais atteindre la publication ni le déploiement.
+Une image immuable présente dans GHCR n'est pas une promotion. Le job `Publish immutable application release` exige que `Container images` et `Pages` du même push soient verts, ainsi que chaque autre workflow `push` observé pour ce SHA. Il vérifie deux fois que le SHA reste le sommet de `main`, résout les cinq images en références digest, puis publie le signal unique pour Atlas. Une exécution `pull_request` ne peut jamais atteindre la publication ni le déploiement.
 
 ## Le workflow Images
 
@@ -171,29 +172,31 @@ Deux règles transversales :
 - **Le contrat d'abord.** Toute modification de `api/openapi.yaml` passe par `api.yml` avant que backend ou frontends ne consomment la nouvelle version. Une rupture de compatibilité détectée par `oasdiff` fait échouer le workflow ; elle n'est acceptée que si elle est assumée et documentée (voir [le contrat](../architecture/api.md)).
 - **Des images immuables.** Une image est construite une seule fois, taggée par le SHA du commit qui l'a produite, et n'est jamais reconstruite ni re-taggée. Déployer, c'est choisir un SHA ; revenir en arrière, c'est en choisir un autre.
 
-## Le déploiement cible
+## La publication applicative pour Atlas
 
-Le déploiement vise le VPS unique décrit dans [Exploitation](../operations/index.md). Le workflow `deploy.yml` procède ainsi :
+Le workflow producteur ne se connecte jamais au VPS. Il transforme un push exact de `main` en deux artefacts OCI attestés :
 
 ```
-GitHub Actions                                VPS
-     |                                         |
-     |-- (1) ssh (clé dédiée au déploiement) ->|
-     |                                         |-- (2) checkout + IMAGE_TAG=<sha>
-     |                                         |-- (3) compose.sh production pull
-     |                                         |-- (4) compose.sh production up --wait
-     |<- (5) sondes HTTPS publiques -----------|
-     |                                         |
-     |-- (6) échec ? redéployer le tag         |
-     |        précédent (rollback)             |
+push main au SHA exact
+        |
+        +--> cinq images linux/amd64 attestées
+        +--> portes du même push stables et vertes
+                         |
+                         v
+              vps-integration@sha256
+                         |
+                         v
+              application-release@sha256
+                         |
+                         v
+              admission séparée par Atlas
 ```
 
-1. **Connexion SSH.** Le runner GitHub Actions se connecte au VPS avec une clé SSH dédiée au déploiement, restreinte à un utilisateur non privilégié membre du groupe Docker. La clé privée est un secret de CI, la clé publique est provisionnée sur le VPS.
-2. **Sélection de la version.** Le dépôt du VPS passe en checkout détaché sur le SHA complet demandé et `IMAGE_TAG` reçoit exactement le même SHA dans `/etc/surplasse/production.env`. `scripts/compose.sh` refuse un tag mutable, abrégé, différent du checkout ou un worktree sale.
-3. **Pull.** `scripts/compose.sh production pull` récupère les images taggées depuis GHCR avec le profil de domaines central.
-4. **Recréation contrôlée.** `scripts/compose.sh production up --detach --wait` recrée seulement les conteneurs modifiés et attend leurs healthchecks.
-5. **Healthcheck post-déploiement.** Le workflow interroge `/q/health/ready` et la page d'accueil de chaque front par leurs URL HTTPS publiques. Un healthcheck rouge fait échouer le workflow et déclenche une alerte (voir [Observabilité](../operations/observabilite.md)).
-6. **Rollback.** Revenir en arrière consiste à relancer `deploy.yml` manuellement avec le SHA du dernier déploiement sain en paramètre. Le checkout et les images reviennent ensemble à cette version. Aucune reconstruction n'est nécessaire : l'image précédente existe toujours dans le registre. Les migrations Flyway étant additives par convention (voir [Backend](../architecture/backend.md)), un rollback applicatif n'exige pas de rollback de schéma.
+Le bundle `vps-integration` contient seulement le graphe applicatif et ses intégrations. Son artifact type commun est `application/vnd.vps-infra.application-integration.v1`. Ses couches `integration.tar.gz` et `inventory.json` utilisent le même contrat externe que Parkventory. Le Compose ne possède ni port hôte, ni PostgreSQL, ni Caddy, ni Prometheus, ni Grafana. Il référence les deux réseaux externes `app_surplasse` et `db_surplasse`. Le job `migrator` utilise le digest Backend exact, le rôle `surplasse_migrator` et `/opt/surplasse/scripts/backend-migrate.sh`. Le service HTTP utilise `surplasse_runtime` avec `QUARKUS_FLYWAY_MIGRATE_AT_START=false`.
+
+Le descripteur `application-release` est le seul signal admis par Atlas. Il lie les cinq images, le bundle, les migrations et les sondes au même SHA. Les tags `sha-<SHA>` servent à la découverte. Atlas doit résoudre puis conserver la référence `@sha256`, vérifier l'attestation et refuser toute référence mutable.
+
+Cette publication ne prouve pas que l'activation réelle est possible. Atlas reste responsable de la matérialisation des secrets, du fournisseur DNS, de PostgreSQL 17, de la migration, de l'activation atomique, des sondes et du retour au dernier digest sain. L'[ADR-0040](../decisions/adr-0040-publication-oci-applicative-pour-atlas.md) fixe la frontière complète.
 
 !!! warning Migrations et rollback
 Le rollback redéploie le code, pas la base. Une migration Flyway qui supprime ou renomme une colonne casserait la version précédente du backend. La convention est donc : les migrations destructives sont découpées en deux déploiements (d'abord le code qui n'utilise plus la colonne, puis la migration qui la supprime).
@@ -201,17 +204,9 @@ Le rollback redéploie le code, pas la base. Une migration Flyway qui supprime o
 
 ## Les secrets de CI
 
-Les secrets sont portés par les GitHub Environments, pas par des secrets de dépôt globaux. L'environnement `production` est associé au job de déploiement ; ses secrets ne sont exposés qu'aux exécutions sur `main`. Les PR Renovate exécutent uniquement des jobs en lecture sur le dépôt et ne reçoivent aucun secret de production.
+La publication utilise seulement le `GITHUB_TOKEN` éphémère avec des permissions bornées : lecture des exécutions et du dépôt, écriture des paquets et des attestations, puis identité OIDC. Elle n'utilise ni clé SSH, ni adresse du VPS, ni secret applicatif. Le job de pull request conserve la permission globale `contents: read` et ne publie rien.
 
-| Secret | Environnement | Usage |
-|---|---|---|
-| `VPS_HOST` | `production` | Adresse du VPS |
-| `VPS_USER` | `production` | Utilisateur de déploiement (non privilégié) |
-| `VPS_SSH_KEY` | `production` | Clé privée SSH dédiée au déploiement |
-
-Le push vers GHCR utilise le `GITHUB_TOKEN` éphémère du workflow, aucun secret supplémentaire n'est requis. Les secrets applicatifs (Stripe, API OpenAI, base de données) ne transitent jamais par la CI : ils vivent dans le fichier d'environnement du VPS, décrit dans [Environnements](../operations/environnements.md). La seule valeur Stripe du build est la clé publiable, stockée comme variable GitHub non secrète. La CI sait déployer, elle ne sait pas ce que l'application déploie.
-
-Cette séparation borne le rayon d'action d'une compromission : un secret de CI qui fuite donne au pire un accès SSH restreint au compte de déploiement, pas les clés Stripe live. Elle simplifie aussi la rotation : changer une clé applicative se fait sur le VPS et se prend en compte au redémarrage du service concerné, sans toucher à GitHub.
+Les secrets applicatifs Stripe, JWT, SMTP et PostgreSQL ne transitent jamais par le bundle ou le workflow. Le Compose publié contient leurs noms de montage et les chemins attendus sous `/etc/vps/secrets/surplasse`, sans valeur. Le contrôleur Atlas matérialise ces fichiers sur le VPS et doit échouer avant migration si un prérequis manque.
 
 ## Pas de staging, et c'est assumé
 

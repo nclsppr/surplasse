@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+"""Build a deterministic Surplasse VPS integration package from one Git commit."""
+
+from __future__ import annotations
+
+import argparse
+import os
+import sys
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPT_DIR / "lib"))
+
+from vps_integration import (  # noqa: E402
+    ARCHIVE_NAME,
+    INVENTORY_NAME,
+    IntegrationError,
+    build_package,
+    sha256,
+    strict_json,
+    verify_package,
+)
+
+
+def append_github_output(path: Path, values: dict[str, object]) -> None:
+    if path.is_symlink() or not path.is_file():
+        raise IntegrationError("GitHub output must be an existing regular file")
+    with path.open("a", encoding="utf-8") as output:
+        for key, value in values.items():
+            output.write(f"{key}={value}\n")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--repository", default=str(SCRIPT_DIR.parent))
+    parser.add_argument("--revision", required=True)
+    parser.add_argument("--component-images", required=True)
+    parser.add_argument("--output-directory", required=True)
+    parser.add_argument("--github-output")
+    args = parser.parse_args()
+    try:
+        images = strict_json(
+            Path(args.component_images).read_bytes(), "component images"
+        )
+        output_directory = Path(args.output_directory).resolve()
+        if output_directory.exists() and any(output_directory.iterdir()):
+            raise IntegrationError("output directory must be empty")
+        if output_directory.is_symlink():
+            raise IntegrationError("output directory must not be a symbolic link")
+        output_directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+        package = build_package(Path(args.repository), args.revision, images)
+        archive_path = output_directory / ARCHIVE_NAME
+        inventory_path = output_directory / INVENTORY_NAME
+        archive_path.write_bytes(package.archive)
+        inventory_path.write_bytes(package.inventory)
+        _, _, files = verify_package(
+            package.archive,
+            package.inventory,
+            expected_revision=args.revision,
+            expected_created=package.created,
+        )
+        sidecars = {}
+        for name in ("expected-images.json", "migrations.json", "probes.json"):
+            path = output_directory / name
+            path.write_bytes(files[name])
+            sidecars[name.removesuffix(".json").replace("-", "_")] = path
+        for path in output_directory.iterdir():
+            os.chmod(path, 0o600)
+        if args.github_output:
+            append_github_output(
+                Path(args.github_output),
+                {
+                    "archive": archive_path,
+                    "archive_digest": sha256(package.archive),
+                    "created": package.created,
+                    "expected_images": sidecars["expected_images"],
+                    "inventory": inventory_path,
+                    "inventory_digest": sha256(package.inventory),
+                    "migrations": sidecars["migrations"],
+                    "migrations_digest": sha256(files["migrations.json"]),
+                    "probes": sidecars["probes"],
+                    "probes_digest": sha256(files["probes.json"]),
+                },
+            )
+    except (IntegrationError, OSError) as exc:
+        print(f"VPS integration build failed: {exc}", file=sys.stderr)
+        return 1
+    print(
+        "VPS integration package built: "
+        f"{sha256(package.archive)} and {sha256(package.inventory)}"
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

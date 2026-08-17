@@ -1,0 +1,69 @@
+{
+  "contract": "surplasse.probes",
+  "internal": [
+    {
+      "body_contains": "UP",
+      "service": "backend",
+      "status": 200,
+      "url": "http://surplasse-backend:8080/q/health/ready"
+    },
+    {
+      "body_contains": "ready",
+      "service": "onboarding",
+      "status": 200,
+      "url": "http://surplasse-onboarding:8080/__health"
+    },
+    {
+      "body_contains": "ready",
+      "service": "commande",
+      "status": 200,
+      "url": "http://surplasse-commande:8080/healthz"
+    },
+    {
+      "body_contains": "ready",
+      "service": "dashboard",
+      "status": 200,
+      "url": "http://surplasse-dashboard:8080/healthz"
+    },
+    {
+      "body_contains": "ready",
+      "service": "docs",
+      "status": 200,
+      "url": "http://surplasse-docs:8080/healthz"
+    }
+  ],
+  "public": [
+    {
+      "body_contains": "surplasse-edge-v1",
+      "host": "surplasse.com",
+      "path": "/.well-known/surplasse-edge",
+      "status": 200
+    },
+    {
+      "host": "surplasse.com",
+      "path": "/",
+      "status": 200
+    },
+    {
+      "host": "dashboard.surplasse.com",
+      "path": "/",
+      "status": 200
+    },
+    {
+      "host": "docs.surplasse.com",
+      "path": "/",
+      "status": 200
+    },
+    {
+      "host": "probe.surplasse.com",
+      "path": "/",
+      "status": 200
+    },
+    {
+      "host": "api.surplasse.com",
+      "path": "/q/health/ready",
+      "status": 404
+    }
+  ],
+  "schema": 1
+}

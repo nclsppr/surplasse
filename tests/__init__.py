@@ -1,0 +1,1 @@
+"""Surplasse repository contract tests."""
