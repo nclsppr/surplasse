@@ -1,13 +1,4 @@
 https://{$SURPLASSE_DOMAIN:surplasse.com}, https://*.{$SURPLASSE_DOMAIN:surplasse.com} {
-	tls {
-		dns ovh {
-			endpoint {$OVH_ENDPOINT:ovh-eu}
-			application_key {$OVH_APPLICATION_KEY}
-			application_secret {$OVH_APPLICATION_SECRET}
-			consumer_key {$OVH_CONSUMER_KEY}
-		}
-	}
-
 	log
 	import security_headers
 

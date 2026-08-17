@@ -103,7 +103,7 @@ jobs:
     name: Publish immutable application release
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
-    timeout-minutes: 55
+    timeout-minutes: 210
     permissions:
       actions: read
       attestations: write
@@ -139,6 +139,7 @@ jobs:
           ./scripts/wait-vps-release-gates \
             --revision "${GITHUB_SHA}" \
             --current-run-id "${GITHUB_RUN_ID}" \
+            --timeout 9000 \
             --output "${RUNNER_TEMP}/same-revision-gates.json"
 
       - name: Authenticate to GHCR

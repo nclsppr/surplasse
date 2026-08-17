@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import unittest
 from pathlib import Path
 
@@ -31,6 +32,24 @@ class RepositoryReleaseContractTests(unittest.TestCase):
             "tags: ${{ env.IMAGE_ROOT }}/${{ matrix.image }}:${{ github.sha }}",
             workflow,
         )
+
+    def test_release_gate_budget_covers_the_full_image_workflow(self) -> None:
+        release_workflow = (
+            ROOT / ".github/workflows/vps-integration.yml"
+        ).read_text()
+        gate = (ROOT / "scripts/wait-vps-release-gates").read_text()
+        self.assertIn('default=9000', gate)
+        self.assertIn("--timeout 9000", release_workflow)
+        publish_block = release_workflow.split("  publish:\n", maxsplit=1)[1]
+        timeout = re.search(r"timeout-minutes: ([0-9]+)", publish_block)
+        self.assertIsNotNone(timeout)
+        self.assertGreater(int(timeout.group(1)) * 60, 9000 + 45 * 60)
+
+    def test_edge_fragment_leaves_certificate_automation_to_atlas(self) -> None:
+        caddy = (ROOT / "deployment/vps/caddy/surplasse.caddy").read_text()
+        self.assertNotIn("dns ovh", caddy)
+        self.assertNotIn("OVH_", caddy)
+        self.assertNotRegex(caddy, r"(?m)^\s*tls(?:\s|\{)")
 
     def test_compose_bundle_is_application_only(self) -> None:
         compose = (ROOT / "deployment/vps/compose.yaml").read_text()
