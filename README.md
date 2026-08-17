@@ -16,11 +16,13 @@ Surplasse est un canal de commande directe pour les restaurants indépendants : 
 | `frontends/onboarding/` | Préfiguration HTML de la vitrine | Disponible |
 | `frontends/shared/` | Design system et client API TypeScript | Disponible |
 | `frontends/design-system2/`, `frontends/*2/` | Design system Untitled UI et variantes des trois interfaces | Expérience facultative en développement et démos visuelles Pages, absente des routes produit et du VPS |
-| `compose.yaml`, `infra/` | Pile commune, images et routage Caddy pour le local et la production | Cluster local disponible, VPS non provisionné |
+| `compose.yaml`, `infra/`, `deployment/vps/` | Pile locale, images et contrat applicatif pour Atlas | Cluster local disponible, release immuable publiée, Surplasse désactivé sur Atlas |
 | `scripts/dev-cockpit/` | Pilotage du profil Compose development, vérifications locales et dernier rapport Allure | Disponible, absent de la production |
 | `e2e/` | Smokes Playwright et rapports Allure 3 avec historique par cible | Disponible, exécution locale et GitHub Actions |
 
 La documentation complète vit dans [`docs/`](docs/). La procédure détaillée des domaines et du cockpit est dans [`docs/developpement/domaines-locaux.md`](docs/developpement/domaines-locaux.md).
+
+Atlas et sa plateforme partagée existent. Surplasse n'y est ni servi ni déployé : le dépôt produit un candidat OCI immuable, puis `vps-infra` décide séparément de son admission et de son activation. L'entrée Surplasse y reste `enabled: false`. Aucun DNS Surplasse, secret applicatif, rôle PostgreSQL, migration ou service Surplasse n'a été activé sur Atlas. L'état et les portes restantes sont consignés dans le [runbook de déploiement](docs/operations/deploiement-compose.md#état-opérationnel-atlas-au-2026-08-18).
 
 ## Prérequis
 

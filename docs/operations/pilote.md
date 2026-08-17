@@ -9,8 +9,8 @@ description: "Les portes Go ou No-Go, métriques et procédures de repli qui enc
 
 Cette page est le plan d'exécution de la [phase 2 de la roadmap](../roadmap.md#phase-2--commander-et-payer). Elle ne crée ni une roadmap parallèle ni une date de lancement. Elle transforme le critère de sortie de la phase en preuves observables et impose une décision Go ou No-Go avant chaque exposition supplémentaire.
 
-!!! danger État au 2026-07-20 : No-Go live
-Les chemins logiciels des charges directes Stripe Connect, du remboursement intégral et de la mise en pause de la prise de commandes sont sécurisés et testés localement avec des doublures. La plateforme test est inscrite à Connect et le compte Accounts v2 du pilote existe, mais son embarquement et ses capacités de paiement restent incomplets. La production, la qualification du remboursement contre Stripe réel et celle sur appareils réels ne sont pas livrées. Aucune transaction live ni aucun service pilote ne peut donc commencer.
+!!! danger État au 2026-08-18 : No-Go live
+Les chemins logiciels des charges directes Stripe Connect, du remboursement intégral et de la mise en pause de la prise de commandes sont sécurisés et testés localement avec des doublures. La plateforme test est inscrite à Connect et le compte Accounts v2 du pilote existe, mais son embarquement et ses capacités de paiement restent incomplets. Le dépôt publie un candidat applicatif immuable pour Atlas, sans l'activer. Surplasse reste `enabled: false` : aucune base, migration, route, secret ni sonde publique de production n'est prouvée. Aucune transaction live ni aucun service pilote ne peut donc commencer.
 !!!
 
 ## Principes de décision
@@ -23,7 +23,7 @@ Les chemins logiciels des charges directes Stripe Connect, du remboursement int�
 
 ## État des portes
 
-| Porte | État au 2026-07-20 | Preuve attendue pour Go |
+| Porte | État au 2026-08-18 | Preuve attendue pour Go |
 |---|---|---|
 | 0. Noyau paiement local | **Go local** | Idempotence de création et remboursement, isolation par session de table, webhooks retentables, transitions paiement et commande atomiques, pause d'admission, migrations et tests verts |
 | 1. Stripe Connect en test | **No-Go** | Compte Accounts v2 pilote activé en test, charges directes, commission correcte, webhooks Connect, mécanismes de remboursement et de pause vérifiés |
@@ -69,15 +69,15 @@ La production démarre avec `order_intake_status=paused`. Elle suit la topologie
 
 ### Critères Go
 
-- Les images, le Compose et Caddy sont versionnés et exécutables sur Ubuntu LTS.
+- Les cinq images et l'`application-release` sont immuables et attestées. `vps-infra` a convergé le contrôleur revu, fermé toutes ses portes d'activation et admis le digest exact.
 - PostgreSQL utilise un volume persistant. Une sauvegarde puis une restauration complète ont été réalisées et datées.
 - Les clés Stripe live, les deux secrets de webhook, les clés JWT et les identifiants SMTP sont absents de git, des images et des logs.
 - Les domaines et certificats TLS sont valides. CORS reste fermé par défaut et limité aux origines exactes autorisées.
 - Le magic link est reçu via le fournisseur SMTP réel.
-- Le profil `observability` collecte le Backend, le tableau de bord `Surplasse / Vue opérationnelle` est lisible par tunnel SSH et les logs corrélés sont accessibles par Compose.
+- La plateforme Atlas collecte le Backend, le tableau de bord `Surplasse / Vue opérationnelle` est lisible par tunnel SSH et les logs corrélés sont accessibles par les commandes bornées de `vps-infra`.
 - Une sonde externe et son canal de notification ont été déclenchés volontairement puis acquittés. Les règles Prometheus seules ne satisfont pas ce critère tant qu'Alertmanager est absent.
 - Prometheus et Grafana ont été arrêtés ensemble : `/q/health/ready` et une lecture applicative sont restés verts. Leur redémarrage a retrouvé la cible Backend sans redémarrer celui-ci.
-- Le dernier SHA sain peut être redéployé. Les migrations de base ne sont jamais annulées.
+- La dernière `application-release` saine peut être reprise sans annuler une migration. Le runtime précédent ne redémarre après migration que si sa compatibilité avec le schéma est attestée ; sinon la reprise avance explicitement.
 - L'établissement, la carte et les QR du pilote sont provisionnés par migration, seed contrôlé ou outil interne répétable, jamais par DML improvisé en production.
 
 ### No-Go immédiat
@@ -183,7 +183,7 @@ Le petit échantillon du premier pilote ne permet pas d'utiliser la conversion c
 2. Si seul le SSE est indisponible, utiliser la lecture REST pendant 5 minutes au maximum.
 3. Si le paiement, l'API ou le Dashboard deviennent douteux, couvrir les QR et reprendre le parcours habituel du restaurant.
 4. Conserver les preuves. Ne faire aucune écriture SQL manuelle.
-5. Pour une régression applicative identifiée, redéployer le dernier SHA sain. Le premier SHA sain de production inclut V14 : aucun retour vers un SHA pré-V14 n'est autorisé. Ne jamais annuler une migration de base.
+5. Pour une régression applicative identifiée, sélectionner une nouvelle release issue d'un commit descendant. Le premier SHA sain de production inclut V14 : aucun retour vers un SHA pré-V14 n'est autorisé. Après une migration, ne redémarrer le runtime précédent que si sa compatibilité est attestée ; sinon appliquer la reprise vers l'avant. Ne jamais annuler automatiquement une migration de base.
 6. Rapprocher chaque Commande, Paiement, Payment Intent et événement Stripe, puis rembourser les cas concernés.
 7. Consigner un post-mortem court, corriger et refaire un service à blanc avant tout nouveau service réel.
 

@@ -9,8 +9,8 @@ description: Principes directeurs, diagrammes de contexte et de conteneurs, flux
 
 Cette page donne la carte générale du système : les principes qui guident chaque décision, les acteurs et les systèmes externes, les conteneurs déployés, les deux flux critiques du produit et le découpage en domaines métier. Les pages suivantes de cette section détaillent chaque bloc.
 
-!!! info Documentation de référence
-Le contrat, le Backend modulaire, le package partagé et Commande sont implémentés localement. Cette page présente à la fois cet existant et la cible complète. Les composants absents et les points non tranchés sont signalés explicitement et donneront lieu à des ADR dans [decisions](../decisions/).
+!!! info État réel au 2026-08-18
+Le contrat, le Backend modulaire, les frontends et le cluster local sont implémentés. Le dépôt publie aussi un candidat OCI applicatif immuable pour Atlas. La plateforme partagée Atlas existe, mais Surplasse y reste `enabled: false` : aucun service, réseau, secret, rôle PostgreSQL, migration ou route Surplasse n'y est activé. Cette page distingue donc l'architecture cible de son état d'activation.
 !!!
 
 ## Principes directeurs
@@ -25,11 +25,11 @@ Le Backend est un seul déployable Quarkus, découpé en modules Maven par domai
 
 ### Tout est committé et documenté
 
-Le monorepo contient l'intégralité du système : le contrat, le backend, les trois frontends, l'infrastructure Docker Compose et cette documentation. Rien ne vit dans une console cloud ou dans la tête de quelqu'un. Toute décision structurante est consignée dans un ADR sous `docs/decisions/`. Ce principe rend le projet reprenable : n'importe qui (humain ou agent) peut reconstruire l'état complet du système depuis un clone du dépôt.
+Le monorepo contient le contrat, le Backend, les trois frontends, le graphe Compose local, le contrat applicatif Atlas et cette documentation. `vps-infra` contient séparément la plateforme partagée, l'état désiré protégé et le contrôleur de production. Les secrets, les données et les sauvegardes restent hors de Git avec leurs propres preuves. Toute décision structurante est consignée dans un ADR sous `docs/decisions/`. La reconstruction exige donc les deux dépôts canoniques et les éléments opérateur protégés, jamais une configuration implicite de console.
 
 ### La simplicité opérationnelle prime
 
-La cible de déploiement est un VPS unique piloté par Docker Compose. Le graphe commun vit dans `compose.yaml`, ses différences explicites dans `compose.development.yaml` et `compose.production.yaml`, et les recettes d'image dans `infra/`. Pas de Kubernetes, pas de services managés propriétaires au-delà de Stripe et de l'API OpenAI, pas d'autoscaling. Un restaurant indépendant génère quelques dizaines de commandes par service : la charge se mesure en requêtes par seconde à un chiffre, et un VPS correctement dimensionné la tient avec une marge confortable. Chaque brique ajoutée doit justifier son coût d'exploitation, pas seulement son intérêt technique. L'[ADR-0026](../decisions/adr-0026-compose-commun.md) et le [runbook Compose](../operations/deploiement-compose.md) détaillent ce choix.
+La cible est un VPS Atlas unique piloté par Docker Compose. `compose.yaml`, `compose.development.yaml` et `compose.production.yaml` restent la pile locale et le chemin de production historique du monorepo. La production Atlas reçoit plutôt `deployment/vps/compose.yaml` dans une `application-release` immuable : ce fragment contient seulement les cinq services Surplasse et le job de migration. Caddy, PostgreSQL et l'observabilité appartiennent à la plateforme partagée de `vps-infra`. Pas de Kubernetes, pas d'autoscaling. Un restaurant indépendant génère quelques dizaines de commandes par service : la charge se mesure en requêtes par seconde à un chiffre, et un VPS correctement dimensionné la tient avec une marge confortable. Chaque brique ajoutée doit justifier son coût d'exploitation, pas seulement son intérêt technique. L'[ADR-0026](../decisions/adr-0026-compose-commun.md), l'[ADR-0040](../decisions/adr-0040-publication-oci-applicative-pour-atlas.md) et le [runbook Compose](../operations/deploiement-compose.md) détaillent cette frontière.
 
 ### Le client final ne subit jamais la complexité
 
@@ -74,9 +74,9 @@ Les deux acteurs, les quatre applications et les systèmes externes :
 | Imprimante thermique | Impression optionnelle des tickets cuisine en ESC/POS ; le mode d'intégration reste à trancher (ADR) |
 | DNS wildcard | L'enregistrement `*.surplasse.com` route chaque mini-site `{slug}.surplasse.com` vers le même point d'entrée |
 
-## Diagramme de conteneurs
+## Diagramme de conteneurs cible
 
-Le détail de ce qui tourne sur le VPS :
+Le détail de la cible après activation. Ce diagramme ne décrit pas l'état courant : les conteneurs Surplasse et leurs routes restent absents d'Atlas. Caddy, PostgreSQL, Prometheus et Grafana sont fournis par la plateforme partagée ; les cinq services applicatifs et le migrateur viennent du bundle Surplasse.
 
 ```
                                 Internet
@@ -117,7 +117,7 @@ Points saillants :
 - **PostgreSQL 17 est l'unique base**, migrée par Flyway, avec des schémas par domaine si besoin.
 - **Le stockage objet est une cible de phase 3.** MinIO n'entre pas dans Compose avant l'implémentation du domaine `generation`. Son ajout exigera un ADR, un volume, une sauvegarde et une restauration documentés (voir [les intégrations](integrations.md)).
 - **Les webhooks Stripe entrent par `api.surplasse.com`**, signés, et sont le seul déclencheur de la confirmation d'une commande payée.
-- Le reverse proxy de référence est Caddy. Son routage commun est livré ; la production construit son image avec le module du fournisseur DNS retenu afin d'obtenir et renouveler le certificat wildcard par défi DNS-01.
+- Le reverse proxy de référence est Caddy. Le routage local et historique vit dans ce dépôt. Sur Atlas, `vps-infra` construit et admet l'image Caddy partagée avec le module `caddy-dns/ovh` épinglé. La route wildcard, l'identité ACME Surplasse et la bascule DNS restent désactivées.
 
 ## Arborescence cible du monorepo
 
@@ -130,6 +130,7 @@ surplasse/
 ├── backend/                 # Quarkus (Maven multi-modules)
 ├── compose.yaml             # Graphe commun
 ├── compose.*.yaml           # Surcharges par environnement
+├── deployment/vps/          # Fragment applicatif et intégrations Atlas sans secret
 ├── frontends/
 │   ├── shared/              # Design system, client API généré, utilitaires
 │   ├── onboarding/          # surplasse.com
@@ -153,11 +154,12 @@ surplasse/
 | `frontends/commande/` | Le mini-site de l'établissement : carte numérique, commande et paiement client |
 | `frontends/dashboard/` | Le suivi des commandes en temps réel, la gestion de la carte et les métriques |
 | `frontends/design-system2/` et `frontends/*2/` | Le design system Untitled UI et les trois variantes réversibles réservées au développement et aux démos Pages |
-| `compose*.yaml` | Le graphe de services commun et ses surcharges d'environnement |
-| `infra/` | Les Dockerfiles, la configuration Caddy et les recettes d'exécution |
+| `compose*.yaml` | Le graphe local et le chemin de production historique du monorepo |
+| `deployment/vps/` | Le fragment Compose applicatif, la route, les cibles d'observabilité et les sondes publiés pour Atlas |
+| `infra/` | Les Dockerfiles applicatifs, la configuration Caddy locale et historique et les recettes d'exécution |
 | `.github/workflows/` | Les pipelines GitHub Actions : build, tests, déploiement, publication des docs |
 
-Le Backend, Commande, le Dashboard, la préfiguration de l'Onboarding, les variantes UI2 et le cluster Compose sont livrés localement. Les modules encore absents sont créés au fil de la [roadmap](../roadmap.md).
+Le Backend, Commande, le Dashboard, la préfiguration de l'Onboarding, les variantes UI2 et le cluster Compose sont livrés localement. Le candidat Atlas est publié, sans autorité d'activation. Les modules encore absents sont créés au fil de la [roadmap](../roadmap.md).
 
 ## Les deux flux critiques
 

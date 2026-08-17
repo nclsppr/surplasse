@@ -11,6 +11,34 @@ description: "Pourquoi Surplasse publie un descripteur application-release uniqu
 
 Accepté, 2026-08-17.
 
+## Première preuve de mise en oeuvre, vérifiée le 2026-08-18
+
+La partie productrice de cette décision a sa première preuve distante pour la révision `b3df325fd8266b8a0a73e8b4ee3a936683861a15`. Cette révision était le sommet de `main` pendant l'exécution [VPS integration release 32068614255](https://github.com/nclsppr/surplasse/actions/runs/32068614255), terminée avec succès. Elle a publié les références suivantes :
+
+- `ghcr.io/nclsppr/surplasse/vps-integration@sha256:1c193f79052ed618cdd62b769ca066dfd2190612788a416279591f211af15b9d` ;
+- `ghcr.io/nclsppr/surplasse/application-release@sha256:68a479690817cc55a19985a19f0d524007eeb4a8f240656397fa4d313d0a7b4e`.
+
+Ces références conservent une preuve historique immuable. Elles ne désignent pas un sommet permanent ni l'état désiré d'Atlas. Chaque push ultérieur sur `main`, y compris une modification documentaire, doit construire et publier son propre candidat lié à sa nouvelle révision.
+
+Cette preuve porte uniquement sur la publication du candidat immuable. Le contrôleur applicatif transactionnel est mergé dans `vps-infra`, mais aucune invocation ni convergence de ce contrôleur pour Surplasse n'est prouvée par cette livraison. Le contrat de production de `vps-infra` conserve `enabled: false`. Aucun secret, rôle ou donnée PostgreSQL, migration, service, route publique ou bascule DNS Surplasse n'a été activé sur Atlas.
+
+`vps-infra` reste l'autorité d'exploitation. Ses [règles d'admission immuable](https://github.com/nclsppr/vps-infra/blob/main/docs/decisions/0009-immutable-application-release-admission.md), son [contrôleur transactionnel désactivé](https://github.com/nclsppr/vps-infra/blob/main/docs/decisions/0010-disabled-transactional-application-controller.md) et son [runbook de déploiement](https://github.com/nclsppr/vps-infra/blob/main/docs/deployment.md#deploy-a-compose-application) font foi pour toute mutation d'Atlas. Ce dépôt producteur ne peut pas les contourner.
+
+L'activation reste bloquée jusqu'à la livraison et à la preuve des éléments suivants :
+
+- base PostgreSQL, propriétaire, rôles migrateur et runtime, secrets et restauration isolée prouvée ;
+- SMTP transactionnel, Stripe live et destinations de webhooks qualifiés ;
+- réseaux applicatif et base, rattachements Caddy et Prometheus, route publique et bascule DNS ;
+- sondes internes et publiques strictes sur Atlas ;
+- compatibilité descendante attestée des migrations avec le runtime précédent, ou arrêt après migration pour une reprise explicite vers l'avant ;
+- alias blue/green liés au digest et bascule atomique du bord, ou politique de maintenance et de coupure explicitement acceptée ;
+- blocage du trafic public pendant la récupération au démarrage au niveau Docker ou pare-feu, puis réconciliation de santé du runtime actif ;
+- budget disque avant mutation, rétention sûre des releases et images, budgets CPU, mémoire et PID pendant le chevauchement, ainsi que délais et limites de sortie dimensionnés ;
+- réconciliation du dernier candidat désiré après contention du verrou ;
+- contrôle des identités exactes de PostgreSQL, Caddy, conteneurs et réseaux, avec une politique de route qui ne bloque pas la reprise vers le runtime précédent.
+
+Cette liste reprend les blocages d'activation connus de l'ADR-0010 de `vps-infra` à cette date. Une évolution de l'autorité d'exploitation peut ajouter une porte, jamais en retirer une implicitement depuis le dépôt producteur.
+
 ## Contexte
 
 Surplasse livre cinq images applicatives : le Backend Java, l'Onboarding, Commande, le Dashboard et la documentation. La production Atlas fournit séparément le bord Caddy, PostgreSQL et l'observabilité. Un déploiement ne peut donc pas être décidé à partir d'un seul tag d'image ni d'un checkout implicite. Il doit lier les cinq digests, le fragment Compose applicatif, la route Caddy, les cibles Prometheus, les règles, le tableau de bord Grafana, les migrations Flyway et les sondes.
@@ -53,5 +81,5 @@ Chaque artefact passe un aller-retour ORAS, une validation stricte de son manife
 
 - Chaque push sur `main` reconstruit les cinq images, y compris pour une modification documentaire, afin que tout SHA publiable possède ses propres images attestées.
 - Une course avec un push plus récent fait échouer la publication du SHA devenu ancien. Le nouveau sommet doit produire sa propre release.
-- Atlas doit encore vérifier ce contrat, matérialiser les secrets, exécuter la migration, activer les services, sonder puis conserver le dernier digest sain.
-- Le fournisseur DNS, le SMTP transactionnel, Stripe Connect live, les sauvegardes restaurables et le canal d'alerte restent des prérequis externes. Leur absence ne doit jamais être masquée par une release OCI verte.
+- Atlas doit encore vérifier ce contrat et les fichiers de secrets pré-provisionnés, exécuter la migration, activer les services, sonder puis conserver le dernier digest sain.
+- L'identité DNS-01 OVH, la route wildcard, le SMTP transactionnel, Stripe Connect live, les sauvegardes restaurables et le canal d'alerte restent des prérequis externes. Leur absence ne doit jamais être masquée par une release OCI verte.

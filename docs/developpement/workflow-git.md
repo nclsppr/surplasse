@@ -53,7 +53,7 @@ L'absence de PR humaine ne signifie pas l'absence de filet :
 2. **La vérification locale avant push** est obligatoire (voir [la discipline avant push](#la-discipline-avant-push)).
 3. **L'historique reste intact** : jamais de réécriture sur `main`, donc tout état antérieur est récupérable (voir [les retours en arrière](#les-retours-en-arrière)).
 4. **Le contrat fait autorité** : un changement d'API passe d'abord par `api/openapi.yaml`, ce qui rend les ruptures visibles à la génération des clients (voir [le contrat](../architecture/api.md)).
-5. **Une PR ne déploie rien.** Les validations s'exécutent sur la référence de la PR, mais GitHub Pages et le futur déploiement VPS restent réservés à `main`.
+5. **Une PR ne publie ni ne déploie l'application.** Les validations s'exécutent sur sa référence. Seul un push exact sur `main` peut publier GitHub Pages, les images et une `application-release`. Cette publication reste un candidat ; l'activation Atlas est une décision séparée de `vps-infra`.
 
 ## Format des messages de commit
 
@@ -110,7 +110,7 @@ Le client TypeScript, les interfaces Java et les DTO générés depuis `api/open
 
 ## La discipline avant push
 
-Puisque `main` est la seule branche humaine et qu'elle déploie (la doc aujourd'hui, les applications demain), chaque push humain est précédé d'une vérification locale proportionnée au périmètre touché :
+Puisque `main` est la seule branche humaine, publie la documentation Pages et peut produire un candidat applicatif immuable, chaque push humain est précédé d'une vérification locale proportionnée au périmètre touché :
 
 | Périmètre touché | Vérification obligatoire avant push |
 |---|---|
@@ -140,29 +140,11 @@ Le principe : **l'historique de `main` est immuable**. On avance, on ne réécri
 Si un secret atteint `main` malgré tout, la réécriture d'historique ne le sauve pas : le secret est compromis dès le push. La réponse est la révocation immédiate du secret (rotation de la clé chez Stripe, OpenAI ou autre), puis un commit qui le retire du dépôt. Voir [sécurité](../architecture/securite.md).
 !!!
 
-## Tags de version par application
+## Identité d'une release applicative
 
-Tant que rien n'est déployé en production, `main` avance sans tags. Quand les déploiements commenceront, chaque application sera versionnée et déployée indépendamment, avec des tags par application :
+Atlas n'active pas Surplasse à partir d'un tag SemVer. L'identité productrice est le SHA complet de `main`. Le signal d'exploitation est la référence immuable `ghcr.io/nclsppr/surplasse/application-release@sha256:<digest>`, qui lie les cinq images, le bundle d'intégration, les migrations et les sondes au même SHA.
 
-```
-<application>-v<majeur>.<mineur>.<correctif>
-
-backend-v1.0.0
-commande-v1.2.0
-dashboard-v1.1.3
-onboarding-v0.9.0
-docs-v1.0.0          (optionnel, si l'on souhaite jalonner la doc)
-```
-
-Règles de nommage :
-
-| Élément | Convention |
-|---|---|
-| Préfixe | Le nom du répertoire de l'application (`backend`, `commande`, `dashboard`, `onboarding`) |
-| Version | SemVer : `majeur` pour une rupture, `mineur` pour une fonctionnalité, `correctif` pour un fix |
-| Portée | Un tag pointe un commit de `main` ; le déploiement de l'application part de ce tag |
-
-Le contrat suit la version du backend qui l'implémente : pas de tag propre pour `api/openapi.yaml`. Le détail du déclenchement des déploiements depuis les tags est décrit dans [CI/CD](ci-cd.md) ; les environnements cibles dans [environnements](../operations/environnements.md).
+Un tag SemVer peut servir de jalon produit, mais il ne déplace pas l'état désiré et ne donne aucune autorité à Atlas. Une correction ou un retour applicatif passe par un nouveau commit descendant sur `main`, ses portes vertes et une nouvelle release immuable. Le détail de la publication vit dans [CI/CD](ci-cd.md), et la frontière d'activation dans [Environnements](../operations/environnements.md).
 
 ## Hooks locaux
 

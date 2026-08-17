@@ -7,7 +7,7 @@ description: "La production de Surplasse : philosophie d'exploitation d'un déve
 
 # Exploitation
 
-Cette section décrit la cible d'exploitation de Surplasse : ce qui tourne en production, où, comment c'est sauvegardé et comment on réagit quand ça casse. La pile Compose, les images, le profil facultatif d'observabilité et le runbook sont maintenant versionnés et exercés en local. Aucun VPS de production n'est encore provisionné.
+Cette section décrit la cible d'exploitation de Surplasse : ce qui tourne en production, où, comment c'est sauvegardé et comment on réagit quand ça casse. Atlas et sa plateforme partagée sont provisionnés. La pile applicative Surplasse n'y est pas activée. Le dépôt publie un candidat OCI immuable, mais le contrat protégé de `vps-infra` conserve Surplasse avec `enabled: false`.
 
 Les pages de la section :
 
@@ -19,7 +19,7 @@ Les pages de la section :
 - [Preuve Stripe Connect du 2026-07-20](preuve-stripe-connect-2026-07-20.md) : premier contrôle API test, blocage d'inscription Connect et condition de reprise.
 - [RGPD](rgpd.md) : données personnelles, rétention, droits des personnes.
 
-Le déploiement exécutable est décrit dans [Déploiement Compose](deploiement-compose.md). Son automatisation future par GitHub Actions est décrite dans [CI/CD](../developpement/ci-cd.md).
+La publication productrice et la frontière Atlas sont décrites dans [Déploiement Compose](deploiement-compose.md). [CI/CD](../developpement/ci-cd.md) décrit comment `main` publie le candidat exact sans l'activer. Les décisions et commandes d'exploitation qui mutent Atlas appartiennent au [runbook `vps-infra`](https://github.com/nclsppr/vps-infra/blob/main/docs/deployment.md#deploy-a-compose-application).
 
 ## Règle d'entrée en production
 
@@ -34,33 +34,37 @@ Un outil réservé au développement ou à la CI indique explicitement qu'il est
 Surplasse est développé et exploité par une seule personne. Ce fait dicte toute l'architecture de production, avant même les considérations techniques :
 
 - **Le moins de pièces mobiles possible.** Chaque service qui tourne est un service à mettre à jour, superviser, sauvegarder et déboguer à trois heures du matin. Un composant n'entre en production que s'il paie son coût d'entretien.
-- **Tout dans Docker Compose, sur un VPS unique.** Pas d'orchestrateur, pas de cluster, pas de cloud managé au lancement. Un seul VPS, un socle `compose.yaml`, une surcharge production et un seul endroit où regarder. Kubernetes résout des problèmes que Surplasse n'a pas.
-- **Tout redéployable depuis git.** Le VPS ne contient aucun état de configuration qui ne soit pas reconstructible : les fichiers Compose vivent à la racine, la configuration du reverse proxy dans `infra/caddy/`, les images sont taggées par SHA dans le registre, les secrets sont les seuls éléments provisionnés à la main (et documentés dans [Environnements](environnements.md)). Perdre le VPS doit coûter une restauration de sauvegarde et un déploiement, pas une archéologie.
+- **Tout dans Docker Compose, sur un VPS unique.** Pas d'orchestrateur, pas de cluster, pas de cloud managé au lancement. Atlas fournit la plateforme partagée et le contrôleur. Le bundle Surplasse fournit uniquement ses cinq services longs et son job de migration.
+- **Tout redéployable depuis des sources immuables.** Le dépôt Surplasse produit les images et le descripteur `application-release`. `vps-infra` porte l'état désiré, les routes et le contrôleur. Les secrets et les sauvegardes restent hors de Git et doivent avoir leur propre preuve de restauration.
 
-Les seules dépendances externes sont des services SaaS qui portent leur propre exploitation : Stripe pour le paiement, l'API OpenAI pour l'extraction de carte, le futur fournisseur SMTP transactionnel pour les emails, GitHub pour le code, la CI et le miroir documentaire Pages.
+Les seules dépendances externes sont des services SaaS qui portent leur propre exploitation : Stripe pour le paiement, l'API OpenAI pour l'extraction de carte, un relais SMTP transactionnel géré encore à sélectionner et qualifier, GitHub pour le code, la CI et le miroir documentaire Pages.
 
-## Inventaire des services en production
+## Inventaire cible et état réel
 
-La documentation Nimbus canonique, la préfiguration statique de l'Onboarding et les démos UI2 `noindex` sont actuellement publiées sur GitHub Pages. Nimbus utilise `docs/` comme source éditoriale et apparaît sous `/docs/`. Les aperçus UI2 ne joignent aucun Backend public et ne constituent pas des routes produit. Les images et services ci-dessous sont construits et testés dans le cluster local. Ils ne prouvent pas qu'un VPS public existe.
+La documentation Nimbus canonique, la préfiguration statique de l'Onboarding et les démos UI2 `noindex` sont actuellement publiées sur GitHub Pages. Nimbus utilise `docs/` comme source éditoriale et apparaît sous `/docs/`. Les aperçus UI2 ne joignent aucun Backend public et ne constituent pas des routes produit. Atlas sert déjà d'autres charges, mais aucune route publique Atlas ne sert Surplasse. La présence du VPS ne prouve donc pas la présence de l'application.
 
 | Service | Techno | Statut | Rôle | Exposition |
 |---|---|---|---|---|
 | Site public actuel | GitHub Pages | En service | Documentation Nimbus, marque, préfiguration statique de l'Onboarding et preuves visuelles UI2 | `/surplasse/docs/` et autres routes Pages |
-| Reverse proxy | Caddy 2.11.4 | Service Compose livré, VPS non provisionné | Terminaison TLS et routage par domaine | Ports 80 et 443, seul service du VPS exposé |
+| Reverse proxy | Caddy 2.11.4 | Plateforme Atlas en service, route Surplasse désactivée | Terminaison TLS et routage par domaine | Ports 80 et 443 de la plateforme partagée |
 | Documentation | Nimbus 0.8.2, Astro et NGINX interne | Image livrée, non déployée | Documentation canonique générée depuis `docs/` | `docs.surplasse.com`, via Caddy |
 | Backend | Quarkus 3.37.4, Java 25 | Image livrée, non déployée | API REST, logique métier, temps réel SSE et intégrations | `api.surplasse.com`, via Caddy |
 | Onboarding | Fichiers statiques, NGINX interne | Image livrée, non déployée | Vitrine produit et tunnel d'embarquement | `surplasse.com`, via Caddy |
 | Commande | Build React statique, NGINX interne | Image livrée, non déployée | Mini-site, carte, commande et paiement | `{slug}.surplasse.com`, via Caddy |
 | Dashboard | Build React statique, NGINX interne | Image livrée, non déployée | Authentification, suivi SSE et avancement des commandes | `dashboard.surplasse.com`, via Caddy |
-| PostgreSQL | PostgreSQL 17.10 | Service Compose livré, VPS non provisionné | Base de données unique | Réseau interne Compose uniquement |
+| PostgreSQL | PostgreSQL 17.10 | Contrat Atlas livré, base et rôles Surplasse non activés | Base de données unique | Réseau interne Compose uniquement |
 | MinIO | MinIO | Module absent | Stockage objet des images | Réseau interne Compose uniquement |
-| Surveillance fonctionnelle | Playwright 1.61 et Allure 3 | Workflow livré, horaire production désactivé avant le VPS | Smokes publics en lecture seule, rapport et historique par cible | Runner GitHub Actions ou poste d'exploitation, jamais dans la pile |
-| Prometheus | 3.13.1, variante `busybox` | Profil Compose facultatif livré, VPS non provisionné | Collecte pull des métriques et évaluation de règles | Réseau interne Compose uniquement |
-| Grafana | 13.1.1 | Profil Compose facultatif livré, VPS non provisionné | Tableau de bord opérationnel provisionné | Développement via `GRAFANA_URL` ; production par port loopback et tunnel SSH |
+| Surveillance fonctionnelle | Playwright 1.61 et Allure 3 | Workflow livré, horaire production désactivé tant que la route Surplasse est absente | Smokes publics en lecture seule, rapport et historique par cible | Runner GitHub Actions ou poste d'exploitation, jamais dans la pile |
+| Prometheus | 3.13.1 local ; Atlas 3.13.2 `busybox` | Profil local et règles ou cible Atlas livrés, intégration Surplasse désactivée | Collecte pull des métriques et évaluation de règles | Réseau interne Compose uniquement |
+| Grafana | 13.1.1 local ; Atlas 13.1.3 `slim` | Profil local et tableau de bord Atlas livrés, intégration Surplasse non activée | Tableau de bord opérationnel provisionné | Développement via `GRAFANA_URL` ; cible production par port loopback et tunnel SSH |
 
-Le module Maven `identity` n'apparaît pas comme un service dans ce tableau : il est compilé dans l'image Backend. Il ne possède aucun processus, port, conteneur, volume ni health check distinct. Mailpit n'apparaît pas non plus : c'est un outil local jetable, absent de la CI et de la production. En production, le Backend remet les emails à un fournisseur SMTP transactionnel externe encore à sélectionner.
+Le module Maven `identity` n'apparaît pas comme un service dans ce tableau : il est compilé dans l'image Backend. Il ne possède aucun processus, port, conteneur, volume ni health check distinct. Mailpit n'apparaît pas non plus : c'est un outil local jetable, absent de la CI et de la production. Le Backend de production devra remettre les emails à un relais SMTP transactionnel géré. Sa sélection, son provisionnement et ses preuves de remise restent bloquants.
 
-dnsmasq, mkcert et le cockpit Node sont eux aussi réservés au développement. Le cockpit pilote uniquement le profil Compose development, peut démarrer ou arrêter Prometheus et Grafana et sert seulement son rapport Allure local. Le DNS public remplace dnsmasq et Let's Encrypt remplace mkcert. En production, Grafana garde sa propre authentification derrière un tunnel SSH et le cockpit reste absent. Playwright et Allure restent hors du VPS : ils observent Caddy et les applications depuis un runner externe. Les rapports production et UAT restent des artefacts de CLI ou de CI. Le routage commun vit dans `infra/caddy/Caddyfile`. Les petites inclusions de TLS et de routes portent les différences entre les profils. L'inventaire local exécutable est dans [Domaines locaux](../developpement/domaines-locaux.md).
+dnsmasq, mkcert et le cockpit Node sont eux aussi réservés au développement. Le cockpit pilote uniquement le profil Compose development, peut démarrer ou arrêter Prometheus et Grafana et sert seulement son rapport Allure local. Le DNS public remplace dnsmasq et Let's Encrypt remplace mkcert. En production, Grafana garde sa propre authentification derrière un tunnel SSH et le cockpit reste absent. Playwright et Allure restent hors du VPS : ils observent Caddy et les applications depuis un runner externe. Les rapports production et UAT restent des artefacts de CLI ou de CI. Le routage local et historique vit dans `infra/caddy/Caddyfile`. La route candidate Atlas vient de `deployment/vps/caddy/surplasse.caddy` et doit être admise puis préparée par `vps-infra`. L'inventaire local exécutable est dans [Domaines locaux](../developpement/domaines-locaux.md).
+
+!!! warning Commandes de cycle de vie
+Les exemples `scripts/compose.sh production` ci-dessous documentent le chemin historique et la forme attendue des contrôles. Ils ne doivent pas être exécutés sur Atlas. Le contrôleur et les commandes bornées de `vps-infra` sont l'unique chemin autorisé pour la production Atlas.
+!!!
 
 ### Cycle de vie de l'identité sous Ubuntu LTS
 
@@ -85,7 +89,7 @@ Le démarrage exige PostgreSQL, les migrations Flyway, les clés JWT RS256 mont�
 
 ### Cycle de vie du Dashboard sous Ubuntu LTS
 
-Le Dashboard possède maintenant une image statique, un service Compose, une route Caddy et un healthcheck. Il reste absent d'un VPS public. Sa vérification applicative précède la construction :
+Le Dashboard possède maintenant une image statique, un service Compose, une route Caddy et un healthcheck. Il reste absent du runtime Atlas et de ses routes publiques. Sa vérification applicative précède la construction :
 
 ```bash
 cd frontends/shared
@@ -110,7 +114,7 @@ curl --fail https://dashboard.surplasse.com/
 scripts/compose.sh production stop dashboard
 ```
 
-Une mise à jour remplace l'image par un nouveau SHA. Un retour arrière redéploie le dernier SHA sain, sans restauration de données. Le Dashboard n'a ni sauvegarde, ni restauration, ni migration propre : toute donnée métier reste dans PostgreSQL derrière le Backend. L'absence actuelle de VPS et de DNS public reste distincte de la disponibilité de l'artefact.
+Une mise à jour remplace l'image par un nouveau SHA. Un retour arrière redéploie le dernier SHA sain, sans restauration de données. Le Dashboard n'a ni sauvegarde, ni restauration, ni migration propre : toute donnée métier reste dans PostgreSQL derrière le Backend. L'absence actuelle d'activation et de DNS Surplasse sur Atlas reste distincte de la disponibilité de l'artefact.
 
 ### Cycle de vie de Nimbus sous Ubuntu LTS
 
@@ -130,11 +134,11 @@ scripts/compose.sh production stop docs
 
 Une mise à jour remplace l'image par un nouveau SHA. Un retour arrière redéploie le dernier SHA sain. Le miroir GitHub Pages est construit indépendamment depuis la même source et ne remplace pas le contrôle de santé de `docs.surplasse.com`.
 
-Sur le choix du reverse proxy : Traefik excelle dans la découverte dynamique de conteneurs et brille dans des environnements où les services vont et viennent, au prix d'une configuration par labels plus verbeuse et d'un modèle mental plus riche. Caddy fait la même chose ici avec un fichier de configuration court et lisible. L'image de production est prête à intégrer par `xcaddy` le module DNS du fournisseur retenu. Le choix du fournisseur et du module reste un blocage explicite avant le premier VPS.
+Sur le choix du reverse proxy : Traefik excelle dans la découverte dynamique de conteneurs et brille dans des environnements où les services vont et viennent, au prix d'une configuration par labels plus verbeuse et d'un modèle mental plus riche. Caddy fait la même chose ici avec un fichier de configuration court et lisible. Atlas possède son image Caddy partagée avec le module DNS OVH épinglé. L'identité OVH bornée à `surplasse.com`, la route wildcard et la bascule DNS Surplasse restent à provisionner et à prouver avant activation.
 
 Chaque frontend et la documentation sont empaquetés dans une image immuable et utilisent NGINX non privilégié en production. Le serveur Node allowlisté de l'Onboarding existe seulement dans son image development afin de servir la session Stripe test locale. Les images de production sont taggées par SHA par la CI. Le détail des images et des commandes vit dans [Déploiement Compose](deploiement-compose.md).
 
-## Topologie
+## Topologie cible après activation
 
 ```
                             Internet
@@ -182,9 +186,9 @@ L'entretien du système suit la même logique de sobriété :
 - **Ubuntu LTS** comme distribution, mises à jour de sécurité automatiques ; le reste des mises à jour système se fait manuellement, à intervalle régulier. C'est aussi le système de référence du projet : en cas de comportement divergent entre macOS, Windows et Linux, Ubuntu fait foi.
 - Accès SSH par clé uniquement, deux comptes : un compte d'administration et le compte de déploiement restreint utilisé par la CI (voir [CI/CD](../developpement/ci-cd.md)).
 - Pare-feu : seuls les ports 22, 80 et 443 sont ouverts.
-- Aucun logiciel installé hors Docker, le moteur Docker et l'outillage de sauvegarde exceptés.
+- Aucun runtime Surplasse installé directement sur l'hôte : Java, Node et NGINX restent dans les images. Les services et contrôleurs hôte d'Atlas appartiennent à `vps-infra`.
 
-Le choix de l'hébergeur reste à trancher (contrainte principale : localisation des données dans l'Union européenne, voir [RGPD](rgpd.md)) et sera consigné en ADR avant le provisionnement du VPS.
+Atlas est hébergé chez OVHcloud. Surplasse n'y est pas encore activé. Avant le pilote, le registre RGPD doit recevoir la région contractuelle exacte, le DPA et les responsabilités applicables à l'hébergement des données Surplasse (voir [RGPD](rgpd.md)).
 
 ## Sauvegardes
 
@@ -219,6 +223,6 @@ Il n'y a pas d'astreinte, pas d'équipe, pas de rotation : il y a une personne, 
 2. **Le Dashboard** : les restaurateurs doivent voir les commandes arriver ; une dégradation courte est tolérable si les commandes sont bien enregistrées.
 3. **L'Onboarding** : la vitrine et l'embarquement de nouveaux restaurateurs peuvent attendre la fin de l'incident.
 
-**Des réflexes plutôt que des runbooks épais.** Trois gestes couvrent l'essentiel : redéployer le dernier SHA sain (rollback décrit dans [CI/CD](../developpement/ci-cd.md)), redémarrer un service via Compose, restaurer la dernière sauvegarde. Chaque incident notable donne lieu à une note post-mortem courte (cause, détection, correction, prévention) conservée dans le dépôt.
+**Des réflexes plutôt que des runbooks épais.** Trois gestes couvrent l'essentiel : publier un commit descendant qui restaure le code sain puis laisser Atlas appliquer sa politique de reprise, réconcilier le runtime par les commandes bornées de `vps-infra`, restaurer la dernière sauvegarde seulement selon une procédure de données planifiée. Après migration, le runtime précédent ne redémarre que si sa compatibilité de schéma est attestée ; sinon la reprise avance explicitement. Chaque incident notable donne lieu à une note post-mortem courte (cause, détection, correction, prévention) conservée dans le dépôt.
 
 Ce qui reste à trancher : l'outil de page de statut (service SaaS ou page statique alimentée par les sondes), la sonde externe et le canal d'alerte. Les règles Prometheus livrées ne notifient personne tant qu'Alertmanager ou un service externe n'est pas configuré (voir [Observabilité](observabilite.md)).

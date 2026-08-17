@@ -34,7 +34,7 @@ Nous retenons un fichier `compose.yaml` commun et deux surcharges : `compose.dev
 
 Le socle commun contient un Caddy de bord, PostgreSQL 17, le Backend et les trois fronts. Caddy est le seul service public. Les trois fronts sont servis en production par NGINX non privilégié. L'Onboarding utilise son serveur Node allowlisté uniquement en développement, où il porte la courte session Stripe test. Mailpit et la documentation statique appartiennent uniquement à la surcharge de développement.
 
-Le profil de développement monte le certificat mkcert et publie seulement le port HTTPS sur la boucle locale. Le profil de production publie 80 et 443, monte les clés JWT et construit Caddy avec le module DNS choisi pour le défi DNS-01. Le choix du fournisseur DNS reste une condition explicite du premier déploiement, jamais une valeur de repli dans le dépôt.
+Le profil de développement monte le certificat mkcert et publie seulement le port HTTPS sur la boucle locale. Le profil de production historique publie 80 et 443, monte les clés JWT et construit Caddy avec le module DNS choisi pour le défi DNS-01. Depuis la mise en place d'Atlas, le bord de production appartient à `vps-infra` : OVH est retenu et le module `caddy-dns/ovh` y est épinglé. L'identité ACME, la route wildcard et la bascule DNS Surplasse restent des portes explicites.
 
 Les images de base sont centralisées dans `config/deployment/images.env` avec un tag lisible et un digest multi-plateforme. Les images applicatives de production portent le SHA git. Les quatre images applicatives sont construites avec un profil explicite et conservent seulement le fichier de domaine utile quand elles en ont besoin à l'exécution. Le profil de construction Backend de production exclut physiquement le seed de démonstration et vérifie son absence dans le JAR. Commande et Dashboard intègrent leur configuration publique par Vite ; l'Onboarding génère son `runtime-config.js` pour ce seul profil. Son Dockerfile choisit ensuite le serveur Node pour l'image development et NGINX pour l'image production. Ces quatre images utilisent exactement les mêmes Dockerfiles dans le cluster local.
 
@@ -55,6 +55,6 @@ Conséquences négatives et dettes assumées :
 - le cluster d'intégration reconstruit les fronts et ne fournit pas le rechargement à chaud de Vite ;
 - le mode natif reste utile pour une boucle frontend ou Quarkus courte, mais ne constitue plus la preuve de parité de déploiement ;
 - les images applicatives de développement et de production sont distinctes afin de ne conserver que leur profil public ;
-- le premier déploiement reste bloqué jusqu'au choix du fournisseur DNS, du module Caddy correspondant et du fournisseur SMTP ;
+- le premier déploiement reste bloqué jusqu'à l'activation de l'identité DNS-01 OVH et de la route Caddy dans `vps-infra`, ainsi qu'au choix et à la qualification du fournisseur SMTP ;
 - un seul Backend implique une courte interruption lors d'une recréation de conteneur ;
 - PostgreSQL est persistant et exige une sauvegarde hors VPS avant toute production réelle.

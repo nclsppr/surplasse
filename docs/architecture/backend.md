@@ -222,7 +222,7 @@ La configuration suit les profils standards de Quarkus, dans un unique `applicat
 |---|---|---|
 | `%dev` | Développement local | Dev Services PostgreSQL, clés JWT de travail générées par Quarkus, SMTP local Mailpit sans authentification ; clés Stripe en mode test |
 | `%test` | Tests automatisés | Dev Services, base éphémère, clés JWT de travail générées et mailer simulé ; aucun Mailpit dans la CI |
-| `%prod` | VPS Ubuntu LTS | PostgreSQL persistant, clé privée RS256 et JWKS montés hors image, SMTP transactionnel ; toute valeur sensible vient de l'environnement Docker Compose, jamais du dépôt |
+| `%prod` | Atlas, VPS Ubuntu LTS | PostgreSQL persistant sur la plateforme partagée ; clé privée RS256, JWKS, Stripe, SMTP et mots de passe PostgreSQL fournis par des fichiers distincts sous `/etc/vps/secrets/surplasse/` et montés sous `/run/secrets` ; Compose déclare seulement les chemins `*_FILE`, puis le point d'entrée charge les valeurs en mémoire au démarrage ; aucune valeur dans l'image ou le bundle OCI |
 
 La configuration applicative est consommée par des interfaces `@ConfigMapping` : des types Java qui portent les clés, leurs types et leurs valeurs par défaut. Ce choix rend la configuration vérifiable à la compilation et au démarrage (une clé manquante fait échouer le boot, pas une requête à minuit), et documente en un seul endroit ce que chaque module attend de son environnement. Chaque module déclare ses propres mappings ; le module `application` n'agrège que les valeurs.
 
