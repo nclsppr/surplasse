@@ -1,0 +1,60 @@
+#!/bin/sh
+
+set -eu
+
+site_root="${1-}"
+stripe_public_key="${VITE_STRIPE_PUBLISHABLE_KEY-}"
+
+fail() {
+  echo "The production Stripe key is not uniquely active in the static entrypoint." >&2
+  exit 64
+}
+
+case "$stripe_public_key" in
+  pk_live_?*) ;;
+  *) fail ;;
+esac
+
+case "$stripe_public_key" in
+  *[[:space:]]*) fail ;;
+esac
+
+if [ -z "$site_root" ] || [ ! -f "$site_root/index.html" ]; then
+  fail
+fi
+
+entrypoint="$(
+  sed -n 's|.*<script[^>]*src="\([^"]*\.js\)".*|\1|p' "$site_root/index.html" || true
+)"
+
+entrypoint_count="$(printf '%s\n' "$entrypoint" | awk 'NF { count += 1 } END { print count + 0 }')"
+if [ "$entrypoint_count" -ne 1 ]; then
+  fail
+fi
+
+case "$entrypoint" in
+  /assets/*.js) ;;
+  *) fail ;;
+esac
+
+case "$entrypoint" in
+  *..* | *\\*) fail ;;
+esac
+
+entrypoint_file="${site_root}${entrypoint}"
+if [ ! -f "$entrypoint_file" ]; then
+  fail
+fi
+
+if ! grep -F -q -- "$stripe_public_key" "$entrypoint_file"; then
+  fail
+fi
+
+if grep -F -q -- "pk_test_" "$entrypoint_file"; then
+  fail
+fi
+
+live_prefix_count="$(grep -F -o -- "pk_live_" "$entrypoint_file" | wc -l | tr -d '[:space:]')"
+if [ "$live_prefix_count" -ne 1 ]; then
+  fail
+fi

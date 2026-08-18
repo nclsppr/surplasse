@@ -17,6 +17,8 @@ on:
       - "config/deployment/images.env"
       - "infra/images/**"
       - "scripts/check-container-images.sh"
+      - "scripts/validate-production-stripe-public-key"
+      - "scripts/verify-production-stripe-static-assets"
       - "scripts/test-backend-migration-image.sh"
       - "scripts/compose.sh"
       - "scripts/test-compose-config.sh"
@@ -54,6 +56,8 @@ jobs:
   configuration:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      stripe_public_key_sha256: ${{ steps.stripe_key.outputs.sha256 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -63,6 +67,15 @@ jobs:
         run: npm run images:check
       - name: Validate both Compose profiles and production guardrails
         run: npm run compose:config:test
+      - name: Require the Stripe live publishable key before a main release
+        id: stripe_key
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          VITE_STRIPE_PUBLISHABLE_KEY: ${{ vars.VITE_STRIPE_PUBLISHABLE_KEY }}
+        run: |
+          ./scripts/validate-production-stripe-public-key
+          key_sha256="$(printf '%s' "$VITE_STRIPE_PUBLISHABLE_KEY" | sha256sum)"
+          echo "sha256=${key_sha256%% *}" >> "$GITHUB_OUTPUT"
 
   build-and-scan:
     needs: configuration
@@ -88,12 +101,19 @@ jobs:
       - name: Resolve pinned build arguments
         id: arguments
         env:
+          EXPECTED_STRIPE_PUBLIC_KEY_SHA256: ${{ needs.configuration.outputs.stripe_public_key_sha256 }}
           IMAGE_NAME: ${{ matrix.image }}
-          STRIPE_PUBLIC_VALUE: ${{ vars.VITE_STRIPE_PUBLISHABLE_KEY }}
+          REQUIRE_EXPECTED_STRIPE_PUBLIC_KEY_SHA256: "true"
+          REQUIRE_LIVE_STRIPE_KEY: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          STRIPE_PUBLIC_VALUE: ${{ matrix.image == 'commande' && github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.VITE_STRIPE_PUBLISHABLE_KEY || '' }}
         run: |
           source config/deployment/images.env
           source config/domains/production.env
           docs_origin="${APP_SCHEME}://docs.${APP_BASE_DOMAIN}"
+          if [[ "$IMAGE_NAME" == "commande" && "$REQUIRE_LIVE_STRIPE_KEY" == "true" ]]; then
+            VITE_STRIPE_PUBLISHABLE_KEY="$STRIPE_PUBLIC_VALUE" \
+              ./scripts/validate-production-stripe-public-key
+          fi
           {
             echo "value<<BUILD_ARGS"
             case "$IMAGE_NAME" in
@@ -107,12 +127,18 @@ jobs:
                 echo "NGINX_IMAGE=$NGINX_IMAGE"
                 echo "DOMAIN_PROFILE=production"
                 ;;
-              commande|dashboard)
+              commande)
                 echo "NODE_IMAGE=$NODE_IMAGE"
                 echo "NGINX_IMAGE=$NGINX_IMAGE"
                 echo "DOMAIN_PROFILE=production"
                 echo "FRONTEND_NAME=$IMAGE_NAME"
                 echo "STRIPE_PUBLIC_VALUE=$STRIPE_PUBLIC_VALUE"
+                ;;
+              dashboard)
+                echo "NODE_IMAGE=$NODE_IMAGE"
+                echo "NGINX_IMAGE=$NGINX_IMAGE"
+                echo "DOMAIN_PROFILE=production"
+                echo "FRONTEND_NAME=$IMAGE_NAME"
                 ;;
               docs)
                 echo "NODE_IMAGE=$NODE_IMAGE"
@@ -142,6 +168,20 @@ jobs:
         run: >-
           ./scripts/test-backend-migration-image.sh
           surplasse-ci/backend:${{ github.sha }}
+      - name: Verify the live Stripe key is embedded in Commande
+        if: matrix.image == 'commande' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          EXPECTED_STRIPE_PUBLIC_KEY_SHA256: ${{ needs.configuration.outputs.stripe_public_key_sha256 }}
+          REQUIRE_EXPECTED_STRIPE_PUBLIC_KEY_SHA256: "true"
+          VITE_STRIPE_PUBLISHABLE_KEY: ${{ vars.VITE_STRIPE_PUBLISHABLE_KEY }}
+        run: |
+          ./scripts/validate-production-stripe-public-key
+          docker run --rm --interactive \
+            --entrypoint /bin/sh \
+            --env VITE_STRIPE_PUBLISHABLE_KEY \
+            surplasse-ci/commande:${{ github.sha }} \
+            -s -- /usr/share/nginx/html \
+            < ./scripts/verify-production-stripe-static-assets
       - name: Scan HIGH and CRITICAL fixed vulnerabilities
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
@@ -156,7 +196,9 @@ jobs:
 
   publish:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: build-and-scan
+    needs:
+      - configuration
+      - build-and-scan
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -189,12 +231,18 @@ jobs:
       - name: Resolve pinned build arguments
         id: arguments
         env:
+          EXPECTED_STRIPE_PUBLIC_KEY_SHA256: ${{ needs.configuration.outputs.stripe_public_key_sha256 }}
           IMAGE_NAME: ${{ matrix.image }}
-          STRIPE_PUBLIC_VALUE: ${{ vars.VITE_STRIPE_PUBLISHABLE_KEY }}
+          REQUIRE_EXPECTED_STRIPE_PUBLIC_KEY_SHA256: "true"
+          STRIPE_PUBLIC_VALUE: ${{ matrix.image == 'commande' && vars.VITE_STRIPE_PUBLISHABLE_KEY || '' }}
         run: |
           source config/deployment/images.env
           source config/domains/production.env
           docs_origin="${APP_SCHEME}://docs.${APP_BASE_DOMAIN}"
+          if [[ "$IMAGE_NAME" == "commande" ]]; then
+            VITE_STRIPE_PUBLISHABLE_KEY="$STRIPE_PUBLIC_VALUE" \
+              ./scripts/validate-production-stripe-public-key
+          fi
           {
             echo "value<<BUILD_ARGS"
             case "$IMAGE_NAME" in
@@ -208,12 +256,18 @@ jobs:
                 echo "NGINX_IMAGE=$NGINX_IMAGE"
                 echo "DOMAIN_PROFILE=production"
                 ;;
-              commande|dashboard)
+              commande)
                 echo "NODE_IMAGE=$NODE_IMAGE"
                 echo "NGINX_IMAGE=$NGINX_IMAGE"
                 echo "DOMAIN_PROFILE=production"
                 echo "FRONTEND_NAME=$IMAGE_NAME"
                 echo "STRIPE_PUBLIC_VALUE=$STRIPE_PUBLIC_VALUE"
+                ;;
+              dashboard)
+                echo "NODE_IMAGE=$NODE_IMAGE"
+                echo "NGINX_IMAGE=$NGINX_IMAGE"
+                echo "DOMAIN_PROFILE=production"
+                echo "FRONTEND_NAME=$IMAGE_NAME"
                 ;;
               docs)
                 echo "NODE_IMAGE=$NODE_IMAGE"
@@ -246,6 +300,31 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}-production
           sbom: true
           provenance: mode=max
+      - name: Verify the live Stripe key in the published Commande digest
+        if: matrix.image == 'commande'
+        env:
+          EXPECTED_STRIPE_PUBLIC_KEY_SHA256: ${{ needs.configuration.outputs.stripe_public_key_sha256 }}
+          REQUIRE_EXPECTED_STRIPE_PUBLIC_KEY_SHA256: "true"
+          VITE_STRIPE_PUBLISHABLE_KEY: ${{ vars.VITE_STRIPE_PUBLISHABLE_KEY }}
+        run: |
+          ./scripts/validate-production-stripe-public-key
+          docker run --rm --interactive --pull=always \
+            --entrypoint /bin/sh \
+            --env VITE_STRIPE_PUBLISHABLE_KEY \
+            "${IMAGE_ROOT}/commande@${{ steps.push.outputs.digest }}" \
+            -s -- /usr/share/nginx/html \
+            < ./scripts/verify-production-stripe-static-assets
+      - name: Scan the exact published digest for fixed vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          scan-type: image
+          image-ref: ${{ env.IMAGE_ROOT }}/${{ matrix.image }}@${{ steps.push.outputs.digest }}
+          format: table
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
       - name: Publish the GitHub artifact attestation
         uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4.2.0
         with:
