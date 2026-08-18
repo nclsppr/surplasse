@@ -15,6 +15,7 @@ Les pages de la section :
 - [Déploiement Compose](deploiement-compose.md) : images, Ubuntu LTS, démarrage, mise à jour, retour arrière et sauvegarde.
 - [Outillage de l'opérateur](outillage-operateur.md) : accès à la base, logs, résultats de tests, exploration de l'API.
 - [Observabilité](observabilite.md) : logs, métriques, sondes et alertes.
+- [Bootstrap du pilote](bootstrap-pilote-production.md) : manifeste protégé, commande one-shot, contrôles Stripe test et idempotence.
 - [Pilote de phase 2](pilote.md) : portes Go ou No-Go, métriques, répétition, service réel et repli.
 - [Preuve Stripe Connect du 2026-07-20](preuve-stripe-connect-2026-07-20.md) : premier contrôle API test, blocage d'inscription Connect et condition de reprise.
 - [RGPD](rgpd.md) : données personnelles, rétention, droits des personnes.
@@ -34,7 +35,7 @@ Un outil réservé au développement ou à la CI indique explicitement qu'il est
 Surplasse est développé et exploité par une seule personne. Ce fait dicte toute l'architecture de production, avant même les considérations techniques :
 
 - **Le moins de pièces mobiles possible.** Chaque service qui tourne est un service à mettre à jour, superviser, sauvegarder et déboguer à trois heures du matin. Un composant n'entre en production que s'il paie son coût d'entretien.
-- **Tout dans Docker Compose, sur un VPS unique.** Pas d'orchestrateur, pas de cluster, pas de cloud managé au lancement. Atlas fournit la plateforme partagée et le contrôleur. Le bundle Surplasse fournit uniquement ses cinq services longs et son job de migration.
+- **Tout dans Docker Compose, sur un VPS unique.** Pas d'orchestrateur, pas de cluster, pas de cloud managé au lancement. Atlas fournit la plateforme partagée et le contrôleur. Le bundle Surplasse fournit uniquement ses cinq services longs, son job de migration et le bootstrap one-shot du pilote.
 - **Tout redéployable depuis des sources immuables.** Le dépôt Surplasse produit les images et le descripteur `application-release`. `vps-infra` porte l'état désiré, les routes et le contrôleur. Les secrets et les sauvegardes restent hors de Git et doivent avoir leur propre preuve de restauration.
 
 Les seules dépendances externes sont des services SaaS qui portent leur propre exploitation : Stripe pour le paiement, l'API OpenAI pour l'extraction de carte, un relais SMTP transactionnel géré encore à sélectionner et qualifier, GitHub pour le code, la CI et le miroir documentaire Pages.
@@ -49,6 +50,7 @@ La documentation Nimbus canonique, la préfiguration statique de l'Onboarding et
 | Reverse proxy | Caddy 2.11.4 | Plateforme Atlas en service, route Surplasse désactivée | Terminaison TLS et routage par domaine | Ports 80 et 443 de la plateforme partagée |
 | Documentation | Nimbus 0.8.2, Astro et NGINX interne | Image livrée, non déployée | Documentation canonique générée depuis `docs/` | `docs.surplasse.com`, via Caddy |
 | Backend | Quarkus 3.37.4, Java 25 | Image livrée, non déployée | API REST, logique métier, temps réel SSE et intégrations | `api.surplasse.com`, via Caddy |
+| Bootstrap pilote | Commande Java autonome dans l'image Backend | Image livrée, non exécutée | Création transactionnelle du seul graphe testeurs | Aucun port, job Compose one-shot sur les réseaux application et base |
 | Onboarding | Fichiers statiques, NGINX interne | Image livrée, non déployée | Vitrine produit et tunnel d'embarquement | `surplasse.com`, via Caddy |
 | Commande | Build React statique, NGINX interne | Image livrée, non déployée | Mini-site, carte, commande et paiement | `{slug}.surplasse.com`, via Caddy |
 | Dashboard | Build React statique, NGINX interne | Image livrée, non déployée | Authentification, suivi SSE et avancement des commandes | `dashboard.surplasse.com`, via Caddy |

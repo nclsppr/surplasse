@@ -29,7 +29,7 @@ Le monorepo contient le contrat, le Backend, les trois frontends, le graphe Comp
 
 ### La simplicité opérationnelle prime
 
-La cible est un VPS Atlas unique piloté par Docker Compose. `compose.yaml`, `compose.development.yaml` et `compose.production.yaml` restent la pile locale et le chemin de production historique du monorepo. La production Atlas reçoit plutôt `deployment/vps/compose.yaml` dans une `application-release` immuable : ce fragment contient seulement les cinq services Surplasse et le job de migration. Caddy, PostgreSQL et l'observabilité appartiennent à la plateforme partagée de `vps-infra`. Pas de Kubernetes, pas d'autoscaling. Un restaurant indépendant génère quelques dizaines de commandes par service : la charge se mesure en requêtes par seconde à un chiffre, et un VPS correctement dimensionné la tient avec une marge confortable. Chaque brique ajoutée doit justifier son coût d'exploitation, pas seulement son intérêt technique. L'[ADR-0026](../decisions/adr-0026-compose-commun.md), l'[ADR-0040](../decisions/adr-0040-publication-oci-applicative-pour-atlas.md) et le [runbook Compose](../operations/deploiement-compose.md) détaillent cette frontière.
+La cible est un VPS Atlas unique piloté par Docker Compose. `compose.yaml`, `compose.development.yaml` et `compose.production.yaml` restent la pile locale et le chemin de production historique du monorepo. La production Atlas reçoit plutôt `deployment/vps/compose.yaml` dans une `application-release` immuable : ce fragment contient seulement les cinq services Surplasse, le job de migration et le bootstrap one-shot du premier pilote. Caddy, PostgreSQL et l'observabilité appartiennent à la plateforme partagée de `vps-infra`. Pas de Kubernetes, pas d'autoscaling. Un restaurant indépendant génère quelques dizaines de commandes par service : la charge se mesure en requêtes par seconde à un chiffre, et un VPS correctement dimensionné la tient avec une marge confortable. Chaque brique ajoutée doit justifier son coût d'exploitation, pas seulement son intérêt technique. L'[ADR-0026](../decisions/adr-0026-compose-commun.md), l'[ADR-0040](../decisions/adr-0040-publication-oci-applicative-pour-atlas.md) et le [runbook Compose](../operations/deploiement-compose.md) détaillent cette frontière.
 
 ### Le client final ne subit jamais la complexité
 
@@ -76,7 +76,7 @@ Les deux acteurs, les quatre applications et les systèmes externes :
 
 ## Diagramme de conteneurs cible
 
-Le détail de la cible après activation. Ce diagramme ne décrit pas l'état courant : les conteneurs Surplasse et leurs routes restent absents d'Atlas. Caddy, PostgreSQL, Prometheus et Grafana sont fournis par la plateforme partagée ; les cinq services applicatifs et le migrateur viennent du bundle Surplasse.
+Le détail de la cible après activation. Ce diagramme ne décrit pas l'état courant : les conteneurs Surplasse et leurs routes restent absents d'Atlas. Caddy, PostgreSQL, Prometheus et Grafana sont fournis par la plateforme partagée ; les cinq services applicatifs, le migrateur et le bootstrap transitoire du pilote viennent du bundle Surplasse.
 
 ```
                                 Internet

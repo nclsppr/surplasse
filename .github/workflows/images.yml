@@ -20,6 +20,8 @@ on:
       - "scripts/validate-production-stripe-public-key"
       - "scripts/verify-production-stripe-static-assets"
       - "scripts/test-backend-migration-image.sh"
+      - "scripts/test-backend-pilot-bootstrap-image.sh"
+      - "scripts/test-vps-pilot-bootstrap-network.sh"
       - "scripts/compose.sh"
       - "scripts/test-compose-config.sh"
       - "compose.yaml"
@@ -64,10 +66,14 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
+      - name: Install locked Node dependencies
+        run: npm ci --ignore-scripts
       - name: Validate Dockerfiles with BuildKit
         run: npm run images:check
       - name: Validate both Compose profiles and production guardrails
         run: npm run compose:config:test
+      - name: Prove the pilot Compose job keeps Stripe egress with the database network
+        run: ./scripts/test-vps-pilot-bootstrap-network.sh
       - name: Resolve the versioned production release mode
         id: release_mode
         run: |
@@ -178,6 +184,11 @@ jobs:
         if: matrix.image == 'backend'
         run: >-
           ./scripts/test-backend-migration-image.sh
+          surplasse-ci/backend:${{ github.sha }}
+      - name: Verify the bounded pilot bootstrap command in the Backend image
+        if: matrix.image == 'backend'
+        run: >-
+          ./scripts/test-backend-pilot-bootstrap-image.sh
           surplasse-ci/backend:${{ github.sha }}
       - name: Verify the matching Stripe key is embedded in Commande
         if: matrix.image == 'commande' && github.event_name == 'push' && github.ref == 'refs/heads/main'

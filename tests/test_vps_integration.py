@@ -129,6 +129,9 @@ def runtime_files() -> list[integration.RuntimeFile]:
             component_images(), REVISION
         ),
         "migrations.json": migrations_raw(),
+        "pilot-bootstrap.schema.json": (
+            ROOT / "deployment/vps/pilot-bootstrap.schema.json"
+        ).read_bytes(),
         "probes.json": probes_raw(),
     }
     return [
@@ -163,6 +166,8 @@ class GitRepository:
                 content = probes_raw().decode()
             elif source.endswith("surplasse.caddy"):
                 content = caddy_raw().decode()
+            elif source.endswith("pilot-bootstrap.schema.json"):
+                content = (ROOT / source).read_text()
             else:
                 content = "safe\n"
             path.write_text(content)
@@ -327,6 +332,16 @@ class VpsIntegrationTests(unittest.TestCase):
                 integration.canonical_json(raw), REVISION
             )
 
+    def test_pilot_bootstrap_must_equal_backend(self) -> None:
+        raw = json.loads(
+            integration.expected_images_bytes(component_images(), REVISION)
+        )
+        raw["images"]["pilot-bootstrap"] = raw["images"]["docs"]
+        with self.assertRaisesRegex(integration.IntegrationError, "pilot bootstrap"):
+            integration.validate_expected_images(
+                integration.canonical_json(raw), REVISION
+            )
+
     def test_migration_versions_must_be_contiguous(self) -> None:
         value = json.loads(migrations_raw())
         value["migrations"][0]["version"] = 2
@@ -351,6 +366,88 @@ class VpsIntegrationTests(unittest.TestCase):
         ):
             with self.assertRaises(integration.IntegrationError):
                 integration.validate_caddy_route(invalid)
+
+    def test_pilot_bootstrap_schema_rejects_a_public_extension(self) -> None:
+        value = json.loads(
+            (ROOT / "deployment/vps/pilot-bootstrap.schema.json").read_text()
+        )
+        value["properties"]["secret_key"] = {"type": "string"}
+        with self.assertRaisesRegex(
+            integration.IntegrationError, "exact canonical policy"
+        ):
+            integration.validate_pilot_bootstrap_schema(
+                json.dumps(value).encode()
+            )
+
+    def test_pilot_bootstrap_schema_rejects_every_nested_policy_mutation(
+        self,
+    ) -> None:
+        mutations = {
+            "external-ref": lambda value: value["properties"]["menu"].__setitem__(
+                "$ref", "https://attacker.invalid/schema.json"
+            ),
+            "additional-properties": lambda value: value["$defs"][
+                "restaurateur"
+            ].__setitem__("additionalProperties", True),
+            "required": lambda value: value["$defs"]["restaurateur"][
+                "required"
+            ].remove("phone"),
+            "type": lambda value: value["$defs"]["product"]["properties"][
+                "price_cents"
+            ].__setitem__("type", "number"),
+            "pattern": lambda value: value["$defs"]["uuidV4"].__setitem__(
+                "pattern", ".*"
+            ),
+            "min-length": lambda value: value["$defs"]["product"][
+                "properties"
+            ]["name"].__setitem__("minLength", 0),
+            "max-length": lambda value: value["$defs"]["establishment"][
+                "properties"
+            ]["address"].__setitem__("maxLength", 501),
+        }
+        source = json.loads(
+            (ROOT / "deployment/vps/pilot-bootstrap.schema.json").read_text()
+        )
+        for label, mutate in mutations.items():
+            with self.subTest(mutation=label):
+                value = json.loads(json.dumps(source))
+                mutate(value)
+                with self.assertRaisesRegex(
+                    integration.IntegrationError, "exact canonical policy"
+                ):
+                    integration.validate_pilot_bootstrap_schema(
+                        integration.canonical_json(value)
+                    )
+
+    def test_package_rejects_a_semantically_tampered_pilot_schema(self) -> None:
+        files = runtime_files()
+        schema_path = "pilot-bootstrap.schema.json"
+        schema = json.loads(
+            next(item.content for item in files if item.path == schema_path)
+        )
+        schema["$defs"]["product"]["properties"]["price_cents"][
+            "maximum"
+        ] += 1
+        tampered_files = [
+            integration.RuntimeFile(
+                path=item.path,
+                content=(
+                    integration.canonical_json(schema)
+                    if item.path == schema_path
+                    else item.content
+                ),
+            )
+            for item in files
+        ]
+        archive = integration.archive_for(tampered_files, epoch=0)
+        inventory = integration.canonical_json(
+            integration.inventory_for(tampered_files, revision=REVISION)
+        )
+
+        with self.assertRaisesRegex(
+            integration.IntegrationError, "exact canonical policy"
+        ):
+            integration.verify_package(archive, inventory)
 
     def test_manifest_binds_exact_layers(self) -> None:
         archive, inventory = package_bytes()
