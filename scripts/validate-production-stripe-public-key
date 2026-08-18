@@ -3,11 +3,25 @@
 set -Eeuo pipefail
 
 value="${VITE_STRIPE_PUBLISHABLE_KEY-}"
+release_mode="${SURPLASSE_PRODUCTION_RELEASE_MODE-}"
 expected_sha256="${EXPECTED_STRIPE_PUBLIC_KEY_SHA256-}"
 require_expected_sha256="${REQUIRE_EXPECTED_STRIPE_PUBLIC_KEY_SHA256-false}"
 
-if [[ "$value" != pk_live_?* ]] || [[ "$value" =~ [[:space:]] ]]; then
-  echo "A Stripe live publishable key is required for production images." >&2
+case "$release_mode" in
+  testers)
+    required_prefix="pk_test_"
+    ;;
+  public)
+    required_prefix="pk_live_"
+    ;;
+  *)
+    echo "The versioned production release mode is invalid." >&2
+    exit 64
+    ;;
+esac
+
+if [[ ! "$value" =~ ^${required_prefix}[A-Za-z0-9]{16,}$ ]]; then
+  echo "The Stripe publishable key does not match the versioned production release mode." >&2
   exit 64
 fi
 

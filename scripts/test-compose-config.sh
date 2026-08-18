@@ -44,11 +44,11 @@ write_fixture() {
     'POSTGRES_DB=surplasse' \
     'POSTGRES_USER=surplasse' \
     'POSTGRES_PASSWORD=postgres-password-test-only' \
-    'STRIPE_SECRET_KEY=sk_live_test_only' \
-    'STRIPE_PAYMENT_WEBHOOK_SECRET=whsec_payment_test_only' \
-    'STRIPE_ACCOUNT_WEBHOOK_SECRET=whsec_account_test_only' \
-    'STRIPE_LIVE_MODE=true' \
-    'VITE_STRIPE_PUBLISHABLE_KEY=pk_live_test_only' \
+    'STRIPE_SECRET_KEY=rk_test_1234567890abcdef' \
+    'STRIPE_PAYMENT_WEBHOOK_SECRET=whsec_1234567890abcdefpayment' \
+    'STRIPE_ACCOUNT_WEBHOOK_SECRET=whsec_1234567890abcdefaccount' \
+    'STRIPE_LIVE_MODE=false' \
+    'VITE_STRIPE_PUBLISHABLE_KEY=pk_test_1234567890abcdef' \
     "AUTH_JWT_PRIVATE_KEY_FILE=${TEST_DIRECTORY}/jwt-private.pem" \
     "AUTH_JWT_JWKS_FILE=${TEST_DIRECTORY}/jwks.json" \
     'AUTH_JWT_KEY_ID=test-key' \
@@ -318,9 +318,9 @@ if (
   throw new Error('production Grafana does not consume its credentials as Compose secrets');
 }
 for (const leakedValue of [
-  'sk_live_test_only',
-  'whsec_payment_test_only',
-  'whsec_account_test_only',
+  'rk_test_1234567890abcdef',
+  'whsec_1234567890abcdefpayment',
+  'whsec_1234567890abcdefaccount',
   'postgres-password-test-only',
   'smtp-password-test-only',
   'grafana-password-test-only',
@@ -530,6 +530,27 @@ process_control_fixture="${TEST_DIRECTORY}/process-control.env"
 cp "$valid_fixture" "$process_control_fixture"
 printf '%s\n' 'DOCKER_HOST=tcp://override.invalid:2375' >>"$process_control_fixture"
 expect_failure "$process_control_fixture" 'process control variable DOCKER_HOST is forbidden' config --quiet
+
+placeholder_stripe_fixture="${TEST_DIRECTORY}/placeholder-stripe.env"
+sed 's/^VITE_STRIPE_PUBLISHABLE_KEY=.*/VITE_STRIPE_PUBLISHABLE_KEY=pk_test_change-me/' \
+  "$valid_fixture" >"$placeholder_stripe_fixture"
+chmod 0600 "$placeholder_stripe_fixture"
+expect_failure "$placeholder_stripe_fixture" \
+  'the Stripe publishable key must use test mode' config --quiet
+
+unrestricted_stripe_fixture="${TEST_DIRECTORY}/unrestricted-stripe.env"
+sed 's/^STRIPE_SECRET_KEY=.*/STRIPE_SECRET_KEY=sk_test_1234567890abcdef/' \
+  "$valid_fixture" >"$unrestricted_stripe_fixture"
+chmod 0600 "$unrestricted_stripe_fixture"
+expect_failure "$unrestricted_stripe_fixture" \
+  'the Stripe secret key must be a restricted test key' config --quiet
+
+shared_webhook_fixture="${TEST_DIRECTORY}/shared-webhook.env"
+sed 's/^STRIPE_ACCOUNT_WEBHOOK_SECRET=.*/STRIPE_ACCOUNT_WEBHOOK_SECRET=whsec_1234567890abcdefpayment/' \
+  "$valid_fixture" >"$shared_webhook_fixture"
+chmod 0600 "$shared_webhook_fixture"
+expect_failure "$shared_webhook_fixture" \
+  'the Stripe payment and account webhook secrets must be distinct' config --quiet
 
 short_sha_fixture="${TEST_DIRECTORY}/short-sha.env"
 write_fixture "$short_sha_fixture" deadbeef

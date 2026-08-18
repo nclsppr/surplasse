@@ -1,4 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
+import { ProductionTestersNotice } from "@surplasse/shared";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 
 import { LoginPage } from "../features/auth/LoginPage";
@@ -12,6 +13,7 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <div className="theme-light dashboard-root">
+          <ProductionTestersNotice mode={import.meta.env.VITE_SURPLASSE_RELEASE_MODE} />
           <Routes>
             <Route path="/" element={<Navigate to="/service" replace />} />
             <Route path="/auth/login" element={<LoginPage />} />

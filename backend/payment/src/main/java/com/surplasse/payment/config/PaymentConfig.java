@@ -12,7 +12,7 @@ import java.util.Optional;
 @ConfigMapping(prefix = "surplasse.payment")
 public interface PaymentConfig {
 
-    /** Stripe secret key (test mode in dev), from STRIPE_SECRET_KEY. */
+    /** Stripe restricted key for the versioned release mode, from STRIPE_SECRET_KEY. */
     Optional<String> stripeSecretKey();
 
     /** Snapshot payment webhook signing secret, from STRIPE_PAYMENT_WEBHOOK_SECRET. */
@@ -21,6 +21,6 @@ public interface PaymentConfig {
     /** Thin Accounts v2 webhook signing secret, from STRIPE_ACCOUNT_WEBHOOK_SECRET. */
     Optional<String> stripeAccountWebhookSecret();
 
-    /** Expected Stripe object mode. False in development and tests, true in production. */
+    /** Expected Stripe object mode. False in development, tests, and tester production. */
     boolean liveMode();
 }

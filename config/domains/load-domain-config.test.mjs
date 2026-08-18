@@ -100,10 +100,45 @@ test("onboarding refuses direct loopback previews", () => {
 
 test("onboarding selects development only from the configured local domain", () => {
   for (const hostname of ["surplasse.test", "le-cormoran.surplasse.test"]) {
-    const config = onboardingRuntimeConfig(hostname);
+    const { config, releaseMode } = onboardingRuntimeConfig(hostname);
     assert.equal(config.PROFILE, "development");
     assert.equal(config.APP_BASE_DOMAIN, "surplasse.test");
     assert.equal(config.API_URL, "https://api.surplasse.test");
+    assert.equal(config.SURPLASSE_RELEASE_MODE, "development");
+    assert.equal(releaseMode, "development");
+  }
+});
+
+test("onboarding exposes the versioned tester notice mode on production hosts", () => {
+  const { config, releaseMode } = onboardingRuntimeConfig("surplasse.com");
+
+  assert.equal(config.PROFILE, "production");
+  assert.equal(config.SURPLASSE_RELEASE_MODE, "testers");
+  assert.equal(releaseMode, "testers");
+});
+
+test("onboarding keeps the tester notice visible until an explicit safe mode loads", () => {
+  const stylesheet = readFileSync(
+    new URL("../../frontends/onboarding/index.css", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    stylesheet,
+    /\.production-testers-notice\s*\{[^}]*display:\s*grid;/su,
+  );
+  assert.match(
+    stylesheet,
+    /data-surplasse-release-mode="development"[^}]*data-surplasse-release-mode="public"[^}]*display:\s*none;/su,
+  );
+
+  for (const page of ["connect.html", "creer.html"]) {
+    const source = readFileSync(
+      new URL(`../../frontends/onboarding/${page}`, import.meta.url),
+      "utf8",
+    );
+    assert.match(source, /\.production-testers-notice\{display:grid;/u);
+    assert.match(source, /data-surplasse-release-mode="development"/u);
+    assert.match(source, /data-surplasse-release-mode="public"/u);
   }
 });
 
@@ -229,6 +264,10 @@ function onboardingRuntimeConfig(hostname) {
     "utf8",
   );
   const window = { location: { hostname } };
-  runInNewContext(source, { window });
-  return window.SURPLASSE_DOMAIN_CONFIG;
+  const document = { documentElement: { dataset: {} } };
+  runInNewContext(source, { document, window });
+  return {
+    config: window.SURPLASSE_DOMAIN_CONFIG,
+    releaseMode: document.documentElement.dataset.surplasseReleaseMode,
+  };
 }

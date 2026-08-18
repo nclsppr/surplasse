@@ -4,14 +4,27 @@ set -eu
 
 site_root="${1-}"
 stripe_public_key="${VITE_STRIPE_PUBLISHABLE_KEY-}"
+release_mode="${SURPLASSE_PRODUCTION_RELEASE_MODE-}"
 
 fail() {
   echo "The production Stripe key is not uniquely active in the static entrypoint." >&2
   exit 64
 }
 
+case "$release_mode" in
+  testers)
+    required_prefix="pk_test_"
+    forbidden_prefix="pk_live_"
+    ;;
+  public)
+    required_prefix="pk_live_"
+    forbidden_prefix="pk_test_"
+    ;;
+  *) fail ;;
+esac
+
 case "$stripe_public_key" in
-  pk_live_?*) ;;
+  "${required_prefix}"?*) ;;
   *) fail ;;
 esac
 
@@ -50,11 +63,11 @@ if ! grep -F -q -- "$stripe_public_key" "$entrypoint_file"; then
   fail
 fi
 
-if grep -F -q -- "pk_test_" "$entrypoint_file"; then
+if grep -F -q -- "$forbidden_prefix" "$entrypoint_file"; then
   fail
 fi
 
-live_prefix_count="$(grep -F -o -- "pk_live_" "$entrypoint_file" | wc -l | tr -d '[:space:]')"
-if [ "$live_prefix_count" -ne 1 ]; then
+required_prefix_count="$(grep -F -o -- "$required_prefix" "$entrypoint_file" | wc -l | tr -d '[:space:]')"
+if [ "$required_prefix_count" -ne 1 ]; then
   fail
 fi

@@ -9,7 +9,7 @@ description: "Pourquoi Surplasse publie un descripteur application-release uniqu
 
 ## Statut
 
-Accepté, 2026-08-17.
+Remplacé par ADR-0041, 2026-08-18.
 
 ## Première preuve de mise en oeuvre, vérifiée le 2026-08-18
 
@@ -58,8 +58,6 @@ Le dépôt applicatif ne possède pas les secrets du VPS et ne doit ni ouvrir un
 ## Décision
 
 Chaque push sur `main` construit et publie les cinq images sous le SHA Git complet. Le workflow `VPS integration release` attend de manière bornée les exécutions `push` du même SHA. Il exige au minimum `Container images` et `Pages`, refuse toute exécution observée qui n'est pas terminée avec succès, vérifie que le SHA est encore le sommet canonique de `main`, puis stabilise deux lectures successives avant de continuer.
-
-Avant toute construction publiable depuis `main`, `Container images` exige que la variable de dépôt `VITE_STRIPE_PUBLISHABLE_KEY` respecte le format d'une clé Stripe publiable live commençant par `pk_live_`. Une valeur absente, de test ou contenant un espace arrête le workflow. Son SHA-256 est figé par le premier job afin qu'une modification de la variable pendant l'exécution fasse échouer les matrices suivantes. Le workflow vérifie que la valeur publique exacte est présente dans l'image Commande scannée, puis dans le digest reconstruit et publié. Le Dashboard ne reçoit pas cette variable. Une pull request peut construire et scanner les images sans recevoir cette configuration de production, mais elle ne peut rien publier. La validité du compte Stripe et sa correspondance avec la clé secrète Backend restent une preuve externe obligatoire avant activation.
 
 Le workflow résout les cinq tags en références `@sha256`, exige un index OCI avec une seule plateforme `linux/amd64`, vérifie les labels source, révision et version, puis valide l'attestation GitHub de chaque image. Le workflow signataire autorisé est `images.yml`, la source est `nclsppr/surplasse`, la référence est `refs/heads/main` et les runners auto-hébergés sont refusés.
 

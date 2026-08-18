@@ -7,7 +7,7 @@ description: Construction, configuration, démarrage, mise à jour, retour arri�
 
 # Déploiement Docker Compose
 
-La pile versionnée est exécutable. Elle sert au cluster local et conserve un chemin de production historique distinct. Son profil facultatif `observability` ajoute Prometheus et Grafana sans modifier les dépendances ni la readiness de la pile applicative. Le dépôt publie aussi un bundle applicatif sans secret pour Atlas, sans activer la production. Atlas existe déjà et fournit la plateforme partagée. Le DNS Surplasse, les rattachements réseau, PostgreSQL, les secrets, le SMTP transactionnel, Stripe live, les CSP de Commande et du Dashboard, les sauvegardes restaurables et la sonde externe avec son canal d'alerte doivent encore être activés ou prouvés avant le premier trafic réel.
+La pile versionnée est exécutable. Elle sert au cluster local et conserve un chemin de production historique distinct. Son profil facultatif `observability` ajoute Prometheus et Grafana sans modifier les dépendances ni la readiness de la pile applicative. Le dépôt publie aussi un bundle applicatif sans secret pour Atlas. Atlas existe déjà et fournit la plateforme partagée. L'ADR-0041 autorise le déploiement pour des testeurs avec Stripe test et sauvegardes locales. Le SMTP transactionnel, Stripe live, une sauvegarde hors site restaurée et la sonde externe avec son canal d'alerte restent obligatoires avant l'ouverture publique.
 
 ## État opérationnel Atlas au 2026-08-18
 
@@ -25,7 +25,7 @@ Les trois références de première preuve ci-dessus ne sont pas une cible de d�
 
 Le dépôt Surplasse n'a aucune autorité sur Atlas. Les [règles d'admission](https://github.com/nclsppr/vps-infra/blob/main/docs/decisions/0009-immutable-application-release-admission.md), le [contrôleur transactionnel désactivé](https://github.com/nclsppr/vps-infra/blob/main/docs/decisions/0010-disabled-transactional-application-controller.md) et le [runbook applicatif](https://github.com/nclsppr/vps-infra/blob/main/docs/deployment.md#deploy-a-compose-application) de `vps-infra` font foi. La release verte de ce dépôt est un candidat. Elle n'est ni une demande d'activation, ni une preuve de déploiement.
 
-Une future activation doit conserver au minimum toutes les portes connues suivantes :
+Une future ouverture publique doit conserver au minimum toutes les portes connues suivantes. Elles restent des dettes explicites pendant la production testeurs :
 
 1. provisionner la base, son propriétaire sans login, les rôles migrateur et runtime et les secrets par fichier ;
 2. prouver une sauvegarde hors VPS et une restauration isolée avec les invariants métier ;
@@ -124,7 +124,7 @@ Remplacer chaque valeur `change-me`. Le fichier contient les paramètres de dép
 Les prérequis bloquants sont :
 
 - un `IMAGE_TAG` égal au SHA git complet de 40 caractères publié dans GHCR ;
-- les secrets Stripe live et `STRIPE_LIVE_MODE=true` ;
+- une clé Stripe test et `STRIPE_LIVE_MODE=false` quand le mode versionné vaut `testers`, puis des clés live et `STRIPE_LIVE_MODE=true` quand il vaut `public` ;
 - la clé privée JWT, le JWKS, le `kid` et leurs chemins hôte ;
 - un SMTP transactionnel avec STARTTLS ou TLS selon son port ;
 - pour la cible Atlas, l'identité OVH DNS-01 limitée à `surplasse.com`, ses fichiers protégés et le module Caddy épinglé de la plateforme ;

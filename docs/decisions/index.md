@@ -85,7 +85,7 @@ Ne jamais « corriger » un ADR pour l'aligner sur une page plus récente. Soit 
 
 ## Registre des ADR
 
-Quarante ADR sont consignés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'au déploiement commun par Docker Compose, à son cockpit local, à sa surveillance fonctionnelle, à son observabilité technique, au socle professionnel du Dashboard, aux expériences de frontends, à la documentation Nimbus canonique, ainsi qu'à l'outillage reproductible, aux mises à jour de dépendances, aux images de conteneurs vérifiables, aux migrations de production séparées et à la publication OCI pour Atlas.
+Quarante et un ADR sont consignés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'au déploiement commun par Docker Compose, à son cockpit local, à sa surveillance fonctionnelle, à son observabilité technique, au socle professionnel du Dashboard, aux expériences de frontends, à la documentation Nimbus canonique, ainsi qu'à l'outillage reproductible, aux mises à jour de dépendances, aux images de conteneurs vérifiables, aux migrations de production séparées, à la publication OCI pour Atlas et à la production réservée aux testeurs.
 
 | Numéro | Titre | Statut | Lien |
 |---|---|---|---|
@@ -128,6 +128,7 @@ Quarante ADR sont consignés à ce jour. Ils couvrent les choix structurants du 
 | 0037 | Images de conteneurs durcies et vérifiables | Accepté | [ADR-0037](adr-0037-images-conteneurs-durcies.md) |
 | 0038 | Nimbus comme documentation canonique | Accepté | [ADR-0038](adr-0038-nimbus-documentation-canonique.md) |
 | 0039 | Migrations de production séparées du Backend | Accepté | [ADR-0039](adr-0039-migrations-production-separees.md) |
-| 0040 | Publication OCI applicative pour Atlas | Accepté | [ADR-0040](adr-0040-publication-oci-applicative-pour-atlas.md) |
+| 0040 | Publication OCI applicative pour Atlas | Remplacé par ADR-0041 | [ADR-0040](adr-0040-publication-oci-applicative-pour-atlas.md) |
+| 0041 | Production testeurs avec Stripe test | Accepté | [ADR-0041](adr-0041-production-testeurs-stripe-test.md) |
 
 Les décisions encore ouvertes (par exemple le choix de la solution d'impression thermique ESC/POS mentionné dans la stack de référence) donneront lieu à de futurs ADR au fil de la [roadmap](../roadmap.md).

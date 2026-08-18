@@ -9,15 +9,19 @@ description: "Les portes Go ou No-Go, métriques et procédures de repli qui enc
 
 Cette page est le plan d'exécution de la [phase 2 de la roadmap](../roadmap.md#phase-2--commander-et-payer). Elle ne crée ni une roadmap parallèle ni une date de lancement. Elle transforme le critère de sortie de la phase en preuves observables et impose une décision Go ou No-Go avant chaque exposition supplémentaire.
 
-!!! danger État au 2026-08-18 : No-Go live
-Les chemins logiciels des charges directes Stripe Connect, du remboursement intégral et de la mise en pause de la prise de commandes sont sécurisés et testés localement avec des doublures. La plateforme test est inscrite à Connect et le compte Accounts v2 du pilote existe, mais son embarquement et ses capacités de paiement restent incomplets. Le dépôt publie un candidat applicatif immuable pour Atlas, sans l'activer. Surplasse reste `enabled: false` : aucune base, migration, route, secret ni sonde publique de production n'est prouvée. Aucune transaction live ni aucun service pilote ne peut donc commencer.
+!!! warning État au 2026-08-18 : production testeurs autorisée, déploiement à prouver
+L'[ADR-0041](../decisions/adr-0041-production-testeurs-stripe-test.md) autorise le déploiement sur Atlas et l'ouverture des commandes à des testeurs nommés avec Stripe en mode test. Les commandes et événements sont persistés dans la base de production. Aucune carte bancaire réelle n'est débitée. Les sauvegardes locales du VPS sont acceptées et ne bloquent pas cette phase. Cette décision n'est pas une preuve de déploiement : la révision Atlas, les services, les routes, le DNS et les sondes doivent encore être observés après convergence.
+!!!
+
+!!! danger Ouverture publique : No-Go
+Stripe Connect live, les sauvegardes hors site, le SMTP transactionnel, la supervision externe et les répétitions d'exploitation restent incomplets. La production testeurs est accessible sur Internet, mais elle n'accueille aucune donnée ni aucun paiement réel. Chaque décision d'élargir l'audience doit rappeler ces dettes avant de changer le mode versionné vers `public`.
 !!!
 
 ## Principes de décision
 
 - Une porte ne passe à Go que lorsque toutes ses preuves sont archivées avec le SHA testé, la date et le résultat.
-- Un seul critère bloquant en échec donne No-Go. Une moyenne satisfaisante ne compense jamais un double débit, une mauvaise table ou une commande payée perdue.
-- Les portes sont franchies dans l'ordre. Un test live ne compense pas une production non restaurable et un service à blanc ne compense pas un remboursement non vérifié.
+- Un seul critère bloquant en échec donne No-Go pour l'ouverture publique. La production testeurs constitue l'exception bornée par l'ADR-0041.
+- Les portes publiques sont franchies dans l'ordre. Un test live ne compense pas une production non restaurable et un service à blanc ne compense pas un remboursement non vérifié.
 - Aucun déploiement n'a lieu pendant un service à blanc ou réel.
 - Le restaurateur dispose toujours de son parcours habituel avec papier et terminal. Le repli est disponible, mais son déclenchement invalide la sortie de phase 2.
 
@@ -26,6 +30,7 @@ Les chemins logiciels des charges directes Stripe Connect, du remboursement int�
 | Porte | État au 2026-08-18 | Preuve attendue pour Go |
 |---|---|---|
 | 0. Noyau paiement local | **Go local** | Idempotence de création et remboursement, isolation par session de table, webhooks retentables, transitions paiement et commande atomiques, pause d'admission, migrations et tests verts |
+| T. Production testeurs | **Go décisionnel** | Déploiement Atlas avec données de test, Stripe test cohérent sur Backend et Commande, bannière visible et sondes après convergence |
 | 1. Stripe Connect en test | **No-Go** | Compte Accounts v2 pilote activé en test, charges directes, commission correcte, webhooks Connect, mécanismes de remboursement et de pause vérifiés |
 | 2. Production prête | **No-Go** | Pile Ubuntu LTS déployable et restaurable, secrets live, SMTP, supervision, retour arrière et données pilote |
 | 3. Live fermé | **No-Go** | Transaction réelle de faible montant, rapprochement complet et remboursement réussi hors service |
@@ -63,9 +68,9 @@ Le premier compte du Cormoran avec `dashboard=full` est abandonné. Le nouveau c
 - Remboursement ou mise à `paused` impossibles.
 - Secret live requis pour réussir un test.
 
-## Porte 2 : production prête
+## Porte 2 : production prête pour le public
 
-La production démarre avec `order_intake_status=paused`. Elle suit la topologie décrite dans [Exploitation](index.md) et [CI/CD](../developpement/ci-cd.md).
+L'ouverture publique démarre avec `order_intake_status=paused`. Elle suit la topologie décrite dans [Exploitation](index.md) et [CI/CD](../developpement/ci-cd.md). La production testeurs peut ouvrir explicitement la prise de commandes avec Stripe test afin d'exercer le parcours. Cette exception ne fait passer aucune porte publique à Go.
 
 ### Critères Go
 

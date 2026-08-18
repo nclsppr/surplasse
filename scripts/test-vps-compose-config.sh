@@ -18,6 +18,22 @@ commande_image='ghcr.io/nclsppr/surplasse/commande@sha256:3333333333333333333333
 dashboard_image='ghcr.io/nclsppr/surplasse/dashboard@sha256:4444444444444444444444444444444444444444444444444444444444444444'
 docs_image='ghcr.io/nclsppr/surplasse/docs@sha256:5555555555555555555555555555555555555555555555555555555555555555'
 resolved="${TEST_DIRECTORY}/compose.json"
+production_release_mode="$(
+  cd "$REPOSITORY_ROOT"
+  node --input-type=module -e '
+      import { loadProductionReleaseConfig } from "./config/deployment/load-production-release-config.mjs";
+      process.stdout.write(loadProductionReleaseConfig().SURPLASSE_PRODUCTION_RELEASE_MODE);
+    '
+)"
+
+case "$production_release_mode" in
+  testers) expected_stripe_live_mode=false ;;
+  public) expected_stripe_live_mode=true ;;
+  *)
+    printf 'Error: invalid versioned production release mode.\n' >&2
+    exit 1
+    ;;
+esac
 
 vps_compose() {
   env \
@@ -37,10 +53,11 @@ vps_compose() {
 vps_compose config --quiet
 vps_compose config --format json >"$resolved"
 
-node - "$resolved" <<'NODE'
+node - "$resolved" "$expected_stripe_live_mode" <<'NODE'
 const { readFileSync } = require('node:fs');
 
 const model = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+const expectedStripeLiveMode = process.argv[3];
 const serviceNames = Object.keys(model.services).sort();
 const expectedServices = [
   'backend',
@@ -78,6 +95,9 @@ if (
 }
 if (model.services.backend.environment?.QUARKUS_FLYWAY_MIGRATE_AT_START !== 'false') {
   throw new Error('Backend runtime can still migrate at start');
+}
+if (model.services.backend.environment?.STRIPE_LIVE_MODE !== expectedStripeLiveMode) {
+  throw new Error('Backend runtime does not match the versioned production release mode');
 }
 if (model.services.backend.environment?.QUARKUS_DATASOURCE_USERNAME !== 'surplasse_runtime') {
   throw new Error('Backend does not use the limited runtime role');

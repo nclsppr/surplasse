@@ -9,6 +9,7 @@ FROM ${NODE_IMAGE} AS prepare
 ARG DOMAIN_PROFILE
 WORKDIR /workspace
 COPY config/domains ./config/domains
+COPY config/deployment/load-production-release-config.mjs config/deployment/production-release.env ./config/deployment/
 COPY brand ./brand
 COPY frontends/onboarding ./frontends/onboarding
 RUN case "$DOMAIN_PROFILE" in development|production) ;; *) exit 64 ;; esac \
@@ -18,6 +19,8 @@ RUN case "$DOMAIN_PROFILE" in development|production) ;; *) exit 64 ;; esac \
     && cp "config/domains/${DOMAIN_PROFILE}.env" "/output/config/domains/" \
     && cp -R frontends/onboarding "/output/frontends/" \
     && cp -R brand "/output/brand" \
+    && cp frontends/onboarding/index.css "/output/brand/onboarding.css" \
+    && cp frontends/onboarding/index.js "/output/brand/onboarding.js" \
     && if [ "$DOMAIN_PROFILE" = production ]; then \
       rm -f "/output/brand/qr/qr-demo-development.png"; \
     fi

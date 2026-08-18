@@ -37,7 +37,7 @@ class RepositoryReleaseContractTests(unittest.TestCase):
             workflow,
         )
 
-    def test_main_image_release_requires_and_embeds_live_stripe_key(self) -> None:
+    def test_main_image_release_requires_and_embeds_mode_matching_stripe_key(self) -> None:
         workflow = (ROOT / ".github/workflows/images.yml").read_text()
         self.assertIn(
             "if: github.event_name == 'push' && github.ref == 'refs/heads/main'",
@@ -62,6 +62,14 @@ class RepositoryReleaseContractTests(unittest.TestCase):
             workflow,
         )
         self.assertIn(
+            "needs.configuration.outputs.production_release_mode",
+            workflow,
+        )
+        self.assertIn(
+            "loadProductionReleaseConfig().SURPLASSE_PRODUCTION_RELEASE_MODE",
+            workflow,
+        )
+        self.assertIn(
             '"${IMAGE_ROOT}/commande@${{ steps.push.outputs.digest }}"',
             workflow,
         )
@@ -74,23 +82,37 @@ class RepositoryReleaseContractTests(unittest.TestCase):
             workflow.count("< ./scripts/verify-production-stripe-static-assets"),
             2,
         )
+        self.assertEqual(
+            workflow.count("--env SURPLASSE_PRODUCTION_RELEASE_MODE"),
+            2,
+        )
         self.assertIn("docker run --rm --interactive \\\n", workflow)
         self.assertIn("docker run --rm --interactive --pull=always \\\n", workflow)
         self.assertNotIn("commande|dashboard)", workflow)
 
     def test_production_stripe_key_validator_fails_closed(self) -> None:
         validator = ROOT / "scripts/validate-production-stripe-public-key"
-        for value in (
-            None,
-            "",
-            "pk_live_",
-            "pk_test_example",
-            "pk_live_value with space",
-            "pk_live_value\nsecond_line",
+        for release_mode, value in (
+            (None, "pk_test_example"),
+            ("staging", "pk_test_example"),
+            ("testers", None),
+            ("testers", ""),
+            ("testers", "pk_test_"),
+            ("testers", "pk_test_change-me"),
+            ("testers", "pk_test_change_me"),
+            ("testers", "pk_live_example"),
+            ("testers", "pk_test_value with space"),
+            ("testers", "pk_test_value\nsecond_line"),
+            ("public", "pk_test_example"),
+            ("public", "pk_live_"),
         ):
             environment = os.environ.copy()
             environment.pop("EXPECTED_STRIPE_PUBLIC_KEY_SHA256", None)
             environment.pop("REQUIRE_EXPECTED_STRIPE_PUBLIC_KEY_SHA256", None)
+            if release_mode is None:
+                environment.pop("SURPLASSE_PRODUCTION_RELEASE_MODE", None)
+            else:
+                environment["SURPLASSE_PRODUCTION_RELEASE_MODE"] = release_mode
             if value is None:
                 environment.pop("VITE_STRIPE_PUBLISHABLE_KEY", None)
             else:
@@ -103,12 +125,14 @@ class RepositoryReleaseContractTests(unittest.TestCase):
                 text=True,
             )
             self.assertEqual(result.returncode, 64)
-            self.assertNotIn(value or "pk_live_", result.stderr)
+            self.assertNotIn(value or "pk_test_", result.stderr)
 
         environment = os.environ.copy()
         environment.pop("EXPECTED_STRIPE_PUBLIC_KEY_SHA256", None)
         environment.pop("REQUIRE_EXPECTED_STRIPE_PUBLIC_KEY_SHA256", None)
-        environment["VITE_STRIPE_PUBLISHABLE_KEY"] = "pk_live_contract"
+        environment["SURPLASSE_PRODUCTION_RELEASE_MODE"] = "testers"
+        test_publishable_key = "pk_test_1234567890abcdef"
+        environment["VITE_STRIPE_PUBLISHABLE_KEY"] = test_publishable_key
         result = subprocess.run(
             [validator],
             check=False,
@@ -129,10 +153,10 @@ class RepositoryReleaseContractTests(unittest.TestCase):
             text=True,
         )
         self.assertEqual(result.returncode, 64)
-        self.assertNotIn("pk_live_contract", result.stderr)
+        self.assertNotIn(test_publishable_key, result.stderr)
 
         environment["EXPECTED_STRIPE_PUBLIC_KEY_SHA256"] = hashlib.sha256(
-            b"pk_live_contract"
+            test_publishable_key.encode()
         ).hexdigest()
         result = subprocess.run(
             [validator],
@@ -154,12 +178,26 @@ class RepositoryReleaseContractTests(unittest.TestCase):
             text=True,
         )
         self.assertEqual(result.returncode, 64)
-        self.assertNotIn("pk_live_contract", result.stderr)
+        self.assertNotIn(test_publishable_key, result.stderr)
+
+        environment.pop("EXPECTED_STRIPE_PUBLIC_KEY_SHA256", None)
+        environment["REQUIRE_EXPECTED_STRIPE_PUBLIC_KEY_SHA256"] = "false"
+        environment["SURPLASSE_PRODUCTION_RELEASE_MODE"] = "public"
+        environment["VITE_STRIPE_PUBLISHABLE_KEY"] = "pk_live_1234567890abcdef"
+        result = subprocess.run(
+            [validator],
+            check=False,
+            capture_output=True,
+            env=environment,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0)
 
     def test_static_stripe_key_validator_follows_the_html_entrypoint(self) -> None:
         validator = ROOT / "scripts/verify-production-stripe-static-assets"
-        key = "pk_live_contract"
+        key = "pk_test_1234567890abcdef"
         environment = os.environ.copy()
+        environment["SURPLASSE_PRODUCTION_RELEASE_MODE"] = "testers"
         environment["VITE_STRIPE_PUBLISHABLE_KEY"] = key
 
         with tempfile.TemporaryDirectory() as directory:
@@ -197,7 +235,7 @@ class RepositoryReleaseContractTests(unittest.TestCase):
             self.assertNotIn(key, result.stderr)
 
             entrypoint.write_text(
-                f'const stripeKey = "{key}"; const stale = "pk_test_stale";'
+                f'const stripeKey = "{key}"; const stale = "pk_live_stale";'
             )
             result = subprocess.run(
                 [validator, site_root],
@@ -208,6 +246,18 @@ class RepositoryReleaseContractTests(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 64)
             self.assertNotIn(key, result.stderr)
+
+            environment["SURPLASSE_PRODUCTION_RELEASE_MODE"] = "public"
+            environment["VITE_STRIPE_PUBLISHABLE_KEY"] = "pk_live_1234567890abcdef"
+            entrypoint.write_text('const stripeKey = "pk_live_1234567890abcdef";')
+            result = subprocess.run(
+                [validator, site_root],
+                check=False,
+                capture_output=True,
+                env=environment,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 0)
 
     def test_release_gate_budget_covers_the_full_image_workflow(self) -> None:
         release_workflow = (
@@ -229,6 +279,14 @@ class RepositoryReleaseContractTests(unittest.TestCase):
 
     def test_compose_bundle_is_application_only(self) -> None:
         compose = (ROOT / "deployment/vps/compose.yaml").read_text()
+        release_policy = (
+            ROOT / "config/deployment/production-release.env"
+        ).read_text()
+        expected_stripe_mode = (
+            'STRIPE_LIVE_MODE: "true"'
+            if "SURPLASSE_PRODUCTION_RELEASE_MODE=public" in release_policy
+            else 'STRIPE_LIVE_MODE: "false"'
+        )
         for service in (
             "backend",
             "onboarding",
@@ -247,6 +305,7 @@ class RepositoryReleaseContractTests(unittest.TestCase):
             self.assertNotIn(excluded, compose)
         self.assertNotIn("ports:", compose)
         self.assertIn('QUARKUS_FLYWAY_MIGRATE_AT_START: "false"', compose)
+        self.assertIn(expected_stripe_mode, compose)
         self.assertIn('restart: "no"', compose)
         self.assertIn("external: true", compose)
 
@@ -257,6 +316,7 @@ class RepositoryReleaseContractTests(unittest.TestCase):
                 self.assertNotIn("change-me", text)
                 self.assertNotIn("BEGIN PRIVATE KEY", text)
                 self.assertNotIn("sk_live_", text)
+                self.assertNotIn("sk_test_", text)
 
 
 if __name__ == "__main__":

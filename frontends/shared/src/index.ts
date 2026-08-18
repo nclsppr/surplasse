@@ -14,3 +14,7 @@ export {
 export { queryKeys } from "./queryKeys";
 export { createQueryClient } from "./queryClient";
 export { formatPriceCents } from "./format";
+export {
+  ProductionTestersNotice,
+  type SurplasseReleaseMode,
+} from "./components/ProductionTestersNotice";

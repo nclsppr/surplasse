@@ -16,6 +16,7 @@ interface ImportMetaEnv {
   readonly VITE_PROBLEM_TYPE_BASE: string;
   readonly VITE_RESERVED_SUBDOMAINS: string;
   readonly VITE_STRIPE_PUBLISHABLE_KEY?: string;
+  readonly VITE_SURPLASSE_RELEASE_MODE: "development" | "testers" | "public";
 }
 
 interface ImportMeta {

@@ -39,7 +39,7 @@
     "e2e:report": "npm --prefix e2e run report:open --",
     "domains:generate": "node config/domains/generate-onboarding-config.mjs",
     "domains:check": "node config/domains/generate-onboarding-config.mjs --check",
-    "domains:test": "node --test config/domains/load-domain-config.test.mjs",
+    "domains:test": "node --test config/domains/load-domain-config.test.mjs config/deployment/load-production-release-config.test.mjs",
     "renovate:check": "npx --yes --package renovate@43.280.3 renovate-config-validator renovate.json5",
     "docs:sync": "bash scripts/run-with-domain-profile.sh development bash scripts/run-docs.sh sync",
     "docs:build": "bash scripts/run-with-domain-profile.sh development bash scripts/run-docs.sh check",

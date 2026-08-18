@@ -15,7 +15,8 @@
     "DOCS_URL": "https://docs.surplasse.test",
     "MAILPIT_URL": "https://mail.surplasse.test",
     "REPORTS_URL": "https://reports.surplasse.test",
-    "GRAFANA_URL": "https://grafana.surplasse.test"
+    "GRAFANA_URL": "https://grafana.surplasse.test",
+    "SURPLASSE_RELEASE_MODE": "development"
   },
   "production": {
     "APP_SCHEME": "https",
@@ -31,7 +32,8 @@
     "DOCS_URL": "https://docs.surplasse.com",
     "MAILPIT_URL": "",
     "REPORTS_URL": "",
-    "GRAFANA_URL": ""
+    "GRAFANA_URL": "",
+    "SURPLASSE_RELEASE_MODE": "testers"
   }
 });
   const hostname = window.location.hostname.toLowerCase().replace(/\.$/u, "");
@@ -47,7 +49,9 @@
     throw new Error("Hostname does not belong to a configured domain profile.");
   }
 
-  window.SURPLASSE_DOMAIN_CONFIG = Object.freeze(
+  const configuration = Object.freeze(
     { ...profiles[selectedProfile], PROFILE: selectedProfile },
   );
+  window.SURPLASSE_DOMAIN_CONFIG = configuration;
+  document.documentElement.dataset.surplasseReleaseMode = configuration.SURPLASSE_RELEASE_MODE;
 })();

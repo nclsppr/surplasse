@@ -1,0 +1,24 @@
+.production-testers-notice {
+  position: relative;
+  z-index: 70;
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.65rem clamp(1rem, 4vw, 2rem);
+  border-bottom: 1px solid var(--line-2);
+  color: var(--text-body, var(--fg-1));
+  background: #fff0cc;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.production-testers-notice strong {
+  color: var(--accent-press);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.production-testers-notice span {
+  font-weight: 600;
+}
