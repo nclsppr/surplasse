@@ -52,6 +52,7 @@ COPY --chmod=0555 --chown=surplasse:surplasse scripts/run-with-domain-profile.sh
 COPY --chmod=0555 --chown=surplasse:surplasse infra/images/backend-entrypoint.sh ./scripts/backend-entrypoint.sh
 COPY --chmod=0555 --chown=surplasse:surplasse infra/images/backend-healthcheck.sh ./scripts/backend-healthcheck.sh
 COPY --chmod=0555 --chown=surplasse:surplasse infra/images/backend-migrate.sh ./scripts/backend-migrate.sh
+COPY --chmod=0555 --chown=surplasse:surplasse infra/images/backend-pilot-bootstrap.sh ./scripts/backend-pilot-bootstrap.sh
 
 USER 10001:10001
 EXPOSE 8080

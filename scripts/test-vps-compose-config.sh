@@ -47,17 +47,83 @@ vps_compose() {
     docker compose \
       --file "${REPOSITORY_ROOT}/deployment/vps/compose.yaml" \
       --profile migration \
+      --profile pilot-bootstrap \
       "$@"
 }
 
 vps_compose config --quiet
 vps_compose config --format json >"$resolved"
 
-node - "$resolved" "$expected_stripe_live_mode" <<'NODE'
+node - \
+  "$resolved" \
+  "$expected_stripe_live_mode" \
+  "${REPOSITORY_ROOT}/deployment/vps/compose.yaml" <<'NODE'
 const { readFileSync } = require('node:fs');
+const { parse } = require('yaml');
 
 const model = JSON.parse(readFileSync(process.argv[2], 'utf8'));
 const expectedStripeLiveMode = process.argv[3];
+const sourceModel = parse(readFileSync(process.argv[4], 'utf8'));
+
+const expectedPilotManifestBind = {
+  type: 'bind',
+  source: '/etc/vps/applications/surplasse-pilot-bootstrap.json',
+  target: '/run/surplasse/pilot-bootstrap.json',
+  read_only: true,
+};
+
+function assertNormalizedPilotManifestBind(volume, label) {
+  if (
+    !volume ||
+    volume.type !== expectedPilotManifestBind.type ||
+    volume.source !== expectedPilotManifestBind.source ||
+    volume.target !== expectedPilotManifestBind.target ||
+    volume.read_only !== expectedPilotManifestBind.read_only ||
+    (Object.hasOwn(volume.bind ?? {}, 'create_host_path') &&
+      volume.bind.create_host_path !== false)
+  ) {
+    throw new Error(`${label} differs from the root-owned contract`);
+  }
+}
+
+function assertSourcePilotManifestBind(volume) {
+  assertNormalizedPilotManifestBind(volume, 'pilot bootstrap source manifest bind');
+  if (volume.bind?.create_host_path !== false) {
+    throw new Error('pilot bootstrap source manifest bind may create the host path');
+  }
+}
+
+function expectContractRejection(check, label) {
+  try {
+    check();
+  } catch {
+    return;
+  }
+  throw new Error(`${label} was accepted by the pilot manifest bind contract`);
+}
+
+// Compose v2.38.2 on Linux drops create_host_path=false while normalizing to JSON.
+// Compose v5.1.2 on macOS preserves it. Both outputs must retain the portable
+// fields, while the versioned source contract below remains fail-closed.
+for (const [label, bind] of [
+  ['Compose v2.38.2 Linux normalized manifest bind', {}],
+  ['Compose v5.1.2 macOS normalized manifest bind', { create_host_path: false }],
+]) {
+  assertNormalizedPilotManifestBind({ ...expectedPilotManifestBind, bind }, label);
+}
+expectContractRejection(
+  () =>
+    assertNormalizedPilotManifestBind(
+      { ...expectedPilotManifestBind, source: '/tmp/pilot-bootstrap.json', bind: {} },
+      'mutated normalized manifest bind',
+    ),
+  'mutated normalized manifest path fixture',
+);
+expectContractRejection(
+  () => assertSourcePilotManifestBind({ ...expectedPilotManifestBind, bind: {} }),
+  'source manifest bind without create_host_path=false fixture',
+);
+
 const serviceNames = Object.keys(model.services).sort();
 const expectedServices = [
   'backend',
@@ -66,6 +132,7 @@ const expectedServices = [
   'docs',
   'migrator',
   'onboarding',
+  'pilot-bootstrap',
 ];
 if (JSON.stringify(serviceNames) !== JSON.stringify(expectedServices)) {
   throw new Error(`unexpected VPS service allowlist: ${serviceNames.join(', ')}`);
@@ -84,14 +151,26 @@ for (const [name, service] of Object.entries(model.services)) {
 if (model.services.migrator.image !== model.services.backend.image) {
   throw new Error('migrator does not use the exact Backend image');
 }
+if (model.services['pilot-bootstrap'].image !== model.services.backend.image) {
+  throw new Error('pilot bootstrap does not use the exact Backend image');
+}
 if (model.services.migrator.restart !== 'no') {
   throw new Error('migrator is not a one-shot service');
+}
+if (model.services['pilot-bootstrap'].restart !== 'no') {
+  throw new Error('pilot bootstrap is not a one-shot service');
 }
 if (
   JSON.stringify(model.services.migrator.entrypoint) !==
   JSON.stringify(['/opt/surplasse/scripts/backend-migrate.sh'])
 ) {
   throw new Error('migrator entrypoint is not the production migration runner');
+}
+if (
+  JSON.stringify(model.services['pilot-bootstrap'].entrypoint) !==
+  JSON.stringify(['/opt/surplasse/scripts/backend-pilot-bootstrap.sh'])
+) {
+  throw new Error('pilot bootstrap entrypoint is not the bounded production runner');
 }
 if (model.services.backend.environment?.QUARKUS_FLYWAY_MIGRATE_AT_START !== 'false') {
   throw new Error('Backend runtime can still migrate at start');
@@ -105,6 +184,14 @@ if (model.services.backend.environment?.QUARKUS_DATASOURCE_USERNAME !== 'surplas
 if (model.services.migrator.environment?.QUARKUS_DATASOURCE_USERNAME !== 'surplasse_migrator') {
   throw new Error('migration job does not use the migrator role');
 }
+const pilot = model.services['pilot-bootstrap'];
+if (
+  pilot.environment?.QUARKUS_DATASOURCE_USERNAME !== 'surplasse_runtime' ||
+  pilot.environment?.STRIPE_LIVE_MODE !== 'false' ||
+  pilot.environment?.SURPLASSE_PRODUCTION_RELEASE_MODE !== 'testers'
+) {
+  throw new Error('pilot bootstrap can leave its tester-only contract');
+}
 for (const networkName of ['app_surplasse', 'db_surplasse']) {
   const network = model.networks?.[networkName];
   if (!network || network.name !== networkName || network.external !== true) {
@@ -117,6 +204,33 @@ if (
 ) {
   throw new Error('migrator network scope is broader than the database network');
 }
+if (
+  !Object.hasOwn(pilot.networks ?? {}, 'app_surplasse') ||
+  !Object.hasOwn(pilot.networks ?? {}, 'db_surplasse') ||
+  Object.keys(pilot.networks ?? {}).length !== 2 ||
+  pilot.networks.app_surplasse?.gw_priority !== 1
+) {
+  throw new Error('pilot bootstrap lacks its exact database and Stripe egress networks');
+}
+if (pilot.ports || Object.values(pilot.networks).some((network) => network?.aliases)) {
+  throw new Error('pilot bootstrap is externally reachable');
+}
+const pilotSecretSources = (pilot.secrets ?? []).map((secret) => secret.source).sort();
+if (
+  JSON.stringify(pilotSecretSources) !==
+  JSON.stringify(['surplasse_postgres_runtime_password', 'surplasse_stripe_secret_key'])
+) {
+  throw new Error('pilot bootstrap secrets differ from the least-privilege pair');
+}
+if (pilot.volumes?.length !== 1) {
+  throw new Error('pilot bootstrap manifest bind count differs from the root-owned contract');
+}
+assertNormalizedPilotManifestBind(pilot.volumes[0], 'pilot bootstrap normalized manifest bind');
+const sourcePilotVolumes = sourceModel.services?.['pilot-bootstrap']?.volumes;
+if (sourcePilotVolumes?.length !== 1) {
+  throw new Error('pilot bootstrap source manifest bind count differs from the root-owned contract');
+}
+assertSourcePilotManifestBind(sourcePilotVolumes[0]);
 const expectedSecrets = [
   'surplasse_jwt_jwks',
   'surplasse_jwt_private_key',

@@ -83,7 +83,7 @@ L'ouverture publique démarre avec `order_intake_status=paused`. Elle suit la to
 - Une sonde externe et son canal de notification ont été déclenchés volontairement puis acquittés. Les règles Prometheus seules ne satisfont pas ce critère tant qu'Alertmanager est absent.
 - Prometheus et Grafana ont été arrêtés ensemble : `/q/health/ready` et une lecture applicative sont restés verts. Leur redémarrage a retrouvé la cible Backend sans redémarrer celui-ci.
 - La dernière `application-release` saine peut être reprise sans annuler une migration. Le runtime précédent ne redémarre après migration que si sa compatibilité avec le schéma est attestée ; sinon la reprise avance explicitement.
-- L'établissement, la carte et les QR du pilote sont provisionnés par migration, seed contrôlé ou outil interne répétable, jamais par DML improvisé en production.
+- L'établissement, la carte et le QR du pilote sont créés par le [bootstrap privé et répétable](bootstrap-pilote-production.md), jamais par migration de données, seed de développement ou DML improvisé en production.
 
 ### No-Go immédiat
 

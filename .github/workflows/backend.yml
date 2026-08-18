@@ -13,8 +13,11 @@ on:
       - "infra/images/backend-entrypoint.sh"
       - "infra/images/backend-healthcheck.sh"
       - "infra/images/backend-migrate.sh"
+      - "infra/images/backend-pilot-bootstrap.sh"
       - "scripts/check-container-images.sh"
       - "scripts/test-backend-migration-image.sh"
+      - "scripts/test-backend-pilot-bootstrap-image.sh"
+      - "scripts/test-vps-pilot-bootstrap-network.sh"
       - "scripts/run-with-domain-profile.sh"
       - "package.json"
       - "package-lock.json"
@@ -33,8 +36,11 @@ on:
       - "infra/images/backend-entrypoint.sh"
       - "infra/images/backend-healthcheck.sh"
       - "infra/images/backend-migrate.sh"
+      - "infra/images/backend-pilot-bootstrap.sh"
       - "scripts/check-container-images.sh"
       - "scripts/test-backend-migration-image.sh"
+      - "scripts/test-backend-pilot-bootstrap-image.sh"
+      - "scripts/test-vps-pilot-bootstrap-network.sh"
       - "scripts/run-with-domain-profile.sh"
       - "package.json"
       - "package-lock.json"
@@ -75,3 +81,7 @@ jobs:
             .
       - name: Run the production migration command against PostgreSQL 17
         run: ./scripts/test-backend-migration-image.sh surplasse/backend:production-check
+      - name: Verify the bounded pilot bootstrap command in the production image
+        run: ./scripts/test-backend-pilot-bootstrap-image.sh surplasse/backend:production-check
+      - name: Prove the pilot Compose job keeps Stripe egress with the database network
+        run: ./scripts/test-vps-pilot-bootstrap-network.sh

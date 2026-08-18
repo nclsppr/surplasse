@@ -41,7 +41,7 @@ public class StripeConnectedAccountProvider implements ConnectedAccountProvider 
         }
     }
 
-    static Capabilities toCapabilities(Account account, String expectedAccountId, boolean expectedLiveMode) {
+    public static Capabilities toCapabilities(Account account, String expectedAccountId, boolean expectedLiveMode) {
         if (account == null
                 || !expectedAccountId.equals(account.getId())
                 || account.getLivemode() == null

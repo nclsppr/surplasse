@@ -45,6 +45,9 @@ jobs:
           version: 2026.7.13
           cache: true
 
+      - name: Install locked Node dependencies
+        run: npm ci --ignore-scripts
+
       - name: Run adversarial contract tests
         run: npm run vps:release:check
 
@@ -126,6 +129,9 @@ jobs:
           MISE_GITHUB_ATTESTATIONS: "true"
           MISE_GITHUB_SLSA: "true"
           MISE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install locked Node dependencies
+        run: npm ci --ignore-scripts
 
       - name: Run adversarial contract tests
         run: npm run vps:release:check

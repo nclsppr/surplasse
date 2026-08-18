@@ -40,6 +40,9 @@ HEX_SHA256_RE = re.compile(r"[0-9a-f]{64}")
 REVISION_RE = re.compile(r"[0-9a-f]{40}")
 MIGRATION_RE = re.compile(r"V([1-9][0-9]*)__([A-Za-z0-9_]+)\.sql")
 ATLAS_TLS_IMPORT = "import /etc/caddy/surplasse-tls.caddy"
+PILOT_BOOTSTRAP_SCHEMA_CANONICAL_SHA256 = (
+    "sha256:d27c4895cb2508d7344930430c8beb7bb0339a2679879e4827064fe75e1fbf51"
+)
 
 STATIC_FILES: Mapping[str, str] = {
     "caddy/surplasse.caddy": "deployment/vps/caddy/surplasse.caddy",
@@ -47,6 +50,7 @@ STATIC_FILES: Mapping[str, str] = {
     "grafana/dashboards/surplasse-overview.json": (
         "infra/observability/grafana/dashboards/surplasse-overview.json"
     ),
+    "pilot-bootstrap.schema.json": "deployment/vps/pilot-bootstrap.schema.json",
     "prometheus/rules.yml": ("deployment/vps/prometheus/rules/surplasse.yml"),
     "prometheus/targets.yml": ("deployment/vps/prometheus/targets/surplasse.yml"),
 }
@@ -288,7 +292,11 @@ def validate_component_images(value: object, revision: str) -> dict[str, str]:
 
 def expected_images_bytes(images: object, revision: str) -> bytes:
     components = validate_component_images(images, revision)
-    services = {**components, "migrator": components["backend"]}
+    services = {
+        **components,
+        "migrator": components["backend"],
+        "pilot-bootstrap": components["backend"],
+    }
     return canonical_json(
         {"images": services, "schema": 1, "source_revision": revision}
     )
@@ -307,7 +315,7 @@ def validate_expected_images(raw: bytes, revision: str) -> dict[str, str]:
     images = value["images"]
     if not isinstance(images, dict):
         raise IntegrationError("expected image inventory images must be an object")
-    if set(images) != {*COMPONENT_REPOSITORIES, "migrator"}:
+    if set(images) != {*COMPONENT_REPOSITORIES, "migrator", "pilot-bootstrap"}:
         raise IntegrationError(
             "expected image service map must match the exact allowlist"
         )
@@ -316,6 +324,8 @@ def validate_expected_images(raw: bytes, revision: str) -> dict[str, str]:
     )
     if images["migrator"] != components["backend"]:
         raise IntegrationError("migrator must use the exact backend image")
+    if images["pilot-bootstrap"] != components["backend"]:
+        raise IntegrationError("pilot bootstrap must use the exact backend image")
     return components
 
 
@@ -342,6 +352,33 @@ def contract_bytes(revision: str) -> bytes:
             },
             "networks": ["app_surplasse", "db_surplasse"],
             "payment": dict(PAYMENT_PROFILE),
+            "pilot_bootstrap": {
+                "apply_command": "apply",
+                "database_role": "surplasse_runtime",
+                "entrypoint": "/opt/surplasse/scripts/backend-pilot-bootstrap.sh",
+                "flyway_version": 14,
+                "initial_order_intake_status": "paused",
+                "manifest": {
+                    "container_path": "/run/surplasse/pilot-bootstrap.json",
+                    "group": 10001,
+                    "host_path": (
+                        "/etc/vps/applications/surplasse-pilot-bootstrap.json"
+                    ),
+                    "maximum_bytes": 16384,
+                    "mode": "0440",
+                    "owner": 0,
+                    "schema": "pilot-bootstrap.schema.json",
+                },
+                "networks": ["app_surplasse", "db_surplasse"],
+                "payment_mode": "test",
+                "profile": "pilot-bootstrap",
+                "published_in_backend_image": True,
+                "secrets": [
+                    "surplasse_postgres_runtime_password",
+                    "surplasse_stripe_secret_key",
+                ],
+                "status_command": "status",
+            },
             "public_hosts": [
                 "surplasse.com",
                 "www.surplasse.com",
@@ -372,7 +409,7 @@ def contract_bytes(revision: str) -> bytes:
             ],
             "source_repository": SOURCE_REPOSITORY,
             "source_revision": revision,
-            "transient_services": ["migrator"],
+            "transient_services": ["migrator", "pilot-bootstrap"],
         }
     )
 
@@ -397,6 +434,21 @@ def validate_caddy_route(raw: bytes) -> None:
         raise IntegrationError("Caddy route must not own its TLS policy")
     if re.search(r"(?m)^\s*dns(?:\s|\{)", route) is not None:
         raise IntegrationError("Caddy route must not select a DNS provider")
+
+
+def validate_pilot_bootstrap_schema(raw: bytes) -> None:
+    value = strict_json(raw, "pilot bootstrap schema", maximum=16 * 1024)
+    # Bind the complete semantic document, not only its root allowlist. The
+    # digest covers canonical JSON so every nested $ref, type, required list,
+    # additionalProperties flag, pattern and size bound is part of the policy.
+    if (
+        not isinstance(value, dict)
+        or sha256(canonical_json(value))
+        != PILOT_BOOTSTRAP_SCHEMA_CANONICAL_SHA256
+    ):
+        raise IntegrationError(
+            "pilot bootstrap schema differs from the exact canonical policy"
+        )
 
 
 def _migration_entries(repository: Path, revision: str) -> list[dict[str, object]]:
@@ -597,6 +649,7 @@ def load_runtime_files(
     if tuple(sorted(contents)) != RUNTIME_PATHS:
         raise IntegrationError("runtime path construction diverged from the allowlist")
     validate_caddy_route(contents["caddy/surplasse.caddy"])
+    validate_pilot_bootstrap_schema(contents["pilot-bootstrap.schema.json"])
     files = [RuntimeFile(path=path, content=contents[path]) for path in RUNTIME_PATHS]
     if sum(len(item.content) for item in files) > MAX_TOTAL_SIZE:
         raise IntegrationError("runtime files exceed the total size limit")
@@ -829,6 +882,9 @@ def verify_package(
     revision = inventory["source"]["revision"]
     validate_contract(extracted_files["contract.json"], revision)
     validate_caddy_route(extracted_files["caddy/surplasse.caddy"])
+    validate_pilot_bootstrap_schema(
+        extracted_files["pilot-bootstrap.schema.json"]
+    )
     validate_expected_images(extracted_files["expected-images.json"], revision)
     validate_migrations(extracted_files["migrations.json"], revision)
     validate_probes(extracted_files["probes.json"])

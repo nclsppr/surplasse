@@ -338,6 +338,7 @@ class RepositoryReleaseContractTests(unittest.TestCase):
             "dashboard",
             "docs",
             "migrator",
+            "pilot-bootstrap",
         ):
             self.assertIn(f"  {service}:\n", compose)
         for excluded in (
