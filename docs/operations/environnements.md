@@ -46,9 +46,9 @@ Aucune clé live, donnée réelle ou sauvegarde de production ne doit se trouver
 | absent | `reports.surplasse.test` | Dernier rapport Allure development servi par le cockpit |
 | aucun domaine public | `grafana.surplasse.test` | Grafana, seulement lorsque le profil `observability` est démarré |
 
-Les noms `www`, `api`, `dashboard`, `docs`, `app`, `admin`, `local`, `mail`, `reports` et `grafana` sont réservés et exclus des slugs d'établissement. `app` et `admin` ne correspondent à aucune application actuelle. `reports` et `grafana` restent réservés en production même si aucun service ne les y publie.
+Les noms `www`, `api`, `dashboard`, `docs`, `app`, `admin`, `local`, `mail`, `autoconfig`, `autodiscover`, `mta-sts`, `smtp`, `imap`, `pop`, `pop3`, `webmail`, `status`, `reports` et `grafana` sont réservés et exclus des slugs d'établissement. `app` et `admin` ne correspondent à aucune application actuelle. Les noms techniques sans service public restent fermés en 503 sur Caddy. `status`, `reports` et `grafana` restent réservés en production même si aucun service ne les y publie.
 
-Le wildcard permet de créer un mini-site sans nouvelle opération DNS. Il couvre un sous-domaine direct, pas un niveau imbriqué. Caddy route l'apex vers l'Onboarding, `api` vers le Backend, `dashboard` vers le Dashboard, `docs` vers Nimbus et tout autre sous-domaine non réservé vers Commande.
+Le wildcard permet de créer un mini-site sans nouvelle opération DNS. Il couvre un sous-domaine direct, pas un niveau imbriqué. Caddy route l'apex vers l'Onboarding, `api` vers le Backend, `dashboard` vers le Dashboard, `docs` vers Nimbus et tout autre sous-domaine non réservé vers Commande. Le wildcard DNS peut faire résoudre un nom réservé, mais la route applicative le ferme avant le handler de Commande.
 
 ## Source de vérité
 

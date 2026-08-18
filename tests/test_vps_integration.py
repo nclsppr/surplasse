@@ -112,8 +112,18 @@ def probes_raw() -> bytes:
     )
 
 
+def caddy_raw() -> bytes:
+    return (
+        "https://surplasse.com, https://*.surplasse.com {\n"
+        f"\t{integration.ATLAS_TLS_IMPORT}\n"
+        "\trespond \"ready\" 200\n"
+        "}\n"
+    ).encode()
+
+
 def runtime_files() -> list[integration.RuntimeFile]:
     generated = {
+        "caddy/surplasse.caddy": caddy_raw(),
         "contract.json": integration.contract_bytes(REVISION),
         "expected-images.json": integration.expected_images_bytes(
             component_images(), REVISION
@@ -149,9 +159,13 @@ class GitRepository:
         for source in sources:
             path = self.path / source
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(
-                probes_raw().decode() if source.endswith("probes.json") else "safe\n"
-            )
+            if source.endswith("probes.json"):
+                content = probes_raw().decode()
+            elif source.endswith("surplasse.caddy"):
+                content = caddy_raw().decode()
+            else:
+                content = "safe\n"
+            path.write_text(content)
         migration = (
             self.path / "backend/catalog/src/main/resources/db/migration/V1__one.sql"
         )
@@ -202,6 +216,9 @@ class VpsIntegrationTests(unittest.TestCase):
             "vps-infra.application-integration.v1",
         )
         with tarfile.open(fileobj=io.BytesIO(archive), mode="r:gz") as bundle:
+            contract = json.load(bundle.extractfile("integration/contract.json"))
+        self.assertEqual(contract["payment"], integration.PAYMENT_PROFILE)
+        with tarfile.open(fileobj=io.BytesIO(archive), mode="r:gz") as bundle:
             self.assertEqual(
                 [member.name for member in bundle.getmembers()],
                 [
@@ -209,6 +226,34 @@ class VpsIntegrationTests(unittest.TestCase):
                     *(f"integration/{path}" for path in integration.RUNTIME_PATHS),
                 ],
             )
+
+    def test_contract_rejects_every_tester_payment_profile_divergence(self) -> None:
+        invalid_profiles = {
+            "missing": None,
+            "live": {"audience": "testers", "mode": "live", "schema": 1},
+            "public": {"audience": "public", "mode": "test", "schema": 1},
+            "schema": {"audience": "testers", "mode": "test", "schema": 2},
+            "extra": {
+                "audience": "testers",
+                "mode": "test",
+                "schema": 1,
+                "operator_override": True,
+            },
+        }
+        for label, payment in invalid_profiles.items():
+            with self.subTest(divergence=label):
+                value = json.loads(integration.contract_bytes(REVISION))
+                if payment is None:
+                    value.pop("payment")
+                else:
+                    value["payment"] = payment
+                with self.assertRaisesRegex(
+                    integration.IntegrationError,
+                    "exact canonical policy",
+                ):
+                    integration.validate_contract(
+                        integration.canonical_json(value), REVISION
+                    )
 
     def test_exact_commit_ignores_dirty_worktree(self) -> None:
         repository = GitRepository()
@@ -293,6 +338,19 @@ class VpsIntegrationTests(unittest.TestCase):
         value["public"][0]["host"] = "attacker.invalid"
         with self.assertRaisesRegex(integration.IntegrationError, "endpoint"):
             integration.validate_probes(integration.canonical_json(value))
+
+    def test_caddy_route_requires_exact_atlas_tls_import(self) -> None:
+        integration.validate_caddy_route(caddy_raw())
+        for invalid in (
+            caddy_raw().replace(
+                integration.ATLAS_TLS_IMPORT.encode(),
+                b"import /etc/caddy/other-tls.caddy",
+            ),
+            caddy_raw()
+            + b"tls {\n\tdns ovh {\n\t\tendpoint example.invalid\n\t}\n}\n",
+        ):
+            with self.assertRaises(integration.IntegrationError):
+                integration.validate_caddy_route(invalid)
 
     def test_manifest_binds_exact_layers(self) -> None:
         archive, inventory = package_bytes()

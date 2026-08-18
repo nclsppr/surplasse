@@ -273,9 +273,53 @@ class RepositoryReleaseContractTests(unittest.TestCase):
 
     def test_edge_fragment_leaves_certificate_automation_to_atlas(self) -> None:
         caddy = (ROOT / "deployment/vps/caddy/surplasse.caddy").read_text()
+        self.assertEqual(
+            caddy.count("import /etc/caddy/surplasse-tls.caddy"),
+            1,
+        )
         self.assertNotIn("dns ovh", caddy)
         self.assertNotIn("OVH_", caddy)
         self.assertNotRegex(caddy, r"(?m)^\s*tls(?:\s|\{)")
+
+    def test_reserved_service_hosts_match_both_domain_profiles_and_caddy_routes(
+        self,
+    ) -> None:
+        profiles = []
+        for profile in ("development", "production"):
+            lines = (ROOT / f"config/domains/{profile}.env").read_text().splitlines()
+            value = next(
+                line.removeprefix("RESERVED_SUBDOMAINS=")
+                for line in lines
+                if line.startswith("RESERVED_SUBDOMAINS=")
+            )
+            profiles.append(value.split(","))
+        self.assertEqual(profiles[0], profiles[1])
+
+        for route_path, domain_placeholder, excluded_routes in (
+            (
+                "infra/caddy/Caddyfile",
+                "{$APP_BASE_DOMAIN}",
+                {"www", "api", "dashboard"},
+            ),
+            (
+                "deployment/vps/caddy/surplasse.caddy",
+                "{$SURPLASSE_DOMAIN:surplasse.com}",
+                {"www", "api", "dashboard", "docs"},
+            ),
+        ):
+            matcher = next(
+                line.strip()
+                for line in (ROOT / route_path).read_text().splitlines()
+                if line.strip().startswith("@reserved host ")
+            )
+            self.assertEqual(
+                matcher.split()[2:],
+                [
+                    f"{name}.{domain_placeholder}"
+                    for name in profiles[0]
+                    if name not in excluded_routes
+                ],
+            )
 
     def test_compose_bundle_is_application_only(self) -> None:
         compose = (ROOT / "deployment/vps/compose.yaml").read_text()
