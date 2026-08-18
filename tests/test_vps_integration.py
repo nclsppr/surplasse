@@ -216,6 +216,9 @@ class VpsIntegrationTests(unittest.TestCase):
             "vps-infra.application-integration.v1",
         )
         with tarfile.open(fileobj=io.BytesIO(archive), mode="r:gz") as bundle:
+            contract = json.load(bundle.extractfile("integration/contract.json"))
+        self.assertEqual(contract["payment"], integration.PAYMENT_PROFILE)
+        with tarfile.open(fileobj=io.BytesIO(archive), mode="r:gz") as bundle:
             self.assertEqual(
                 [member.name for member in bundle.getmembers()],
                 [
@@ -223,6 +226,34 @@ class VpsIntegrationTests(unittest.TestCase):
                     *(f"integration/{path}" for path in integration.RUNTIME_PATHS),
                 ],
             )
+
+    def test_contract_rejects_every_tester_payment_profile_divergence(self) -> None:
+        invalid_profiles = {
+            "missing": None,
+            "live": {"audience": "testers", "mode": "live", "schema": 1},
+            "public": {"audience": "public", "mode": "test", "schema": 1},
+            "schema": {"audience": "testers", "mode": "test", "schema": 2},
+            "extra": {
+                "audience": "testers",
+                "mode": "test",
+                "schema": 1,
+                "operator_override": True,
+            },
+        }
+        for label, payment in invalid_profiles.items():
+            with self.subTest(divergence=label):
+                value = json.loads(integration.contract_bytes(REVISION))
+                if payment is None:
+                    value.pop("payment")
+                else:
+                    value["payment"] = payment
+                with self.assertRaisesRegex(
+                    integration.IntegrationError,
+                    "exact canonical policy",
+                ):
+                    integration.validate_contract(
+                        integration.canonical_json(value), REVISION
+                    )
 
     def test_exact_commit_ignores_dirty_worktree(self) -> None:
         repository = GitRepository()

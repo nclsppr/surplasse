@@ -89,6 +89,11 @@ COMPONENT_REPOSITORIES: Mapping[str, str] = {
     "dashboard": "ghcr.io/nclsppr/surplasse/dashboard",
     "docs": "ghcr.io/nclsppr/surplasse/docs",
 }
+PAYMENT_PROFILE: Mapping[str, object] = {
+    "audience": "testers",
+    "mode": "test",
+    "schema": 1,
+}
 MIGRATION_ROOTS = (
     "backend/catalog/src/main/resources/db/migration",
     "backend/identity/src/main/resources/db/migration",
@@ -336,6 +341,7 @@ def contract_bytes(revision: str) -> bytes:
                 "runtime_auto_migrate": False,
             },
             "networks": ["app_surplasse", "db_surplasse"],
+            "payment": dict(PAYMENT_PROFILE),
             "public_hosts": [
                 "surplasse.com",
                 "www.surplasse.com",
