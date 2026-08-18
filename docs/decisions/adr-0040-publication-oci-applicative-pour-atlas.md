@@ -28,7 +28,7 @@ L'activation reste bloquée jusqu'à la livraison et à la preuve des éléments
 
 - base PostgreSQL, propriétaire, rôles migrateur et runtime, secrets et restauration isolée prouvée ;
 - SMTP transactionnel, Stripe live et destinations de webhooks qualifiés ;
-- réseaux applicatif et base, rattachements Caddy et Prometheus, route publique et bascule DNS ;
+- réseaux applicatif et base, rattachements Caddy et Prometheus, politique TLS Atlas, route publique et bascule DNS ;
 - sondes internes et publiques strictes sur Atlas ;
 - compatibilité descendante attestée des migrations avec le runtime précédent, ou arrêt après migration pour une reprise explicite vers l'avant ;
 - alias blue/green liés au digest et bascule atomique du bord, ou politique de maintenance et de coupure explicitement acceptée ;
@@ -63,6 +63,8 @@ Le workflow résout les cinq tags en références `@sha256`, exige un index OCI 
 
 Le premier artefact, `ghcr.io/nclsppr/surplasse/vps-integration`, utilise le contrat commun `vps-infra.application-integration.v1`. Il contient les couches `integration.tar.gz` et `inventory.json`, avec les mêmes media types que Parkventory. Le tar gzip déterministe place les fichiers sous `integration/` et son inventaire canonique lie chaque chemin, taille et hash. Le contenu est strictement limité au contrat applicatif, au Compose, aux références d'images exactes, à la route Caddy, à Prometheus, à Grafana, à l'inventaire de migrations et aux sondes. Les secrets sont seulement nommés ou montés par chemin. Aucune valeur sensible n'entre dans le bundle.
 
+La route Caddy publiée importe exactement `/etc/caddy/surplasse-tls.caddy` dans le bloc qui couvre `surplasse.com` et son wildcard. Ce fichier n'entre pas dans le bundle. Atlas le possède, le monte en lecture seule dans son Caddy partagé et y choisit le module DNS, le fournisseur ACME et les références vers ses secrets. Le validateur producteur exige l'import une seule fois et refuse toute directive `tls` ou `dns` dans la route Surplasse. L'absence du fichier côté Atlas doit faire échouer la validation Caddy avant toute activation publique.
+
 Le second artefact, `ghcr.io/nclsppr/surplasse/application-release`, est l'unique signal pour Atlas. Son descripteur suit `vps-infra.application-release.v1`. Il lie le SHA source, les cinq digests d'image, le digest du bundle, la politique de migration dédiée et les digests des octets canoniques de `migrations.json` et `probes.json`. La découverte utilise le tag `sha-<SHA>`, mais l'admission et le déploiement utilisent uniquement la référence `@sha256`.
 
 Chaque artefact passe un aller-retour ORAS, une validation stricte de son manifeste, une comparaison octet par octet de ses couches et une attestation GitHub. Le workflow revérifie le sommet de `main` et les portes après publication. Le job final porte le nom stable `Publish immutable application release`. Une pull request exécute le job stable `Validate application release`, construit les contrats deux fois avec des références factices strictes et ne publie rien.
@@ -82,4 +84,4 @@ Chaque artefact passe un aller-retour ORAS, une validation stricte de son manife
 - Chaque push sur `main` reconstruit les cinq images, y compris pour une modification documentaire, afin que tout SHA publiable possède ses propres images attestées.
 - Une course avec un push plus récent fait échouer la publication du SHA devenu ancien. Le nouveau sommet doit produire sa propre release.
 - Atlas doit encore vérifier ce contrat et les fichiers de secrets pré-provisionnés, exécuter la migration, activer les services, sonder puis conserver le dernier digest sain.
-- L'identité DNS-01 OVH, la route wildcard, le SMTP transactionnel, Stripe Connect live, les sauvegardes restaurables et le canal d'alerte restent des prérequis externes. Leur absence ne doit jamais être masquée par une release OCI verte.
+- La politique TLS DNS-01 possédée par Atlas, la route wildcard, le SMTP transactionnel, Stripe Connect live, les sauvegardes restaurables et le canal d'alerte restent des prérequis externes. Leur absence ne doit jamais être masquée par une release OCI verte.

@@ -39,6 +39,7 @@ SHA256_RE = re.compile(r"sha256:[0-9a-f]{64}")
 HEX_SHA256_RE = re.compile(r"[0-9a-f]{64}")
 REVISION_RE = re.compile(r"[0-9a-f]{40}")
 MIGRATION_RE = re.compile(r"V([1-9][0-9]*)__([A-Za-z0-9_]+)\.sql")
+ATLAS_TLS_IMPORT = "import /etc/caddy/surplasse-tls.caddy"
 
 STATIC_FILES: Mapping[str, str] = {
     "caddy/surplasse.caddy": "deployment/vps/caddy/surplasse.caddy",
@@ -378,6 +379,20 @@ def validate_contract(raw: bytes, revision: str) -> None:
         )
 
 
+def validate_caddy_route(raw: bytes) -> None:
+    _validate_text(raw, "caddy/surplasse.caddy")
+    route = raw.decode("utf-8", errors="strict")
+    lines = [line.strip() for line in route.splitlines()]
+    if lines.count(ATLAS_TLS_IMPORT) != 1:
+        raise IntegrationError(
+            "Caddy route must import the exact Atlas-owned TLS policy once"
+        )
+    if re.search(r"(?m)^\s*tls(?:\s|\{)", route) is not None:
+        raise IntegrationError("Caddy route must not own its TLS policy")
+    if re.search(r"(?m)^\s*dns(?:\s|\{)", route) is not None:
+        raise IntegrationError("Caddy route must not select a DNS provider")
+
+
 def _migration_entries(repository: Path, revision: str) -> list[dict[str, object]]:
     tree = _command(
         ["git", "ls-tree", "-r", "-z", "--full-tree", revision, "--", *MIGRATION_ROOTS],
@@ -575,6 +590,7 @@ def load_runtime_files(
     contents.update(generated)
     if tuple(sorted(contents)) != RUNTIME_PATHS:
         raise IntegrationError("runtime path construction diverged from the allowlist")
+    validate_caddy_route(contents["caddy/surplasse.caddy"])
     files = [RuntimeFile(path=path, content=contents[path]) for path in RUNTIME_PATHS]
     if sum(len(item.content) for item in files) > MAX_TOTAL_SIZE:
         raise IntegrationError("runtime files exceed the total size limit")
@@ -806,6 +822,7 @@ def verify_package(
         raise IntegrationError("VPS integration archive is not canonical")
     revision = inventory["source"]["revision"]
     validate_contract(extracted_files["contract.json"], revision)
+    validate_caddy_route(extracted_files["caddy/surplasse.caddy"])
     validate_expected_images(extracted_files["expected-images.json"], revision)
     validate_migrations(extracted_files["migrations.json"], revision)
     validate_probes(extracted_files["probes.json"])

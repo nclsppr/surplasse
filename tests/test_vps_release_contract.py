@@ -273,6 +273,10 @@ class RepositoryReleaseContractTests(unittest.TestCase):
 
     def test_edge_fragment_leaves_certificate_automation_to_atlas(self) -> None:
         caddy = (ROOT / "deployment/vps/caddy/surplasse.caddy").read_text()
+        self.assertEqual(
+            caddy.count("import /etc/caddy/surplasse-tls.caddy"),
+            1,
+        )
         self.assertNotIn("dns ovh", caddy)
         self.assertNotIn("OVH_", caddy)
         self.assertNotRegex(caddy, r"(?m)^\s*tls(?:\s|\{)")

@@ -58,6 +58,8 @@ Dans toute cette page, les exemples qui appellent `scripts/compose.sh production
 
 Il existe un seul Caddy de bord par pile. Il termine TLS, redirige HTTP vers HTTPS en production, applique la frontière CORS et route les noms d'hôte. Il est le seul conteneur publié sur les interfaces réseau accessibles. Grafana peut publier un port supplémentaire uniquement sur `127.0.0.1` du VPS lorsque l'observabilité est activée.
 
+Pour Atlas, `deployment/vps/caddy/surplasse.caddy` porte seulement les hôtes et le routage applicatif. Son bloc de site importe exactement `/etc/caddy/surplasse-tls.caddy`. `vps-infra` possède ce fichier, le monte en lecture seule dans le Caddy partagé et y configure le challenge DNS-01. Le fournisseur DNS, le module Caddy et les références de secrets restent donc une décision de plateforme. Ils ne sont ni choisis ni publiés par Surplasse. Un fichier absent ou une configuration invalide doit faire échouer la validation Caddy avant le rattachement de la route.
+
 Les trois fronts et la documentation utilisent chacun un NGINX non privilégié en production pour servir leurs fichiers statiques. Le profil development de l'Onboarding substitue son petit serveur Node afin de fournir la session Stripe test locale. Ces serveurs internes ne terminent pas TLS et ne sont pas des reverse proxies publics. PostgreSQL, Backend, documentation et fronts ne publient aucun port hôte dans le socle commun.
 
 ## Versions et images
@@ -83,7 +85,7 @@ Les Dockerfiles épinglent aussi le frontend Dockerfile par version et digest, a
 
 L'image Backend contient aussi `/opt/surplasse/scripts/backend-migrate.sh`. Cette commande ne constitue pas une sixième image. `deployment/vps/compose.yaml` permet à Atlas d'exécuter le même digest avec le rôle `surplasse_migrator`, puis comme service HTTP avec le rôle `surplasse_runtime` et `QUARKUS_FLYWAY_MIGRATE_AT_START=false`. Le contrôleur Atlas reste dans `vps-infra`. La présence du bundle ne suffit donc pas à activer cette séparation. Le détail de la migration est fixé par l'[ADR-0039](../decisions/adr-0039-migrations-production-separees.md) et la publication par l'[ADR-0040](../decisions/adr-0040-publication-oci-applicative-pour-atlas.md).
 
-L'image `edge` du monorepo ne rejoint pas la publication applicative Atlas. Le bord appartient à la plateforme partagée de `vps-infra`, qui a retenu OVH et épingle le module `caddy-dns/ovh`. L'identité ACME Surplasse, la route wildcard et leur activation restent séparées. PostgreSQL, Prometheus, Grafana et Mailpit restent des images amont consommées directement avec leur digest dans les contextes qui les possèdent.
+L'image `edge` du monorepo ne rejoint pas la publication applicative Atlas. Le bord appartient à la plateforme partagée de `vps-infra`, qui choisit et épingle son module DNS. L'identité ACME Surplasse, la politique TLS importée, la route wildcard et leur activation restent séparées. PostgreSQL, Prometheus, Grafana et Mailpit restent des images amont consommées directement avec leur digest dans les contextes qui les possèdent.
 
 ## Durcissement à l'exécution
 
@@ -127,7 +129,7 @@ Les prérequis bloquants sont :
 - une clé Stripe test et `STRIPE_LIVE_MODE=false` quand le mode versionné vaut `testers`, puis des clés live et `STRIPE_LIVE_MODE=true` quand il vaut `public` ;
 - la clé privée JWT, le JWKS, le `kid` et leurs chemins hôte ;
 - un SMTP transactionnel avec STARTTLS ou TLS selon son port ;
-- pour la cible Atlas, l'identité OVH DNS-01 limitée à `surplasse.com`, ses fichiers protégés et le module Caddy épinglé de la plateforme ;
+- pour la cible Atlas, `/etc/caddy/surplasse-tls.caddy`, une identité DNS-01 limitée à `surplasse.com`, ses fichiers protégés et le module Caddy épinglé de la plateforme ;
 - une CSP explicite et testée pour Commande et le Dashboard, avec les seules origines API et Stripe nécessaires ;
 - `ONBOARDING_STRIPE_PILOT_ENABLED=false`.
 
@@ -135,7 +137,7 @@ Le profil d'observabilité possède ses propres prérequis, sans les ajouter à 
 
 Au démarrage, le wrapper exige des chemins JWT absolus, des fichiers lisibles et non vides, ainsi que des permissions privées sur la clé. Les valeurs factices, un SHA abrégé et un identifiant de module DNS mal formé arrêtent le déploiement avant Compose.
 
-Le chemin historique conserve des variables génériques, mais la cible Atlas a retenu OVH. `vps-infra` construit son image Caddy partagée avec `caddy-dns/ovh` épinglé. Les identifiants DNS restent hors image et doivent être limités aux opérations DNS-01 de `surplasse.com`. Le fait que le module existe ne prouve ni la présence de ces identifiants, ni la route, ni la bascule DNS.
+Le chemin historique conserve des variables génériques. Sur Atlas, `vps-infra` construit l'image Caddy partagée et matérialise `/etc/caddy/surplasse-tls.caddy`. Les identifiants DNS restent hors image et doivent être limités aux opérations DNS-01 de `surplasse.com`. Le fait que le module et le fichier existent ne prouve ni la validité de ces identifiants, ni le certificat, ni la route, ni la bascule DNS.
 
 ## Construire et valider
 
