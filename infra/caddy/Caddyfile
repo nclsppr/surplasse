@@ -101,7 +101,7 @@ https://{$APP_BASE_DOMAIN}, https://*.{$APP_BASE_DOMAIN} {
 		respond "This path is not exposed by the Surplasse Onboarding.\n" 404
 	}
 
-	@reserved host app.{$APP_BASE_DOMAIN} admin.{$APP_BASE_DOMAIN} docs.{$APP_BASE_DOMAIN} local.{$APP_BASE_DOMAIN} mail.{$APP_BASE_DOMAIN} reports.{$APP_BASE_DOMAIN} grafana.{$APP_BASE_DOMAIN}
+	@reserved host docs.{$APP_BASE_DOMAIN} app.{$APP_BASE_DOMAIN} admin.{$APP_BASE_DOMAIN} local.{$APP_BASE_DOMAIN} mail.{$APP_BASE_DOMAIN} autoconfig.{$APP_BASE_DOMAIN} autodiscover.{$APP_BASE_DOMAIN} mta-sts.{$APP_BASE_DOMAIN} smtp.{$APP_BASE_DOMAIN} imap.{$APP_BASE_DOMAIN} pop.{$APP_BASE_DOMAIN} pop3.{$APP_BASE_DOMAIN} webmail.{$APP_BASE_DOMAIN} status.{$APP_BASE_DOMAIN} reports.{$APP_BASE_DOMAIN} grafana.{$APP_BASE_DOMAIN}
 	handle @reserved {
 		respond "This Surplasse subdomain is reserved but has no service in this deployment.\n" 503
 	}

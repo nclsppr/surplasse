@@ -22,7 +22,10 @@ test("development exposes the complete local HTTPS topology", () => {
   assert.equal(config.COOKIE_DOMAIN, "");
   assert.equal(config.REPORTS_URL, "https://reports.surplasse.test");
   assert.equal(config.GRAFANA_URL, "https://grafana.surplasse.test");
-  assert.equal(config.RESERVED_SUBDOMAINS, "www,api,dashboard,docs,app,admin,local,mail,reports,grafana");
+  assert.equal(
+    config.RESERVED_SUBDOMAINS,
+    "www,api,dashboard,docs,app,admin,local,mail,autoconfig,autodiscover,mta-sts,smtp,imap,pop,pop3,webmail,status,reports,grafana",
+  );
 });
 
 test("domain profiles store one base domain and derive every application URL", () => {
