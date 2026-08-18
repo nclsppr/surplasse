@@ -251,6 +251,18 @@ if [[ "$PROFILE" == development ]]; then
   COMPOSE_SECRET_DIRECTORY="${REPOSITORY_ROOT}/.surplasse/compose-secrets/development"
   COMPOSE_OVERRIDE="${REPOSITORY_ROOT}/compose.development.yaml"
 else
+  load_environment_file "${REPOSITORY_ROOT}/config/deployment/production-release.env" || {
+    printf 'Error: missing versioned production release policy.\n' >&2
+    exit 1
+  }
+  VERSIONED_PRODUCTION_RELEASE_MODE="${SURPLASSE_PRODUCTION_RELEASE_MODE:-}"
+  case "$VERSIONED_PRODUCTION_RELEASE_MODE" in
+    testers | public) ;;
+    *)
+      printf 'Error: SURPLASSE_PRODUCTION_RELEASE_MODE must be testers or public.\n' >&2
+      exit 1
+      ;;
+  esac
   SECRETS_FILE="${SURPLASSE_SECRETS_FILE:-}"
   [[ -n "$SECRETS_FILE" ]] || {
     printf 'Error: SURPLASSE_SECRETS_FILE must point to the protected production environment file.\n' >&2
@@ -266,6 +278,10 @@ else
   }
   require_protected_file "$SECRETS_FILE" "the production environment file"
   require_private_permissions "$SECRETS_FILE" "the production environment file"
+  [[ "${SURPLASSE_PRODUCTION_RELEASE_MODE:-}" == "$VERSIONED_PRODUCTION_RELEASE_MODE" ]] || {
+    printf 'Error: the protected environment cannot override the versioned production release mode.\n' >&2
+    exit 1
+  }
   for variable_name in \
     IMAGE_TAG \
     POSTGRES_PASSWORD \
@@ -285,8 +301,46 @@ else
     DNS_API_TOKEN; do
     require_variable "$variable_name"
   done
-  [[ "${STRIPE_LIVE_MODE:-}" == true ]] || {
-    printf 'Error: STRIPE_LIVE_MODE must be true in production.\n' >&2
+  case "$VERSIONED_PRODUCTION_RELEASE_MODE" in
+    testers)
+      [[ "${STRIPE_LIVE_MODE:-}" == false ]] || {
+        printf 'Error: STRIPE_LIVE_MODE must be false in the testers release.\n' >&2
+        exit 1
+      }
+      [[ "$STRIPE_SECRET_KEY" =~ ^rk_test_[A-Za-z0-9]{16,}$ ]] || {
+        printf 'Error: the Stripe secret key must be a restricted test key in the testers release.\n' >&2
+        exit 1
+      }
+      [[ "$VITE_STRIPE_PUBLISHABLE_KEY" =~ ^pk_test_[A-Za-z0-9]{16,}$ ]] || {
+        printf 'Error: the Stripe publishable key must use test mode in the testers release.\n' >&2
+        exit 1
+      }
+      ;;
+    public)
+      [[ "${STRIPE_LIVE_MODE:-}" == true ]] || {
+        printf 'Error: STRIPE_LIVE_MODE must be true in the public release.\n' >&2
+        exit 1
+      }
+      [[ "$STRIPE_SECRET_KEY" =~ ^rk_live_[A-Za-z0-9]{16,}$ ]] || {
+        printf 'Error: the Stripe secret key must be a restricted live key in the public release.\n' >&2
+        exit 1
+      }
+      [[ "$VITE_STRIPE_PUBLISHABLE_KEY" =~ ^pk_live_[A-Za-z0-9]{16,}$ ]] || {
+        printf 'Error: the Stripe publishable key must use live mode in the public release.\n' >&2
+        exit 1
+      }
+      ;;
+  esac
+  [[ "$STRIPE_PAYMENT_WEBHOOK_SECRET" =~ ^whsec_[A-Za-z0-9]{16,}$ ]] || {
+    printf 'Error: STRIPE_PAYMENT_WEBHOOK_SECRET must be a Stripe webhook signing secret.\n' >&2
+    exit 1
+  }
+  [[ "$STRIPE_ACCOUNT_WEBHOOK_SECRET" =~ ^whsec_[A-Za-z0-9]{16,}$ ]] || {
+    printf 'Error: STRIPE_ACCOUNT_WEBHOOK_SECRET must be a Stripe webhook signing secret.\n' >&2
+    exit 1
+  }
+  [[ "$STRIPE_PAYMENT_WEBHOOK_SECRET" != "$STRIPE_ACCOUNT_WEBHOOK_SECRET" ]] || {
+    printf 'Error: the Stripe payment and account webhook secrets must be distinct.\n' >&2
     exit 1
   }
   [[ "${ONBOARDING_STRIPE_PILOT_ENABLED:-}" == false ]] || {

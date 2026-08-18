@@ -10,6 +10,7 @@ import {
   frontendEnvironmentDefinitions,
   loadFrontendDomainConfig,
 } from "../../config/domains/load-domain-config.mjs";
+import { frontendReleaseEnvironmentDefinitions } from "../../config/deployment/load-production-release-config.mjs";
 
 const dashboardRoot = fileURLToPath(new URL(".", import.meta.url));
 const brandRoot = fileURLToPath(new URL("../../brand", import.meta.url));
@@ -20,7 +21,10 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), tailwindcss()],
-    define: frontendEnvironmentDefinitions(domains),
+    define: {
+      ...frontendEnvironmentDefinitions(domains),
+      ...frontendReleaseEnvironmentDefinitions(mode),
+    },
     resolve: {
       dedupe: ["react", "react-dom", "@tanstack/react-query"],
     },

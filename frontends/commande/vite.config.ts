@@ -8,6 +8,7 @@ import {
   frontendEnvironmentDefinitions,
   loadFrontendDomainConfig,
 } from "../../config/domains/load-domain-config.mjs";
+import { frontendReleaseEnvironmentDefinitions } from "../../config/deployment/load-production-release-config.mjs";
 
 // Port 5173: conventional port of the Commande frontend
 // (docs/developpement/index.md). strictPort: a busy port must fail loudly,
@@ -18,7 +19,10 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), tailwindcss()],
-    define: frontendEnvironmentDefinitions(domains),
+    define: {
+      ...frontendEnvironmentDefinitions(domains),
+      ...frontendReleaseEnvironmentDefinitions(mode),
+    },
     resolve: {
       // shared is a linked source package, so runtime libraries must resolve
       // to one instance regardless of the import origin.

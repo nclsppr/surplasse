@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter, Route, Routes } from "react-router";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { createQueryClient } from "@surplasse/shared";
+import { createQueryClient, ProductionTestersNotice } from "@surplasse/shared";
 
 import { CartPage } from "../features/cart/CartPage";
 import { MenuPage } from "../features/menu/MenuPage";
@@ -21,18 +21,26 @@ export function App() {
   }, []);
 
   if (!sessionReady) {
-    return <SessionLoading />;
+    return (
+      <>
+        <ProductionTestersNotice mode={import.meta.env.VITE_SURPLASSE_RELEASE_MODE} />
+        <SessionLoading />
+      </>
+    );
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<MenuPage slug={establishmentSlug} />} />
-          <Route path="/panier" element={<CartPage slug={establishmentSlug} />} />
-          <Route path="/commandes/:orderId" element={<TrackingPage />} />
-        </Routes>
-      </BrowserRouter>
-    </QueryClientProvider>
+    <>
+      <ProductionTestersNotice mode={import.meta.env.VITE_SURPLASSE_RELEASE_MODE} />
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<MenuPage slug={establishmentSlug} />} />
+            <Route path="/panier" element={<CartPage slug={establishmentSlug} />} />
+            <Route path="/commandes/:orderId" element={<TrackingPage />} />
+          </Routes>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </>
   );
 }

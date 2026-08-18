@@ -15,6 +15,7 @@ interface ImportMetaEnv {
   readonly VITE_GRAFANA_URL: string;
   readonly VITE_PROBLEM_TYPE_BASE: string;
   readonly VITE_RESERVED_SUBDOMAINS: string;
+  readonly VITE_SURPLASSE_RELEASE_MODE: "development" | "testers" | "public";
 }
 
 interface ImportMeta {

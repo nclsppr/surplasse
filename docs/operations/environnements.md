@@ -10,7 +10,7 @@ description: Deux environnements seulement, leurs domaines, certificats, profils
 Surplasse connaît deux environnements : le développement local et la production. Il n'existe pas de staging au lancement. Le cluster local exerce les mêmes recettes applicatives et le même contrat de domaines que la cible de production. Sur Atlas, le bundle applicatif rejoint une plateforme Caddy, PostgreSQL et observabilité possédée par `vps-infra`. Le Compose historique du monorepo n'est pas la commande d'exploitation d'Atlas.
 
 !!! warning État réel au 2026-08-18
-Atlas et sa plateforme partagée existent. Le candidat Surplasse est publié par digest, mais son entrée de production reste `enabled: false` dans `vps-infra`. Aucun service, base, rôle, secret, certificat wildcard, route ou DNS Surplasse n'y est activé. Le premier trafic public reste bloqué par la préparation PostgreSQL et sa restauration, les secrets, le SMTP transactionnel, Stripe live, les CSP de Commande et du Dashboard, les rattachements réseau et les sondes publiques strictes.
+Atlas et sa plateforme partagée existent. Le candidat Surplasse est publié par digest, mais son entrée de production reste `enabled: false` dans `vps-infra`. Aucun service, base, rôle, secret, certificat wildcard, route ou DNS Surplasse n'y est encore prouvé actif. L'ADR-0041 autorise une production réservée aux testeurs avec Stripe test et sauvegardes locales. L'ouverture publique reste bloquée par Stripe live, le SMTP transactionnel, la sauvegarde hors site, les CSP de Commande et du Dashboard, les rattachements réseau et les sondes publiques strictes.
 !!!
 
 ## Comparaison
@@ -21,9 +21,9 @@ Atlas et sa plateforme partagée existent. Le candidat Surplasse est publié par
 | Domaine racine | `surplasse.test` | `surplasse.com` |
 | Hôte | macOS, Linux ou Ubuntu sous WSL2 | Atlas, VPS Ubuntu LTS provisionné, application désactivée |
 | Orchestration | `compose.yaml` et `compose.development.yaml` | `application-release@sha256` admise et activée uniquement par `vps-infra` |
-| Données | Seed réinitialisable, aucune donnée réelle | Aucune base Surplasse active ; données réelles et sauvegarde quotidienne après activation |
+| Données | Seed réinitialisable, aucune donnée réelle | Données de test persistées sur Atlas en mode testeurs ; données réelles seulement après ouverture publique |
 | PostgreSQL | Volume Compose local | Plateforme partagée, base et rôles Surplasse à provisionner |
-| Stripe | Mode test exclusivement | Mode live exclusivement |
+| Stripe | Mode test exclusivement | Mode test pour la production testeurs, mode live pour l'ouverture publique |
 | Email | Mailpit | Relais SMTP transactionnel géré, à sélectionner et activer |
 | Certificat | mkcert monté en lecture seule | Cible Let's Encrypt wildcard par DNS-01 OVH, non activée pour Surplasse |
 | Services annexes | Mailpit, documentation Nimbus, cockpit et rapport Allure development sur l'hôte ; Prometheus 3.13.1 et Grafana 13.1.1 facultatifs | Image de documentation, cible et règles Prometheus et tableau de bord Grafana publiés ; runtimes Atlas Prometheus 3.13.2 et Grafana 13.1.3 possédés par `vps-infra` ; intégration Surplasse inactive |
@@ -93,7 +93,7 @@ Le Backend reçoit au démarrage les valeurs dérivées du profil, puis les para
 | `STRIPE_SECRET_KEY` | Clé Stripe test ou live selon le profil |
 | `STRIPE_PAYMENT_WEBHOOK_SECRET` | Secret de la destination des paiements |
 | `STRIPE_ACCOUNT_WEBHOOK_SECRET` | Secret de la destination Accounts v2 |
-| `STRIPE_LIVE_MODE` | `false` en développement, `true` obligatoire en production |
+| `STRIPE_LIVE_MODE` | `false` en développement et pour la production testeurs, `true` pour l'ouverture publique |
 | `AUTH_JWT_PRIVATE_KEY_PATH` | Chemin interne de la clé privée montée en lecture seule |
 | `AUTH_JWT_JWKS_PATH` | Chemin interne du JWKS monté en lecture seule |
 | `AUTH_JWT_KEY_ID` | `kid` de la clé de signature courante |
@@ -109,7 +109,7 @@ Le Backend n'accorde jamais les credentials CORS. Caddy les ajoute seulement qua
 
 ## Frontends
 
-Commande et Dashboard ne reçoivent aucun secret à l'exécution. Le profil de domaine et la clé Stripe publiable de Commande sont injectés pendant le build Vite. Cette clé est une configuration publique et peut venir de la variable de dépôt GitHub `VITE_STRIPE_PUBLISHABLE_KEY`. Le Dockerfile accepte seulement `development` ou `production`. Toute variable Vite qui tente de redéfinir un domaine ou une URL dérivée fait échouer le build.
+Commande et Dashboard ne reçoivent aucun secret à l'exécution. Le profil de domaine, le mode public versionné et la clé Stripe publiable de Commande sont injectés pendant le build Vite. En mode `testers`, la variable de dépôt GitHub `VITE_STRIPE_PUBLISHABLE_KEY` est obligatoire, doit commencer par `pk_test_` et ne doit contenir aucun espace. En mode `public`, elle doit commencer par `pk_live_`. Le workflow refuse le préfixe opposé, fige le SHA-256 de la clé pour toute l'exécution, puis suit le script chargé par `index.html` afin d'exiger la valeur exacte dans l'image Commande scannée et dans le digest publié. Ce contrôle de format et d'intégrité ne prouve ni l'existence de la clé chez Stripe, ni son compte. Ces deux points doivent être qualifiés avec la clé secrète Backend du même mode. Le Dashboard ne reçoit pas la clé. Onboarding, Commande et Dashboard reçoivent le mode afin d'afficher la bannière de production testeurs. Le Dockerfile accepte seulement `development` ou `production`. Toute variable Vite qui tente de redéfinir un domaine ou une URL dérivée fait échouer le build.
 
 L'Onboarding charge un `runtime-config.js` généré pour un seul profil pendant la construction de son image. En développement, son serveur Node reçoit aussi `DEPLOYMENT_PROFILE`, valide le `Host` canonique et peut fournir la courte session Stripe test. En production, le même Dockerfile sélectionne une étape NGINX statique : aucun processus Node, secret Stripe ou endpoint de session n'entre dans l'image finale. Le fichier multi-profil versionné sert au développement natif, refuse les hostnames inconnus et n'est jamais copié tel quel dans l'image de production. GitHub Pages génère explicitement une variante production pendant son build.
 

@@ -9,7 +9,7 @@ description: "Pourquoi Surplasse publie un descripteur application-release uniqu
 
 ## Statut
 
-Accepté, 2026-08-17.
+Remplacé par ADR-0041, 2026-08-18.
 
 ## Première preuve de mise en oeuvre, vérifiée le 2026-08-18
 

@@ -17,6 +17,9 @@
     .topbar{border-bottom:1px solid var(--line-1);background:rgba(250,248,243,.94)}
     .topbar__in{width:min(1120px,calc(100% - 40px));height:72px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:20px}
     .topbar .sp-brand{min-height:44px}
+    .production-testers-notice{display:grid;gap:2px;padding:10px 20px;border-bottom:1px solid var(--line-2);background:#fff0cc;font:600 12px/1.45 var(--font-ui);text-align:center}
+    html[data-surplasse-release-mode="development"] .production-testers-notice,html[data-surplasse-release-mode="public"] .production-testers-notice{display:none}
+    .production-testers-notice strong{color:var(--accent-press);font:700 11px/1.45 var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
     .service-label{font:700 10px/1.4 var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--structure)}
     main{width:min(1120px,calc(100% - 40px));margin:0 auto;padding:56px 0 88px}
     .intro{display:grid;grid-template-columns:minmax(0,.82fr) minmax(0,1.45fr);gap:64px;align-items:start}
@@ -54,6 +57,7 @@
   </style>
 </head>
 <body class="theme-light">
+  <aside class="production-testers-notice" aria-label="Information sur la production réservée aux testeurs" role="note"><strong>Production réservée aux testeurs</strong><span>Commandes et données de test uniquement. Stripe ne débite aucune carte bancaire réelle.</span></aside>
   <header class="topbar">
     <div class="topbar__in">
       <a class="sp-brand" href="index.html" aria-label="Surplasse, accueil"><img class="sp-brand__logo" src="../../brand/surplasse-logo-horizontal.svg" alt=""></a>

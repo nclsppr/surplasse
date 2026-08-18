@@ -19,6 +19,7 @@ RUN --mount=type=cache,id=surplasse-npm,target=/root/.npm,sharing=locked \
     && npm ci --prefix frontends/dashboard
 
 COPY config/domains ./config/domains
+COPY config/deployment/load-production-release-config.mjs config/deployment/production-release.env ./config/deployment/
 COPY brand ./brand
 COPY frontends/shared ./frontends/shared
 COPY frontends/commande ./frontends/commande

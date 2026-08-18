@@ -3,6 +3,7 @@
 @import "../../../brand/fonts/parisienne.css";
 @import "../../../brand/fonts/bodoni-moda.css";
 @import "tailwindcss";
+@import "@surplasse/shared/styles/production-testers-notice.css";
 @import "../../../brand/tokens/colors.css";
 @import "../../../brand/tokens/typography.css";
 @import "../../../brand/tokens/spacing.css";

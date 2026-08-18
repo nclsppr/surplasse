@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+value="${VITE_STRIPE_PUBLISHABLE_KEY-}"
+release_mode="${SURPLASSE_PRODUCTION_RELEASE_MODE-}"
+expected_sha256="${EXPECTED_STRIPE_PUBLIC_KEY_SHA256-}"
+require_expected_sha256="${REQUIRE_EXPECTED_STRIPE_PUBLIC_KEY_SHA256-false}"
+
+case "$release_mode" in
+  testers)
+    required_prefix="pk_test_"
+    ;;
+  public)
+    required_prefix="pk_live_"
+    ;;
+  *)
+    echo "The versioned production release mode is invalid." >&2
+    exit 64
+    ;;
+esac
+
+if [[ ! "$value" =~ ^${required_prefix}[A-Za-z0-9]{16,}$ ]]; then
+  echo "The Stripe publishable key does not match the versioned production release mode." >&2
+  exit 64
+fi
+
+if [[ "$require_expected_sha256" != "false" && "$require_expected_sha256" != "true" ]]; then
+  echo "The Stripe public key digest requirement is invalid." >&2
+  exit 64
+fi
+
+if [[ "$require_expected_sha256" == "true" && -z "$expected_sha256" ]]; then
+  echo "The expected Stripe public key digest is required." >&2
+  exit 64
+fi
+
+if [[ -n "$expected_sha256" ]]; then
+  if [[ ! "$expected_sha256" =~ ^[0-9a-f]{64}$ ]]; then
+    echo "The expected Stripe public key digest is invalid." >&2
+    exit 64
+  fi
+
+  if command -v sha256sum >/dev/null 2>&1; then
+    actual_sha256="$(printf '%s' "$value" | sha256sum)"
+  elif command -v shasum >/dev/null 2>&1; then
+    actual_sha256="$(printf '%s' "$value" | shasum -a 256)"
+  else
+    echo "No SHA-256 implementation is available." >&2
+    exit 69
+  fi
+  actual_sha256="${actual_sha256%% *}"
+
+  if [[ "$actual_sha256" != "$expected_sha256" ]]; then
+    echo "The Stripe public key changed during the image workflow." >&2
+    exit 64
+  fi
+fi

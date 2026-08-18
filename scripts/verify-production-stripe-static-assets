@@ -1,0 +1,73 @@
+#!/bin/sh
+
+set -eu
+
+site_root="${1-}"
+stripe_public_key="${VITE_STRIPE_PUBLISHABLE_KEY-}"
+release_mode="${SURPLASSE_PRODUCTION_RELEASE_MODE-}"
+
+fail() {
+  echo "The production Stripe key is not uniquely active in the static entrypoint." >&2
+  exit 64
+}
+
+case "$release_mode" in
+  testers)
+    required_prefix="pk_test_"
+    forbidden_prefix="pk_live_"
+    ;;
+  public)
+    required_prefix="pk_live_"
+    forbidden_prefix="pk_test_"
+    ;;
+  *) fail ;;
+esac
+
+case "$stripe_public_key" in
+  "${required_prefix}"?*) ;;
+  *) fail ;;
+esac
+
+case "$stripe_public_key" in
+  *[[:space:]]*) fail ;;
+esac
+
+if [ -z "$site_root" ] || [ ! -f "$site_root/index.html" ]; then
+  fail
+fi
+
+entrypoint="$(
+  sed -n 's|.*<script[^>]*src="\([^"]*\.js\)".*|\1|p' "$site_root/index.html" || true
+)"
+
+entrypoint_count="$(printf '%s\n' "$entrypoint" | awk 'NF { count += 1 } END { print count + 0 }')"
+if [ "$entrypoint_count" -ne 1 ]; then
+  fail
+fi
+
+case "$entrypoint" in
+  /assets/*.js) ;;
+  *) fail ;;
+esac
+
+case "$entrypoint" in
+  *..* | *\\*) fail ;;
+esac
+
+entrypoint_file="${site_root}${entrypoint}"
+if [ ! -f "$entrypoint_file" ]; then
+  fail
+fi
+
+if ! grep -F -q -- "$stripe_public_key" "$entrypoint_file"; then
+  fail
+fi
+
+if grep -F -q -- "$forbidden_prefix" "$entrypoint_file"; then
+  fail
+fi
+
+required_prefix_count="$(grep -F -o -- "$required_prefix" "$entrypoint_file" | wc -l | tr -d '[:space:]')"
+if [ "$required_prefix_count" -ne 1 ]; then
+  fail
+fi

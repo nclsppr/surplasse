@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "@surplasse/shared/styles/tokens.css";
+@import "@surplasse/shared/styles/production-testers-notice.css";
 
 body {
   background: var(--surface-page);

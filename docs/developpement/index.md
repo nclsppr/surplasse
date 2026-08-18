@@ -176,7 +176,7 @@ Le `npm ci` racine installe Spectral et OpenAPI Generator. `npm run brand:instal
 | PostgreSQL 17.10 | Service Compose persistant pour le cluster ; Dev Services et Testcontainers pour les tests et la boucle native | Service Compose persistant, sauvegardé quotidiennement |
 | Mailpit `axllent/mailpit:v1.30.4` | Développement seulement. Capture les emails du module `identity` sur les ports loopback 1025 et 8025, sans volume persistant | Absent de la CI et de la production. Un fournisseur SMTP transactionnel prendra le relais |
 | Stripe CLI | Développement seulement, pour relayer et rejouer les webhooks | Absente. Stripe appelle directement le webhook public du Backend |
-| Stripe | Compte et clés de test | Service SaaS requis avec comptes Connect et clés live |
+| Stripe | Compte et clés de test | Compte et clés de test pour la production testeurs, comptes Connect et clés live avant le public |
 | Nimbus 0.8.2 et Astro 7 | Prévisualisation, vérification locale, image `docs` et GitHub Actions | Build statique servi par NGINX dans l'image `docs`, derrière Caddy sur `docs.surplasse.com` |
 | MinIO | Prévu avec le domaine `generation`, pas encore installé | Absent de la pile tant que le module applicatif n'existe pas |
 | dnsmasq | Requis pour le wildcard `*.surplasse.test`, instance locale sans donnée | Absent ; le fournisseur DNS public porte l'apex et le wildcard `.com` |
@@ -400,7 +400,7 @@ Le domaine racine public et l'hôte documentaire sont centralisés dans `config/
 | `STRIPE_CONNECT_PILOT_ESTABLISHMENT_NAME` | Onboarding local | nom public affiché autour du composant Connect du pilote | oui, pour le pilote Connect |
 | `STRIPE_PAYMENT_WEBHOOK_SECRET` | Backend | signature de la destination d'événements de paiement Connect au format snapshot | oui, pour confirmer les paiements |
 | `STRIPE_ACCOUNT_WEBHOOK_SECRET` | Backend | signature de la destination d'événements fins Accounts v2 | oui, pour synchroniser les capacités |
-| `STRIPE_LIVE_MODE` | Backend | mode attendu des objets et webhooks Stripe ; `false` en développement et test, `true` en production | non, `false` en développement |
+| `STRIPE_LIVE_MODE` | Backend | mode attendu des objets et webhooks Stripe ; `false` en développement et production testeurs, `true` pour le public | non, `false` en développement |
 | `OPENAI_API_KEY` | Backend | future clé API OpenAI pour le domaine `generation`, absent actuellement | non, future phase 3 |
 | `QUARKUS_DATASOURCE_JDBC_URL` | Backend | DSN PostgreSQL interne | injectée par Compose ; Dev Services la fournit dans la boucle native |
 | `APP_SCHEME`, `APP_BASE_DOMAIN` | tous | racine dont dérivent les URL produit et les mini-sites | oui, fournis par le profil versionné |
