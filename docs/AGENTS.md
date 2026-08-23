@@ -2,10 +2,6 @@
 
 Ce fichier est la source de vérité pour toute contribution à la documentation et au code de Surplasse. Il est exclu de la collection Nimbus par l'adaptateur documentaire. Toute page de documentation doit respecter la terminologie, la stack et le style définis ici. En cas de contradiction entre une page et ce fichier, ce fichier gagne, et la page doit être corrigée.
 
-## Secrets Atlas
-
-- Toute tâche qui prévoit ou exige le déploiement, la rotation ou la révocation d'un secret sur Atlas doit aussi mettre à jour `nclsppr/vps-infra` avant sa clôture. Ajouter ou mettre à jour ce secret dans `secrets/registry.json`, le registre canonique requis pour reconstruire Atlas depuis un hôte vierge. Versionner seulement le contrat et les métadonnées, jamais la valeur, un condensat dérivé de la valeur, un fichier déchiffré ou un chemin source privé. Si la tâche n'autorise pas la modification de `vps-infra`, signaler le blocage et ne pas déclarer le travail terminé.
-
 ## Le produit en bref
 
 Surplasse permet aux restaurants indépendants de créer leur propre canal de commande directe, sans projet informatique. À partir du nom de l'établissement, d'une photo de la carte et de quelques images, Surplasse génère un mini-site élégant, une carte numérique structurée, un système de commande et des paiements intégrés. Le client scanne un QR code à table, commande et paie depuis son téléphone, sans application ni compte. La commande arrive en temps réel côté restaurant.
