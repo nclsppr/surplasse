@@ -50,21 +50,18 @@ Une classe de logique métier qui exige un conteneur pour être testée est un s
 
 Côté React, Vitest teste les hooks et les fonctions pures : logique de panier de l'application Commande, formatage des prix et des dates, sélecteurs et transformations de données du Dashboard, coordination de session dans un onglet et entre onglets, validation des formulaires de l'Onboarding. Les interactions DOM ciblées qui portent un invariant d'accessibilité utilisent Testing Library avec `jsdom`, par exemple la restauration du focus après une confirmation devenue obsolète. Le rendu complet des écrans n'est pas un objectif unitaire : il est couvert plus haut, par les tests de contrat avec MSW et par les E2E.
 
-### Domaines et cockpit : Node natif
+### Domaines et scripts système : Node natif
 
-La configuration publique et le cockpit utilisent le runner `node:test` de Node.js 24, sans dépendance supplémentaire :
+La configuration publique et les scripts système utilisent le runner `node:test` de Node.js 24, sans dépendance supplémentaire :
 
 ```bash
 npm run domains:test
 npm run domains:check
-npm run local:cockpit:test
 ```
 
-Les tests de domaines valident les profils `.test` et `.com`, la dérivation de toutes les URL depuis le seul domaine racine, le refus des previews loopback et des overrides URL dispersés, les sous-domaines réservés, `REPORTS_URL` et `GRAFANA_URL` limitées à development et l'obligation d'un `COOKIE_DOMAIN` vide. Les tests du cockpit couvrent le registre fixe, les liens HTTPS canoniques, le refus d'un accès navigateur direct, les sondes, la lecture des états Compose, l'allowlist de services, les transitions de cycle de vie, Caddy en lecture seule, Prometheus et Grafana pilotables, la protection des mutations HTTP, le lanceur de vérifications et la publication bornée du rapport Allure. Ils utilisent un exécuteur Compose simulé et ne démarrent ni Java, ni Docker, ni Caddy.
+Les tests de domaines valident les profils `.test` et `.com`, la dérivation de toutes les URL depuis le seul domaine racine, le refus des previews loopback et des overrides URL dispersés, les sous-domaines réservés et `GRAFANA_URL` limitée à development. Les cookies hôte uniquement sont vérifiés dans le Backend par l'absence d'attribut `Domain`, pas par une variable de profil vide.
 
-Le cockpit rassemble aussi les derniers résultats locaux sur `https://local.surplasse.test/tests`. Cette vue ne constitue pas un nouvel étage de la pyramide. Elle orchestre les commandes existantes dans quatre suites fixes : Backend intégré, frontends et contrat, plateforme locale, puis parcours Playwright development. Le dernier résultat de chaque suite est conservé. La relance est asynchrone, séquentielle et limitée à une exécution à la fois. Le smoke E2E exige Caddy, le Backend, Commande, le Dashboard et l'Onboarding sains dans Compose. Le navigateur ne peut fournir ni commande, ni chemin, ni argument, ni cible.
-
-Les scripts système sont vérifiés séparément avec `bash -n`. `npm run compose:config:test` résout aussi le profil `observability` dans les deux environnements, vérifie son isolement, ses limites, ses ports, ses secrets conditionnels, valide la configuration et les règles avec le `promtool` de l'image épinglée et parse le tableau de bord JSON. Leur smoke test macOS réel reste manuel car il demande le trousseau, `/etc/resolver` et le port 443.
+Les scripts système sont vérifiés séparément avec `bash -n`. `npm run compose:config:test` résout le profil local `observability`, vérifie son isolement, ses limites et ses ports, valide la configuration et les règles avec le `promtool` de l'image épinglée, parse le tableau de bord JSON et contrôle séparément le fragment Compose Atlas. Le smoke test macOS réel reste manuel car il demande le trousseau, `/etc/resolver` et le port 443.
 
 ## Tests d'intégration backend
 
@@ -94,7 +91,7 @@ Conséquence directe des [conventions du contrat](./conventions-api.md) : les ex
 
 ## Tests E2E : Playwright
 
-L'[ADR-0027](../decisions/adr-0027-playwright-allure-3.md) retient Playwright 1.61 avec Chromium et Allure Report 3. L'[ADR-0028](../decisions/adr-0028-cockpit-compose-et-rapports-allure.md) borne le cockpit à la cible development et publie son dernier rapport sur `REPORTS_URL`. Le package `e2e/` est un outil de développement et de CI. Il ne tourne pas dans les conteneurs applicatifs et n'est pas installé sur le VPS. Les tests visent la pile par ses URL HTTPS publiques, toujours derrière Caddy.
+L'[ADR-0046](../decisions/adr-0046-cli-et-rapports-e2e-plats.md) retient Playwright 1.61 avec Chromium, Allure Report 3, des commandes CLI explicites et un rapport courant plat par cible. Le package `e2e/` est un outil de développement et de CI. Il ne tourne pas dans les conteneurs applicatifs et n'est pas installé sur le VPS. Les tests visent la pile par ses URL HTTPS publiques, toujours derrière Caddy.
 
 ### Smokes livrés
 
@@ -103,7 +100,7 @@ La première suite est volontairement courte et sans écriture métier :
 | Contrôle | Surface | Preuve |
 |---|---|---|
 | Identité et en-têtes de bord | Caddy | identité attendue, HSTS et `nosniff` |
-| Readiness | Backend | réponse 200, statut global et checks individuels à `UP` |
+| Readiness et fermeture administrative | Backend et Caddy | en development, réponse 200 et checks à `UP` ; en production ou `custom`, réponse publique 404 sur `/q/health/ready`, la readiness restant sondée en interne par Atlas |
 | Canonicalisation | Caddy et Onboarding | `www` redirige en 308 vers l'apex en conservant chemin et query string |
 | Sous-domaine réservé | Caddy | `app` reste fermé en 503 |
 | Landing | Onboarding, Chromium desktop | titre, contenu principal, logo chargé et lien Dashboard dérivé du profil |
@@ -129,11 +126,11 @@ npm run e2e:test -- development
 SURPLASSE_E2E_ESTABLISHMENT_SLUG=<slug> \
   npm run e2e:test -- development
 
-# Or start the local cockpit and use its fixed Playwright suite
-npm run local:cockpit
+# Open the completed current report directly
+npm run e2e:report -- development
 ```
 
-Les commandes sont identiques sur macOS, Linux et Ubuntu sous WSL2. Dans le cockpit, ouvrir `https://local.surplasse.test/tests`, lancer « Parcours Playwright », puis consulter le rapport sur `https://reports.surplasse.test`. Cette interface ne connaît que development. Sur Ubuntu CI, l'installation utilise `playwright install --with-deps chromium` pour ajouter les bibliothèques système. Le développement Windows natif reste hors support.
+Les commandes sont identiques sur macOS, Linux et Ubuntu sous WSL2. `e2e:report` ouvre le fichier HTML autonome du dernier lancement terminé, sans serveur permanent. Sur Ubuntu CI, l'installation utilise `playwright install --with-deps chromium` pour ajouter les bibliothèques système. Le développement Windows natif reste hors support.
 
 Trois types de cible existent, sans cible implicite :
 
@@ -155,32 +152,23 @@ Le certificat mkcert est toléré uniquement pour `development`. La production e
 
 ### Rapport et historique Allure 3
 
-Chaque lancement construit une publication immuable, puis remplace atomiquement le pointeur vers la publication courante :
+Chaque cible possède un historique et un rapport courant plats :
 
 ```text
 .surplasse/e2e/{history-id}/
-├── current.json       # UUID de la publication courante
-├── releases/
-│   └── {run-id}/
-│       ├── allure-results/  # résultats et pièces jointes
-│       ├── allure-report/   # rapport Awesome HTML autonome et résumé
-│       ├── playwright/      # traces, captures et vidéos en cas d'échec
-│       └── history.jsonl    # un lancement Allure 3 par ligne
-├── runs/              # génération temporaire, jamais servie
-└── run.lock           # exclusivité d'un lancement par cible
+├── history.jsonl      # un lancement Allure 3 par ligne
+├── allure-report/
+│   └── index.html     # rapport Awesome HTML autonome courant
+└── test-results/      # traces, captures et vidéos courantes
 ```
 
-`history.jsonl` est limité à 2 160 lancements, soit environ 90 jours au rythme horaire. Il est strictement séparé par cible. La quality gate Allure autorise zéro échec et marque le rapport en conséquence. Le lanceur conserve séparément le code de sortie Playwright, génère le rapport même après un test rouge, puis transmet l'échec au workflow. Le rapport, son résumé et son historique deviennent visibles ensemble par un seul renommage de `current.json`. Une interruption brutale peut laisser une publication orpheline, mais jamais une publication hybride. Le nettoyage conserve la publication courante et la précédente.
+`history.jsonl` est limité à 2 160 lancements, soit environ 90 jours au rythme horaire. Il est strictement séparé par cible. La quality gate Allure autorise zéro échec et marque le rapport en conséquence. Le lanceur génère résultats, diagnostics, historique et rapport dans un répertoire temporaire. Après génération complète, il prépare le rapport, les diagnostics et l'historique dans un dossier voisin, puis permute la publication complète avant de transmettre le code de sortie Playwright. Deux exécutions locales simultanées de la même cible ne sont pas prises en charge.
 
-Le verrou est volontairement fermé par défaut : il n'est jamais récupéré automatiquement à partir d'un PID supposé mort. Après un arrêt brutal, supprimer `run.lock` seulement après avoir vérifié qu'aucun processus Playwright ou Allure ne travaille encore sur la cible.
+Dans GitHub Actions, le cache restaure et sauvegarde uniquement `history.jsonl` avec une clé propre au lancement. Le rapport courant, l'historique et les diagnostics sont conservés 30 jours comme artefact de cette exécution. Après téléchargement et remise du dossier sous `.surplasse/e2e/{history-id}/`, la commande `npm run e2e:report -- {target}` ouvre directement le fichier HTML autonome dans le navigateur. La commande `npm run e2e:report:export -- {target} {destination}` copie seulement le rapport courant vers une destination statique.
 
-Pour development, après la première publication versionnée, le cockpit résout `.surplasse/e2e/development/current.json`, puis sert le `allure-report/index.html` de cette publication en lecture seule sur `REPORTS_URL`. Pendant la migration, si ce pointeur n'existe pas encore, il peut encore lire le dernier rapport plat produit par l'ancienne organisation. Le lancement suivant reprend son historique et crée la première publication versionnée. Caddy protège cet amont avec le même jeton local que le cockpit. Avant tout rapport, l'URL répond 404. Le rapport est un fichier HTML autonome : aucun serveur Allure permanent ni conteneur supplémentaire n'est lancé.
+Le workflow Pages utilise cet export pour publier son smoke development de CI sur [nclsppr.github.io/surplasse/local-tests/](https://nclsppr.github.io/surplasse/local-tests/). Il restaure le même historique `development`, démarre un cluster Compose jetable avec les domaines du profil central, exécute les tests, puis ajoute `local-tests/index.html` au site. Le rapport rouge est déployé avant que l'échec soit propagé au workflow. Les diagnostics Playwright ne deviennent pas publics : ils restent dans l'artefact rejouable de 30 jours. Les résultats Allure intermédiaires disparaissent avec l'espace de travail temporaire après la génération du rapport. Le rapport public ne vient jamais de `.surplasse/` sur le poste local.
 
-Dans GitHub Actions, le cache restaure `current.json` et l'historique de sa release. Une clé immuable propre au lancement sauvegarde ensuite la nouvelle version. Le pointeur et les releases, avec rapport, résultats, diagnostics et historique, sont également conservés 30 jours comme artefact. Après téléchargement et remise du dossier sous `.surplasse/e2e/{history-id}/`, la commande `npm run e2e:report -- {target}` ouvre directement le fichier HTML autonome dans le navigateur, sans démarrer de serveur. La commande `npm run e2e:report:export -- {target} {destination}` copie seulement le rapport HTML autonome courant vers une destination statique.
-
-Le workflow Pages utilise cet export pour publier son smoke development de CI sur [nclsppr.github.io/surplasse/local-tests/](https://nclsppr.github.io/surplasse/local-tests/). Il restaure le même historique `development`, démarre un cluster Compose jetable avec les domaines du profil central, exécute les tests, puis ajoute `local-tests/index.html` au site. Le rapport rouge est déployé avant que l'échec soit propagé au workflow. Les traces et résultats bruts ne deviennent pas publics : ils restent dans l'artefact rejouable de 30 jours. Le rapport public ne vient jamais de `.surplasse/` sur le poste local.
-
-Pour `custom`, les mêmes variables `SURPLASSE_E2E_TARGET_ID` et `SURPLASSE_E2E_BASE_DOMAIN` recalculent l'identifiant interne. Le cockpit ne télécharge, ne sert et ne fusionne aucun rapport production ou custom.
+Pour `custom`, les mêmes variables `SURPLASSE_E2E_TARGET_ID` et `SURPLASSE_E2E_BASE_DOMAIN` recalculent l'identifiant interne. La CLI ne fusionne jamais les rapports ou historiques de deux cibles.
 
 ### Fréquence et séparation des responsabilités
 

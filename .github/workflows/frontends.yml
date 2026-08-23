@@ -7,7 +7,7 @@ on:
     paths:
       - "frontends/**"
       - "config/domains/**"
-      - "scripts/dev-cockpit/**"
+      - "scripts/onboarding-server/**"
       - "scripts/generate_brand_assets.py"
       - "scripts/requirements.txt"
       - "scripts/lib/**"
@@ -35,7 +35,7 @@ on:
     paths:
       - "frontends/**"
       - "config/domains/**"
-      - "scripts/dev-cockpit/**"
+      - "scripts/onboarding-server/**"
       - "scripts/generate_brand_assets.py"
       - "scripts/requirements.txt"
       - "scripts/lib/**"
@@ -73,14 +73,14 @@ jobs:
       - run: npm run domains:test
       - run: npm run domains:check
 
-  dev-cockpit:
+  onboarding-server:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: npm --prefix scripts/dev-cockpit test
+      - run: npm run onboarding:test
 
   brand-assets:
     runs-on: ubuntu-latest
@@ -123,7 +123,6 @@ jobs:
           infra/images/backend-healthcheck.sh
           infra/images/backend-migrate.sh
           infra/images/backend-pilot-bootstrap.sh
-          infra/images/caddy-entrypoint.sh
       - name: Validate both Compose profiles and production guardrails
         run: npm run compose:config:test
       - name: Validate the local Caddyfile
@@ -145,13 +144,9 @@ jobs:
             -e ONBOARDING_UPSTREAM=onboarding:4173 \
             -e COMMANDE_UPSTREAM=commande:8080 \
             -e DASHBOARD_UPSTREAM=dashboard:8080 \
-            -e ONBOARDING2_UPSTREAM=onboarding2:8080 \
-            -e COMMANDE2_UPSTREAM=commande2:8080 \
-            -e DASHBOARD2_UPSTREAM=dashboard2:8080 \
             -e DOCS_UPSTREAM=docs:8080 \
             -e MAILPIT_UPSTREAM=mailpit:8025 \
             -e GRAFANA_UPSTREAM=grafana:3000 \
-            -e LOCAL_CONTROL_UPSTREAM=host.docker.internal:4174 \
             -v "$PWD/infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" \
             -v "$PWD/infra/caddy/tls/development.caddy:/etc/caddy/tls/profile.caddy:ro" \
             -v "$PWD/infra/caddy/routes/development.caddy:/etc/caddy/routes/profile.caddy:ro" \
@@ -231,87 +226,3 @@ jobs:
       - run: npm test
       # The build includes TypeScript checking through tsc --noEmit.
       - run: npm run build
-
-  design-system2:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontends/design-system2
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: frontends/design-system2/package-lock.json
-      - run: npm ci
-      - run: npm audit --omit=dev
-      - run: npm run check
-      - run: npm test
-
-  onboarding2:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontends/onboarding2
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: |
-            frontends/design-system2/package-lock.json
-            frontends/onboarding2/package-lock.json
-      - run: npm ci --prefix ../design-system2
-      - run: npm ci
-      - run: npm audit --omit=dev
-      - run: npm run lint
-      - run: npm test
-      - run: npm run build -- --mode development
-
-  commande2:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontends/commande2
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: |
-            frontends/shared/package-lock.json
-            frontends/design-system2/package-lock.json
-            frontends/commande2/package-lock.json
-      - run: npm ci --prefix ../shared
-      - run: npm ci --prefix ../design-system2
-      - run: npm ci
-      - run: npm audit --omit=dev
-      - run: npm run lint
-      - run: npm test
-      - run: npm run build -- --mode development
-
-  dashboard2:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontends/dashboard2
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: |
-            frontends/shared/package-lock.json
-            frontends/design-system2/package-lock.json
-            frontends/dashboard2/package-lock.json
-      - run: npm ci --prefix ../shared
-      - run: npm ci --prefix ../design-system2
-      - run: npm ci
-      - run: npm audit --omit=dev
-      - run: npm run lint
-      - run: npm test
-      - run: npm run build -- --mode development

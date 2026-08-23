@@ -2,7 +2,6 @@
 @import "../../../brand/fonts/spacemono.css";
 @import "../../../brand/fonts/parisienne.css";
 @import "../../../brand/fonts/bodoni-moda.css";
-@import "tailwindcss";
 @import "@surplasse/shared/styles/production-testers-notice.css";
 @import "../../../brand/tokens/colors.css";
 @import "../../../brand/tokens/typography.css";
@@ -13,7 +12,9 @@
   text-rendering: optimizeLegibility;
 }
 
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -41,6 +42,11 @@ button,
 input,
 select {
   font: inherit;
+  color: inherit;
+}
+
+p {
+  margin: 0;
 }
 
 button,
@@ -49,7 +55,9 @@ select {
 }
 
 button {
+  border: 0;
   cursor: pointer;
+  background: transparent;
 }
 
 button:disabled {

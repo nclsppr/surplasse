@@ -85,7 +85,7 @@ Ne jamais « corriger » un ADR pour l'aligner sur une page plus récente. Soit 
 
 ## Registre des ADR
 
-Quarante-trois ADR sont consignés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'au déploiement commun par Docker Compose, à son cockpit local, à sa surveillance fonctionnelle, à son observabilité technique, au socle professionnel du Dashboard, aux expériences de frontends, à la documentation Nimbus canonique, ainsi qu'à l'outillage reproductible, aux mises à jour de dépendances, aux images de conteneurs vérifiables, aux migrations de production séparées, à la publication OCI pour Atlas, à la production réservée aux testeurs, à la réservation des noms techniques sous le wildcard public et au bootstrap borné du premier pilote.
+Quarante-sept ADR sont consignés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'au cluster Compose local, à la production exclusivement pilotée par Atlas, à la surveillance fonctionnelle, à l'observabilité technique, au socle professionnel du Dashboard, aux frontends canoniques, à la documentation Nimbus, à l'outillage reproductible, aux images de conteneurs vérifiables, aux migrations séparées, à la publication OCI, à la production réservée aux testeurs, aux noms techniques réservés, au bootstrap du premier pilote, à son garde-fou de version Flyway et aux rapports E2E plats.
 
 | Numéro | Titre | Statut | Lien |
 |---|---|---|---|
@@ -100,7 +100,7 @@ Quarante-trois ADR sont consignés à ce jour. Ils couvrent les choix structuran
 | 0009 | Retype pour la documentation | Remplacé par ADR-0038 | [ADR-0009](adr-0009-retype.md) |
 | 0010 | Fournisseur IA (OpenAI derrière interface) | Accepté | [ADR-0010](adr-0010-fournisseur-ia.md) |
 | 0011 | Visuels de plats générés | Remplacé par ADR-0025 | [ADR-0011](adr-0011-visuels-plats.md) |
-| 0012 | Tailwind et shadcn/ui | Accepté | [ADR-0012](adr-0012-tailwind-shadcn.md) |
+| 0012 | Tailwind et shadcn/ui | Remplacé par ADR-0044 | [ADR-0012](adr-0012-tailwind-shadcn.md) |
 | 0013 | Générateurs OpenAPI (jaxrs-spec et typescript-fetch) | Accepté | [ADR-0013](adr-0013-generateurs-openapi.md) |
 | 0014 | Liaison de frontends/shared (file:, source TypeScript) | Accepté | [ADR-0014](adr-0014-liaison-shared.md) |
 | 0015 | Modèle de commission (0 % pendant 3 mois, puis 1 %) | Accepté | [ADR-0015](adr-0015-modele-commission.md) |
@@ -114,14 +114,14 @@ Quarante-trois ADR sont consignés à ce jour. Ils couvrent les choix structuran
 | 0023 | Système de logo vectoriel fourni | Accepté | [ADR-0023](adr-0023-systeme-logo-vectoriel-fourni.md) |
 | 0024 | Deux registres visuels complémentaires | Accepté | [ADR-0024](adr-0024-deux-registres-visuels.md) |
 | 0025 | Visuels de plats à la demande | Accepté | [ADR-0025](adr-0025-visuels-plats-a-la-demande.md) |
-| 0026 | Une pile Docker Compose commune | Accepté | [ADR-0026](adr-0026-compose-commun.md) |
-| 0027 | Playwright et Allure 3 pour les tests E2E | Accepté | [ADR-0027](adr-0027-playwright-allure-3.md) |
-| 0028 | Cockpit Compose et rapports Allure | Accepté | [ADR-0028](adr-0028-cockpit-compose-et-rapports-allure.md) |
+| 0026 | Une pile Docker Compose commune | Remplacé par ADR-0045 | [ADR-0026](adr-0026-compose-commun.md) |
+| 0027 | Playwright et Allure 3 pour les tests E2E | Remplacé par ADR-0046 | [ADR-0027](adr-0027-playwright-allure-3.md) |
+| 0028 | Cockpit Compose et rapports Allure | Remplacé par ADR-0046 | [ADR-0028](adr-0028-cockpit-compose-et-rapports-allure.md) |
 | 0029 | Observabilité Prometheus et Grafana non bloquante | Accepté | [ADR-0029](adr-0029-observabilite-prometheus-grafana.md) |
 | 0030 | Java 25 et Quarkus courant | Remplacé par ADR-0035 | [ADR-0030](adr-0030-java-25-quarkus-courant.md) |
 | 0031 | Équipes, rôles et vues métier | Accepté | [ADR-0031](adr-0031-equipes-roles-vues-metier.md) |
 | 0032 | Canal prépayé sans fonction de caisse | Accepté | [ADR-0032](adr-0032-canal-prepaye-sans-caisse.md) |
-| 0033 | Frontends alternatifs fondés sur Untitled UI | Accepté | [ADR-0033](adr-0033-frontends-alternatifs-untitled-ui.md) |
+| 0033 | Frontends alternatifs fondés sur Untitled UI | Remplacé par ADR-0044 | [ADR-0033](adr-0033-frontends-alternatifs-untitled-ui.md) |
 | 0034 | Double rendu Retype et Nimbus à source unique | Remplacé par ADR-0038 | [ADR-0034](adr-0034-double-rendu-retype-nimbus.md) |
 | 0035 | Java 25, Quarkus courant et outillage mise | Accepté | [ADR-0035](adr-0035-java-25-quarkus-courant-et-mise.md) |
 | 0036 | Renovate pour les mises à jour | Accepté | [ADR-0036](adr-0036-renovate-pour-les-mises-a-jour.md) |
@@ -131,6 +131,10 @@ Quarante-trois ADR sont consignés à ce jour. Ils couvrent les choix structuran
 | 0040 | Publication OCI applicative pour Atlas | Remplacé par ADR-0041 | [ADR-0040](adr-0040-publication-oci-applicative-pour-atlas.md) |
 | 0041 | Production testeurs avec Stripe test | Accepté | [ADR-0041](adr-0041-production-testeurs-stripe-test.md) |
 | 0042 | Noms de service réservés sous le wildcard public | Accepté | [ADR-0042](adr-0042-noms-service-reserves-wildcard.md) |
-| 0043 | Bootstrap borné du pilote de production | Accepté | [ADR-0043](adr-0043-bootstrap-borne-pilote-production.md) |
+| 0043 | Bootstrap borné du pilote de production | Remplacé par ADR-0047 | [ADR-0043](adr-0043-bootstrap-borne-pilote-production.md) |
+| 0044 | Frontends canoniques uniques et CSS par usage | Accepté | [ADR-0044](adr-0044-frontends-canoniques-uniques.md) |
+| 0045 | Atlas comme unique chemin de production | Accepté | [ADR-0045](adr-0045-atlas-unique-production.md) |
+| 0046 | CLI native et rapports E2E plats | Accepté | [ADR-0046](adr-0046-cli-et-rapports-e2e-plats.md) |
+| 0047 | Version Flyway du bootstrap pilote | Accepté | [ADR-0047](adr-0047-version-flyway-bootstrap-pilote.md) |
 
 Les décisions encore ouvertes (par exemple le choix de la solution d'impression thermique ESC/POS mentionné dans la stack de référence) donneront lieu à de futurs ADR au fil de la [roadmap](../roadmap.md).

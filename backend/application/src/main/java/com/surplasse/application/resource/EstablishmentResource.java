@@ -6,20 +6,20 @@ import com.surplasse.catalog.service.OrderIntakeService;
 import com.surplasse.common.identity.RestaurateurIdentityGateway;
 import com.surplasse.contract.api.EstablishmentApi;
 import com.surplasse.contract.model.OrderIntakeUpdate;
-import jakarta.ws.rs.core.Context;
-import jakarta.ws.rs.core.Cookie;
-import jakarta.ws.rs.core.HttpHeaders;
+import jakarta.enterprise.context.RequestScoped;
+import jakarta.ws.rs.CookieParam;
 import jakarta.ws.rs.core.Response;
 import java.util.UUID;
 
 /** Assembly adapter: authenticates the restaurateur and delegates catalog-owned policy. */
+@RequestScoped
 public class EstablishmentResource implements EstablishmentApi {
 
     private final RestaurateurIdentityGateway identityGateway;
     private final OrderIntakeService orderIntakeService;
 
-    @Context
-    HttpHeaders headers;
+    @CookieParam(RestaurateurIdentityGateway.ACCESS_COOKIE)
+    String accessToken;
 
     EstablishmentResource(RestaurateurIdentityGateway identityGateway, OrderIntakeService orderIntakeService) {
         this.identityGateway = identityGateway;
@@ -28,23 +28,18 @@ public class EstablishmentResource implements EstablishmentApi {
 
     @Override
     public Response getOrderIntake(UUID establishmentId) {
-        UUID restaurateurId = identityGateway.authenticate(accessToken());
+        UUID restaurateurId = identityGateway.authenticate(accessToken);
         return Response.ok(OrderIntakeMapper.toContract(orderIntakeService.get(establishmentId, restaurateurId)))
                 .build();
     }
 
     @Override
     public Response updateOrderIntake(UUID establishmentId, OrderIntakeUpdate request) {
-        UUID restaurateurId = identityGateway.authenticate(accessToken());
+        UUID restaurateurId = identityGateway.authenticate(accessToken);
         OrderIntakeStatus desiredStatus =
                 OrderIntakeStatus.fromDbValue(request.getStatus().toString());
         return Response.ok(OrderIntakeMapper.toContract(
                         orderIntakeService.update(establishmentId, restaurateurId, desiredStatus)))
                 .build();
-    }
-
-    private String accessToken() {
-        Cookie cookie = headers.getCookies().get(RestaurateurIdentityGateway.ACCESS_COOKIE);
-        return cookie == null ? null : cookie.getValue();
     }
 }

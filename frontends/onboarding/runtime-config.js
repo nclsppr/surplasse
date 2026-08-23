@@ -2,36 +2,30 @@
 (function configureSurplasseDomains() {
   const profiles = Object.freeze({
   "development": {
-    "APP_SCHEME": "https",
     "APP_BASE_DOMAIN": "surplasse.test",
+    "APP_SCHEME": "https",
     "PROBLEM_TYPE_BASE": "https://surplasse.com/problems/",
-    "COOKIE_DOMAIN": "",
     "RESERVED_SUBDOMAINS": "www,api,dashboard,docs,app,admin,local,mail,autoconfig,autodiscover,mta-sts,smtp,imap,pop,pop3,webmail,status,reports,grafana",
     "APP_BASE_URL": "https://surplasse.test",
     "ONBOARDING_URL": "https://surplasse.test",
     "DASHBOARD_URL": "https://dashboard.surplasse.test",
     "API_URL": "https://api.surplasse.test",
-    "LOCAL_CONTROL_URL": "https://local.surplasse.test",
     "DOCS_URL": "https://docs.surplasse.test",
     "MAILPIT_URL": "https://mail.surplasse.test",
-    "REPORTS_URL": "https://reports.surplasse.test",
     "GRAFANA_URL": "https://grafana.surplasse.test",
     "SURPLASSE_RELEASE_MODE": "development"
   },
   "production": {
-    "APP_SCHEME": "https",
     "APP_BASE_DOMAIN": "surplasse.com",
+    "APP_SCHEME": "https",
     "PROBLEM_TYPE_BASE": "https://surplasse.com/problems/",
-    "COOKIE_DOMAIN": "",
     "RESERVED_SUBDOMAINS": "www,api,dashboard,docs,app,admin,local,mail,autoconfig,autodiscover,mta-sts,smtp,imap,pop,pop3,webmail,status,reports,grafana",
     "APP_BASE_URL": "https://surplasse.com",
     "ONBOARDING_URL": "https://surplasse.com",
     "DASHBOARD_URL": "https://dashboard.surplasse.com",
     "API_URL": "https://api.surplasse.com",
-    "LOCAL_CONTROL_URL": "",
     "DOCS_URL": "https://docs.surplasse.com",
     "MAILPIT_URL": "",
-    "REPORTS_URL": "",
     "GRAFANA_URL": "",
     "SURPLASSE_RELEASE_MODE": "testers"
   }

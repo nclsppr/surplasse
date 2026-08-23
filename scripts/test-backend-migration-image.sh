@@ -81,10 +81,10 @@ migration_state="$(
       --command "SELECT count(*) FILTER (WHERE version IS NOT NULL), max(version::integer) FILTER (WHERE version IS NOT NULL), bool_and(success) FROM flyway_schema_history;"
 )"
 readonly migration_state
-[[ "$migration_state" == "14|14|t" ]] || {
+[[ "$migration_state" == "15|15|t" ]] || {
   printf 'Backend migration image test failed: unexpected Flyway state %s.\n' \
     "$migration_state" >&2
   exit 1
 }
 
-printf 'Backend migration image valid: V1 through V14 applied successfully.\n'
+printf 'Backend migration image valid: V1 through V15 applied successfully.\n'

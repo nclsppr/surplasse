@@ -9,7 +9,7 @@ description: "Une seconde implémentation expérimentale de chaque frontend expl
 
 ## Statut
 
-Accepté, 2026-07-23.
+Remplacé par [ADR-0044](adr-0044-frontends-canoniques-uniques.md), 2026-08-23.
 
 ## Contexte
 

@@ -15,14 +15,6 @@ public enum RefundStatus {
         return name().toLowerCase(Locale.ROOT);
     }
 
-    public boolean blocksOrderProgress() {
-        return this == CREATING || this == PENDING || this == REQUIRES_ACTION;
-    }
-
-    public boolean isActiveOrSucceeded() {
-        return blocksOrderProgress() || this == SUCCEEDED;
-    }
-
     public boolean isTerminal() {
         return this == SUCCEEDED || this == FAILED || this == CANCELED;
     }

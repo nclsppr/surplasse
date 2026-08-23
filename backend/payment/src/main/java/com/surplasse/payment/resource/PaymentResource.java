@@ -9,13 +9,14 @@ import com.surplasse.payment.entity.RefundReason;
 import com.surplasse.payment.mapping.PaymentMapper;
 import com.surplasse.payment.service.PaymentService;
 import com.surplasse.payment.service.RefundService;
-import jakarta.ws.rs.core.Context;
-import jakarta.ws.rs.core.Cookie;
-import jakarta.ws.rs.core.HttpHeaders;
+import jakarta.enterprise.context.RequestScoped;
+import jakarta.ws.rs.CookieParam;
+import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.core.Response;
 import java.util.UUID;
 
 /** Implements the generated payment interface: converts and delegates, no logic. */
+@RequestScoped
 public class PaymentResource implements PaymentApi {
 
     static final String TABLE_SESSION_HEADER = "X-Table-Session";
@@ -24,8 +25,11 @@ public class PaymentResource implements PaymentApi {
     private final PaymentService paymentService;
     private final RefundService refundService;
 
-    @Context
-    HttpHeaders headers;
+    @HeaderParam(TABLE_SESSION_HEADER)
+    String tableSessionToken;
+
+    @CookieParam(RestaurateurIdentityGateway.ACCESS_COOKIE)
+    String accessToken;
 
     PaymentResource(OrderGateway orderGateway, PaymentService paymentService, RefundService refundService) {
         this.orderGateway = orderGateway;
@@ -35,8 +39,7 @@ public class PaymentResource implements PaymentApi {
 
     @Override
     public Response createPayment(UUID idempotencyKey, PaymentCreationRequest request) {
-        OrderGateway.ActiveTableSession session =
-                orderGateway.requireTableSession(headers.getHeaderString(TABLE_SESSION_HEADER));
+        OrderGateway.ActiveTableSession session = orderGateway.requireTableSession(tableSessionToken);
         return Response.status(201)
                 .entity(PaymentMapper.toPaymentSession(
                         paymentService.createSession(session, request.getOrderId(), idempotencyKey)))
@@ -47,15 +50,10 @@ public class PaymentResource implements PaymentApi {
     public Response createRefund(UUID idempotencyKey, RefundCreationRequest request) {
         return Response.status(201)
                 .entity(PaymentMapper.toRefund(refundService.create(
-                        cookie(RestaurateurIdentityGateway.ACCESS_COOKIE),
+                        accessToken,
                         request.getOrderId(),
                         RefundReason.fromDbValue(request.getReason().value()),
                         idempotencyKey)))
                 .build();
-    }
-
-    private String cookie(String name) {
-        Cookie cookie = headers.getCookies().get(name);
-        return cookie == null ? null : cookie.getValue();
     }
 }

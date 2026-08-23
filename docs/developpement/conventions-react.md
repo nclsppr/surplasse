@@ -152,7 +152,7 @@ Quelle que soit la solution retenue, la validation côté client est le miroir d
 
 ## Styles
 
-Le choix acté ([ADR-0012](../decisions/adr-0012-tailwind-shadcn.md)) : **Tailwind CSS et shadcn/ui**, alimentés par les tokens du [design system](../architecture/design-system.md) dans `shared/` sous forme de variables CSS. Les composants sont reconstruits sur shadcn (Radix) au look Bistro premium, en prenant les composants et UI kits Claude Design comme référence. Les variables CSS portent notamment le thème par établissement du front Commande (couleurs et typographie propres à chaque mini-site), appliqué à l'exécution sans recompilation.
+L'[ADR-0044](../decisions/adr-0044-frontends-canoniques-uniques.md) impose une dépendance CSS seulement lorsqu'une application la consomme réellement. Les tokens du [design system](../architecture/design-system.md) restent partagés sous forme de variables CSS. Commande conserve Tailwind parce que ses composants emploient ses classes utilitaires. Le Dashboard utilise son CSS nommé sans Tailwind. Une primitive shadcn/ui, Radix ou équivalente n'entre dans une application que pour un besoin d'accessibilité ou d'interaction concret. Les variables CSS portent notamment le thème par établissement de Commande, appliqué à l'exécution sans recompilation.
 
 Ce qui est ferme :
 

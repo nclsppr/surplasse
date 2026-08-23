@@ -1,20 +1,25 @@
-import { randomUUID } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
-import { accessSync, constants, existsSync, lstatSync, statSync } from "node:fs";
+import {
+  accessSync,
+  constants,
+  existsSync,
+  lstatSync,
+  mkdtempSync,
+  statSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
-  acquireTargetLock,
   exportCurrentReport,
   prepareRunWorkspace,
   publishRunArtifacts,
   removeRunWorkspace,
-  resolveCurrentPublication,
 } from "../support/run-artifacts.mjs";
 import {
+  getE2eExecutionPaths,
   getE2ePaths,
-  getE2eRunPaths,
   resolveE2eTarget,
 } from "../support/target.mjs";
 
@@ -91,15 +96,16 @@ async function runTests({
     allure: requireExecutable("allure"),
   };
 
-  const runId = randomUUID();
-  const runPaths = getE2eRunPaths(target.storageId, runId);
+  const workspace = mkdtempSync(
+    join(tmpdir(), `surplasse-e2e-${target.storageId}-`),
+  );
   const executionEnvironment = {
     ...targetEnvironment,
-    SURPLASSE_E2E_RUN_ID: runId,
+    SURPLASSE_E2E_WORKSPACE: workspace,
   };
-  const lock = acquireTargetLock(
-    publishedPaths.lock,
+  const runPaths = getE2eExecutionPaths(
     target.storageId,
+    executionEnvironment,
   );
 
   try {
@@ -147,11 +153,7 @@ async function runTests({
 
     return playwrightResult.status || allureResult.status;
   } finally {
-    try {
-      removeRunWorkspace(publishedPaths, runPaths);
-    } finally {
-      lock.release();
-    }
+    removeRunWorkspace(runPaths);
   }
 }
 
@@ -243,12 +245,8 @@ export function executeBinary(
 }
 
 function openReport(paths, targetStorageId) {
-  const publication = resolveCurrentPublication(paths);
-  const reportFile = publication ? join(publication.report, "index.html") : null;
+  const reportFile = join(paths.report, "index.html");
   try {
-    if (!reportFile) {
-      throw new Error("missing report");
-    }
     const metadata = lstatSync(reportFile);
     if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.size <= 0) {
       throw new Error("invalid report");

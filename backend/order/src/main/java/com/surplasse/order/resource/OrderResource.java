@@ -14,6 +14,8 @@ import com.surplasse.order.service.OrderStatusService;
 import com.surplasse.order.service.TableSessionService;
 import io.smallrye.common.annotation.Blocking;
 import io.smallrye.mutiny.Multi;
+import jakarta.enterprise.context.RequestScoped;
+import jakarta.ws.rs.CookieParam;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.Path;
@@ -21,8 +23,6 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
-import jakarta.ws.rs.core.Cookie;
-import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.sse.OutboundSseEvent;
@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.UUID;
 
 /** Implements the generated order interface: converts and delegates, no logic. */
+@RequestScoped
 public class OrderResource implements OrderApi {
 
     static final String TABLE_SESSION_HEADER = "X-Table-Session";
@@ -42,8 +43,11 @@ public class OrderResource implements OrderApi {
     private final OrderEventBroadcaster orderEventBroadcaster;
     private final OrderEventStreamer orderEventStreamer;
 
-    @Context
-    HttpHeaders headers;
+    @HeaderParam(TABLE_SESSION_HEADER)
+    String tableSessionToken;
+
+    @CookieParam(RestaurateurIdentityGateway.ACCESS_COOKIE)
+    String accessToken;
 
     @Context
     Sse sse;
@@ -73,8 +77,7 @@ public class OrderResource implements OrderApi {
 
     @Override
     public Response createOrder(UUID idempotencyKey, OrderCreationRequest request) {
-        TableSessionService.ActiveSession session =
-                tableSessionService.authenticate(headers.getHeaderString(TABLE_SESSION_HEADER));
+        TableSessionService.ActiveSession session = tableSessionService.authenticate(tableSessionToken);
         OrderService.OrderDraft draft = new OrderService.OrderDraft(
                 request.getType().value(),
                 request.getLines().stream()
@@ -97,25 +100,20 @@ public class OrderResource implements OrderApi {
 
     @Override
     public Response listOrders(UUID establishmentId, String cursor, Integer limit) {
-        return Response.ok(OrderMapper.toOrderPage(operationalOrderService.list(
-                        cookie(RestaurateurIdentityGateway.ACCESS_COOKIE), establishmentId, cursor, limit)))
+        return Response.ok(OrderMapper.toOrderPage(
+                        operationalOrderService.list(accessToken, establishmentId, cursor, limit)))
                 .build();
     }
 
     @Override
     public Response updateOrderStatus(UUID orderId, OrderStatusUpdate request) {
         OrderStatusService.StatusUpdate update = orderStatusService.update(
-                cookie(RestaurateurIdentityGateway.ACCESS_COOKIE),
+                accessToken,
                 orderId,
                 com.surplasse.order.entity.OrderStatus.fromDbValue(
                         request.getStatus().value()));
         update.event().ifPresent(orderEventBroadcaster::publish);
         return Response.ok(OrderMapper.toOrderStatusResult(update)).build();
-    }
-
-    private String cookie(String name) {
-        Cookie cookie = headers.getCookies().get(name);
-        return cookie == null ? null : cookie.getValue();
     }
 
     /**

@@ -93,10 +93,6 @@ public class Order {
         return displayNumber;
     }
 
-    public LocalDate getServiceDay() {
-        return serviceDay;
-    }
-
     public int getTotalCents() {
         return totalCents;
     }

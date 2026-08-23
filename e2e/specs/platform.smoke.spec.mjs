@@ -16,12 +16,16 @@ test.describe("Platform availability", () => {
     expect(response.headers()["x-content-type-options"]).toBe("nosniff");
   });
 
-  test("backend readiness is up", async ({ request }) => {
+  test("backend readiness follows the public edge policy", async ({ request }) => {
     const response = await request.get(
       new URL("/q/health/ready", target.apiUrl).toString(),
     );
 
-    expect(response.status()).toBe(200);
+    expect(response.status()).toBe(target.publicReadinessStatus);
+    if (target.publicReadinessStatus === 404) {
+      return;
+    }
+
     const health = await response.json();
     expect(health.status).toBe("UP");
     expect(Array.isArray(health.checks)).toBe(true);

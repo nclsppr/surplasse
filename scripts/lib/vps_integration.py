@@ -356,7 +356,7 @@ def contract_bytes(revision: str) -> bytes:
                 "apply_command": "apply",
                 "database_role": "surplasse_runtime",
                 "entrypoint": "/opt/surplasse/scripts/backend-pilot-bootstrap.sh",
-                "flyway_version": 14,
+                "flyway_version": 15,
                 "initial_order_intake_status": "paused",
                 "manifest": {
                     "container_path": "/run/surplasse/pilot-bootstrap.json",

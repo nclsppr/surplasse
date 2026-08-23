@@ -7,7 +7,7 @@ description: "Intégration continue, publication de candidats OCI depuis main et
 
 # CI/CD
 
-Surplasse s'appuie sur GitHub Actions pour l'intégration continue et la publication de candidats pilotés ensuite par Atlas. Les workflows Pages, API, Backend, Frontends, E2E, Images et VPS integration existent. Les Dockerfiles, les piles Compose locale et historique et le bundle applicatif Atlas sont versionnés. `images.yml` construit, scanne et publie les cinq images applicatives dans GHCR. `vps-integration.yml` publie ensuite un digest `application-release` attesté. Il ne se connecte pas au VPS et n'active aucun service. Le runbook qui peut muter Atlas appartient à `vps-infra`.
+Surplasse s'appuie sur GitHub Actions pour l'intégration continue et la publication de candidats pilotés ensuite par Atlas. Les workflows Pages, API, Backend, Frontends, E2E, Images et VPS integration existent. Les Dockerfiles, la pile Compose locale et le bundle applicatif Atlas sont versionnés. `images.yml` construit, scanne et publie les cinq images applicatives dans GHCR. `vps-integration.yml` publie ensuite un digest `application-release` attesté. Il ne se connecte pas au VPS et n'active aucun service. Le runbook qui peut muter Atlas appartient à `vps-infra`.
 
 Pour le détail des environnements et de la topologie de production, voir [Environnements](../operations/environnements.md) et [Exploitation](../operations/index.md).
 
@@ -48,7 +48,7 @@ Chaque PR Renovate exécute les workflows concernés par ses chemins. `pages.yml
 
 ## Le workflow Pages
 
-Le fichier `.github/workflows/pages.yml` construit la documentation Nimbus depuis `docs/`, l'assemble avec la landing statique, le tunnel d'embarquement et son aperçu du Dashboard (`frontends/onboarding/`), puis ajoute les assets de marque (`brand/`), le sélecteur de démos UI2 et le rapport Allure avant de déployer l'ensemble sur GitHub Pages.
+Le fichier `.github/workflows/pages.yml` construit la documentation Nimbus depuis `docs/`, l'assemble avec la landing statique, le tunnel d'embarquement et son aperçu du Dashboard (`frontends/onboarding/`), puis ajoute les assets de marque (`brand/`) et le rapport Allure avant de déployer l'ensemble sur GitHub Pages.
 
 | Élément | Valeur |
 |---|---|
@@ -57,11 +57,11 @@ Le fichier `.github/workflows/pages.yml` construit la documentation Nimbus depui
 | Concurrence | Groupe `pages`, avec annulation des exécutions en cours (`cancel-in-progress`) |
 | Jobs | `quality` et `local-tests`, puis `build`, `deploy` et propagation différée d'un smoke rouge |
 
-Le job `quality` utilise le checkout exact du workflow. Il vérifie les profils de domaines, la démo statique, les assets de marque, le package partagé, puis le lint, les tests et le build de Commande, du Dashboard et des quatre packages UI2. Cette porte tourne sur les push, les pull requests et les lancements manuels. Elle est ignorée pendant l'exécution horaire, qui relit un SHA de `main` déjà qualifié.
+Le job `quality` utilise le checkout exact du workflow. Il vérifie les profils de domaines, la démo statique, les assets de marque, le package partagé, puis le lint, les tests et le build de Commande et du Dashboard. Cette porte tourne sur les push, les pull requests et les lancements manuels. Elle est ignorée pendant l'exécution horaire, qui relit un SHA de `main` déjà qualifié.
 
-Le job `local-tests` tourne en parallèle. Il installe Chromium, dérive le domaine development depuis le profil central, crée un certificat éphémère, démarre le cluster avec `npm run local:up`, puis exécute `npm run e2e:test -- development`. Son cache restaure et sauvegarde l'historique Allure de cette seule cible. Le rapport HTML autonome est exporté dans un petit artefact destiné au job `build`. Le pointeur, les publications, les résultats et les diagnostics restent aussi disponibles 30 jours dans un artefact rejouable. Le cluster et ses volumes sont supprimés à la fin du job.
+Le job `local-tests` tourne en parallèle. Il installe Chromium, dérive le domaine development depuis le profil central, crée un certificat éphémère, démarre le cluster avec `npm run local:up`, puis exécute `npm run e2e:test -- development`. Son cache restaure et sauvegarde uniquement `history.jsonl` pour cette cible. Le rapport HTML autonome est exporté dans un petit artefact destiné au job `build`. Le rapport courant, `test-results/` et l'historique restent aussi disponibles 30 jours dans l'artefact du lancement. Le cluster et ses volumes sont supprimés à la fin du job.
 
-Le job `build` ne démarre que si `local-tests` a produit un rapport et si `quality` a réussi ou a été normalement ignoré pour l'horaire. Il enchaîne un nouveau checkout du même SHA, l'installation de Node 24 (`actions/setup-node@v4`), les installations verrouillées, une nouvelle vérification du fichier de domaines généré avec `npm run domains:check`, puis le build documentaire. Nimbus exécute les tests de conversion, le contrôle Astro, le build, Pagefind et le lint avec l'origine `https://nclsppr.github.io` et le chemin de base `/surplasse/docs`. L'assemblage génère explicitement le `runtime-config.js` du profil production, place la landing et le tunnel à la racine, les assets de marque sous `brand/`, la documentation Nimbus sous `docs/`, le rapport Allure sous `local-tests/` et les trois builds UI2 `noindex` sous `/_experiments/untitled/`. Commande2 utilise seulement dans ce build une carte synthétique signalée. Dashboard2 ouvre une vue de service avec session, commandes et actions synthétiques conservées uniquement en mémoire. Ces modes ne s'activent pas dans les builds Compose ou Vite ordinaires. Le site assemblé est publié comme artefact Pages via `actions/upload-pages-artifact@v3`.
+Le job `build` ne démarre que si `local-tests` a produit un rapport et si `quality` a réussi ou a été normalement ignoré pour l'horaire. Il enchaîne un nouveau checkout du même SHA, l'installation de Node 24 (`actions/setup-node@v4`), les installations verrouillées, une nouvelle vérification du fichier de domaines généré avec `npm run domains:check`, puis le build documentaire. Nimbus exécute les tests de conversion, le contrôle Astro, le build, Pagefind et le lint avec l'origine `https://nclsppr.github.io` et le chemin de base `/surplasse/docs`. L'assemblage génère explicitement le `runtime-config.js` du profil production, place la landing et le tunnel à la racine, les assets de marque sous `brand/`, la documentation Nimbus sous `docs/` et le rapport Allure sous `local-tests/`. Le site assemblé est publié comme artefact Pages via `actions/upload-pages-artifact@v3`.
 
 Le job `deploy` dépend de `build`. Il refuse explicitement l'événement `pull_request` et ne s'exécute que si la référence est `refs/heads/main`. Il cible alors l'environnement GitHub `github-pages` et publie l'artefact avec `actions/deploy-pages@v4`. Les permissions `pages: write` et `id-token: write` sont limitées à ce job ; les installations et validations précédentes restent en lecture seule sur le dépôt. Une suite UI rouge ou une PR Renovate ne peut donc pas publier le SHA concerné.
 
@@ -75,10 +75,10 @@ Le monorepo suit un découpage par filtres de chemins (`paths`) : un push ou une
 
 | Workflow | Déclencheur (filtre de chemins) | Étapes |
 |---|---|---|
-| `pages.yml` | chaque `push` sur `main`, chaque `pull_request` vers `main`, lancement manuel et chaque heure à la minute 37 | Porte qualité UI hors horaire, builds UI2, cluster Compose development jetable, smoke Playwright, rapport Allure et build Nimbus ; déploiement GitHub Pages uniquement depuis `main` |
+| `pages.yml` | chaque `push` sur `main`, chaque `pull_request` vers `main`, lancement manuel et chaque heure à la minute 37 | Porte qualité UI hors horaire, cluster Compose development jetable, smoke Playwright, rapport Allure et build Nimbus ; déploiement GitHub Pages uniquement depuis `main` |
 | `api.yml` | `push` ou `pull_request`, chemins `api/**`, `openapitools.json`, `scripts/api/**`, manifestes npm et outillage `mise` | Lint Spectral, contrôle de compatibilité `oasdiff` contre le commit précédent (dérogation par préfixe de commit `api!:`), fraîcheur de la génération (`npm run api:generate` puis `git diff --exit-code`) |
 | `backend.yml` | `push` ou `pull_request`, chemins `backend/**`, `api/**`, profils de domaines, wrapper, `package.json` ou outillage `mise` | Java 25 Temurin, cache Maven, `npm run backend:verify` : injection du profil, compilation, tests unitaires et d'intégration (PostgreSQL 17 via Testcontainers), métriques Micrometer et endpoint `/q/metrics`, contrat et formatage Spotless |
-| `frontends.yml` | `push` ou `pull_request`, chemins `frontends/**`, profils, scripts Compose et locaux, fichiers Compose, `infra/caddy/**`, `infra/images/**`, `infra/observability/**`, `brand/**`, `api/**` ou outillage `mise` | Profils et QR générés, tests isolés du contrôleur Compose et des rapports du cockpit, syntaxe shell, modèles Compose avec et sans observabilité, refus des configurations dangereuses, validation de Caddy, CORS, package `shared`, lint, tests et builds des fronts |
+| `frontends.yml` | `push` ou `pull_request`, chemins `frontends/**`, profils, scripts Compose et locaux, fichiers Compose, `infra/caddy/**`, `infra/images/**`, `infra/observability/**`, `brand/**`, `api/**` ou outillage `mise` | Profils et QR générés, syntaxe shell, modèle Compose local avec et sans observabilité, contrat Compose Atlas, refus des configurations dangereuses, validation de Caddy, CORS, package `shared`, lint, tests et builds des fronts |
 | `e2e.yml` | `push` ou `pull_request` ciblé sur le package, sa configuration ou l'outillage `mise`, chaque heure à la minute 17 après activation, plus déclenchement manuel | validation légère sur push et PR ; Chromium, smokes sans écriture, rapport Allure 3, historique propre à la cible, traces et artefact rejouable pour les lancements de surveillance |
 | `toolchain.yml` | `push` ou `pull_request`, `mise.toml`, `mise.lock`, `package.json`, `renovate.json5` ou le workflow lui-même | Validation de la configuration Renovate, installation réelle de Node, Java et Python depuis le lockfile sur Ubuntu, puis affichage des versions résolues |
 | `images.yml` | `push` sur `main` ou `pull_request`, chemins `backend/**`, `docs/**`, `docs-nimbus/**`, `frontends/**`, `brand/**`, profils, recettes d'images, scripts et fichiers Compose | Contrôles BuildKit et Compose, build production des cinq images applicatives, scan Trivy bloquant ; sur `main` seulement, tag par SHA complet, push `linux/amd64` vers GHCR, SBOM, provenance et attestation |
@@ -100,7 +100,7 @@ push sur main
      +--> filtres de chemins
      |         |
      |         +--> backend.yml     (si backend/ ou api/ touchés)
-     |         +--> frontends.yml   (si frontends/, config/domains/, cockpit, brand/ ou api/ touchés)
+     |         +--> frontends.yml   (si frontends/, config/domains/, scripts, brand/ ou api/ touchés)
      |         +--> api.yml         (si api/ touché)
      |         +--> pages.yml       (à chaque push sur main)
      |
@@ -114,7 +114,7 @@ Une image immuable présente dans GHCR n'est pas une promotion. Le job `Publish 
 
 ## Le workflow Images
 
-`images.yml` commence par `npm run images:check` et `npm run compose:config:test`. La première commande exécute les contrôles du frontend Dockerfile épinglé sur toutes les recettes et variantes. La seconde résout les profils development et production, puis vérifie notamment que les secrets sensibles viennent de fichiers hôte protégés et passent sous `/run/secrets`, que les valeurs directes ont disparu de la configuration des conteneurs, que les capacités, utilisateurs et systèmes de fichiers correspondent à la politique et que les logs ont une rotation bornée.
+`images.yml` commence par `npm run images:check` et `npm run compose:config:test`. La première commande exécute les contrôles du frontend Dockerfile épinglé sur les recettes maintenues. La seconde résout le cluster development et le fragment Atlas, puis vérifie notamment que les secrets sensibles viennent de fichiers hôte protégés et passent sous `/run/secrets`, que les valeurs directes ont disparu de la configuration des conteneurs, que les capacités, utilisateurs et systèmes de fichiers correspondent à la politique et que les logs ont une rotation bornée.
 
 Une matrice construit ensuite `backend`, `onboarding`, `commande`, `dashboard` et `docs` pour le profil production. Les caches npm et Maven de BuildKit sont conservés dans le cache GitHub Actions, sans entrer dans les couches finales. Chaque image chargée localement est analysée par Trivy 0.72.0. Après la seconde construction, le digest exact poussé est analysé à son tour avant l'attestation. Une vulnérabilité `HIGH` ou `CRITICAL` disposant d'un correctif arrête le workflow. Les actions GitHub, Docker, Trivy et d'attestation sont toutes épinglées par SHA.
 
@@ -124,11 +124,9 @@ Le contrat Atlas cible `linux/amd64`. Une autre architecture exigerait une évol
 
 La politique publique `SURPLASSE_PRODUCTION_RELEASE_MODE` vient de `config/deployment/production-release.env`. Le workflow exige `testers` ou `public` et transmet la valeur du premier job aux matrices. La clé Stripe publiable de Commande vient séparément de la variable de dépôt `VITE_STRIPE_PUBLISHABLE_KEY`. En mode `testers`, le workflow exige `pk_test_` et refuse `pk_live_`. En mode `public`, il exige `pk_live_` et refuse `pk_test_`. Une valeur absente ou contenant un espace arrête la publication. Le SHA-256 de la clé est figé pour empêcher une substitution entre les matrices. Le script suit le JavaScript chargé par `index.html` et exige la valeur exacte avec un seul préfixe du mode attendu, dans l'image scannée puis dans le digest publié. Ce contrôle ne prouve pas l'existence de la clé chez Stripe ni son appartenance au même compte que la clé secrète Backend. Ces preuves restent dans le préflight du mode choisi. Le Dashboard reçoit le mode public uniquement pour sa bannière, jamais la clé. Une pull request peut seulement construire et scanner un candidat non publiable. La clé publiable est publique et sa présence dans les journaux, les arguments et la provenance de construction est assumée. Aucun secret Stripe, SMTP, PostgreSQL, JWT ou DNS n'entre dans le workflow ou dans un argument de build.
 
-Les jobs `domains` et `dev-cockpit` utilisent seulement Node 24 et son runner de tests natif. Le contrôleur Compose du cockpit y reçoit un exécuteur simulé : ce job ne démarre ni Docker, ni le cluster, ni Chromium. Les jobs `commande` et `dashboard` installent d'abord `frontends/shared/`, consommé en source conformément à l'ADR-0014, puis leur propre verrou npm. Le job Dashboard exécute successivement `npm run lint`, `npm test` et `npm run build`. Ce dernier inclut `tsc --noEmit` avant le build Vite. Aucun de ces outils de vérification ne devient un processus de production.
+Le job `domains` utilise seulement Node 24 et son runner de tests natif. Les jobs `commande` et `dashboard` installent d'abord `frontends/shared/`, consommé en source conformément à l'ADR-0014, puis leur propre verrou npm. Le job Dashboard exécute successivement `npm run lint`, `npm test` et `npm run build`. Ce dernier inclut `tsc --noEmit` avant le build Vite. Aucun de ces outils de vérification ne devient un processus de production.
 
-Le bouton Playwright du cockpit appelle uniquement `npm run e2e:test -- development` sur le poste, après contrôle de la santé du cluster Compose local, puis rend le dernier rapport accessible sur `REPORTS_URL`. Il reste séparé du job `local-tests`, qui construit son propre cluster jetable et publie son propre historique sur GitHub Pages. Le cockpit ne propose jamais `production` ou `custom`. Ces cibles passent par la CLI ou par le workflow E2E, ce qui conserve une sélection explicite et une trace de l'exécution.
-
-L'observabilité suit les mêmes portes que le code qu'elle décrit. Le Backend teste ses compteurs avec un registre en mémoire et vérifie que `/q/metrics` exporte les séries attendues. La validation Compose résout les deux environnements avec le profil `observability`, contrôle les images épinglées, les montages en lecture seule, les volumes et l'absence de dépendance du Backend vers Prometheus ou Grafana. La même image Prometheus épinglée exécute `promtool check config`, ce qui charge aussi les règles référencées, puis Node parse le JSON du tableau de bord. Le test Caddy exige un `404` public sur `/q/metrics` et la production ne reçoit aucun upstream Grafana.
+L'observabilité suit les mêmes portes que le code qu'elle décrit. Le Backend teste ses compteurs avec un registre en mémoire et vérifie que `/q/metrics` exporte les séries attendues. La validation Compose résout le profil local `observability`, puis contrôle séparément les cibles et fichiers Atlas, les images épinglées, les montages en lecture seule, les volumes et l'absence de dépendance du Backend vers Prometheus ou Grafana. L'image Prometheus locale épinglée exécute `promtool check config`, ce qui charge aussi les règles référencées, puis Node parse le JSON du tableau de bord. Le test Caddy exige un `404` public sur `/q/metrics`.
 
 Le déploiement applicatif normal ne dépend pas du profil facultatif. Une indisponibilité de Prometheus ou Grafana ne rend ni le SHA applicatif, ni le healthcheck Backend rouges. Une modification de leurs fichiers se déploie par un démarrage ou une recréation explicite des deux services après validation. Les règles restent sans canal de notification tant qu'Alertmanager n'est pas livré.
 
@@ -138,7 +136,7 @@ Le workflow `.github/workflows/pages.yml` exerce la cible `development` à la mi
 
 Le workflow `.github/workflows/e2e.yml` valide au push le résolveur de cibles et le chargement de toutes les spécifications, sans installer de navigateur ni joindre un environnement. Son horaire `17 * * * *` évite le début exact de l'heure, souvent chargé chez GitHub. Il cible le profil `production`, mais le job planifié reste ignoré tant que la variable de dépôt `E2E_MONITORING_ENABLED` ne vaut pas `true`. Cette porte empêche de signaler comme panne la route Surplasse qui n'est pas encore activée sur Atlas.
 
-Un lancement manuel choisit `production` ou `custom`. La seconde option exige `target_id` et `base_domain`, puis accepte un `establishment_slug` facultatif. Elle permet de rejouer le même rapport sur un deuxième serveur ou une future UAT. Elle ne construit pas cette UAT et ne remplace pas son profil de domaines applicatif. Les rapports produits restent dans les artefacts GitHub Actions et ne sont pas publiés par le cockpit local.
+Un lancement manuel choisit `production` ou `custom`. La seconde option exige `target_id` et `base_domain`, puis accepte un `establishment_slug` facultatif. Elle permet de rejouer le même rapport sur un deuxième serveur ou une future UAT. Elle ne construit pas cette UAT et ne remplace pas son profil de domaines applicatif. Les rapports produits restent dans les artefacts GitHub Actions.
 
 Le job suit cet ordre :
 
@@ -146,22 +144,22 @@ Le job suit cet ordre :
 checkout et npm ci du package e2e
               |
               v
-validation de la cible et restauration du pointeur et de l'historique
+validation de la cible et restauration de history.jsonl
               |
               v
 installation de Chromium, puis smokes Playwright
               |
               v
-génération Allure 3 et mise à jour de l'historique
+génération Allure 3, remplacement du rapport courant et de test-results
               |
               +--> sauvegarde du cache propre à la cible
-              +--> artefact rapport, résultats, historique et diagnostics
+              +--> artefact rapport, historique et diagnostics
               |
               v
 propagation du code rouge après conservation des preuves
 ```
 
-Le cache utilise une clé immuable par `run_id` et un préfixe de restauration par cible. Il restaure `current.json` et le `history.jsonl` de la publication associée. Deux cibles ne partagent donc jamais leurs tendances. L'artefact est conservé 30 jours et contient le pointeur ainsi que les publications rejouables, car un cache GitHub peut être évincé. La concurrence est sérialisée par cible avec `cancel-in-progress: false`, afin que deux lancements ne réécrivent pas simultanément le même historique.
+Le cache utilise une clé immuable par `run_id` et un préfixe de restauration par cible. Il restaure uniquement `history.jsonl`. Deux cibles ne partagent donc jamais leurs tendances. L'artefact est conservé 30 jours et contient le rapport courant, `test-results/` et l'historique, car un cache GitHub peut être évincé. Les résultats Allure intermédiaires restent dans l'espace de travail temporaire et sont supprimés après la génération du rapport autonome. La concurrence est sérialisée par cible avec `cancel-in-progress: false`, afin que deux lancements ne réécrivent pas simultanément le même historique.
 
 Le slug témoin planifié vient de `E2E_PRODUCTION_ESTABLISHMENT_SLUG`. En son absence, le test mobile Commande est visible comme ignoré et les autres smokes restent obligatoires. Aucune clé applicative ou donnée de connexion n'entre dans le workflow. Les tests horaires ne créent ni magic link, ni session de table, ni commande, ni paiement.
 

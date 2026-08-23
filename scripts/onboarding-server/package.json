@@ -1,0 +1,14 @@
+{
+  "name": "@surplasse/onboarding-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Static server and tests for the Onboarding assets.",
+  "scripts": {
+    "start": "node onboarding-server.mjs",
+    "test": "node --test test/onboarding-server.test.mjs"
+  },
+  "engines": {
+    "node": ">=24 <25"
+  }
+}

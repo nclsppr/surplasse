@@ -4,7 +4,6 @@ import test from "node:test";
 import {
   getE2eExecutionPaths,
   getE2ePaths,
-  getE2eRunPaths,
   resolveE2eTarget,
 } from "../support/target.mjs";
 
@@ -28,6 +27,8 @@ test("known profile derives every URL from the central domain config", () => {
   assert.notEqual(development.baseDomain, production.baseDomain);
   assert.equal(development.ignoreHTTPSErrors, true);
   assert.equal(production.ignoreHTTPSErrors, false);
+  assert.equal(development.publicReadinessStatus, 200);
+  assert.equal(production.publicReadinessStatus, 404);
 });
 
 test("custom target requires an isolated ID and derives HTTPS origins", () => {
@@ -45,6 +46,7 @@ test("custom target requires an isolated ID and derives HTTPS origins", () => {
   );
   assert.match(target.storageId, /^uat-one-[a-f0-9]{12}$/u);
   assert.equal(target.ignoreHTTPSErrors, false);
+  assert.equal(target.publicReadinessStatus, 404);
 });
 
 test("custom history identity includes the normalized base domain", () => {
@@ -88,27 +90,23 @@ test("artifact paths stay isolated under a validated target ID", () => {
   assert.notEqual(first.root, second.root);
   assert.match(first.history, /production\/history\.jsonl$/u);
   assert.match(second.history, /uat-one\/history\.jsonl$/u);
-  assert.match(first.current, /production\/current\.json$/u);
-  assert.match(first.lock, /production\/run\.lock$/u);
-  assert.match(first.releases, /production\/releases$/u);
-  assert.match(first.staging, /production\/runs$/u);
+  assert.match(first.report, /production\/allure-report$/u);
+  assert.match(first.playwright, /production\/test-results$/u);
   assert.throws(() => getE2ePaths("../outside"), /kebab-case/u);
 });
 
-test("execution paths use an isolated UUID run without changing canonical paths", () => {
-  const runId = "11111111-1111-4111-8111-111111111111";
+test("execution paths use an explicit temporary workspace", () => {
   const canonical = getE2ePaths("development");
-  const staged = getE2eRunPaths("development", runId);
   const selected = getE2eExecutionPaths("development", {
-    SURPLASSE_E2E_RUN_ID: runId,
+    SURPLASSE_E2E_WORKSPACE: "/tmp/surplasse-e2e-development-test",
   });
 
-  assert.equal(selected.root, staged.root);
-  assert.match(staged.root, /development\/runs\/11111111-1111-4111-8111-111111111111$/u);
+  assert.equal(selected.root, "/tmp/surplasse-e2e-development-test");
+  assert.equal(selected.history, "/tmp/surplasse-e2e-development-test/history.jsonl");
   assert.equal(getE2eExecutionPaths("development", {}).root, canonical.root);
   assert.equal(getE2ePaths("development").root, canonical.root);
   assert.throws(
-    () => getE2eRunPaths("development", "../shared"),
-    /lowercase UUID v4/u,
+    () => getE2eExecutionPaths("development", { SURPLASSE_E2E_WORKSPACE: "relative" }),
+    /absolute path/u,
   );
 });

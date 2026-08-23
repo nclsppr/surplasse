@@ -25,7 +25,7 @@ Internet
 | Caddy | ------------------------------> | Backend Quarkus   |
 +---+---+                                 | /q/health         |
     |                                     | /q/metrics interne|
-    | refuse /q/metrics public            +---------+---------+
+    | refuse /q/* public en production    +---------+---------+
     |                                               ^
     |                                               | scrape pull
     |                                     +---------+---------+
@@ -58,10 +58,10 @@ curl --fail https://api.surplasse.test/q/health/ready
 | Composant | Version | Rôle | Exposition |
 |---|---:|---|---|
 | Registre Micrometer Prometheus | fourni par Quarkus 3.37.4 | Produit les métriques automatiques et métier dans le processus Backend | `/q/metrics` sur le réseau Compose, refusé par Caddy depuis le domaine API |
-| Prometheus | 3.13.1 dans le profil local et historique ; 3.13.2 `busybox` sur Atlas | Collecte, conserve et évalue les règles | Réseau Compose seulement, aucune route Caddy ni port hôte |
-| Grafana | 13.1.1 dans le profil local et historique ; 13.1.3 `slim` sur Atlas | Affiche le tableau de bord provisionné | `GRAFANA_URL` derrière Caddy en développement ; port loopback et tunnel SSH en production |
+| Prometheus | 3.13.1 dans le profil local ; version de plateforme sur Atlas | Collecte, conserve et évalue les règles | Réseau Compose seulement, aucune route Caddy ni port hôte |
+| Grafana | 13.1.1 dans le profil local ; version de plateforme sur Atlas | Affiche le tableau de bord provisionné | `GRAFANA_URL` derrière Caddy en développement ; port loopback et tunnel SSH en production |
 
-Le catalogue `config/deployment/images.env` épingle les deux images du profil local et du chemin historique par tag et digest. La production Atlas reçoit ses versions depuis `vps-infra` : le bundle Surplasse fournit uniquement sa cible, ses règles et son tableau de bord. Prometheus utilise `prometheus_data`, Grafana `grafana_data`. La rétention Prometheus est de 7 jours en développement et de 15 jours dans l'exemple historique de production. Ces volumes sont persistants mais reconstructibles : les configurations, règles, sources et tableaux de bord canoniques vivent dans Git. PostgreSQL reste l'unique sauvegarde métier obligatoire.
+Le catalogue `config/deployment/images.env` épingle les deux images du profil local par tag et digest. La production Atlas reçoit ses versions et sa rétention depuis `vps-infra` : le bundle Surplasse fournit uniquement sa cible, ses règles et son tableau de bord. En local, Prometheus utilise `prometheus_data`, Grafana `grafana_data` et la rétention Prometheus est de 7 jours. Ces volumes sont persistants mais reconstructibles : les configurations, règles, sources et tableaux de bord canoniques vivent dans Git. PostgreSQL reste l'unique sauvegarde métier obligatoire.
 
 ## Healthchecks
 
@@ -69,11 +69,11 @@ Le Backend expose les endpoints standards de Quarkus :
 
 | Endpoint | Question | Usage |
 |---|---|---|
-| `/q/health/live` | La JVM répond-elle ? | Diagnostic de vivacité |
-| `/q/health/ready` | Le Backend et sa dépendance PostgreSQL sont-ils prêts ? | Healthcheck Compose et porte de déploiement |
-| `/q/health` | Quel est l'état agrégé ? | Sonde externe future |
+| `/q/health/live` | La JVM répond-elle ? | Diagnostic interne de vivacité |
+| `/q/health/ready` | Le Backend et sa dépendance PostgreSQL sont-ils prêts ? | Healthcheck interne Compose et porte de déploiement |
+| `/q/health` | Quel est l'état agrégé ? | Diagnostic interne, jamais sonde publique de production |
 
-Prometheus expose `/-/healthy` et `/-/ready` sur son réseau interne. Grafana expose `/api/health`. Leurs healthchecks servent à `up --wait` lorsqu'ils sont démarrés explicitement. Ils ne remontent jamais dans la santé du Backend.
+Prometheus expose `/-/healthy` et `/-/ready` sur son réseau interne. Grafana expose `/api/health`. Leurs healthchecks servent à `up --wait` lorsqu'ils sont démarrés explicitement. Ils ne remontent jamais dans la santé du Backend. En production, Caddy répond `404` à toute surface `/q/*`, y compris les endpoints de santé. La disponibilité est sondée dans le réseau interne, puis par une route métier publique.
 
 Quatre contrôles restent complémentaires :
 
@@ -182,7 +182,7 @@ Les seuils initiaux sont des garde-fous à calibrer avec du trafic réel. Un éc
 
 ## Logs et données personnelles
 
-En local et dans le chemin Compose historique, les logs se consultent par `scripts/compose.sh <profil> logs`. Sur Atlas, les commandes bornées et l'identité des projets Compose appartiennent au runbook `vps-infra`. Le Backend émet du JSON structuré en production et du texte lisible en développement. Loki n'est pas installé.
+En local, les logs se consultent par `scripts/compose.sh development logs`. Sur Atlas, les commandes bornées et l'identité du projet Compose appartiennent au runbook `vps-infra`. Le Backend émet du JSON structuré en production et du texte lisible en développement. Loki n'est pas installé.
 
 !!! warning Aucune donnée personnelle dans les logs ou métriques
 Ne jamais journaliser ni étiqueter une adresse email, un prénom, un jeton, une charge utile de webhook ou une donnée de carte. Les logs peuvent porter des identifiants techniques opaques pour un diagnostic court. Les métriques restent agrégées et sans identifiant. La rétention des logs est plafonnée à 30 jours selon la page [RGPD](rgpd.md).
@@ -190,17 +190,17 @@ Ne jamais journaliser ni étiqueter une adresse email, un prénom, un jeton, une
 
 ## Accès local et production
 
-En développement, le profil de domaines dérive `GRAFANA_URL`. Caddy route uniquement cet hôte vers Grafana. La lecture anonyme locale est limitée au rôle `Viewer` et le compte administrateur jetable vient du profil de déploiement versionné. Le cockpit affiche le service et son lien lorsqu'il est disponible. Prometheus reste interne et se consulte par ses fichiers, ses logs ou une commande dans le conteneur, pas par une URL navigateur alternative.
+En développement, le profil de domaines dérive `GRAFANA_URL`. Caddy route uniquement cet hôte vers Grafana. La lecture anonyme locale est limitée au rôle `Viewer` et le compte administrateur jetable vient du profil de déploiement versionné. Prometheus reste interne et se consulte par ses fichiers, ses logs ou une commande dans le conteneur, pas par une URL navigateur alternative.
 
-Après une future activation Surplasse, Grafana n'aura aucun nom DNS ni route Caddy. Son port sera publié sur `127.0.0.1` du VPS uniquement. Depuis un poste d'exploitation :
+Sur Atlas, Grafana n'a aucun nom DNS ni route Caddy. Son accès privé passe uniquement par le port loopback et le tunnel définis dans `vps-infra`. La forme suivante illustre le principe depuis un poste d'exploitation, sans fixer le port de la plateforme :
 
 ```bash
 ssh -N -L 3000:127.0.0.1:3000 <utilisateur>@<vps>
 ```
 
-Le navigateur ouvrira alors l'extrémité locale du tunnel. Ce loopback est un accès d'administration privé, pas une URL applicative ni une valeur à introduire dans un profil de domaines. L'accès anonyme restera désactivé et les identifiants Grafana de production viendront des fichiers protégés de la plateforme.
+Le navigateur ouvre alors l'extrémité locale du tunnel. Ce loopback est un accès d'administration privé, pas une URL applicative ni une valeur à introduire dans un profil de domaines. L'accès anonyme reste désactivé et les identifiants Grafana de production viennent des fichiers protégés de la plateforme.
 
-Le détail des commandes de démarrage, arrêt, mise à jour et recréation des volumes vit dans [Déploiement Compose](deploiement-compose.md#observabilite-facultative).
+La frontière entre les commandes locales et le cycle de vie possédé par Atlas vit dans [Déploiement Atlas](deploiement-compose.md#observabilite-facultative).
 
 ## Métriques d'exploitation et métriques produit
 
@@ -248,7 +248,7 @@ Uptime Kuma, Alertmanager, Loki, Tempo et un exporteur hôte ne sont pas install
 | Page | Contenu |
 |---|---|
 | [ADR-0029](../decisions/adr-0029-observabilite-prometheus-grafana.md) | Raisons et conséquences de la chaîne facultative |
-| [Déploiement Compose](deploiement-compose.md#observabilite-facultative) | Exploitation sous Ubuntu LTS et cycle de vie des volumes |
+| [Déploiement Atlas](deploiement-compose.md#observabilite-facultative) | Exploitation sous Ubuntu LTS et propriété des volumes |
 | [Environnements](environnements.md#observabilite) | Variables, accès local et tunnel de production |
 | [Backend](../architecture/backend.md#les-extensions-quarkus) | Extension Micrometer et place de l'observateur applicatif |
 | [Sécurité](../architecture/securite.md) | Fermeture publique de `/q/metrics` et accès privé à Grafana |

@@ -114,9 +114,7 @@ jobs:
         id: history
         uses: actions/cache/restore@v4
         with:
-          path: |
-            .surplasse/e2e/${{ steps.target.outputs.id }}/current.json
-            .surplasse/e2e/${{ steps.target.outputs.id }}/releases/*/history.jsonl
+          path: .surplasse/e2e/${{ steps.target.outputs.id }}/history.jsonl
           key: allure-history-${{ steps.target.outputs.id }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
             allure-history-${{ steps.target.outputs.id }}-
@@ -133,19 +131,18 @@ jobs:
         if: always() && steps.tests.outcome != 'skipped'
         uses: actions/cache/save@v4
         with:
-          path: |
-            .surplasse/e2e/${{ steps.target.outputs.id }}/current.json
-            .surplasse/e2e/${{ steps.target.outputs.id }}/releases/*/history.jsonl
+          path: .surplasse/e2e/${{ steps.target.outputs.id }}/history.jsonl
           key: allure-history-${{ steps.target.outputs.id }}-${{ github.run_id }}-${{ github.run_attempt }}
 
-      - name: Upload the replayable report and diagnostics
+      - name: Upload the current report and history
         if: always() && steps.tests.outcome != 'skipped'
         uses: actions/upload-artifact@v4
         with:
           name: e2e-${{ steps.target.outputs.id }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            .surplasse/e2e/${{ steps.target.outputs.id }}/current.json
-            .surplasse/e2e/${{ steps.target.outputs.id }}/releases
+            .surplasse/e2e/${{ steps.target.outputs.id }}/history.jsonl
+            .surplasse/e2e/${{ steps.target.outputs.id }}/allure-report
+            .surplasse/e2e/${{ steps.target.outputs.id }}/test-results
           if-no-files-found: warn
           include-hidden-files: true
           retention-days: 30

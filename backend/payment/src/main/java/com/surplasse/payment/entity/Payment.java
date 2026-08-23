@@ -15,7 +15,6 @@ public class Payment {
 
     private UUID orderId;
     private UUID establishmentId;
-    private String provider;
     private String externalReference;
     private UUID creationKey;
     private String connectedAccountId;
@@ -40,7 +39,6 @@ public class Payment {
         this.id = id;
         this.orderId = orderId;
         this.establishmentId = establishmentId;
-        this.provider = "stripe";
         this.externalReference = externalReference;
         this.connectedAccountId = connectedAccountId;
         this.applicationFeeAmount = applicationFeeAmount;
@@ -107,10 +105,6 @@ public class Payment {
 
     public UUID getEstablishmentId() {
         return establishmentId;
-    }
-
-    public String getProvider() {
-        return provider;
     }
 
     public String getExternalReference() {

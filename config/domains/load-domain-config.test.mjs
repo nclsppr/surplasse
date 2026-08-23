@@ -11,6 +11,7 @@ import {
   frontendEnvironmentDefinitions,
   loadDomainConfig,
   loadFrontendDomainConfig,
+  parseDomainProfile,
 } from "./load-domain-config.mjs";
 
 test("development exposes the complete local HTTPS topology", () => {
@@ -19,8 +20,6 @@ test("development exposes the complete local HTTPS topology", () => {
   assert.equal(config.APP_BASE_DOMAIN, "surplasse.test");
   assert.equal(config.API_URL, "https://api.surplasse.test");
   assert.equal(config.PROBLEM_TYPE_BASE, "https://surplasse.com/problems/");
-  assert.equal(config.COOKIE_DOMAIN, "");
-  assert.equal(config.REPORTS_URL, "https://reports.surplasse.test");
   assert.equal(config.GRAFANA_URL, "https://grafana.surplasse.test");
   assert.equal(
     config.RESERVED_SUBDOMAINS,
@@ -34,7 +33,7 @@ test("domain profiles store one base domain and derive every application URL", (
     assert.match(source, /^APP_BASE_DOMAIN=/mu);
     assert.doesNotMatch(
       source,
-      /^(?:APP_BASE_URL|ONBOARDING_URL|DASHBOARD_URL|API_URL|LOCAL_CONTROL_URL|DOCS_URL|MAILPIT_URL|REPORTS_URL|GRAFANA_URL)=/mu,
+      /^(?:APP_BASE_URL|ONBOARDING_URL|DASHBOARD_URL|API_URL|DOCS_URL|MAILPIT_URL|GRAFANA_URL)=/mu,
     );
   }
 });
@@ -45,9 +44,7 @@ test("production keeps development-only services disabled", () => {
   assert.equal(config.APP_BASE_DOMAIN, "surplasse.com");
   assert.equal(config.API_URL, "https://api.surplasse.com");
   assert.equal(config.PROBLEM_TYPE_BASE, "https://surplasse.com/problems/");
-  assert.equal(config.LOCAL_CONTROL_URL, "");
   assert.equal(config.MAILPIT_URL, "");
-  assert.equal(config.REPORTS_URL, "");
   assert.equal(config.GRAFANA_URL, "");
 });
 
@@ -65,10 +62,9 @@ test("frontend topology overrides fail closed", () => {
   assert.deepEqual(allowedFrontendHosts(config), ["surplasse.test", ".surplasse.test"]);
 });
 
-test("frontend definitions never expose a cookie domain", () => {
+test("frontend definitions expose the generated API alias", () => {
   const definitions = frontendEnvironmentDefinitions(loadDomainConfig("development"));
 
-  assert.equal(definitions["import.meta.env.VITE_COOKIE_DOMAIN"], undefined);
   assert.equal(
     definitions["import.meta.env.VITE_API_BASE_URL"],
     JSON.stringify("https://api.surplasse.test"),
@@ -82,7 +78,6 @@ test("Pages demos replace local topology with a non-routable neutral profile", (
 
   assert.equal(pages.APP_BASE_DOMAIN, "pages.invalid");
   assert.equal(pages.API_URL, "https://pages.invalid");
-  assert.equal(pages.LOCAL_CONTROL_URL, "");
   assert.equal(pages.PROBLEM_TYPE_BASE, "https://surplasse.com/problems/");
   assert.equal(development.APP_BASE_DOMAIN, "surplasse.test");
   assert.doesNotMatch(JSON.stringify(definitions), /\.test\b/u);
@@ -90,6 +85,16 @@ test("Pages demos replace local topology with a non-routable neutral profile", (
 
 test("unknown profiles fail closed", () => {
   assert.throws(() => loadDomainConfig("staging"), /Unknown domain profile/u);
+});
+
+test("domain profiles reject duplicate settings", () => {
+  assert.throws(
+    () => parseDomainProfile(
+      "APP_SCHEME=https\nAPP_SCHEME=http\nAPP_BASE_DOMAIN=example.test\nPROBLEM_TYPE_BASE=https://surplasse.com/problems/\nRESERVED_SUBDOMAINS=api\n",
+      "fixture",
+    ),
+    /Duplicate domain setting APP_SCHEME/u,
+  );
 });
 
 test("onboarding refuses direct loopback previews", () => {
@@ -157,7 +162,7 @@ test("backend wrapper exports one coherent profile without Java URL defaults", (
     new URL("../../scripts/run-with-domain-profile.sh", import.meta.url),
   );
   const command = [
-    "printf '%s\\n' \"$APP_BASE_DOMAIN\" \"$SURPLASSE_PLATFORM_API_URL\" \"$ONBOARDING_URL\" \"$SURPLASSE_PLATFORM_DASHBOARD_URL\" \"$SURPLASSE_PLATFORM_PROBLEM_TYPE_BASE\" \"$REPORTS_URL\" \"$GRAFANA_URL\" \"$CORS_PUBLIC_ORIGINS\"",
+    "printf '%s\\n' \"$APP_BASE_DOMAIN\" \"$SURPLASSE_PLATFORM_API_URL\" \"$ONBOARDING_URL\" \"$SURPLASSE_PLATFORM_DASHBOARD_URL\" \"$SURPLASSE_PLATFORM_PROBLEM_TYPE_BASE\" \"$GRAFANA_URL\" \"$CORS_PUBLIC_ORIGINS\"",
   ];
 
   const development = execFileSync(script, ["development", "bash", "-c", ...command], {
@@ -173,7 +178,6 @@ test("backend wrapper exports one coherent profile without Java URL defaults", (
     "https://surplasse.test",
     "https://dashboard.surplasse.test",
     "https://surplasse.com/problems/",
-    "https://reports.surplasse.test",
     "https://grafana.surplasse.test",
     "https://surplasse.test,/https:\\/\\/[a-z0-9-]+\\.surplasse\\.test/",
   ]);
@@ -183,7 +187,6 @@ test("backend wrapper exports one coherent profile without Java URL defaults", (
     "https://surplasse.com",
     "https://dashboard.surplasse.com",
     "https://surplasse.com/problems/",
-    "",
     "",
     "https://surplasse.com,/https:\\/\\/[a-z0-9-]+\\.surplasse\\.com/",
   ]);

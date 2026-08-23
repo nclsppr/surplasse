@@ -38,12 +38,4 @@ public class TableQr {
     public String getLabel() {
         return label;
     }
-
-    public String getCode() {
-        return code;
-    }
-
-    public boolean isActive() {
-        return active;
-    }
 }

@@ -1,388 +1,164 @@
 ---
-label: Déploiement Compose
+label: Déploiement Atlas
 order: 15
 icon: container
-description: Construction, configuration, démarrage, mise à jour, retour arrière et sauvegarde de la pile Docker Compose sur Ubuntu LTS.
+description: Publication, admission, activation, contrôle et reprise de la release Surplasse sur Atlas.
 ---
 
-# Déploiement Docker Compose
+# Déploiement sur Atlas
 
-La pile versionnée est exécutable. Elle sert au cluster local et conserve un chemin de production historique distinct. Son profil facultatif `observability` ajoute Prometheus et Grafana sans modifier les dépendances ni la readiness de la pile applicative. Le dépôt publie aussi un bundle applicatif sans secret pour Atlas. Atlas existe déjà et fournit la plateforme partagée. L'ADR-0041 autorise le déploiement pour des testeurs avec Stripe test et sauvegardes locales. Le SMTP transactionnel, Stripe live, une sauvegarde hors site restaurée et la sonde externe avec son canal d'alerte restent obligatoires avant l'ouverture publique.
+Atlas est l'unique chemin de production de Surplasse. Le monorepo utilise `compose.yaml` et `compose.development.yaml` uniquement pour le développement et l'intégration locale. La production consomme exclusivement le fragment `deployment/vps/compose.yaml` lié dans une `application-release` immuable, puis admis et activé par `vps-infra`, conformément à l'[ADR-0045](../decisions/adr-0045-atlas-unique-production.md).
+
+L'[ADR-0041](../decisions/adr-0041-production-testeurs-stripe-test.md) autorise l'ouverture de la production et de la prise de commandes à un groupe de testeurs avec Stripe test et des sauvegardes locales au VPS. Cette dérogation ne vaut pas ouverture publique.
+
+!!! warning Rappel obligatoire avant toute ouverture publique
+La production et les commandes peuvent être ouvertes aux testeurs, mais Stripe live, le SMTP transactionnel qualifié, une sauvegarde chiffrée hors VPS restaurée, les CSP de Commande et du Dashboard, une sonde publique indépendante et son canal d'alerte restent à terminer absolument avant l'ouverture publique.
+!!!
 
 ## État opérationnel Atlas au 2026-08-18
 
-| Frontière | État prouvé | Ce que cela autorise |
+Cette section conserve la première preuve productrice comme repère historique. Elle ne désigne ni le sommet courant de `main`, ni le digest à activer aujourd'hui. Toute opération doit redécouvrir les références courantes et relire l'état désiré dans `vps-infra`.
+
+| Frontière | Preuve historique | Portée |
 |---|---|---|
-| Hôte et plateforme Atlas | Provisionnés | Héberger la plateforme partagée et d'autres charges, pas Surplasse par implication |
-| Première révision productrice prouvée | `b3df325fd8266b8a0a73e8b4ee3a936683861a15`, sommet de `main` pendant le run | Conserver une preuve historique, pas désigner le sommet courant |
-| Premier `vps-integration` prouvé | `ghcr.io/nclsppr/surplasse/vps-integration@sha256:1c193f79052ed618cdd62b769ca066dfd2190612788a416279591f211af15b9d` | Prouver le bundle immuable de cette révision |
-| Première `application-release` prouvée | `ghcr.io/nclsppr/surplasse/application-release@sha256:68a479690817cc55a19985a19f0d524007eeb4a8f240656397fa4d313d0a7b4e` | Prouver le signal immuable de cette révision |
-| Preuve productrice historique | [Run GitHub Actions 32068614255](https://github.com/nclsppr/surplasse/actions/runs/32068614255), vert | Prouver la publication, pas l'activation ni l'état désiré actuel |
-| Contrat `vps-infra` | Surplasse `enabled: false` | Refuser avant toute mutation applicative |
-| Contrôleur applicatif | Code mergé dans `vps-infra`, aucune invocation ni convergence Surplasse prouvée | Aucun déploiement Surplasse actuel |
+| Hôte et plateforme Atlas | Provisionnés | Plateforme partagée disponible, pas activation implicite de Surplasse |
+| Révision productrice | `b3df325fd8266b8a0a73e8b4ee3a936683861a15` | Commit prouvé pendant le run, pas cible courante |
+| `vps-integration` | `sha256:1c193f79052ed618cdd62b769ca066dfd2190612788a416279591f211af15b9d` | Bundle immuable de cette révision |
+| `application-release` | `sha256:68a479690817cc55a19985a19f0d524007eeb4a8f240656397fa4d313d0a7b4e` | Signal immuable de cette révision |
+| Publication productrice | [Run GitHub Actions 32068614255](https://github.com/nclsppr/surplasse/actions/runs/32068614255) | Publication prouvée, pas activation |
 
-Les trois références de première preuve ci-dessus ne sont pas une cible de découverte courante. Chaque nouveau push sur `main`, y compris celui qui publiera cette documentation, déplace le sommet et doit produire une nouvelle release liée à son propre SHA. Une future admission Atlas résoudra uniquement le sommet canonique alors courant.
+Avant toute annonce d'état courant, vérifier le sommet de `main`, les portes vertes, les digests et attestations OCI, l'entrée Surplasse dans `vps-infra`, la convergence du contrôleur, l'état des services sur Atlas et les sondes publiques.
 
-Le dépôt Surplasse n'a aucune autorité sur Atlas. Les [règles d'admission](https://github.com/nclsppr/vps-infra/blob/main/docs/decisions/0009-immutable-application-release-admission.md), le [contrôleur transactionnel désactivé](https://github.com/nclsppr/vps-infra/blob/main/docs/decisions/0010-disabled-transactional-application-controller.md) et le [runbook applicatif](https://github.com/nclsppr/vps-infra/blob/main/docs/deployment.md#deploy-a-compose-application) de `vps-infra` font foi. La release verte de ce dépôt est un candidat. Elle n'est ni une demande d'activation, ni une preuve de déploiement.
+## Frontière de responsabilité
 
-Une future ouverture publique doit conserver au minimum toutes les portes connues suivantes. Elles restent des dettes explicites pendant la production testeurs :
+Le dépôt Surplasse produit et prouve :
 
-1. provisionner la base, son propriétaire sans login, les rôles migrateur et runtime et les secrets par fichier ;
-2. prouver une sauvegarde hors VPS et une restauration isolée avec les invariants métier ;
-3. qualifier le relais SMTP, Stripe live et les deux destinations de webhooks ;
-4. attacher les réseaux applicatif et base, puis préparer les routes Caddy et les cibles d'observabilité ;
-5. prouver par une attestation que chaque migration reste compatible avec le runtime précédent utilisé par la reprise, ou arrêter après migration pour une reprise explicite vers l'avant ;
-6. choisir des alias blue/green liés au digest et une bascule atomique du bord, ou une politique de maintenance qui accepte explicitement la coupure et l'exposition roulante ;
-7. bloquer le trafic public pendant la récupération au démarrage au niveau Docker ou pare-feu, puis réconcilier la santé du runtime actif ;
-8. vérifier avant mutation le budget disque, la rétention des releases et images et les budgets CPU, mémoire et PID du chevauchement ;
-9. dimensionner les délais et limites de sortie du contrôleur, puis réconcilier le dernier candidat désiré après contention du verrou ;
-10. vérifier les identités exactes de PostgreSQL, Caddy, conteneurs et réseaux et prouver que la politique de route ne peut pas bloquer la reprise ;
-11. réussir les sondes internes et publiques strictes avant toute bascule DNS.
+- les images immuables `backend`, `onboarding`, `commande`, `dashboard` et `docs` ;
+- le fragment `deployment/vps/compose.yaml` ;
+- le job one-shot `migrator` et la commande one-shot `pilot-bootstrap` ;
+- la route Caddy, les cibles et règles Prometheus, le tableau de bord Grafana et les sondes attendues ;
+- le manifeste `vps-integration`, puis l'`application-release` qui lie les digests exacts.
 
-L'[ADR-0010 de `vps-infra`](https://github.com/nclsppr/vps-infra/blob/main/docs/decisions/0010-disabled-transactional-application-controller.md#activation-blockers-retained) reste la liste autoritative. Ce dépôt producteur ne peut ni fermer ni retirer une porte d'exploitation.
+La plateforme `vps-infra` possède et contrôle :
 
-L'[ADR-0026](../decisions/adr-0026-compose-commun.md) fixe le modèle et l'[ADR-0037](../decisions/adr-0037-images-conteneurs-durcies.md) sa politique de construction et de durcissement. Les trois fichiers ont des rôles distincts :
+- le bord Caddy public et ses certificats ;
+- PostgreSQL, ses rôles, ses volumes et son cycle de sauvegarde ;
+- les réseaux externes `app_surplasse` et `db_surplasse` ;
+- les secrets matérialisés sous `/etc/vps/secrets/surplasse/` ;
+- Prometheus, Grafana et leur accès privé ;
+- l'admission, la migration, l'activation, la reprise et l'arrêt de la release.
 
-| Fichier | Rôle |
-|---|---|
-| `compose.yaml` | Graphe commun : Caddy, PostgreSQL, Backend, Onboarding, Commande, Dashboard et documentation Nimbus ; Prometheus et Grafana dans le profil `observability` |
-| `compose.development.yaml` | Certificat mkcert, publication locale de 443, Mailpit et routes protégées vers le cockpit, son rapport et Grafana |
-| `compose.production.yaml` | Publication de 80 et 443, TLS DNS-01, clés JWT, redémarrage automatique ; Grafana sur la boucle locale seulement |
-| `deployment/vps/compose.yaml` | Services applicatifs Atlas seulement : cinq services longs, job de migration et bootstrap pilote dédiés, réseaux externes et montages protégés sans valeurs |
+Le monorepo ne fournit aucune commande de transport vers Atlas. `scripts/compose.sh` accepte seulement `development` et ne doit jamais être détourné pour la production.
 
-`scripts/compose.sh` applique toujours le socle puis une seule surcharge. Appeler directement `docker compose` sans ces deux fichiers et sans profil n'est pas supporté.
+## Contrat Compose de la release
 
-Dans toute cette page, les exemples qui appellent `scripts/compose.sh production` décrivent exclusivement le chemin historique du monorepo. Ils ne constituent jamais une commande Atlas, y compris quand ils ciblent un seul service.
+`deployment/vps/compose.yaml` contient cinq services longs et deux jobs explicites :
 
-## Où se trouve Caddy
+| Service | Cycle de vie | Réseaux | État |
+|---|---|---|---|
+| `backend` | `restart: unless-stopped` | `app_surplasse`, `db_surplasse` | Aucun port hôte, migrations automatiques désactivées |
+| `onboarding` | `restart: unless-stopped` | `app_surplasse` | Statique, non privilégié |
+| `commande` | `restart: unless-stopped` | `app_surplasse` | Statique, non privilégié |
+| `dashboard` | `restart: unless-stopped` | `app_surplasse` | Statique, non privilégié |
+| `docs` | `restart: unless-stopped` | `app_surplasse` | Nimbus statique, non privilégié |
+| `migrator` | profil `migration`, `restart: "no"` | `db_surplasse` | Même digest Backend, rôle PostgreSQL de migration |
+| `pilot-bootstrap` | profil `pilot-bootstrap`, `restart: "no"` | `app_surplasse`, `db_surplasse` | Même digest Backend, manifeste protégé, Stripe test |
 
-Il existe un seul Caddy de bord par pile. Il termine TLS, redirige HTTP vers HTTPS en production, applique la frontière CORS et route les noms d'hôte. Il est le seul conteneur publié sur les interfaces réseau accessibles. Grafana peut publier un port supplémentaire uniquement sur `127.0.0.1` du VPS lorsque l'observabilité est activée.
+Tous les services retirent leurs capabilities, interdisent l'élévation de privilèges, rendent leur système de fichiers racine en lecture seule, bornent leurs journaux et possèdent des limites de ressources. Caddy, PostgreSQL, Prometheus et Grafana ne sont pas redéfinis dans ce fragment.
 
-Pour Atlas, `deployment/vps/caddy/surplasse.caddy` porte seulement les hôtes et le routage applicatif. Son bloc de site importe exactement `/etc/caddy/surplasse-tls.caddy`. `vps-infra` possède ce fichier, le monte en lecture seule dans le Caddy partagé et y configure le challenge DNS-01. Le fournisseur DNS, le module Caddy et les références de secrets restent donc une décision de plateforme. Ils ne sont ni choisis ni publiés par Surplasse. Un fichier absent ou une configuration invalide doit faire échouer la validation Caddy avant le rattachement de la route.
+## Admission d'une release
 
-Les trois fronts et la documentation utilisent chacun un NGINX non privilégié en production pour servir leurs fichiers statiques. Le profil development de l'Onboarding substitue son petit serveur Node afin de fournir la session Stripe test locale. Ces serveurs internes ne terminent pas TLS et ne sont pas des reverse proxies publics. PostgreSQL, Backend, documentation et fronts ne publient aucun port hôte dans le socle commun.
+Une release admissible part d'un commit complet présent sur `main`. Les portes productrices doivent avoir construit, testé, scanné et publié chaque image, puis produit les deux manifestes OCI reproductibles. Les tags servent à la découverte, jamais à l'activation. Le contrôleur retient les digests exacts liés par l'`application-release` et vérifie leurs attestations avant toute mutation.
 
-## Versions et images
+Le contrat protégé de `vps-infra` fixe notamment le mode `testers`, l'activation explicite, les réseaux, les chemins de secrets, les routes et les limites de la release. Changer ce contrat est une action de plateforme revue séparément. Un push Surplasse seul ne déploie jamais l'application.
 
-`config/deployment/images.env` centralise les images de base du cluster local et du chemin historique. Chaque référence porte un tag lisible et un digest multi-plateforme. Au 2026-07-26, ce catalogue contient Caddy 2.11.4, PostgreSQL 17.10, Node 24.18.0, NGINX non privilégié 1.31.3, Eclipse Temurin 25.0.3, Mailpit 1.30.4, Prometheus 3.13.1 `busybox` et Grafana 13.1.1. La plateforme Atlas épingle séparément Prometheus 3.13.2 `busybox` et Grafana 13.1.3 `slim` dans `vps-infra`.
+## Migration et activation
 
-L'App GitHub Mend Renovate hébergée surveille ce catalogue. Une proposition remplace le tag et le digest dans la même pull request, puis les workflows Backend, Frontends et Pages vérifient le graphe avant toute fusion manuelle. Les versions majeures et les images de plateforme sensibles restent soumises à une approbation dans le Dependency Dashboard. Aucun automerge n'est autorisé.
+Le contrôleur Atlas suit cet ordre sans démarrer le Backend en avance :
 
-Les images applicatives sont :
+1. résoudre l'`application-release` courante par digest et revérifier ses preuves ;
+2. vérifier les réseaux, PostgreSQL 17, les rôles et chaque fichier de secret attendu ;
+3. exécuter `migrator` avec le digest Backend sélectionné et le rôle `surplasse_migrator` ;
+4. prouver un historique Flyway réussi et contigu de V1 à V15 ;
+5. activer ou réconcilier les cinq services longs avec les digests admis ;
+6. vérifier leurs healthchecks internes, puis les routes HTTPS publiques ;
+7. si la base pilote est vide, exécuter la [procédure de bootstrap](bootstrap-pilote-production.md) ;
+8. ouvrir la prise de commandes uniquement par l'action métier authentifiée, après les preuves du [pilote](pilote.md).
 
-| Image | Construction | Exécution |
-|---|---|---|
-| `backend` | Maven et JDK Temurin 25, sélection du profil de domaine | JRE Temurin 25, utilisateur `10001` |
-| `onboarding` | Configuration JavaScript générée pour le profil choisi | Node 24 en développement, NGINX non privilégié et utilisateur `101` en production |
-| `commande` | TypeScript et Vite avec le profil choisi | NGINX non privilégié, utilisateur `101` |
-| `dashboard` | TypeScript et Vite avec le profil choisi | NGINX non privilégié, utilisateur `101` |
-| `docs` | Nimbus 0.8.2 et Astro avec l'origine documentaire du profil | NGINX non privilégié, utilisateur `101` |
-| `edge` | Caddy officiel en local, `xcaddy` avec le module DNS en production | Caddy 2.11.4 |
+Le migrateur exige ses secrets par fichiers, utilise uniquement le réseau `db_surplasse` et quitte au premier échec. Le Backend utilise le rôle `surplasse_runtime`, privé des droits de migration. Le bootstrap reste une commande Java et JDBC sans serveur. Il exige l'historique exact V1 à `REQUIRED_SCHEMA_VERSION`, actuellement 15, conformément à l'[ADR-0047](../decisions/adr-0047-version-flyway-bootstrap-pilote.md).
 
-Les outils de build ne sont pas présents dans les images statiques finales. Le Backend et l'image development de l'Onboarding conservent seulement le fichier de domaine sélectionné. Le profil Maven de l'artefact Backend de production exclut physiquement `db/seed/`, et le Dockerfile arrête la construction si cette ressource apparaît encore dans le JAR du catalogue. L'image production de l'Onboarding ne conserve que les fichiers statiques déjà configurés, sans Node ni profil development. Le contenu de `backend/.env`, les certificats, les dossiers `target`, `dist`, `node_modules`, rapports, caches et secrets sont exclus du contexte par `.dockerignore`.
+Les commandes capables de muter Atlas, leur identité de projet et leurs validations appartiennent exclusivement au [runbook `vps-infra`](https://github.com/nclsppr/vps-infra/blob/main/docs/deployment.md#deploy-a-compose-application). Cette page n'en invente aucune variante.
 
-Les Dockerfiles épinglent aussi le frontend Dockerfile par version et digest, activent les contrôles BuildKit en erreur et montent des caches npm ou Maven qui ne rejoignent jamais le runtime. `npm run images:check` valide toutes les recettes et tous leurs profils sans les construire. Le workflow `images.yml` construit et scanne les cinq images applicatives sur les pull requests concernées. Sur `main`, il les publie sous le SHA complet pour `linux/amd64`, avec labels OCI, SBOM, provenance maximale et attestation GitHub. Une vulnérabilité `HIGH` ou `CRITICAL` corrigible détectée par Trivy bloque la publication.
+## Contrôles après activation
 
-L'image Backend contient aussi `/opt/surplasse/scripts/backend-migrate.sh` et `/opt/surplasse/scripts/backend-pilot-bootstrap.sh`. Ces commandes ne constituent pas des images supplémentaires. `deployment/vps/compose.yaml` permet à Atlas d'exécuter le même digest avec le rôle `surplasse_migrator`, comme service HTTP avec le rôle `surplasse_runtime` et `QUARKUS_FLYWAY_MIGRATE_AT_START=false`, puis comme bootstrap privé avec le rôle runtime et une lecture Stripe test. Le contrôleur Atlas reste dans `vps-infra`. La présence du bundle ne suffit donc pas à autoriser l'une de ces opérations. Le détail de la migration est fixé par l'[ADR-0039](../decisions/adr-0039-migrations-production-separees.md), celui du bootstrap par l'[ADR-0043](../decisions/adr-0043-bootstrap-borne-pilote-production.md) et la publication par l'[ADR-0040](../decisions/adr-0040-publication-oci-applicative-pour-atlas.md).
-
-L'image `edge` du monorepo ne rejoint pas la publication applicative Atlas. Le bord appartient à la plateforme partagée de `vps-infra`, qui choisit et épingle son module DNS. L'identité ACME Surplasse, la politique TLS importée, la route wildcard et leur activation restent séparées. PostgreSQL, Prometheus, Grafana et Mailpit restent des images amont consommées directement avec leur digest dans les contextes qui les possèdent.
-
-## Durcissement à l'exécution
-
-Le Backend et les serveurs statiques s'exécutent avec un utilisateur non privilégié, un système de fichiers en lecture seule, un `/tmp` explicite, `no-new-privileges` et toutes les capacités Linux supprimées. Caddy récupère seulement `NET_BIND_SERVICE`. PostgreSQL garde son point d'entrée officiel afin d'initialiser les permissions de son volume.
-
-Le wrapper matérialise atomiquement les valeurs sensibles du profil de déploiement dans un répertoire de mode `0700`. En développement, il vit sous `.surplasse/compose-secrets/development/`. En production, il vit sous `/etc/surplasse/secrets/compose/`, à côté des clés déjà protégées. Les copies de montage sont en mode `0444` : le répertoire les protège des autres utilisateurs de l'hôte et leur mode permet aux UID non privilégiés distincts des conteneurs de les lire. Une valeur inchangée conserve le même fichier afin de ne pas invalider un montage actif. Compose monte uniquement ces sources `file` en lecture seule sous `/run/secrets`. PostgreSQL et Grafana lisent leurs interfaces `*_FILE` natives. Le Backend, l'Onboarding de développement et Caddy chargent les fichiers nécessaires dans leur point d'entrée et refusent une valeur directe concurrente. Le wrapper copie aussi la clé TLS locale et les fichiers JWT depuis leurs originaux protégés, qui restent en mode `0600`. Une variable `ARG` Docker n'est jamais utilisée pour un secret.
-
-Tous les services utilisent le pilote de logs Docker `local`, avec trois fichiers de 10 Mo au maximum par conteneur. Les healthchecks n'ajoutent aucun paquet au runtime : le Backend effectue sa requête HTTP avec Bash, tandis que les autres images réutilisent leurs outils existants.
-
-## Préparer Ubuntu LTS
-
-La référence de production est la dernière Ubuntu LTS. Atlas est déjà provisionné. Les commandes ci-dessous décrivent le chemin historique ou un exercice de reconstruction, pas une mutation de l'hôte existant. Le [runbook de reconstruction `vps-infra`](https://github.com/nclsppr/vps-infra/blob/main/docs/rebuild.md) reste l'autorité pour Atlas. Ne pas installer Java, Node, Python, PostgreSQL, NGINX, Caddy, `mise` ou Renovate directement sur l'hôte pour Surplasse.
+Depuis un poste ou GitHub Actions, jamais en installant Node sur le VPS :
 
 ```bash
-# Verify the host runtime after the official Docker installation
-docker version
-docker compose version
-
-# Create protected configuration and key directories
-sudo install -d -m 0750 -o "$USER" -g "$USER" /etc/surplasse
-sudo install -d -m 0700 -o "$USER" -g "$USER" /etc/surplasse/secrets
-```
-
-Le compte de déploiement peut piloter Docker. Cet accès équivaut à des droits élevés sur la machine et doit rester limité. Le pare-feu public autorise SSH, 80 et 443 seulement. PostgreSQL ne reçoit aucune règle publique.
-
-## Configurer le chemin historique
-
-Copier l'exemple hors du dépôt :
-
-```bash
-install -m 0600 \
-  config/deployment/production.env.example \
-  /etc/surplasse/production.env
-```
-
-Remplacer chaque valeur `change-me`. Le fichier contient les paramètres de déploiement et les secrets. Il ne contient jamais `APP_BASE_DOMAIN`, `APP_BASE_URL`, `API_URL`, `DASHBOARD_URL`, `DOCS_URL` ou `COOKIE_DOMAIN`. Ces valeurs viennent exclusivement de `config/domains/production.env`. Le parseur refuse toute tentative de les redéfinir. Le wrapper exige aussi un mode qui interdit tout accès au groupe et aux autres utilisateurs.
-
-Les prérequis bloquants sont :
-
-- un `IMAGE_TAG` égal au SHA git complet de 40 caractères publié dans GHCR ;
-- une clé Stripe test et `STRIPE_LIVE_MODE=false` quand le mode versionné vaut `testers`, puis des clés live et `STRIPE_LIVE_MODE=true` quand il vaut `public` ;
-- la clé privée JWT, le JWKS, le `kid` et leurs chemins hôte ;
-- un SMTP transactionnel avec STARTTLS ou TLS selon son port ;
-- pour la cible Atlas, `/etc/caddy/surplasse-tls.caddy`, une identité DNS-01 limitée à `surplasse.com`, ses fichiers protégés et le module Caddy épinglé de la plateforme ;
-- une CSP explicite et testée pour Commande et le Dashboard, avec les seules origines API et Stripe nécessaires ;
-- `ONBOARDING_STRIPE_PILOT_ENABLED=false`.
-
-Le profil d'observabilité possède ses propres prérequis, sans les ajouter à cette liste applicative : rétention Prometheus, liaison Grafana sur `127.0.0.1`, port loopback et trois secrets Grafana. Le wrapper les valide seulement lorsqu'une commande démarre ou met à jour `prometheus` ou `grafana`. Leur absence ne doit pas empêcher un `up` ciblé sur le Backend ou la pile applicative.
-
-Au démarrage, le wrapper exige des chemins JWT absolus, des fichiers lisibles et non vides, ainsi que des permissions privées sur la clé. Les valeurs factices, un SHA abrégé et un identifiant de module DNS mal formé arrêtent le déploiement avant Compose.
-
-Le chemin historique conserve des variables génériques. Sur Atlas, `vps-infra` construit l'image Caddy partagée et matérialise `/etc/caddy/surplasse-tls.caddy`. Les identifiants DNS restent hors image et doivent être limités aux opérations DNS-01 de `surplasse.com`. Le fait que le module et le fichier existent ne prouve ni la validité de ces identifiants, ni le certificat, ni la route, ni la bascule DNS.
-
-## Construire et valider
-
-Le cluster local construit les mêmes recettes. Pour une construction manuelle de production sur une machine autorisée :
-
-```bash
-export SURPLASSE_SECRETS_FILE=/etc/surplasse/production.env
-
-# Resolve both Compose files and fail on a missing variable
-scripts/compose.sh production config --quiet
-
-# Build all application images with the production domain profile
-scripts/compose.sh production build
-```
-
-La sortie complète de `config` expose les paramètres résolus et les noms des sources de secrets. Utiliser `--quiet` dans les journaux partagés. En CI, les cinq images applicatives sont construites et scannées avant leur push vers GHCR avec le SHA git. Une image existante ne doit jamais être reconstruite sous le même SHA.
-
-## Démarrer et contrôler
-
-### Contrat de migration Atlas publié, activation externe
-
-Un contrôleur Atlas conforme ne démarre jamais le Backend avant la migration. Il suit cet ordre : vérifier PostgreSQL 17, vérifier les rôles et les fichiers de secrets, exécuter le job one-shot avec le digest Backend sélectionné, vérifier que Flyway a appliqué V1 à V14, puis démarrer les cinq services longs. Le migrateur rejoint uniquement le réseau privé `db_surplasse`. Il ne publie aucun port et utilise `restart: "no"`.
-
-Le point d'entrée refuse un mot de passe direct. Il exige `QUARKUS_DATASOURCE_PASSWORD_FILE`, `QUARKUS_DATASOURCE_JDBC_URL`, `QUARKUS_DATASOURCE_USERNAME` et `DEPLOYMENT_PROFILE=production`. Il charge les migrations présentes dans les modules Backend, les applique, écrit seulement un résultat sans secret, puis quitte avec un statut non nul au premier échec. Le contrôleur ne doit jamais contourner ce statut.
-
-Ce dépôt publie le Compose applicatif, l'inventaire des migrations, le schéma du manifeste pilote et les références d'images dans `vps-integration`, puis les lie dans `application-release`. Il fournit les commandes internes bornées, mais aucune autorité ni commande de transport capable de les invoquer sur Atlas. `scripts/compose.sh production` pilote la pile historique du monorepo : les opérateurs ne doivent utiliser ni cette commande, ni ses commandes de mise à jour pour déployer Atlas. Le contrôleur `deploy-application-live` existe dans `vps-infra`, mais l'entrée Surplasse désactivée le fait refuser avant toute mutation. Une activation validée doit revérifier digest et attestations, fournir les réseaux et secrets, exécuter le profil `migration`, puis activer et sonder les cinq services longs. Le bootstrap pilote suit ensuite sa [séquence bornée](bootstrap-pilote-production.md), uniquement si sa base est vide.
-
-Les environnements de développement et de test gardent aussi la migration au démarrage du Backend.
-
-### Chemin Compose historique du monorepo
-
-Les commandes suivantes s'appliquent uniquement à la pile historique. Elles ne valident pas la porte de migration Atlas et ne doivent pas être exécutées pour Atlas. Sur Ubuntu LTS :
-
-```bash
-export SURPLASSE_SECRETS_FILE=/etc/surplasse/production.env
-
-scripts/compose.sh production pull
-scripts/compose.sh production up --detach --wait
-scripts/compose.sh production ps
-
-curl --fail https://api.surplasse.com/q/health/ready
-curl --fail https://surplasse.com/
-curl --fail https://dashboard.surplasse.com/
-curl --fail https://le-cormoran.surplasse.com/
-curl --fail https://docs.surplasse.com/
-```
-
-`--wait` exige un état sain pour PostgreSQL, le Backend, les trois fronts, la documentation et Caddy. Dans ce chemin historique, le processus HTTP Backend applique lui-même les migrations Flyway avant de devenir prêt. Ce comportement ne met en oeuvre ni job séparé, ni rôle PostgreSQL runtime privé des droits de migration. Caddy doit charger sa configuration et servir son identité de bord en HTTPS. Une impossibilité de servir HTTPS, une erreur de migration ou un secret invalide maintient le déploiement en échec. La validité publique complète des certificats reste contrôlée par le smoke externe, qui garde une validation TLS stricte en production.
-
-Depuis un poste d'exploitation ou GitHub Actions, jamais en installant Node sur le VPS, rejouer ensuite le smoke navigateur avec le même profil public :
-
-```bash
-# Run from a checked-out repository outside the production VPS
 npm ci --prefix e2e
 npm run e2e:install
 SURPLASSE_E2E_ESTABLISHMENT_SLUG=<monitoring-slug> \
   npm run e2e:test -- production
 ```
 
-Le slug est facultatif. Sans lui, le contrôle de Commande apparaît comme ignoré, tandis que Caddy, le Backend, l'Onboarding et le Dashboard restent obligatoires. Le rapport et son historique propre à la production sont écrits sous `.surplasse/e2e/production/`. La suite ne crée aucune donnée et ne reçoit aucun secret applicatif.
+La suite doit valider TLS et les routes de l'Onboarding, du Backend, du Dashboard et, si le slug est fourni, de Commande. Elle ne crée aucune donnée et ne reçoit aucun secret applicatif. La cible conserve uniquement :
 
-Les commandes de diagnostic restent bornées :
-
-```bash
-scripts/compose.sh production ps
-scripts/compose.sh production logs --tail 200 edge backend postgresql
-scripts/compose.sh production exec backend \
-  /opt/surplasse/scripts/backend-healthcheck.sh
+```text
+.surplasse/e2e/production/
++-- history.jsonl
++-- allure-report/
+`-- test-results/
 ```
 
-Le loopback utilisé par la dernière commande est une sonde technique interne au conteneur. Il ne devient jamais une URL publique.
+`history.jsonl` est l'historique borné. `allure-report/` et `test-results/` sont les sorties courantes, remplacées seulement après une génération complète. GitHub Actions met en cache uniquement l'historique et charge le rapport et les diagnostics comme artefact propre au run.
 
-Avant le premier trafic, effectuer une exécution manuelle verte de `.github/workflows/e2e.yml`, définir le slug témoin public dans la variable de dépôt `E2E_PRODUCTION_ESTABLISHMENT_SLUG`, puis seulement activer `E2E_MONITORING_ENABLED=true`. Le workflow s'exécute ensuite chaque heure à la minute 17, conserve un rapport Allure 3 rejouable et isole l'historique `production`. Son échec complète la future sonde externe ; il ne la remplace pas.
+Compléter cette preuve externe par les healthchecks de la plateforme, la lecture des journaux bornés, l'état du migrateur et une requête métier authentifiée. Une publication OCI verte ne prouve jamais que le runtime public sert ce digest.
 
 ## Observabilité facultative {#observabilite-facultative}
 
-Prometheus et Grafana portent le profil Compose `observability`. Le démarrage normal de la pile ne les inclut pas. Le Backend rejoint le réseau interne de collecte, mais il ne possède aucun `depends_on`, healthcheck ou adresse vers ces services. Prometheus et Grafana disposent respectivement de limites de 0,5 CPU et 512 Mo, puis 0,5 CPU et 384 Mo.
-
-### Développement local
-
-Sur macOS, Linux ou Windows avec WSL2, Docker et le plugin Compose suffisent. Démarrer d'abord le cluster, puis cibler explicitement les deux services du profil :
+En développement, le profil `observability` ajoute Prometheus et Grafana sans les placer dans la readiness du Backend :
 
 ```bash
 npm run local:up
 scripts/compose.sh development up --detach --wait prometheus grafana
 scripts/compose.sh development ps prometheus grafana
-
 curl --fail https://grafana.surplasse.test/api/health
 curl --silent --output /dev/null --write-out '%{http_code}\n' \
   https://api.surplasse.test/q/metrics
 ```
 
-Le dernier contrôle doit afficher `404`. Prometheus collecte directement l'endpoint interne. Grafana autorise la lecture locale anonyme avec le rôle `Viewer`, tandis que les identifiants administrateur jetables restent dans `config/deployment/development.env`. Le cockpit peut démarrer ou arrêter chaque service et ouvre `GRAFANA_URL`.
-
-Contrôler les deux services sans leur créer de port hôte :
-
-```bash
-scripts/compose.sh development exec prometheus \
-  wget --quiet --output-document=- http://127.0.0.1:9090/-/ready
-scripts/compose.sh development exec grafana \
-  wget --quiet --output-document=- http://127.0.0.1:3000/api/health
-```
-
-Le profil local conserve 7 jours de séries. L'arrêt indépendant garde les volumes :
+Le dernier contrôle doit afficher `404`, car Caddy ne publie jamais les métriques du Backend. L'arrêt de Prometheus et Grafana ne doit pas interrompre l'API :
 
 ```bash
 scripts/compose.sh development stop prometheus grafana
 curl --fail https://api.surplasse.test/q/health/ready
 ```
 
-La seconde commande doit rester verte. Relancer les deux services ne redémarre pas le Backend.
+En production, Prometheus, Grafana, leurs volumes et leur cycle de vie appartiennent à Atlas. Le bundle Surplasse fournit seulement sa cible, ses règles et son tableau de bord. Grafana ne possède aucune route publique. Son accès passe par le tunnel privé décrit dans `vps-infra`. La perte de ses séries ou préférences n'affecte ni PostgreSQL, ni les commandes, ni les paiements.
 
-### Chemin de production historique sous Ubuntu LTS
+## Mise à jour et reprise
 
-Cette section ne commande pas Atlas. La plateforme partagée de `vps-infra` y possède Prometheus 3.13.2, Grafana 13.1.3, leurs volumes, leurs secrets et leur cycle de vie. Le fichier historique `/etc/surplasse/production.env` fixe une rétention Prometheus initiale de 15 jours, une adresse Grafana obligatoirement égale à `127.0.0.1`, un port entre 1024 et 65535, puis trois valeurs secrètes : `GRAFANA_ADMIN_USER`, `GRAFANA_ADMIN_PASSWORD` et `GRAFANA_SECRET_KEY`. L'accès anonyme est désactivé.
+Une mise à jour sélectionne une nouvelle `application-release` descendante dont toutes les portes sont vertes. Atlas exécute la migration, réconcilie les services avec les nouveaux digests et refait les sondes. Les images ne sont jamais reconstruites sous le même SHA.
 
-Depuis un checkout propre correspondant à `IMAGE_TAG` :
+Un échec avant mutation laisse la release courante intacte. Un échec après migration ne provoque jamais l'annulation automatique du schéma. Le runtime précédent ne redémarre que si sa compatibilité avec la version courante est attestée. Sinon, la reprise avance vers un commit correctif et une nouvelle release.
 
-```bash
-export SURPLASSE_SECRETS_FILE=/etc/surplasse/production.env
-
-scripts/compose.sh production pull prometheus grafana
-scripts/compose.sh production up --detach --wait prometheus grafana
-scripts/compose.sh production ps prometheus grafana
-scripts/compose.sh production exec prometheus \
-  wget --quiet --output-document=- http://127.0.0.1:9090/-/ready
-scripts/compose.sh production exec grafana \
-  wget --quiet --output-document=- http://127.0.0.1:3000/api/health
-```
-
-Prometheus n'a aucun port hôte. Grafana n'a ni DNS public, ni route Caddy, ni règle de pare-feu. Depuis le poste d'exploitation, créer le tunnel :
-
-```bash
-ssh -N -L 3000:127.0.0.1:3000 <utilisateur>@<vps>
-```
-
-Le port de droite reprend `GRAFANA_PORT` si sa valeur diffère de l'exemple. Ouvrir ensuite l'extrémité locale du tunnel et s'authentifier dans Grafana. Ce listener loopback est un accès d'administration privé, jamais une URL de profil.
-
-Une mise à jour de Prometheus ou Grafana modifie d'abord leur référence et digest dans `config/deployment/images.env`, passe les validations du dépôt, puis utilise le nouveau checkout :
-
-```bash
-scripts/compose.sh production pull prometheus grafana
-scripts/compose.sh production up --detach --wait prometheus grafana
-```
-
-Une modification de règle, source ou tableau de bord suit le même SHA. Prometheus est redémarré pour relire sa configuration. Grafana surveille le provisionnement versionné toutes les 30 secondes ; une recréation vérifie aussi que l'état canonique ne dépend pas du volume.
-
-### Perte et recréation
-
-`prometheus_data` et `grafana_data` sont persistants mais non critiques. Leur perte est acceptable pour le pilote : les séries, sessions et préférences disparaissent, tandis que les fichiers de configuration et le tableau de bord sont reprovisionnés depuis git. PostgreSQL n'est jamais concerné par cette procédure.
-
-Pour une recréation volontaire, arrêter et retirer uniquement les deux conteneurs, contrôler les noms des volumes du projet, puis supprimer explicitement ces deux volumes :
-
-```bash
-scripts/compose.sh production rm --stop --force prometheus grafana
-docker volume inspect surplasse_prometheus_data surplasse_grafana_data
-docker volume rm surplasse_prometheus_data surplasse_grafana_data
-scripts/compose.sh production up --detach --wait prometheus grafana
-```
-
-Cette suppression est irréversible pour l'historique opérationnel. Elle ne doit être exécutée qu'après vérification du `COMPOSE_PROJECT_NAME` et des deux résultats de `docker volume inspect`. La restauration est réussie lorsque Prometheus retrouve `surplasse-backend` à `UP`, Grafana affiche `Surplasse / Vue opérationnelle` et la readiness du Backend est restée verte pendant toute l'opération.
-
-## Mettre à jour et revenir en arrière
-
-Dans le chemin historique du monorepo, une livraison part exclusivement d'un SHA validé présent sur `main`. Une pull request Renovate peut construire et tester la pile, mais elle ne publie aucune image applicative et n'atteint jamais le VPS. Après la fusion manuelle et la réussite des portes de `main`, la livraison remplace seulement `IMAGE_TAG` dans `/etc/surplasse/production.env` par le nouveau SHA, puis exécute :
-
-```bash
-git fetch origin <sha-complet>
-git checkout --detach <sha-complet>
-scripts/compose.sh production pull
-scripts/compose.sh production up --detach --wait
-```
-
-Le SHA du checkout et `IMAGE_TAG` doivent être identiques. Le wrapper refuse toute construction, récupération ou activation de production depuis un autre commit ou depuis un worktree sale. Les recettes Compose, les routes et les images restent ainsi alignées pendant une livraison et un retour arrière historiques. Compose recrée les services dont l'image a changé. Le premier déploiement assume une courte interruption du Backend. Le retour arrière sélectionne le SHA sain précédent dans git et dans le fichier d'environnement, puis rejoue les deux commandes Compose. Cette procédure historique ne remplace pas le contrôleur transactionnel Atlas maintenant versionné dans `vps-infra`. Les migrations Flyway restent additives : un retour arrière applicatif ne restaure pas la base.
-
-Une mise à jour d'image de base suit une autre voie. Renovate propose une modification unique de `config/deployment/images.env`, tag et digest compris. Le bot s'exécute le lundi entre 0 h et 5 h dans le fuseau `Europe/Paris`, avec trois branches et trois pull requests simultanées au maximum. Une alerte de vulnérabilité GitHub ignore cette fenêtre et ces quotas, mais jamais la CI ni la fusion manuelle. Les changements majeurs, Caddy, PostgreSQL, Node et Eclipse Temurin exigent une approbation préalable. Après la CI, une fusion humaine produit un nouveau SHA sur `main`. Seul ce SHA peut ensuite entrer dans la chaîne de construction et de déploiement.
+Le premier SHA sain de production inclut V15. Aucun retour vers un SHA pré-V15 n'est autorisé. Toute nouvelle migration fait avancer `REQUIRED_SCHEMA_VERSION` et ses preuves dans la même release.
 
 ## Données, sauvegarde et restauration
 
-Cinq volumes existent :
+PostgreSQL est l'unique état métier actuel. Son volume, ses dumps et leur restauration appartiennent à Atlas. Les images et la configuration applicative se reconstruisent depuis les artefacts immuables. Prometheus et Grafana restent reconstructibles depuis leurs configurations versionnées.
 
-| Volume | Contenu | Sauvegarde |
-|---|---|---|
-| `postgresql_data` | Données métier et historique Flyway | Obligatoire, quotidienne et chiffrée hors VPS |
-| `caddy_data` | Certificats, clés ACME et état de renouvellement | Utile, mais reconstructible avec le DNS et le compte ACME |
-| `caddy_config` | État interne Caddy | Reconstructible depuis git et `caddy_data` |
-| `prometheus_data` | Séries temporelles dans la fenêtre de rétention | Reconstructible, non inclus dans la sauvegarde métier |
-| `grafana_data` | État interne et préférences de l'interface | Reconstructible ; sources et tableaux de bord canoniques reprovisionnés depuis git |
+Pour la phase MVP testeurs, une sauvegarde conservée sur le VPS est une dette explicitement acceptée et ne bloque pas l'ouverture de la production ni des commandes. Aucun stockage objet Scaleway n'est requis dans cette phase. Avant l'ouverture publique, un dump PostgreSQL chiffré doit toutefois être copié hors du VPS et une restauration complète doit être prouvée. Une sauvegarde jamais restaurée n'est pas une preuve.
 
-La perte des deux volumes d'observabilité supprime l'historique opérationnel et les réglages non versionnés. Elle ne supprime aucune commande, aucun paiement ni aucune configuration canonique. Leur sauvegarde n'est pas exigée pour le pilote. Toute modification utile d'un tableau de bord ou d'une règle doit être reportée dans `infra/observability/` plutôt que conservée seulement dans le volume.
+Une restauration contrôle au minimum :
 
-La sauvegarde PostgreSQL s'exécute sans publier le port :
+- l'historique Flyway contigu jusqu'à V15 ;
+- le défaut `stripe` de `payment.provider` et `payment_refund.provider` ;
+- les rattachements entre restaurateurs, établissements, commandes, paiements et remboursements ;
+- la valeur `open` ou `paused` de chaque établissement ;
+- les index critiques du [modèle de données](../architecture/donnees.md#migrations-flyway-effectivement-livrées).
 
-```bash
-install -d -m 0700 /var/backups/surplasse
-scripts/compose.sh production exec --no-TTY postgresql \
-  sh -c 'pg_dump --format=custom --username "$POSTGRES_USER" --dbname "$POSTGRES_DB"' \
-  > /var/backups/surplasse/surplasse.dump
-```
-
-Le job réel ajoute un horodatage, chiffre le dump et l'envoie hors du VPS. Les variables PostgreSQL de la commande précédente sont développées dans le conteneur, jamais attendues dans le shell de l'hôte.
-
-Une restauration se teste au moins chaque trimestre sur un hôte isolé. Après déchiffrement du dump sur un disque chiffré, le contrôle minimal utilise exactement l'image PostgreSQL épinglée :
-
-```bash
-# Run only on an isolated restore host
-source config/deployment/images.env
-SURPLASSE_RESTORE_CONTAINER=surplasse-restore-postgresql
-SURPLASSE_RESTORE_VOLUME=surplasse-restore-postgresql-data
-SURPLASSE_RESTORE_PASSWORD="$(openssl rand -hex 24)"
-
-docker volume create "$SURPLASSE_RESTORE_VOLUME"
-docker run --detach \
-  --name "$SURPLASSE_RESTORE_CONTAINER" \
-  --env POSTGRES_DB=surplasse_restore \
-  --env POSTGRES_USER=surplasse_restore \
-  --env POSTGRES_PASSWORD="$SURPLASSE_RESTORE_PASSWORD" \
-  --mount "source=${SURPLASSE_RESTORE_VOLUME},target=/var/lib/postgresql/data" \
-  "$POSTGRES_IMAGE"
-
-until docker exec "$SURPLASSE_RESTORE_CONTAINER" \
-  pg_isready --username surplasse_restore --dbname surplasse_restore; do
-  sleep 1
-done
-
-docker exec --interactive "$SURPLASSE_RESTORE_CONTAINER" \
-  pg_restore --exit-on-error --no-owner --no-privileges \
-  --username surplasse_restore --dbname surplasse_restore \
-  < /secure/path/surplasse.dump
-
-docker exec "$SURPLASSE_RESTORE_CONTAINER" \
-  psql --username surplasse_restore --dbname surplasse_restore \
-  --command "SELECT version FROM flyway_schema_history WHERE success AND version IS NOT NULL ORDER BY installed_rank DESC LIMIT 1;"
-```
-
-Le contrôle complet démarre ensuite une copie isolée du Backend sur cette base et vérifie la santé, les rattachements restaurateur-établissement, les états de prise de commandes et quelques paiements rapprochés. Une fois le compte rendu daté, supprimer seulement le conteneur et le volume créés pour cet exercice avec `docker rm --force "$SURPLASSE_RESTORE_CONTAINER"` puis `docker volume rm "$SURPLASSE_RESTORE_VOLUME"`. `scripts/compose.sh production down` conserve les volumes de production. `down --volumes` ne fait jamais partie d'une mise à jour ou d'un retour arrière.
+Le stockage d'images reste absent tant que le domaine `generation` n'est pas livré. S'il est ajouté pendant le MVP, il peut utiliser un volume du VPS derrière l'interface S3 du Backend. Sa copie hors VPS rejoint les obligations préalables à l'ouverture publique.
 
 ## Arrêt
 
-```bash
-# Stop containers but retain them and all volumes
-scripts/compose.sh production stop
-
-# Remove containers and the network, retaining named volumes
-scripts/compose.sh production down
-```
-
-Un arrêt de production est une opération manuelle exceptionnelle. Les services portent `restart: unless-stopped` dans la surcharge production et repartent après un redémarrage de Docker, sauf s'ils ont été explicitement arrêtés.
+Un arrêt de production est une mutation Atlas explicite. Il passe par le contrôleur et les commandes bornées de `vps-infra`, jamais par un checkout Surplasse ni par le Compose local. Avant l'arrêt, identifier le digest actif, conserver les preuves utiles et mettre la prise de commandes à `paused` lorsque l'API reste disponible. Après reprise, revérifier les migrations, les healthchecks, les routes publiques et l'état métier.

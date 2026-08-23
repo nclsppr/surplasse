@@ -68,7 +68,7 @@ public final class PilotBootstrapCommand {
                 yield 0;
             }
             case EMPTY -> {
-                output.println("Pilot bootstrap status: the Flyway V14 database is empty.");
+                output.println("Pilot bootstrap status: the Flyway V15 database is empty.");
                 yield EMPTY_STATUS_EXIT;
             }
         };

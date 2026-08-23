@@ -9,7 +9,7 @@ description: Des tests E2E Playwright rejouables sur chaque cible, avec un rappo
 
 ## Statut
 
-Accepté, 2026-07-22.
+Remplacé par [ADR-0046](adr-0046-cli-et-rapports-e2e-plats.md), 2026-08-23.
 
 ## Contexte
 

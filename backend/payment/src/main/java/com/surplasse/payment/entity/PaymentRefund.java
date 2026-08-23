@@ -16,7 +16,6 @@ public class PaymentRefund {
     private UUID paymentId;
     private UUID orderId;
     private UUID establishmentId;
-    private String provider;
     private String externalReference;
     private UUID creationKey;
     private String paymentIntentId;
@@ -46,7 +45,6 @@ public class PaymentRefund {
         this.paymentId = paymentId;
         this.orderId = orderId;
         this.establishmentId = establishmentId;
-        this.provider = "stripe";
         this.externalReference = "creating_" + id;
         this.creationKey = creationKey;
         this.paymentIntentId = paymentIntentId;

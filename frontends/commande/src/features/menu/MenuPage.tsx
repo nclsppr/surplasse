@@ -5,7 +5,7 @@ import { formatPriceCents } from "@surplasse/shared";
 import { storedTableSession } from "../../app/tableSession";
 import { fr } from "../../i18n/fr";
 import { cartTotalCents, useCart } from "../cart/hooks/useCart";
-import { CategorySection } from "./components/CategorySection";
+import { ProductCard } from "./components/ProductCard";
 import { useEstablishment } from "./hooks/useEstablishment";
 import { useMenu } from "./hooks/useMenu";
 
@@ -102,12 +102,25 @@ export function MenuPage({ slug }: Props) {
 
       <div className="space-y-10">
         {menu.data.categories.map((category) => (
-          <CategorySection
-            key={category.id}
-            category={category}
-            currency={menu.data.currency}
-            acceptingOrders={establishment.data.acceptingOrders}
-          />
+          <section key={category.id} aria-labelledby={`category-${category.id}`}>
+            <h2
+              id={`category-${category.id}`}
+              className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-[var(--accent)]"
+            >
+              {category.name}
+            </h2>
+            <ul className="space-y-3">
+              {category.products.map((product) => (
+                <li key={product.id}>
+                  <ProductCard
+                    product={product}
+                    currency={menu.data.currency}
+                    acceptingOrders={establishment.data.acceptingOrders}
+                  />
+                </li>
+              ))}
+            </ul>
+          </section>
         ))}
       </div>
 

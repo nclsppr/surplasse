@@ -6,19 +6,23 @@ import com.surplasse.contract.model.MagicLinkRequest;
 import com.surplasse.identity.service.IdentityService;
 import com.surplasse.identity.service.SessionCookies;
 import io.vertx.ext.web.RoutingContext;
+import jakarta.enterprise.context.RequestScoped;
+import jakarta.ws.rs.CookieParam;
 import jakarta.ws.rs.core.Context;
-import jakarta.ws.rs.core.Cookie;
-import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response;
 
 /** Implements the generated identity interface: reads credentials, converts and delegates. */
+@RequestScoped
 public class IdentityResource implements IdentityApi {
 
     private final IdentityService service;
     private final SessionCookies cookies;
 
-    @Context
-    HttpHeaders headers;
+    @CookieParam(SessionCookies.ACCESS_COOKIE)
+    String accessToken;
+
+    @CookieParam(SessionCookies.REFRESH_COOKIE)
+    String refreshToken;
 
     @Context
     RoutingContext routingContext;
@@ -41,34 +45,28 @@ public class IdentityResource implements IdentityApi {
 
     @Override
     public Response refreshRestaurateurSession() {
-        return sessionResponse(service.refresh(cookie(SessionCookies.REFRESH_COOKIE)));
+        return sessionResponse(service.refresh(refreshToken));
     }
 
     @Override
     public Response getCurrentRestaurateurSession() {
-        return Response.ok(service.current(cookie(SessionCookies.ACCESS_COOKIE)))
-                .build();
+        return Response.ok(service.current(accessToken)).build();
     }
 
     @Override
     public Response deleteCurrentRestaurateurSession() {
-        service.logout(cookie(SessionCookies.REFRESH_COOKIE));
+        service.logout(refreshToken);
         return Response.noContent()
-                .header(HttpHeaders.SET_COOKIE, cookies.clearAccess())
-                .header(HttpHeaders.SET_COOKIE, cookies.clearRefresh())
+                .cookie(cookies.clearAccess(), cookies.clearRefresh())
                 .build();
     }
 
     private Response sessionResponse(IdentityService.CreatedSession session) {
         return Response.ok(session.view())
-                .header(HttpHeaders.SET_COOKIE, cookies.access(session.accessToken(), session.accessExpiresAt()))
-                .header(HttpHeaders.SET_COOKIE, cookies.refresh(session.refreshToken(), session.refreshExpiresAt()))
+                .cookie(
+                        cookies.access(session.accessToken(), session.accessExpiresAt()),
+                        cookies.refresh(session.refreshToken(), session.refreshExpiresAt()))
                 .build();
-    }
-
-    private String cookie(String name) {
-        Cookie cookie = headers.getCookies().get(name);
-        return cookie == null ? null : cookie.getValue();
     }
 
     private String sourceIp() {
