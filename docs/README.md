@@ -103,7 +103,7 @@ Deux pages transverses servent de repères permanents :
 
 ## Contribuer à la documentation
 
-Le fichier `docs/AGENTS.md` (exclu du site publié) fixe la terminologie canonique, la stack de référence, le style rédactionnel et les conventions Nimbus. Toute contribution le respecte ; en cas de contradiction entre une page et lui, c'est la page qui est corrigée.
+Le fichier `docs/AGENTS.md` et le répertoire `docs/agents/` sont exclus du site publié. Ils fixent les conventions documentaires et la configuration des skills d'ingénierie. Toute contribution respecte `docs/AGENTS.md` ; en cas de contradiction entre une page et lui, c'est la page qui est corrigée.
 
 En pratique :
 

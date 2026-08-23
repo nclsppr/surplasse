@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   convertSourceDocument,
   destinationFor,
+  isPublishedSourcePath,
 } from "./sync-content.mjs";
 
 test("maps source metadata and removes the body H1", () => {
@@ -100,6 +101,21 @@ test("writes the derived collection as MDX so Nimbus transforms directives", () 
   assert.match(
     destinationFor(path.resolve("../docs/architecture/api.md")),
     /src\/content\/docs\/architecture\/api\.mdx$/u,
+  );
+});
+
+test("excludes agent instructions from the published collection", () => {
+  assert.equal(
+    isPublishedSourcePath(path.resolve("../docs/agents/domain.md")),
+    false,
+  );
+  assert.equal(
+    isPublishedSourcePath(path.resolve("../docs/agents/index.yml")),
+    false,
+  );
+  assert.equal(
+    isPublishedSourcePath(path.resolve("../docs/architecture/api.md")),
+    true,
   );
 });
 

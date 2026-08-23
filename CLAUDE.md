@@ -11,6 +11,20 @@ Surplasse : canal de commande directe pour restaurants indépendants (QR code à
 - Les décisions structurantes vont dans `docs/decisions/` (ADR). Une page qui contredit un ADR doit être corrigée.
 - Tout ajout de module, package ou logiciel tiers documente dans le même commit sa version, son installation, sa configuration, son lancement et sa vérification sur macOS, Windows (WSL2) et Linux. Il indique explicitement s'il relève du développement seulement, du build ou de la CI, ou de la production. Un service de production documente aussi son déploiement et son exploitation sous Ubuntu LTS. Les références vivent dans `docs/developpement/index.md` et `docs/operations/` ; Ubuntu fait foi.
 
+## Agent skills
+
+### Issue tracker
+
+Les tickets et leurs spécifications vivent dans GitHub Issues. Voir `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Les cinq rôles de triage par défaut correspondent directement aux labels GitHub. Voir `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Le dépôt utilise le mode `single-context` et conserve ses décisions dans `docs/decisions/`. Voir `docs/agents/domain.md`.
+
 ## Commandes
 
 ```bash
