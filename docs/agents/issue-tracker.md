@@ -15,11 +15,11 @@ le remote.
 
 - Créer un ticket avec `gh issue create --title "..." --body "..."`. Utiliser
   un heredoc pour un corps sur plusieurs lignes.
-- Lire un ticket avec `gh issue view <numéro> --comments`. Récupérer aussi les
-  labels lorsque le travail dépend de son état de triage.
+- Lire un ticket avec
+  `gh issue view <numéro> --json number,title,body,author,createdAt,updatedAt,state,labels,comments`.
 - Lister les tickets avec
-  `gh issue list --state open --json number,title,body,labels,comments`, puis
-  appliquer les filtres `--label`, `--state` et `--jq` nécessaires.
+  `gh issue list --state open --limit 1000 --json number,title,body,labels,comments`,
+  puis appliquer les filtres `--label`, `--state` et `--jq` nécessaires.
 - Commenter avec `gh issue comment <numéro> --body "..."`.
 - Ajouter ou retirer un label avec
   `gh issue edit <numéro> --add-label "..."` ou
@@ -36,9 +36,7 @@ Si la valeur devient `yes`, utiliser les commandes `gh pr` correspondantes :
 - Lire une pull request avec `gh pr view <numéro> --comments` et
   `gh pr diff <numéro>`.
 - Lister les pull requests externes avec
-  `gh pr list --state open --json number,title,body,labels,author,authorAssociation,comments`.
-  Garder uniquement les associations `CONTRIBUTOR`, `FIRST_TIME_CONTRIBUTOR` ou
-  `NONE`.
+  `gh api --paginate 'repos/{owner}/{repo}/pulls?state=open&per_page=100' | jq -s 'add | map(select(.author_association == "CONTRIBUTOR" or .author_association == "FIRST_TIME_CONTRIBUTOR" or .author_association == "NONE"))'`.
 - Commenter, étiqueter ou fermer avec `gh pr comment`, `gh pr edit` et
   `gh pr close`.
 
