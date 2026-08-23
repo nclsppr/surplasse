@@ -149,18 +149,8 @@ function initializeMobileNavigation() {
   if (!mobileNavigation) return;
 
   mobileNavigation.querySelectorAll("a[href^='#']").forEach((link) => {
-    link.addEventListener("click", (event) => {
-      const target = document.getElementById(link.hash.slice(1));
-      if (!target) return;
-      event.preventDefault();
+    link.addEventListener("click", () => {
       mobileNavigation.removeAttribute("open");
-      window.history.pushState(null, "", link.hash);
-      target.scrollIntoView({
-        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
-          ? "auto"
-          : "smooth",
-        block: "start",
-      });
     });
   });
 

@@ -22,10 +22,6 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.surplasse</groupId>
-      <artifactId>common</artifactId>
-    </dependency>
-    <dependency>
       <groupId>jakarta.ws.rs</groupId>
       <artifactId>jakarta.ws.rs-api</artifactId>
       <scope>provided</scope>

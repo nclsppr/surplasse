@@ -15,12 +15,11 @@ Surplasse est un canal de commande directe pour les restaurants indépendants : 
 | `frontends/dashboard/` | Dashboard React avec suivi temps réel et avancement des commandes | Image Compose disponible |
 | `frontends/onboarding/` | Préfiguration HTML de la vitrine | Disponible |
 | `frontends/shared/` | Design system et client API TypeScript | Disponible |
-| `frontends/design-system2/`, `frontends/*2/` | Design system Untitled UI et variantes des trois interfaces | Expérience facultative en développement et démos visuelles Pages, absente des routes produit et du VPS |
-| `compose.yaml`, `infra/`, `deployment/vps/` | Pile locale, images et contrat applicatif pour Atlas | Cluster local disponible, release immuable publiée, Surplasse désactivé sur Atlas |
-| `scripts/dev-cockpit/` | Pilotage du profil Compose development, vérifications locales et dernier rapport Allure | Disponible, absent de la production |
-| `e2e/` | Smokes Playwright et rapports Allure 3 avec historique par cible | Disponible, exécution locale et GitHub Actions |
+| `compose.yaml`, `compose.development.yaml`, `infra/` | Pile locale et recettes applicatives | Cluster de développement disponible |
+| `deployment/vps/` | Contrat applicatif immuable pour Atlas | Release publiée, Surplasse désactivé sur Atlas |
+| `e2e/` | Smokes Playwright, historique JSONL et rapport Allure courant par cible | Disponible, exécution locale et GitHub Actions |
 
-La documentation complète vit dans [`docs/`](docs/). La procédure détaillée des domaines et du cockpit est dans [`docs/developpement/domaines-locaux.md`](docs/developpement/domaines-locaux.md).
+La documentation complète vit dans [`docs/`](docs/). La procédure détaillée du cluster local et de ses domaines est dans [`docs/developpement/domaines-locaux.md`](docs/developpement/domaines-locaux.md).
 
 Atlas et sa plateforme partagée existent. Surplasse n'y est ni servi ni déployé : le dépôt produit un candidat OCI immuable, puis `vps-infra` décide séparément de son admission et de son activation. L'entrée Surplasse y reste `enabled: false`. Aucun DNS Surplasse, secret applicatif, rôle PostgreSQL, migration ou service Surplasse n'a été activé sur Atlas. L'état et les portes restantes sont consignés dans le [runbook de déploiement](docs/operations/deploiement-compose.md#état-opérationnel-atlas-au-2026-08-18).
 
@@ -41,8 +40,6 @@ mise exec -- npm ci --prefix docs-nimbus
 (cd frontends/dashboard && mise exec -- npm ci)
 (cd e2e && mise exec -- npm ci && mise exec -- npx playwright install chromium)
 ```
-
-Pour travailler sur l'expérience UI2, installer aussi ses quatre packages avec `npm run frontend2:install`.
 
 ## Installer les domaines locaux
 
@@ -76,26 +73,16 @@ Pour garder les logs au premier plan :
 npm run local:start
 ```
 
-Pour ajouter les trois variantes UI2 au cluster canonique :
+## Tester le cluster et ouvrir le rapport
+
+Après le démarrage du cluster, lancer le smoke Playwright development puis ouvrir le rapport Allure courant :
 
 ```bash
-npm run local:experiment:up
+npm run e2e:test -- development
+npm run e2e:report -- development
 ```
 
-Elles sont alors disponibles sous `/_experiments/untitled/` sur les mêmes hôtes que les interfaces originales. `npm run local:experiment:stop` arrête seulement ces trois variantes. La procédure complète et la démo Pages vivent dans [`docs/developpement/frontends-alternatifs.md`](docs/developpement/frontends-alternatifs.md).
-
-## Piloter le cluster avec le cockpit
-
-Le cockpit exige un cluster déjà créé. Dans un autre terminal :
-
-```bash
-npm run local:up
-npm run local:cockpit
-```
-
-Ouvrir [https://local.surplasse.test](https://local.surplasse.test). Les boutons lisent et pilotent les services autorisés du projet Compose development. Caddy reste visible en lecture seule, car son arrêt couperait l'accès au cockpit. Les opérations `down`, la suppression des volumes et les boucles natives restent des commandes terminal.
-
-La page [https://local.surplasse.test/tests](https://local.surplasse.test/tests) lance les suites fixes, dont le smoke Playwright development. Son dernier rapport Allure 3 est publié sur [https://reports.surplasse.test](https://reports.surplasse.test). Cette URL répond 404 avant le premier rapport et dépend du cockpit pour être servie. Arrêter le cockpit ne stoppe pas les conteneurs.
+Le rapport autonome vit sous `.surplasse/e2e/development/allure-report/index.html` et les traces ou captures sous `.surplasse/e2e/development/test-results/`. Chaque exécution complète remplace ces dossiers courants et met à jour le seul `history.jsonl` de la cible. Aucun serveur de rapport permanent n'est nécessaire.
 
 GitHub Actions lance aussi un cluster Compose development jetable à chaque push et chaque heure. Son dernier rapport Allure 3 est public sur [https://nclsppr.github.io/surplasse/local-tests/](https://nclsppr.github.io/surplasse/local-tests/). Il est distinct du rapport créé sur le poste local.
 
@@ -108,9 +95,9 @@ GitHub Actions lance aussi un cluster Compose development jetable à chaque push
 | `https://dashboard.surplasse.test` | Dashboard |
 | `https://api.surplasse.test` | Backend |
 | `https://docs.surplasse.test` | documentation Nimbus locale, générée depuis `docs/` |
-| `https://local.surplasse.test` | cockpit local |
 | `https://mail.surplasse.test` | Mailpit |
-| `https://reports.surplasse.test` | dernier rapport Allure development |
+| `https://local.surplasse.test` | réservé, non implémenté |
+| `https://reports.surplasse.test` | réservé, non implémenté |
 | `https://app.surplasse.test` | réservé, non implémenté |
 | `https://admin.surplasse.test` | réservé, non implémenté |
 | `https://{slug}.surplasse.test` | Commande pour un établissement |
@@ -173,9 +160,9 @@ Les sources publiques et sans secret sont :
 - `config/domains/development.env` pour `.test` ;
 - `config/domains/production.env` pour `.com`.
 
-Les frontends, le Backend, Caddy, l'Onboarding statique et le cockpit partent de ces valeurs. Le chargeur dérive `LOCAL_CONTROL_URL`, `MAILPIT_URL` et `REPORTS_URL` uniquement pour development. `COOKIE_DOMAIN` reste volontairement vide : les cookies restaurateur sont hôte uniquement sur l'API et ne sont jamais partagés avec les mini-sites.
+Les frontends, le Backend, Caddy et l'Onboarding statique partent de ces valeurs. Le chargeur dérive `MAILPIT_URL` et `GRAFANA_URL` uniquement pour development. Les cookies restaurateur restent hôte uniquement sur l'API par absence d'attribut `Domain` et ne sont jamais partagés avec les mini-sites.
 
-`config/deployment/development.env` porte uniquement les paramètres Compose locaux. Le modèle de secrets de production est `config/deployment/production.env.example`, mais il ne peut redéfinir aucun domaine ni aucune URL. Le wrapper `scripts/compose.sh` sélectionne toujours explicitement `development` ou `production`.
+`config/deployment/development.env` porte uniquement les paramètres Compose locaux. Le wrapper `scripts/compose.sh` accepte seulement `development`. La production consomme exclusivement `deployment/vps/compose.yaml` dans une `application-release` admise et activée par `vps-infra`.
 
 Le Backend se lance avec `npm run backend:dev` ou se vérifie avec `npm run backend:verify`. Ces commandes sourcent le profil avant Maven et dérivent toutes les URL applicatives, le CORS et l'expéditeur Mailpit depuis `APP_BASE_DOMAIN`. Quarkus construit ensuite le magic link depuis `DASHBOARD_URL`, l'émetteur JWT depuis `API_URL` et garde les cookies `Secure`. Le code Java et `application.properties` ne contiennent aucune URL Surplasse de repli.
 
@@ -188,13 +175,12 @@ npm run brand:check
 npm run local:config
 npm run compose:config:test
 npm run local:cors:test
-npm run local:cockpit:test
 npm run docs:watch
 npm run docs:build
 npm run e2e:check
 npm run e2e:test -- development
 ```
 
-La suite E2E exige toujours une cible explicite. Le cockpit expose seulement la commande fixe `development` et son rapport sur `REPORTS_URL`. `production` et `custom` se lancent par la CLI ou par `.github/workflows/e2e.yml` ; une cible `custom` exige son identifiant et son domaine racine. Les résultats, rapports et historiques Allure restent séparés sous `.surplasse/e2e/{history-id}/`. Pour une cible personnalisée, cet identifiant interne ajoute automatiquement une empreinte du domaine afin que deux serveurs ne partagent jamais leur historique. Le test mobile de Commande s'active avec `SURPLASSE_E2E_ESTABLISHMENT_SLUG` et reste en lecture seule.
+La suite E2E exige toujours une cible explicite. `development`, `production` et `custom` se lancent par la CLI ou par `.github/workflows/e2e.yml` ; une cible `custom` exige son identifiant et son domaine racine. Chaque cible conserve directement `history.jsonl`, `allure-report/` et `test-results/` sous `.surplasse/e2e/{history-id}/`. Pour une cible personnalisée, cet identifiant interne ajoute automatiquement une empreinte du domaine afin que deux serveurs ne partagent jamais leur historique. Le test mobile de Commande s'active avec `SURPLASSE_E2E_ESTABLISHMENT_SLUG` et reste en lecture seule.
 
 Les règles de contribution et la terminologie canonique sont dans [`docs/AGENTS.md`](docs/AGENTS.md). Tout nouveau module ou logiciel documente, dans le même commit, son installation, son lancement, son arrêt, sa vérification, les plateformes supportées et sa présence ou son absence en production.

@@ -22,11 +22,6 @@ public class OrderRepository implements PanacheRepositoryBase<Order, UUID> {
         return find("idempotencyKey = ?1", idempotencyKey).firstResultOptional();
     }
 
-    public Optional<Order> findByIdForEstablishment(UUID orderId, UUID establishmentId) {
-        return find("id = ?1 and establishmentId = ?2", orderId, establishmentId)
-                .firstResultOptional();
-    }
-
     /** Serializes payment-session creation for one order. Must run inside a transaction. */
     public Optional<Order> findByIdForTableSessionForUpdate(UUID orderId, UUID tableSessionId) {
         return find("id = ?1 and tableSessionId = ?2", orderId, tableSessionId)

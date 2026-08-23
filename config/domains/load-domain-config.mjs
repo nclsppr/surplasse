@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { parseEnv } from "node:util";
 
 const domainsDirectory = fileURLToPath(new URL(".", import.meta.url));
 
@@ -10,13 +11,10 @@ export const DOMAIN_CONFIG_KEYS = Object.freeze([
   "ONBOARDING_URL",
   "DASHBOARD_URL",
   "API_URL",
-  "LOCAL_CONTROL_URL",
   "DOCS_URL",
   "MAILPIT_URL",
-  "REPORTS_URL",
   "GRAFANA_URL",
   "PROBLEM_TYPE_BASE",
-  "COOKIE_DOMAIN",
   "RESERVED_SUBDOMAINS",
 ]);
 
@@ -24,7 +22,6 @@ const DOMAIN_PROFILE_KEYS = Object.freeze([
   "APP_SCHEME",
   "APP_BASE_DOMAIN",
   "PROBLEM_TYPE_BASE",
-  "COOKIE_DOMAIN",
   "RESERVED_SUBDOMAINS",
 ]);
 
@@ -33,10 +30,8 @@ const URL_KEYS = Object.freeze([
   "ONBOARDING_URL",
   "DASHBOARD_URL",
   "API_URL",
-  "LOCAL_CONTROL_URL",
   "DOCS_URL",
   "MAILPIT_URL",
-  "REPORTS_URL",
   "GRAFANA_URL",
 ]);
 
@@ -53,7 +48,7 @@ export function loadDomainConfig(profile) {
   }
 
   const source = readFileSync(`${domainsDirectory}${profile}.env`, "utf8");
-  const config = deriveDomainConfig(parseDotenv(source, profile), profile);
+  const config = deriveDomainConfig(parseDomainProfile(source, profile), profile);
   validateDomainConfig(config, profile);
   return Object.freeze(config);
 }
@@ -73,9 +68,7 @@ export function loadFrontendDomainConfig(mode, viteEnvironment = {}) {
 export function frontendEnvironmentDefinitions(config) {
   const definitions = {};
   for (const key of DOMAIN_CONFIG_KEYS) {
-    if (key !== "COOKIE_DOMAIN") {
-      definitions[`import.meta.env.VITE_${key}`] = JSON.stringify(config[key]);
-    }
+    definitions[`import.meta.env.VITE_${key}`] = JSON.stringify(config[key]);
   }
   definitions["import.meta.env.VITE_API_BASE_URL"] = JSON.stringify(config.API_URL);
   return definitions;
@@ -90,10 +83,8 @@ export function createPagesDemoDomainConfig(config) {
     ONBOARDING_URL: origin,
     DASHBOARD_URL: origin,
     API_URL: origin,
-    LOCAL_CONTROL_URL: "",
     DOCS_URL: origin,
     MAILPIT_URL: "",
-    REPORTS_URL: "",
     GRAFANA_URL: "",
   };
   validateDomainConfig(pagesConfig, "pages-demo");
@@ -104,26 +95,18 @@ export function allowedFrontendHosts(config) {
   return Object.freeze([config.APP_BASE_DOMAIN, `.${config.APP_BASE_DOMAIN}`]);
 }
 
-function parseDotenv(source, profile) {
-  const config = {};
-  for (const [index, rawLine] of source.split(/\r?\n/u).entries()) {
-    const line = rawLine.trim();
-    if (line === "" || line.startsWith("#")) {
-      continue;
-    }
-    const separator = line.indexOf("=");
-    if (separator < 1) {
-      throw new Error(`Invalid ${profile}.env line ${index + 1}`);
-    }
-    const key = line.slice(0, separator).trim();
-    const value = line.slice(separator + 1).trim();
+export function parseDomainProfile(source, profile) {
+  let config;
+  try {
+    config = parseEnv(source);
+  } catch (error) {
+    throw new Error(`Invalid ${profile}.env: ${error.message}`);
+  }
+  rejectDuplicateAssignments(source, profile);
+  for (const key of Object.keys(config)) {
     if (!DOMAIN_PROFILE_KEYS.includes(key)) {
       throw new Error(`Unknown domain setting ${key} in ${profile}.env`);
     }
-    if (Object.hasOwn(config, key)) {
-      throw new Error(`Duplicate domain setting ${key} in ${profile}.env`);
-    }
-    config[key] = value;
   }
 
   for (const key of DOMAIN_PROFILE_KEYS) {
@@ -132,6 +115,17 @@ function parseDotenv(source, profile) {
     }
   }
   return config;
+}
+
+function rejectDuplicateAssignments(source, profile) {
+  const keys = new Set();
+  for (const match of source.matchAll(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/gmu)) {
+    const key = match[1];
+    if (keys.has(key)) {
+      throw new Error(`Duplicate domain setting ${key} in ${profile}.env`);
+    }
+    keys.add(key);
+  }
 }
 
 function deriveDomainConfig(profileConfig, profile) {
@@ -144,10 +138,8 @@ function deriveDomainConfig(profileConfig, profile) {
     ONBOARDING_URL: `${scheme}://${domain}`,
     DASHBOARD_URL: `${scheme}://dashboard.${domain}`,
     API_URL: `${scheme}://api.${domain}`,
-    LOCAL_CONTROL_URL: development ? `${scheme}://local.${domain}` : "",
     DOCS_URL: `${scheme}://docs.${domain}`,
     MAILPIT_URL: development ? `${scheme}://mail.${domain}` : "",
-    REPORTS_URL: development ? `${scheme}://reports.${domain}` : "",
     GRAFANA_URL: development ? `${scheme}://grafana.${domain}` : "",
   };
 }
@@ -162,14 +154,10 @@ function validateDomainConfig(config, source) {
   if (!config.APP_BASE_DOMAIN.includes(".")) {
     throw new Error(`${source}: APP_BASE_DOMAIN must contain a public suffix`);
   }
-  if (config.COOKIE_DOMAIN !== "") {
-    throw new Error(`${source}: COOKIE_DOMAIN must stay empty for host-only cookies`);
-  }
-
   for (const key of URL_KEYS) {
     const value = config[key];
     if (value === "") {
-      if (!["LOCAL_CONTROL_URL", "MAILPIT_URL", "REPORTS_URL", "GRAFANA_URL"].includes(key)) {
+      if (!["MAILPIT_URL", "GRAFANA_URL"].includes(key)) {
         throw new Error(`${source}: ${key} cannot be empty`);
       }
       continue;

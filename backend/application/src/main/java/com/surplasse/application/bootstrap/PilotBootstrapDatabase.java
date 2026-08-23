@@ -21,6 +21,7 @@ import java.util.regex.Pattern;
 final class PilotBootstrapDatabase implements PilotBootstrapExecutor.DatabaseOperations {
 
     private static final long ADVISORY_LOCK = 7_301_040_411L;
+    private static final int REQUIRED_SCHEMA_VERSION = 15;
     private static final Pattern TABLE_CODE = Pattern.compile("^tbl_[0-9a-f]{32}$");
 
     private final ConnectionFactory connections;
@@ -46,7 +47,7 @@ final class PilotBootstrapDatabase implements PilotBootstrapExecutor.DatabaseOpe
             connection.setAutoCommit(false);
             try {
                 acquireLock(connection);
-                requireFlywayV14(connection);
+                requireFlywaySchema(connection);
                 GraphState state = inspect(connection, manifest, stripe);
                 if (state == GraphState.EXACT) {
                     connection.commit();
@@ -87,7 +88,7 @@ final class PilotBootstrapDatabase implements PilotBootstrapExecutor.DatabaseOpe
             connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
             connection.setAutoCommit(false);
             try {
-                requireFlywayV14(connection);
+                requireFlywaySchema(connection);
                 GraphState state = inspect(connection, manifest, stripe);
                 connection.commit();
                 return state;
@@ -128,12 +129,12 @@ final class PilotBootstrapDatabase implements PilotBootstrapExecutor.DatabaseOpe
         }
     }
 
-    private static void requireFlywayV14(Connection connection) throws SQLException {
+    private static void requireFlywaySchema(Connection connection) throws SQLException {
         try (PreparedStatement existence =
                         connection.prepareStatement("select to_regclass('public.flyway_schema_history') is not null");
                 ResultSet result = existence.executeQuery()) {
             if (!result.next() || !result.getBoolean(1) || result.next()) {
-                throw PilotBootstrapException.drift("The production schema is not exactly Flyway V14.");
+                throw schemaDrift();
             }
         }
         List<Integer> versions = new ArrayList<>();
@@ -143,19 +144,25 @@ final class PilotBootstrapDatabase implements PilotBootstrapExecutor.DatabaseOpe
             while (result.next()) {
                 String version = result.getString(1);
                 if (version == null || !result.getBoolean(2)) {
-                    throw PilotBootstrapException.drift("The production schema is not exactly Flyway V14.");
+                    throw schemaDrift();
                 }
                 try {
                     versions.add(Integer.valueOf(version));
                 } catch (NumberFormatException exception) {
-                    throw PilotBootstrapException.drift("The production schema is not exactly Flyway V14.");
+                    throw schemaDrift();
                 }
             }
         }
-        if (!versions.equals(
-                java.util.stream.IntStream.rangeClosed(1, 14).boxed().toList())) {
-            throw PilotBootstrapException.drift("The production schema is not exactly Flyway V14.");
+        if (!versions.equals(java.util.stream.IntStream.rangeClosed(1, REQUIRED_SCHEMA_VERSION)
+                .boxed()
+                .toList())) {
+            throw schemaDrift();
         }
+    }
+
+    private static PilotBootstrapException schemaDrift() {
+        return PilotBootstrapException.drift(
+                "The production schema is not exactly Flyway V" + REQUIRED_SCHEMA_VERSION + ".");
     }
 
     private static GraphState inspect(

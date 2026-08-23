@@ -9,7 +9,7 @@ description: Un cockpit local qui pilote uniquement le profil Compose developmen
 
 ## Statut
 
-Accepté, 2026-07-22.
+Remplacé par [ADR-0046](adr-0046-cli-et-rapports-e2e-plats.md), 2026-08-23.
 
 ## Contexte
 

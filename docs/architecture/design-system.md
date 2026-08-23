@@ -110,7 +110,7 @@ Sur les mini-sites, ces variables de base sont **surchargées par le thème de l
 
 - Base mirrorée dans `brand/` : `styles.css` importe d'abord les polices auto-hébergées de `brand/fonts/`, puis `tokens/colors.css`, `tokens/typography.css` et `tokens/spacing.css`. Cet ordre garde les déclarations `@font-face` en tête de la feuille assemblée.
 - En phase 1, ces tokens et la couche composants (Button, Card, Input, Dialog, Tabs, etc.) sont synchronisés dans `frontends/shared/` depuis le design system Claude Design.
-- La couche composants (Tailwind et une bibliothèque à acter par ADR) est décrite dans [les conventions React](../developpement/conventions-react.md).
+- La couche composants et l'usage ciblé de Tailwind sont décrits dans [les conventions React](../developpement/conventions-react.md).
 
 ## QR codes
 

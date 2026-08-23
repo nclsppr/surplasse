@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -13,19 +14,12 @@ import test from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
 import {
-  acquireTargetLock,
   exportCurrentReport,
   prepareRunWorkspace,
   publishRunArtifacts,
   removeRunWorkspace,
-  resolveCurrentPublication,
 } from "../support/run-artifacts.mjs";
 import { executeBinary, reportOpener } from "../scripts/run.mjs";
-
-const RUN_ID = "11111111-1111-4111-8111-111111111111";
-const SECOND_RUN_ID = "22222222-2222-4222-8222-222222222222";
-const REPORT_ID = "report-id-one";
-const SECOND_REPORT_ID = "report-id-two";
 
 test("single-file report uses an OS file opener instead of a report server", () => {
   assert.deepEqual(reportOpener("/reports/index.html", { platform: "darwin" }), {
@@ -45,13 +39,6 @@ test("single-file report uses an OS file opener instead of a report server", () 
       command: "/usr/bin/wslview",
       argumentsList: ["/reports/index.html"],
     },
-  );
-  assert.equal(
-    reportOpener("/reports/index.html", {
-      platform: "linux",
-      fileExists: () => false,
-    }),
-    null,
   );
 });
 
@@ -88,131 +75,58 @@ test(
   },
 );
 
-test("target lock rejects overlap and releases only its own token", (context) => {
+test("workspace receives the previous history only", (context) => {
   const directory = temporaryDirectory(context);
-  const published = publishedPaths(directory);
-  const now = () => new Date("2026-07-22T10:00:00.000Z");
-  const first = acquireTargetLock(published.lock, "development", {
-    host: "test-host",
-    now,
-    pid: 101,
-    token: "first-token",
-  });
-
-  assert.throws(
-    () =>
-      acquireTargetLock(published.lock, "development", {
-        host: "test-host",
-        now,
-        pid: 202,
-        token: "second-token",
-      }),
-    /already locked by PID 101/u,
-  );
-
-  first.release();
-  const second = acquireTargetLock(published.lock, "development", {
-    host: "test-host",
-    now,
-    pid: 202,
-    token: "second-token",
-  });
-  first.release();
-  assert.match(readFileSync(published.lock, "utf8"), /second-token/u);
-  second.release();
-});
-
-test("an existing lock fails closed instead of racing to reclaim a dead owner", (context) => {
-  const directory = temporaryDirectory(context);
-  const published = publishedPaths(directory);
-  const first = acquireTargetLock(published.lock, "development", {
-    host: "test-host",
-    pid: 101,
-    token: "first-token",
-  });
-
-  assert.throws(
-    () =>
-      acquireTargetLock(published.lock, "development", {
-        host: "test-host",
-        pid: 202,
-        token: "second-token",
-      }),
-    /Remove .*run\.lock only after confirming that no run is active/u,
-  );
-  assert.match(readFileSync(published.lock, "utf8"), /first-token/u);
-  first.release();
-});
-
-test("workspace seeds history while the published report remains untouched", (context) => {
-  const directory = temporaryDirectory(context);
-  const published = publishedPaths(directory);
-  const staged = runPaths(published, RUN_ID);
+  const published = artifactPaths(join(directory, "published"));
+  const run = artifactPaths(join(directory, "run"));
   mkdirSync(published.report, { recursive: true });
   writeFileSync(join(published.report, "index.html"), "<html>old</html>");
-  writeFileSync(published.history, `${JSON.stringify({ uuid: "old-report" })}\n`);
+  writeFileSync(published.history, '{"uuid":"old-report"}\n');
 
-  prepareRunWorkspace(published, staged);
+  prepareRunWorkspace(published, run);
 
-  assert.equal(
-    readFileSync(staged.history, "utf8"),
-    `${JSON.stringify({ uuid: "old-report" })}\n`,
-  );
+  assert.equal(readFileSync(run.history, "utf8"), '{"uuid":"old-report"}\n');
+  assert.deepEqual(readdirSync(run.root), ["history.jsonl"]);
+});
+
+test("first workspace starts without fabricated history", (context) => {
+  const directory = temporaryDirectory(context);
+  const published = artifactPaths(join(directory, "published"));
+  const run = artifactPaths(join(directory, "run"));
+
+  prepareRunWorkspace(published, run);
+
+  assert.equal(existsSync(run.history), false);
+});
+
+test("generated report and history replace the current publication", (context) => {
+  const directory = temporaryDirectory(context);
+  const published = artifactPaths(join(directory, "published"));
+  const run = artifactPaths(join(directory, "run"));
+  createGeneratedRun(run, "new-report");
+
+  assert.equal(publishRunArtifacts(published, run), published);
   assert.equal(
     readFileSync(join(published.report, "index.html"), "utf8"),
-    "<html>old</html>",
-  );
-
-  removeRunWorkspace(published, staged);
-  assert.deepEqual(readdirSync(published.root).sort(), ["allure-report", "history.jsonl"]);
-});
-
-test("valid single-file report, summary, history and diagnostics become one release", (
-  context,
-) => {
-  const directory = temporaryDirectory(context);
-  const published = publishedPaths(directory);
-  const staged = runPaths(published, RUN_ID);
-  createPublishedArtifacts(published);
-  createGeneratedRun(staged);
-
-  const release = publishRunArtifacts(published, staged);
-
-  assert.equal(
-    readFileSync(join(release.report, "index.html"), "utf8"),
     "<!doctype html><html>new report</html>",
   );
+  assert.equal(readFileSync(published.history, "utf8"), '{"uuid":"new-report"}\n');
   assert.equal(
-    JSON.parse(readFileSync(join(release.report, "summary.json"), "utf8")).meta
-      .reportId,
-    REPORT_ID,
+    readFileSync(join(published.playwright, "trace.zip"), "utf8"),
+    "diagnostic",
   );
-  assert.equal(
-    JSON.parse(readFileSync(release.history, "utf8")).uuid,
-    REPORT_ID,
-  );
-  assert.equal(
-    readFileSync(join(release.results, "result.json"), "utf8"),
-    "new result",
-  );
-  assert.equal(
-    readFileSync(join(release.playwright, ".last-run.json"), "utf8"),
-    "new diagnostics",
-  );
-  assert.equal(resolveCurrentPublication(published).runId, RUN_ID);
-  assert.deepEqual(JSON.parse(readFileSync(published.current, "utf8")), {
-    version: 1,
-    runId: RUN_ID,
-  });
+  assert.deepEqual(readdirSync(published.root).sort(), [
+    "allure-report",
+    "history.jsonl",
+    "test-results",
+  ]);
 });
 
-test("current single-file report can be exported for static hosting", (context) => {
+test("current report can be exported for static hosting", (context) => {
   const directory = temporaryDirectory(context);
-  const published = publishedPaths(directory);
-  const staged = runPaths(published, RUN_ID);
+  const published = artifactPaths(join(directory, "published"));
   const destination = join(directory, "pages", "local-tests", "index.html");
-  createGeneratedRun(staged);
-  publishRunArtifacts(published, staged);
+  createGeneratedRun(published, "report-id");
 
   assert.equal(exportCurrentReport(published, destination), destination);
   assert.equal(
@@ -221,118 +135,58 @@ test("current single-file report can be exported for static hosting", (context) 
   );
 });
 
-test("report export rejects a missing publication", (context) => {
+test("invalid output leaves the current report untouched", (context) => {
   const directory = temporaryDirectory(context);
-  const published = publishedPaths(directory);
+  const published = artifactPaths(join(directory, "published"));
+  const run = artifactPaths(join(directory, "run"));
+  createGeneratedRun(published, "old-report");
+  mkdirSync(run.report, { recursive: true });
+  writeFileSync(join(run.report, "index.html"), "not html");
+  writeFileSync(run.history, '{"uuid":"new-report"}\n');
 
-  assert.throws(
-    () => exportCurrentReport(published, join(directory, "index.html")),
-    /No published Allure report/u,
-  );
-});
-
-test("failed report is publishable when Allure omits the zero passed counter", (context) => {
-  const directory = temporaryDirectory(context);
-  const published = publishedPaths(directory);
-  const staged = runPaths(published, RUN_ID);
-  createPublishedArtifacts(published);
-  createGeneratedRun(staged, {
-    status: "failed",
-    stats: { total: 1, failed: 1 },
-  });
-
-  publishRunArtifacts(published, staged);
-
-  const current = resolveCurrentPublication(published);
-  const summary = JSON.parse(
-    readFileSync(join(current.report, "summary.json"), "utf8"),
-  );
-  assert.equal(summary.status, "failed");
-  assert.deepEqual(summary.stats, { total: 1, failed: 1 });
-  assert.equal(
-    readFileSync(join(current.report, "index.html"), "utf8"),
-    "<!doctype html><html>new report</html>",
-  );
-});
-
-test("an all-skipped Allure report is still a valid publication", (context) => {
-  const directory = temporaryDirectory(context);
-  const published = publishedPaths(directory);
-  const staged = runPaths(published, RUN_ID);
-  createPublishedArtifacts(published);
-  createGeneratedRun(staged, {
-    status: "skipped",
-    stats: { total: 1, skipped: 1 },
-  });
-
-  publishRunArtifacts(published, staged);
-
-  const current = resolveCurrentPublication(published);
-  const summary = JSON.parse(readFileSync(join(current.report, "summary.json"), "utf8"));
-  assert.equal(summary.status, "skipped");
-});
-
-test("a crash before the pointer switch keeps the previous release visible", (context) => {
-  const directory = temporaryDirectory(context);
-  const published = publishedPaths(directory);
-  const first = runPaths(published, RUN_ID);
-  createGeneratedRun(first);
-  publishRunArtifacts(published, first);
-
-  const second = runPaths(published, SECOND_RUN_ID);
-  createGeneratedRun(second, {
-    historyReportId: SECOND_REPORT_ID,
-    reportId: SECOND_REPORT_ID,
-  });
-
-  assert.throws(
-    () => publishRunArtifacts(published, second, {
-      commitPointer() {
-        throw new Error("simulated SIGKILL boundary");
-      },
-    }),
-    /simulated SIGKILL boundary/u,
-  );
-
-  const current = resolveCurrentPublication(published);
-  assert.equal(current.runId, RUN_ID);
-  assert.equal(
-    JSON.parse(readFileSync(join(current.report, "summary.json"), "utf8")).meta
-      .reportId,
-    REPORT_ID,
-  );
-  assert.equal(
-    JSON.parse(readFileSync(join(published.releases, SECOND_RUN_ID, "history.jsonl"), "utf8")).uuid,
-    SECOND_REPORT_ID,
-  );
-});
-
-test("invalid Allure output leaves every published artifact unchanged", (context) => {
-  const directory = temporaryDirectory(context);
-  const published = publishedPaths(directory);
-  const staged = runPaths(published, RUN_ID);
-  createPublishedArtifacts(published);
-  createGeneratedRun(staged, { historyReportId: "different-report" });
-
-  assert.throws(
-    () => publishRunArtifacts(published, staged),
-    /history does not match/u,
-  );
+  assert.throws(() => publishRunArtifacts(published, run), /not valid HTML/u);
   assert.equal(
     readFileSync(join(published.report, "index.html"), "utf8"),
-    "<html>old report</html>",
+    "<!doctype html><html>new report</html>",
   );
   assert.equal(readFileSync(published.history, "utf8"), '{"uuid":"old-report"}\n');
-  assert.equal(
-    readFileSync(join(published.results, "result.json"), "utf8"),
-    "old result",
-  );
+});
+
+test("temporary workspace cleanup is recursive", (context) => {
+  const directory = temporaryDirectory(context);
+  const run = artifactPaths(join(directory, "run"));
+  createGeneratedRun(run, "report-id");
+
+  removeRunWorkspace(run);
+
+  assert.equal(existsSync(run.root), false);
 });
 
 function temporaryDirectory(context) {
-  const directory = mkdtempSync(join(tmpdir(), "surplasse-e2e-"));
+  const directory = mkdtempSync(join(tmpdir(), "surplasse-e2e-test-"));
   context.after(() => rmSync(directory, { recursive: true, force: true }));
   return directory;
+}
+
+function artifactPaths(root) {
+  return {
+    root,
+    results: join(root, "allure-results"),
+    report: join(root, "allure-report"),
+    history: join(root, "history.jsonl"),
+    playwright: join(root, "test-results"),
+  };
+}
+
+function createGeneratedRun(paths, reportId) {
+  mkdirSync(paths.report, { recursive: true });
+  mkdirSync(paths.playwright, { recursive: true });
+  writeFileSync(
+    join(paths.report, "index.html"),
+    "<!doctype html><html>new report</html>",
+  );
+  writeFileSync(paths.history, `${JSON.stringify({ uuid: reportId })}\n`);
+  writeFileSync(join(paths.playwright, "trace.zip"), "diagnostic");
 }
 
 async function waitForPid(path) {
@@ -363,71 +217,4 @@ async function waitForProcessExit(pid) {
     await delay(10);
   }
   throw new Error(`Fixture process ${pid} survived group termination.`);
-}
-
-function publishedPaths(root) {
-  return {
-    root,
-    current: join(root, "current.json"),
-    results: join(root, "allure-results"),
-    report: join(root, "allure-report"),
-    history: join(root, "history.jsonl"),
-    playwright: join(root, "playwright"),
-    lock: join(root, "run.lock"),
-    releases: join(root, "releases"),
-    staging: join(root, "runs"),
-  };
-}
-
-function runPaths(published, runId) {
-  const root = join(published.staging, runId);
-  return {
-    root,
-    results: join(root, "allure-results"),
-    report: join(root, "allure-report"),
-    history: join(root, "history.jsonl"),
-    playwright: join(root, "playwright"),
-  };
-}
-
-function createPublishedArtifacts(paths) {
-  mkdirSync(paths.report, { recursive: true });
-  mkdirSync(paths.results, { recursive: true });
-  mkdirSync(paths.playwright, { recursive: true });
-  writeFileSync(join(paths.report, "index.html"), "<html>old report</html>");
-  writeFileSync(join(paths.report, "summary.json"), '{"status":"passed"}\n');
-  writeFileSync(paths.history, '{"uuid":"old-report"}\n');
-  writeFileSync(join(paths.results, "result.json"), "old result");
-  writeFileSync(join(paths.playwright, ".last-run.json"), "old diagnostics");
-}
-
-function createGeneratedRun(
-  paths,
-  {
-    historyReportId = REPORT_ID,
-    reportId = REPORT_ID,
-    stats = { total: 1, passed: 1 },
-    status = "passed",
-  } = {},
-) {
-  mkdirSync(paths.report, { recursive: true });
-  mkdirSync(paths.results, { recursive: true });
-  mkdirSync(paths.playwright, { recursive: true });
-  writeFileSync(
-    join(paths.report, "index.html"),
-    "<!doctype html><html>new report</html>",
-  );
-  writeFileSync(
-    join(paths.report, "summary.json"),
-    `${JSON.stringify({
-      status,
-      createdAt: 1_784_688_101_071,
-      duration: 2_338,
-      stats,
-      meta: { reportId, singleFile: true },
-    })}\n`,
-  );
-  writeFileSync(paths.history, `${JSON.stringify({ uuid: historyReportId })}\n`);
-  writeFileSync(join(paths.results, "result.json"), "new result");
-  writeFileSync(join(paths.playwright, ".last-run.json"), "new diagnostics");
 }

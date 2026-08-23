@@ -3,6 +3,7 @@ package com.surplasse.identity.service;
 import com.surplasse.common.identity.RestaurateurIdentityGateway;
 import com.surplasse.identity.config.IdentityConfig;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.ws.rs.core.NewCookie;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -25,38 +26,43 @@ public class SessionCookies {
         this.clock = clock;
     }
 
-    public String access(String value, Instant expiresAt) {
+    public NewCookie access(String value, Instant expiresAt) {
         return value(ACCESS_COOKIE, value, ACCESS_PATH, expiresAt);
     }
 
-    public String refresh(String value, Instant expiresAt) {
+    public NewCookie refresh(String value, Instant expiresAt) {
         return value(REFRESH_COOKIE, value, REFRESH_PATH, expiresAt);
     }
 
-    public String clearAccess() {
+    public NewCookie clearAccess() {
         return cleared(ACCESS_COOKIE, ACCESS_PATH);
     }
 
-    public String clearRefresh() {
+    public NewCookie clearRefresh() {
         return cleared(REFRESH_COOKIE, REFRESH_PATH);
     }
 
-    private String value(String name, String value, String path, Instant expiresAt) {
-        long maxAge = secondsUntil(expiresAt, clock.instant());
-        return attributes(name + "=" + value, path, maxAge);
+    private NewCookie value(String name, String value, String path, Instant expiresAt) {
+        return build(name, value, path, secondsUntil(expiresAt, clock.instant()));
     }
 
-    private String cleared(String name, String path) {
-        return attributes(name + "=", path, 0);
+    private NewCookie cleared(String name, String path) {
+        return build(name, "", path, 0);
     }
 
-    private String attributes(String pair, String path, long maxAge) {
-        return pair + "; Path=" + path + "; Max-Age=" + maxAge + "; HttpOnly; SameSite=Lax"
-                + (config.secureCookies() ? "; Secure" : "");
+    private NewCookie build(String name, String value, String path, int maxAge) {
+        return new NewCookie.Builder(name)
+                .value(value)
+                .path(path)
+                .maxAge(maxAge)
+                .httpOnly(true)
+                .sameSite(NewCookie.SameSite.LAX)
+                .secure(config.secureCookies())
+                .build();
     }
 
-    private static long secondsUntil(Instant expiresAt, Instant now) {
+    private static int secondsUntil(Instant expiresAt, Instant now) {
         long millis = Math.max(0, Duration.between(now, expiresAt).toMillis());
-        return (millis + 999) / 1000;
+        return Math.toIntExact(Math.min(Integer.MAX_VALUE, (millis + 999) / 1000));
     }
 }

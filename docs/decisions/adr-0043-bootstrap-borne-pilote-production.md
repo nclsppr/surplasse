@@ -9,7 +9,7 @@ description: "Pourquoi le premier graphe testeurs est créé par une commande Ba
 
 ## Statut
 
-Accepté, 2026-08-18.
+Remplacé par l'[ADR-0047](adr-0047-version-flyway-bootstrap-pilote.md), 2026-08-23.
 
 ## Contexte
 

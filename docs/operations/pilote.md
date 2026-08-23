@@ -81,7 +81,7 @@ L'ouverture publique démarre avec `order_intake_status=paused`. Elle suit la to
 - Le magic link est reçu via le fournisseur SMTP réel.
 - La plateforme Atlas collecte le Backend, le tableau de bord `Surplasse / Vue opérationnelle` est lisible par tunnel SSH et les logs corrélés sont accessibles par les commandes bornées de `vps-infra`.
 - Une sonde externe et son canal de notification ont été déclenchés volontairement puis acquittés. Les règles Prometheus seules ne satisfont pas ce critère tant qu'Alertmanager est absent.
-- Prometheus et Grafana ont été arrêtés ensemble : `/q/health/ready` et une lecture applicative sont restés verts. Leur redémarrage a retrouvé la cible Backend sans redémarrer celui-ci.
+- Prometheus et Grafana ont été arrêtés ensemble : la sonde interne Atlas sur `/q/health/ready` et une lecture applicative publique sont restées vertes, tandis que la même surface `/q/*` est restée fermée publiquement en 404. Leur redémarrage a retrouvé la cible Backend sans redémarrer celui-ci.
 - La dernière `application-release` saine peut être reprise sans annuler une migration. Le runtime précédent ne redémarre après migration que si sa compatibilité avec le schéma est attestée ; sinon la reprise avance explicitement.
 - L'établissement, la carte et le QR du pilote sont créés par le [bootstrap privé et répétable](bootstrap-pilote-production.md), jamais par migration de données, seed de développement ou DML improvisé en production.
 
@@ -188,7 +188,7 @@ Le petit échantillon du premier pilote ne permet pas d'utiliser la conversion c
 2. Si seul le SSE est indisponible, utiliser la lecture REST pendant 5 minutes au maximum.
 3. Si le paiement, l'API ou le Dashboard deviennent douteux, couvrir les QR et reprendre le parcours habituel du restaurant.
 4. Conserver les preuves. Ne faire aucune écriture SQL manuelle.
-5. Pour une régression applicative identifiée, sélectionner une nouvelle release issue d'un commit descendant. Le premier SHA sain de production inclut V14 : aucun retour vers un SHA pré-V14 n'est autorisé. Après une migration, ne redémarrer le runtime précédent que si sa compatibilité est attestée ; sinon appliquer la reprise vers l'avant. Ne jamais annuler automatiquement une migration de base.
+5. Pour une régression applicative identifiée, sélectionner une nouvelle release issue d'un commit descendant. Le premier SHA sain de production inclut V15 : aucun retour vers un SHA pré-V15 n'est autorisé. Après une migration, ne redémarrer le runtime précédent que si sa compatibilité est attestée ; sinon appliquer la reprise vers l'avant. Ne jamais annuler automatiquement une migration de base.
 6. Rapprocher chaque Commande, Paiement, Payment Intent et événement Stripe, puis rembourser les cas concernés.
 7. Consigner un post-mortem court, corriger et refaire un service à blanc avant tout nouveau service réel.
 

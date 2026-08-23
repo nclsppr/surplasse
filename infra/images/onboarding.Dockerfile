@@ -31,11 +31,11 @@ WORKDIR /opt/surplasse
 COPY --from=prepare --chown=node:node /output/brand ./brand
 COPY --from=prepare --chown=node:node /output/config ./config
 COPY --from=prepare --chown=node:node /output/frontends ./frontends
-COPY --chown=node:node scripts/dev-cockpit/onboarding-server.mjs ./scripts/dev-cockpit/onboarding-server.mjs
+COPY --chown=node:node scripts/onboarding-server/onboarding-server.mjs ./scripts/onboarding-server/onboarding-server.mjs
 
 USER node
 EXPOSE 4173
-CMD ["node", "/opt/surplasse/scripts/dev-cockpit/onboarding-server.mjs"]
+CMD ["node", "/opt/surplasse/scripts/onboarding-server/onboarding-server.mjs"]
 
 FROM ${NGINX_IMAGE} AS runtime-production
 

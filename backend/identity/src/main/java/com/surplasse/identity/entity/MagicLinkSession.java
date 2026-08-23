@@ -54,14 +54,6 @@ public class MagicLinkSession {
         return expiresAt;
     }
 
-    public Instant getConsumedAt() {
-        return consumedAt;
-    }
-
-    public Instant getInvalidatedAt() {
-        return invalidatedAt;
-    }
-
     public Instant getCreatedAt() {
         return createdAt;
     }

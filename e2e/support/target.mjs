@@ -1,13 +1,11 @@
 import { createHash } from "node:crypto";
 import { isIP } from "node:net";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { loadDomainConfig } from "../../config/domains/load-domain-config.mjs";
 
 const TARGET_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
-const RUN_ID_PATTERN =
-  /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/u;
 const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u;
 const repositoryRoot = fileURLToPath(new URL("../../", import.meta.url));
 
@@ -59,33 +57,24 @@ export function getE2ePaths(targetStorageId) {
   const safeStorageId = requireStorageId(targetStorageId);
   const root = join(repositoryRoot, ".surplasse", "e2e", safeStorageId);
   return Object.freeze({
-    // These flat paths are kept only as a migration source for reports created
-    // before publications became versioned. New runs are exposed through the
-    // atomic current.json pointer and immutable releases below.
-    ...createArtifactPaths(root),
-    root,
-    current: join(root, "current.json"),
-    lock: join(root, "run.lock"),
-    releases: join(root, "releases"),
-    staging: join(root, "runs"),
-  });
-}
-
-export function getE2eRunPaths(targetStorageId, runId) {
-  const publishedPaths = getE2ePaths(targetStorageId);
-  const safeRunId = requireRunId(runId);
-  const root = join(publishedPaths.staging, safeRunId);
-  return Object.freeze({
     ...createArtifactPaths(root),
     root,
   });
 }
 
 export function getE2eExecutionPaths(targetStorageId, environment = process.env) {
-  const runId = environment.SURPLASSE_E2E_RUN_ID;
-  return runId
-    ? getE2eRunPaths(targetStorageId, runId)
-    : getE2ePaths(targetStorageId);
+  requireStorageId(targetStorageId);
+  const workspace = environment.SURPLASSE_E2E_WORKSPACE;
+  if (!workspace) {
+    return getE2ePaths(targetStorageId);
+  }
+  if (!isAbsolute(workspace)) {
+    throw new Error("SURPLASSE_E2E_WORKSPACE must be an absolute path.");
+  }
+  return Object.freeze({
+    ...createArtifactPaths(workspace),
+    root: workspace,
+  });
 }
 
 function createArtifactPaths(root) {
@@ -93,7 +82,7 @@ function createArtifactPaths(root) {
     results: join(root, "allure-results"),
     report: join(root, "allure-report"),
     history: join(root, "history.jsonl"),
-    playwright: join(root, "playwright"),
+    playwright: join(root, "test-results"),
   };
 }
 
@@ -124,6 +113,7 @@ function createTarget({
     establishmentSlug: slug,
     establishmentUrl: slug ? origin(slug) : undefined,
     ignoreHTTPSErrors,
+    publicReadinessStatus: kind === "development" ? 200 : 404,
   });
 }
 
@@ -151,13 +141,6 @@ function requireStorageId(value) {
     throw new Error(
       "E2E storage ID must be a lowercase kebab-case identifier of at most 64 characters.",
     );
-  }
-  return value;
-}
-
-function requireRunId(value) {
-  if (!value || !RUN_ID_PATTERN.test(value)) {
-    throw new Error("E2E run ID must be a lowercase UUID v4.");
   }
   return value;
 }

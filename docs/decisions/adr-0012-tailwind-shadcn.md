@@ -9,7 +9,7 @@ description: "Pourquoi Surplasse construit sa couche de composants avec Tailwind
 
 ## Statut
 
-Accepté, 2026-07-18.
+Remplacé par [ADR-0044](adr-0044-frontends-canoniques-uniques.md), 2026-08-23.
 
 ## Contexte
 

@@ -9,12 +9,12 @@ description: Prérequis, installation, commandes, ports et premier lancement de 
 
 Cette page est le point d'entrée de la section développement : ce qu'il faut installer sur sa machine, comment cloner et lancer le monorepo, quelles commandes exécuter dans chaque répertoire et comment diagnostiquer les problèmes les plus fréquents. Pour comprendre ce que l'on fait tourner avant de le lancer, lire d'abord la [vue d'ensemble de l'architecture](../architecture/index.md).
 
-!!! info État actuel au 2026-08-18
-La documentation, le contrat OpenAPI, le Backend Quarkus, Commande, le Dashboard, la préfiguration statique de l'Onboarding et le package partagé sont exécutables. Le cluster Docker Compose local assemble Caddy, PostgreSQL, ces applications, Mailpit et la documentation Nimbus canonique sous `surplasse.test`, conformément à l'[ADR-0038](../decisions/adr-0038-nimbus-documentation-canonique.md). Le profil facultatif `frontend-experiment` ajoute Onboarding2, Commande2 et Dashboard2, fondés sur `design-system2`, pour comparer une direction Untitled UI conformément à l'[ADR-0033](../decisions/adr-0033-frontends-alternatifs-untitled-ui.md). Ces variantes restent absentes des routes et images de production. Un autre profil facultatif ajoute Prometheus et Grafana sans les placer dans le chemin applicatif. Le cockpit pilote les services autorisés du profil development, lance le smoke Playwright local et publie son dernier rapport Allure sur `REPORTS_URL`. Atlas et sa plateforme partagée existent, mais Surplasse y reste désactivé. `main` publie un candidat OCI immuable ; il ne déploie pas l'application sans la décision et les portes séparées de `vps-infra`.
+!!! info État actuel au 2026-08-23
+La documentation, le contrat OpenAPI, le Backend Quarkus, Commande, le Dashboard, la préfiguration statique de l'Onboarding et le package partagé sont exécutables. Le cluster Docker Compose local assemble Caddy, PostgreSQL, ces applications, Mailpit et la documentation Nimbus canonique sous `surplasse.test`, conformément à l'[ADR-0038](../decisions/adr-0038-nimbus-documentation-canonique.md). Un profil facultatif ajoute Prometheus et Grafana sans les placer dans le chemin applicatif. Les commandes npm et Compose pilotent directement le cluster et les smokes Playwright. Chaque cible E2E garde son historique JSONL et son rapport Allure courant sous `.surplasse/e2e/`. Atlas et sa plateforme partagée existent, mais Surplasse y reste désactivé. `main` publie un candidat OCI immuable ; il ne déploie pas l'application sans la décision et les portes séparées de `vps-infra`.
 !!!
 
 !!! info URL locales canoniques
-Le navigateur utilise exclusivement `https://surplasse.test` et ses sous-domaines. Un accès direct par `localhost`, `127.0.0.1` ou `::1` est refusé par les surfaces locales. Le loopback ne sert qu'à l'écoute privée des processus, au reverse proxy, aux sondes techniques, à PostgreSQL, à SMTP et au débogueur. Il ne sert jamais de lien, d'origine applicative, de base de test de bout en bout ou de solution de repli. L'installation, la liste permanente des URL et le cockpit de modules sont détaillés dans [Domaines locaux](domaines-locaux.md).
+Le navigateur utilise exclusivement `https://surplasse.test` et ses sous-domaines. Un accès direct par `localhost`, `127.0.0.1` ou `::1` est refusé par les surfaces locales. Le loopback ne sert qu'à l'écoute privée des processus, au reverse proxy, aux sondes techniques, à PostgreSQL, à SMTP et au débogueur. Il ne sert jamais de lien, d'origine applicative, de base de test de bout en bout ou de solution de repli. L'installation, la liste permanente des URL et les commandes du cluster sont détaillées dans [Domaines locaux](domaines-locaux.md).
 !!!
 
 ## Prérequis
@@ -42,17 +42,17 @@ L'environnement de développement utilise `mise` comme gestionnaire unique des r
 Précisions :
 
 - **mise** : `mise.toml` exige au minimum la version 2026.7.13. `mise.lock` verrouille Node 24.18.0, Temurin 25.0.3+9 et Python 3.12.13 sur les quatre plateformes prises en charge. L'activation du shell ajuste aussi `JAVA_HOME`. Pour un script, un IDE ou tout processus non interactif, utiliser `mise exec -- <commande>` afin de fournir le même environnement sans dépendre de l'initialisation du shell.
-- **Node 24.18.0** : il couvre npm, Vite, Nimbus, les scripts du contrat et le cockpit. L'image Node du catalogue Compose reste épinglée séparément pour les builds conteneurisés.
+- **Node 24.18.0** : il couvre npm, Vite, Nimbus, les scripts du contrat et le lanceur E2E. L'image Node du catalogue Compose reste épinglée séparément pour les builds conteneurisés.
 - **Java 25 via Temurin** : `mise` fournit Temurin 25.0.3+9 aux boucles natives, à Maven et à la génération OpenAPI. La CI et les images utilisent également Temurin 25.
 - **Maven** : ne jamais dépendre d'un Maven global. Toutes les commandes backend passent par `./mvnw`, qui télécharge la bonne version de Maven au premier appel.
-- **Docker et Compose** : indispensables au cluster d'intégration. Compose démarre PostgreSQL, Caddy et tous les services avec la topologie destinée au VPS. Les Dev Services de Quarkus restent disponibles uniquement pour la boucle native `backend:dev`.
+- **Docker et Compose** : indispensables au cluster d'intégration. Compose démarre PostgreSQL, Caddy et tous les services locaux. La production utilise le fragment applicatif dédié à Atlas. Les Dev Services de Quarkus restent disponibles uniquement pour la boucle native `backend:dev`.
 - **Stripe en mode test** : les clés de test (`sk_test_...`, `pk_test_...`) suffisent pour tout le développement. Aucun paiement réel ne transite en local.
 - **Stripe CLI** : elle sert uniquement au développement pour relayer et rejouer les webhooks. Sous Windows, l'installation `apt` se fait dans WSL2. La CLI est absente de la production.
 - **Python 3.12.13** : il sert seulement à générer et vérifier les QR de marque avec l'environnement isolé `.venv-brand` et `scripts/requirements.txt`. `mise` installe Python, pas ces dépendances. C'est un outil de développement et de CI, absent de l'exécution applicative et de la production.
 - **dnsmasq et mkcert** : développement seulement. dnsmasq fournit le wildcard local et mkcert le certificat approuvé par le poste. Ils sont absents de la production.
-- **Caddy** : un seul Caddy de bord et un routage commun. La surcharge locale monte mkcert ; la surcharge production cible Let's Encrypt par défi DNS-01.
+- **Caddy** : le cluster local monte le certificat mkcert. En production, le Caddy partagé et le défi DNS-01 appartiennent à `vps-infra`.
 - **Playwright et Chromium** : outils de test locaux et CI uniquement. Ils pilotent la pile par ses URL HTTPS publiques et ne sont jamais copiés dans une image applicative ni installés sur le VPS.
-- **Prometheus et Grafana** : services facultatifs de développement et de production. Les images sont épinglées dans le catalogue commun. Ils ne sont ni installés sur l'hôte, ni requis pour démarrer le Backend. Grafana est servi par l'URL centrale seulement en développement.
+- **Prometheus et Grafana** : services facultatifs du développement. Atlas possède séparément leurs runtimes de production. Ils ne sont ni installés directement sur l'hôte, ni requis pour démarrer le Backend. Grafana est servi par l'URL centrale seulement en développement.
 - **Bash, `curl` et `tar`** : présents par défaut sur macOS, Linux et WSL2, ils servent au contrôle de compatibilité OpenAPI. Ce sont uniquement des outils de build et de CI.
 
 `mise` ne démarre aucun service et ne remplace ni Docker Compose, ni les scripts npm, ni le wrapper Maven. Quitter le dépôt restaure les versions actives dans le répertoire parent. `mise` et ses runtimes sont absents du VPS, où les images Compose restent la seule source des runtimes applicatifs.
@@ -136,13 +136,9 @@ npm ci --prefix docs-nimbus
 (cd e2e && npm ci && npx playwright install chromium) # E2E and local browser
 (cd backend && ./mvnw dependency:resolve) # optional, quarkus:dev resolves them too
 
-# 4. Install the optional UI2 experiment when working on it
-npm run frontend2:install
 ```
 
 Le `npm ci` racine installe Spectral et OpenAPI Generator. `npm run brand:install` crée l'environnement Python isolé `.venv-brand` avec les versions de `scripts/requirements.txt`; `brand:generate` et `brand:check` l'utilisent ensuite sans polluer le Python géré par `mise`. `npm ci --prefix docs-nimbus` installe Nimbus 0.8.2 et Astro dans leur verrou séparé. Les frontends et `e2e/` ont chacun leur propre `package.json` et leurs propres dépendances : il n'y a pas de workspace npm global. Le package partagé `frontends/shared/` est consommé en source via une dépendance `file:../shared`, conformément à l'[ADR-0014](../decisions/adr-0014-liaison-shared.md). Il faut donc installer `shared` avant de vérifier Commande ou le Dashboard. L'Onboarding actuel est statique et n'a pas encore de dépendances npm. L'installation E2E télécharge seulement Chromium ; Firefox et WebKit ne font pas partie du smoke initial.
-
-`npm run frontend2:install` installe de façon verrouillée `shared`, `design-system2` et les trois applications suffixées `2`. Cette commande est facultative pour le développement canonique et identique sur macOS, Linux et Windows via WSL2. Les versions, prérequis et commandes isolées sont détaillés dans [Frontends alternatifs](frontends-alternatifs.md).
 
 ## Cycle de vie des composants actuels
 
@@ -161,13 +157,8 @@ Le `npm ci` racine installe Spectral et OpenAPI Generator. `npm run brand:instal
 | `frontends/commande` | Image statique Compose ou Vite avec `npm run dev` | Image NGINX statique construite avec le profil production |
 | `frontends/onboarding` | Image Node allowlistée ; la session Stripe intégrée est réservée au profil development | Même Dockerfile, fichiers statiques servis par NGINX sans pilote ni secret Stripe |
 | `frontends/dashboard` | Image statique Compose ou Vite avec `npm run dev`, port natif strict 5174 | Image NGINX statique construite avec le profil production |
-| `frontends/design-system2` | Bibliothèque TypeScript expérimentale ; `npm run check` et `npm test`, aucun serveur | Développement, build de validation et démo Pages seulement, absente du VPS |
-| `frontends/onboarding2` | Profil Compose `frontend-experiment` ou Vite sur le listener strict 5175 | Développement et démo statique Pages seulement, absente des routes `.com` et du VPS |
-| `frontends/commande2` | Profil Compose `frontend-experiment` ou Vite sur le listener strict 5176 | Développement et démo statique Pages seulement, absente des routes `.com` et du VPS |
-| `frontends/dashboard2` | Profil Compose `frontend-experiment` ou Vite sur le listener strict 5177 | Développement et démo statique Pages seulement, absente des routes `.com` et du VPS |
-| `scripts/dev-cockpit` | Serveur Node sans dépendance ; après `local:up`, `npm run local:cockpit` pilote les services autorisés de Compose development, lance les suites fixes et sert le rapport Allure local | Développement seulement, absent des builds et de la production |
 | `e2e/` | Lanceur Playwright et générateur Allure 3 ; vise explicitement `development`, `production` ou `custom` ; état sous `.surplasse/e2e/` | Outil local et GitHub Actions, absent des images et du VPS |
-| `compose.yaml`, `infra/caddy`, `infra/images`, `infra/observability` | Graphe, routage, recettes, règles et tableaux de bord sélectionnés par `scripts/compose.sh development` | Les mêmes fichiers avec `compose.production.yaml`, le profil production et une activation explicite de l'observabilité |
+| `compose.yaml`, `compose.development.yaml`, `infra/caddy`, `infra/images`, `infra/observability` | Graphe, routage, recettes, règles et tableaux de bord sélectionnés par `scripts/compose.sh development` | Développement seulement ; la production consomme `deployment/vps/compose.yaml` et la plateforme `vps-infra` |
 
 ## Cycle de vie des logiciels tiers
 
@@ -181,11 +172,11 @@ Le `npm ci` racine installe Spectral et OpenAPI Generator. `npm run brand:instal
 | MinIO | Prévu avec le domaine `generation`, pas encore installé | Absent de la pile tant que le module applicatif n'existe pas |
 | dnsmasq | Requis pour le wildcard `*.surplasse.test`, instance locale sans donnée | Absent ; le fournisseur DNS public porte l'apex et le wildcard `.com` |
 | mkcert | Requis pour le certificat local approuvé, sans donnée applicative | Absent ; Let's Encrypt fournit le certificat public |
-| Caddy 2.11.4 | Conteneur de bord avec certificat mkcert monté | Conteneur de bord commun, construit avec le module DNS-01 choisi |
+| Caddy 2.11.4 | Conteneur de bord avec certificat mkcert monté | Caddy partagé de `vps-infra`, construit avec le module DNS-01 choisi |
 | Playwright 1.61.1 et Chromium | Tests E2E locaux et GitHub Actions, navigateur téléchargé dans le cache utilisateur | Absents du VPS ; les tests accèdent à la production depuis un runner externe |
 | Allure Report 3.14.3 | Génération locale et CI des rapports, historique JSONL sous `.surplasse/e2e/` | Aucun service sur le VPS ; rapports conservés comme artefacts GitHub Actions |
-| Prometheus 3.13.1 `busybox` | Service facultatif, collecte interne de `/q/metrics`, volume `prometheus_data` | Même service facultatif sur le VPS, réseau Compose seulement, volume reconstructible |
-| Grafana 13.1.1 | Service facultatif, tableau de bord provisionné sur `GRAFANA_URL`, volume `grafana_data` | Même service facultatif, aucun domaine public, port loopback et tunnel SSH, volume reconstructible |
+| Prometheus 3.13.1 `busybox` | Service facultatif, collecte interne de `/q/metrics`, volume `prometheus_data` | Runtime Atlas possédé et versionné par `vps-infra` |
+| Grafana 13.1.1 | Service facultatif, tableau de bord provisionné sur `GRAFANA_URL`, volume `grafana_data` | Runtime Atlas possédé par `vps-infra`, aucun domaine public |
 
 ### Dépendances d'exécution du Dashboard
 
@@ -200,7 +191,6 @@ Le verrou exact des versions vit dans `frontends/dashboard/package-lock.json`. L
 | Polices auto-hébergées de `brand/fonts/` et logos SVG de `brand/` | version du même commit | Assets de marque au build | Oui, intégrés aux fichiers statiques ; aucune requête vers un CDN |
 | Node.js | 24 | Développement, build et CI | Non, absent du serveur statique une fois les fichiers construits |
 | Vite et son plugin React | 6 | Développement, build et CI | Non, absents du processus de production |
-| Tailwind CSS et son plugin Vite | 4 | Développement et build | Non, seules les feuilles de style produites sont livrées |
 | TypeScript | 5 | Build et CI | Non |
 | ESLint et ses plugins | 9 | Développement et CI | Non |
 | Vitest | 3 | Développement et CI | Non |
@@ -222,7 +212,7 @@ Chaque composant expose un petit jeu de commandes stables. Une ligne « vérific
 | racine | `npm run api:diff` | contrôle de compatibilité du contrat par rapport à la révision de référence |
 | racine | `npm run local:setup` | installation idempotente du DNS wildcard et du certificat sur macOS |
 | racine | `npm run local:config` | validation silencieuse du modèle Compose et de ses variables |
-| racine | `npm run compose:config:test` | validation des deux profils et des refus de configuration dangereux en production |
+| racine | `npm run compose:config:test` | validation du profil local, du fragment Atlas et des refus de configuration dangereux |
 | racine | `npm run local:build` | construction des images du profil development |
 | racine | `npm run local:up` | construction, démarrage en arrière-plan et attente de tous les healthchecks |
 | racine | `scripts/compose.sh development up --detach --wait prometheus grafana` | démarrage explicite du profil facultatif `observability`, sans redémarrer le Backend |
@@ -233,18 +223,13 @@ Chaque composant expose un petit jeu de commandes stables. Une ligne « vérific
 | racine | `scripts/compose.sh development stop prometheus grafana` | arrêt indépendant de la supervision, volumes conservés |
 | racine | `npm run local:down` | retrait des conteneurs et du réseau avec conservation des volumes |
 | racine | `npm run local:proxy` | commande de compatibilité qui démarre le Caddy Compose et ses dépendances |
-| racine | `npm run local:cockpit` | cockpit local après `local:up`, pilotage des services Compose development et rapports, port interne 4174 |
-| racine | `npm run local:cockpit:test` | tests isolés du cockpit et de son contrôleur Compose, sans lancer Docker ni un module |
 | racine | `npm run e2e:check` | tests unitaires du résolveur de cibles et de l'isolation des artefacts |
 | racine | `npm run e2e:test -- development` | smoke E2E du cluster local par ses domaines HTTPS canoniques |
 | racine | `npm run e2e:test -- production` | même smoke en lecture seule sur le profil production |
 | racine | `npm run e2e:report -- <target>` | ouverture directe du rapport HTML autonome d'une cible, sans serveur permanent |
+| racine | `npm run e2e:report:export -- <target> <destination>` | copie du rapport HTML autonome courant vers une destination statique |
 | racine | `npm run backend:dev` | Backend en mode dev avec profil central injecté, rechargement à chaud, Dev Services et Dev UI |
 | racine | `npm run backend:verify` | compilation, tests et package Backend avec le profil central injecté ; utilise Java 25 local ou l'image Temurin 25 épinglée via Docker |
-| racine | `npm run frontend2:install` | installation verrouillée de `shared`, `design-system2`, Onboarding2, Commande2 et Dashboard2 |
-| racine | `npm run frontend2:check` | typecheck, lint, tests et builds des quatre packages expérimentaux |
-| racine | `npm run local:experiment:up` | construction et démarrage du cluster development avec le profil `frontend-experiment` |
-| racine | `npm run local:experiment:stop` | arrêt ciblé des trois applications UI2 sans arrêter le cluster canonique |
 | racine | `scripts/run-with-domain-profile.sh development ./backend/mvnw -f backend/pom.xml -pl order -am test` | exemple de vérification ciblée avec le même profil |
 | racine | `scripts/run-with-domain-profile.sh development ./backend/mvnw -f backend/pom.xml -pl identity -am test` | tests du module `identity`, sans processus autonome |
 | `frontends/shared/` | `npm run check && npm test` | typecheck et tests de la bibliothèque, sans serveur |
@@ -252,15 +237,10 @@ Chaque composant expose un petit jeu de commandes stables. Une ligne « vérific
 | `frontends/commande/` | `npm run lint && npm test && npm run build` | vérification complète de Commande |
 | `frontends/dashboard/` | `npm run dev` | serveur Vite du Dashboard avec rechargement à chaud, port strict 5174 |
 | `frontends/dashboard/` | `npm run lint && npm test && npm run build` | vérification complète du Dashboard |
-| `frontends/design-system2/` | `npm run check && npm test` | vérification de la bibliothèque UI2, sans serveur autonome |
-| `frontends/onboarding2/` | `npm run dev` | boucle Vite expérimentale sur le listener strict 5175 |
-| `frontends/commande2/` | `npm run dev` | boucle Vite expérimentale sur le listener strict 5176 |
-| `frontends/dashboard2/` | `npm run dev` | boucle Vite expérimentale sur le listener strict 5177 |
-| racine | `node scripts/dev-cockpit/onboarding-server.mjs` | boucle native facultative du serveur Onboarding, port privé 4173 |
 
-Pour le parcours nominal, lancer `npm run local:up`, puis ouvrir `https://surplasse.test` ou `https://surplasse.test/brand/board.html`. Le serveur Node de l'Onboarding ne sert que les fichiers publics explicitement autorisés : `.certs/`, les fichiers d'environnement et le reste du dépôt restent inaccessibles. Le cockpit complète le cluster en le pilotant par Compose. Les commandes natives restent disponibles séparément pour une boucle à chaud, puis la validation finale repasse par le cluster.
+Pour le parcours nominal, lancer `npm run local:up`, puis ouvrir `https://surplasse.test` ou `https://surplasse.test/brand/board.html`. Le serveur Node de l'Onboarding ne sert que les fichiers publics explicitement autorisés : `.certs/`, les fichiers d'environnement et le reste du dépôt restent inaccessibles. Les commandes npm et `scripts/compose.sh development` pilotent directement le cluster. Les commandes natives restent disponibles séparément pour une boucle à chaud, puis la validation finale repasse par le cluster.
 
-Le package E2E n'a ni port permanent, ni conteneur, ni volume. Chaque lancement construit une publication immuable avec résultats, diagnostics, historique et rapport autonome, puis la rend visible par une bascule atomique de `current.json`. Pour development, le cockpit sert le dernier rapport sur `REPORTS_URL`. Supprimer volontairement `.surplasse/e2e/{history-id}/` remet à zéro uniquement l'historique local de cette cible. Pour `custom`, l'identifiant de stockage contient une empreinte du domaine. La configuration détaillée, la cible personnalisée et les scénarios futurs sont décrits dans [Tests](tests.md).
+Le package E2E n'a ni port permanent, ni conteneur, ni volume. Chaque lancement génère dans un répertoire temporaire, puis remplace `allure-report/` et `test-results/` sous `.surplasse/e2e/{history-id}/` après la génération complète et met à jour le `history.jsonl` de la cible. `npm run e2e:report -- <target>` ouvre directement le rapport courant. Supprimer volontairement `.surplasse/e2e/{history-id}/` remet à zéro uniquement l'historique local de cette cible. Pour `custom`, l'identifiant de stockage contient une empreinte du domaine. La configuration détaillée, la cible personnalisée et les scénarios futurs sont décrits dans [Tests](tests.md).
 
 Le détail des conventions par pile est dans les pages dédiées : [conventions React](conventions-react.md), [conventions Quarkus](conventions-quarkus.md), [conventions API et contrat](conventions-api.md). La stratégie de test complète est décrite dans [tests](tests.md).
 
@@ -313,7 +293,7 @@ curl --include \
   https://api.surplasse.test/v1/auth/magic-links
 ```
 
-Le message apparaît dans `https://mail.surplasse.test`. `Ctrl+C` arrête le Backend et donc le module s'il a été lancé dans ce terminal. Dans le cluster, le bouton du cockpit arrête le service Compose Backend ou Mailpit quel que soit le terminal qui l'a démarré. En cas de différence entre plateformes, le comportement sous Ubuntu LTS fait foi.
+Le message apparaît dans `https://mail.surplasse.test`. `Ctrl+C` arrête le Backend et donc le module s'il a été lancé dans ce terminal. Dans le cluster, `scripts/compose.sh development stop backend mailpit` arrête explicitement les deux services. En cas de différence entre plateformes, le comportement sous Ubuntu LTS fait foi.
 
 ### Cycle de vie du Dashboard
 
@@ -363,7 +343,7 @@ Arrêter les processus natifs avec `Ctrl+C`. `npm run local:stop` conserve le vo
 
 ## Ports conventionnels
 
-Dans le cluster, seul Caddy publie `127.0.0.1:443`. Tous les autres ports Compose restent sur son réseau. Le cockpit facultatif écoute aussi sur 4174 afin que Caddy puisse le joindre depuis son conteneur, mais il refuse toute requête qui ne porte pas le jeton amont. Le navigateur ne connaît donc que les URL HTTPS du profil.
+Dans le cluster, seul Caddy publie `127.0.0.1:443`. Tous les autres ports Compose restent sur son réseau. Le navigateur ne connaît que les URL HTTPS du profil.
 
 | Port ou listener | Composant | URL navigateur canonique |
 |---|---|---|
@@ -373,11 +353,10 @@ Dans le cluster, seul Caddy publie `127.0.0.1:443`. Tous les autres ports Compos
 | 4173 | Onboarding Node | `https://surplasse.test` |
 | 5432 | PostgreSQL | aucune, réseau Compose seulement |
 | 1025 et 8025 | Mailpit | SMTP interne et `https://mail.surplasse.test` |
-| 4174 | Cockpit sur l'hôte, joint par Caddy | `https://local.surplasse.test` et `https://reports.surplasse.test` |
 | 9090 | Prometheus | aucune, réseau Compose seulement |
 | 3000 | Grafana | `GRAFANA_URL` via Caddy, réseau Compose seulement |
 
-Les commandes natives conservent 5173 pour Commande, 5174 pour le Dashboard, 4173 pour l'Onboarding, 4174 pour le cockpit, 5005 pour Nimbus, 5006 pour JDWP et 8080 pour Quarkus. L'expérience UI2 réserve 5175 à Onboarding2, 5176 à Commande2 et 5177 à Dashboard2. Ces listeners servent à la mise au point et aux sondes, pas à définir des URL applicatives. Un port occupé doit faire échouer le lancement au lieu de glisser vers un voisin.
+Les commandes natives conservent 5173 pour Commande, 5174 pour le Dashboard, 4173 pour l'Onboarding, 5005 pour Nimbus, 5006 pour JDWP et 8080 pour Quarkus. Ces listeners servent à la mise au point et aux sondes, pas à définir des URL applicatives. Un port occupé doit faire échouer le lancement au lieu de glisser vers un voisin.
 
 ## Variables d'environnement
 
@@ -391,7 +370,7 @@ cp frontends/dashboard/.env.example frontends/dashboard/.env
 
 Le domaine racine public et l'hôte documentaire sont centralisés dans `config/domains/development.env` et `config/domains/production.env`. Le chargeur en dérive toutes les URL applicatives. Les fichiers `.env` propres aux applications gardent uniquement les secrets factices et les réglages qui ne décrivent pas la topologie. Les variables principales sont :
 
-`npm run backend:dev` lance Maven depuis `backend/`, ce qui permet à Quarkus de charger `backend/.env`. Le wrapper ajoute ensuite le profil de domaines central sans recopier ses URL dans ce fichier local. Le cockpit ne lance pas de processus Quarkus natif : il pilote le service Backend de Compose et exécute les suites de qualité par leurs commandes fixes à la racine.
+`npm run backend:dev` lance Maven depuis `backend/`, ce qui permet à Quarkus de charger `backend/.env`. Le wrapper ajoute ensuite le profil de domaines central sans recopier ses URL dans ce fichier local. Le cluster intégré et les suites de qualité se pilotent directement par leurs commandes npm ou Compose à la racine.
 
 | Variable | Application | Rôle | Requise en dev |
 |---|---|---|---|
@@ -405,10 +384,9 @@ Le domaine racine public et l'hôte documentaire sont centralisés dans `config/
 | `QUARKUS_DATASOURCE_JDBC_URL` | Backend | DSN PostgreSQL interne | injectée par Compose ; Dev Services la fournit dans la boucle native |
 | `APP_SCHEME`, `APP_BASE_DOMAIN` | tous | racine dont dérivent les URL produit et les mini-sites | oui, fournis par le profil versionné |
 | `APP_BASE_URL`, `ONBOARDING_URL`, `DASHBOARD_URL`, `API_URL`, `DOCS_URL` | tous | origines canoniques calculées depuis le domaine produit, dont `docs.` pour Nimbus | oui, dérivées par le chargeur central |
-| `LOCAL_CONTROL_URL`, `MAILPIT_URL`, `REPORTS_URL`, `GRAFANA_URL` | outillage development | cockpit, Mailpit, dernier rapport Allure local et interface Grafana locale | dérivées uniquement pour development |
+| `MAILPIT_URL`, `GRAFANA_URL` | outillage development | Mailpit et interface Grafana locale | dérivées uniquement pour development |
 | `PROBLEM_TYPE_BASE` | Backend, Commande et Dashboard | base canonique des types RFC 9457, toujours `https://surplasse.com/problems/` même en local | oui, fournie par le profil versionné |
 | `RESERVED_SUBDOMAINS` | Commande et infrastructure | noms exclus des slugs d'établissement | oui, fourni par le profil versionné |
-| `COOKIE_DOMAIN` | décision de sécurité | doit rester vide pour des cookies API hôte uniquement | oui, vide dans les deux profils |
 | `CORS_PUBLIC_ORIGINS` | Backend | apex exact et motif du sous-domaine direct courant, sans credentials | oui, dérivé par le wrapper de profil |
 | `AUTH_JWT_AUDIENCE` | Backend | audience attendue du JWT restaurateur | non, valeur locale fournie |
 | `VITE_API_BASE_URL` | chaque frontend | valeur injectée par le chargeur depuis l'URL API dérivée | oui, générée depuis `APP_BASE_DOMAIN` |
@@ -419,7 +397,7 @@ En `%dev` et `%test`, Quarkus génère les clés JWT de travail : aucune clé pr
 Le magic link est toujours dérivé de `DASHBOARD_URL`, l'émetteur JWT de `API_URL`, et les cookies sont `Secure` dans tous les profils sauf `%test`. Ces invariants ne possèdent aucun override d'environnement distinct, afin d'éviter une deuxième source de vérité.
 
 !!! warning Jamais de secret dans git
-Les clés réelles (même les clés Stripe de test) ne sont jamais committées : ni dans un `.env`, ni dans un fichier de config, ni dans un exemple. Le `.env.example` ne contient que des valeurs factices de la forme `sk_test_xxx`. En production, les secrets sont injectés par l'environnement Docker Compose du VPS, voir [operations](../operations/).
+Les clés réelles (même les clés Stripe de test) ne sont jamais committées : ni dans un `.env`, ni dans un fichier de config, ni dans un exemple. Le `.env.example` ne contient que des valeurs factices de la forme `sk_test_xxx`. En production, `vps-infra` monte les secrets Atlas par fichiers protégés, voir [operations](../operations/).
 !!!
 
 ## Le premier lancement, pas à pas
@@ -445,19 +423,6 @@ npm run local:ps
 
 Compose démarre PostgreSQL, le Backend, les trois fronts, Mailpit, la documentation et Caddy, puis attend leurs healthchecks. Flyway applique les migrations et le seed de démonstration avant que le Backend devienne prêt. Caddy est le seul service publié sur l'hôte. Prometheus et Grafana restent arrêtés tant que le profil `observability` n'est pas demandé : leur absence ne change pas la readiness du Backend.
 
-Pour comparer les variantes UI2 sur les mêmes données, ajouter ensuite le profil expérimental :
-
-```bash
-npm run local:experiment:up
-curl --fail https://surplasse.test/_experiments/untitled/
-curl --fail 'https://le-cormoran.surplasse.test/_experiments/untitled/?table=tbl_2f8e6a4c0b9d7e1f'
-curl --fail https://dashboard.surplasse.test/_experiments/untitled/auth/login
-```
-
-`npm run local:experiment:stop` arrête seulement Onboarding2, Commande2 et Dashboard2. Les variantes ne possèdent ni volume ni donnée serveur propre. Leur arrêt ne demande donc ni sauvegarde, ni migration, ni retour arrière. Le cluster canonique continue de fonctionner.
-
-GitHub Pages publie aussi un [sélecteur de démos UI2](https://nclsppr.github.io/surplasse/_experiments/untitled/), puis un build distinct pour Onboarding2, Commande2 et Dashboard2. Ces fichiers portent `noindex` et servent uniquement à la revue visuelle publique du SHA construit. Ils utilisent le profil de configuration development, ne fournissent ni Backend, ni session réelle, ni paiement et ne créent aucune route de production. Dashboard2 y emploie une session et des commandes synthétiques en mémoire pour rendre le tableau de service visible. La validation des parcours alimentés par les données reste celle du profil Compose local décrit ci-dessus.
-
 Le même site Pages publie la [documentation Nimbus](https://nclsppr.github.io/surplasse/docs/) depuis les Markdown de `docs/`. Ce build est indexable et utilise le chemin de base `/surplasse/docs`. Le profil Compose produit séparément le build racine destiné à `docs.surplasse.com`.
 
 Pour observer le cluster, démarrer ensuite les deux services facultatifs :
@@ -469,9 +434,7 @@ curl --fail https://grafana.surplasse.test/api/health
 
 Grafana ouvre le tableau de bord provisionné `Surplasse / Vue opérationnelle`. La lecture anonyme locale utilise le rôle `Viewer`. Prometheus n'a aucune URL navigateur. Le profil conserve 7 jours de séries dans `prometheus_data` et l'état Grafana dans `grafana_data`. Arrêter les deux services avec la commande ciblée ci-dessus laisse le Backend sain et conserve les volumes.
 
-Le cockpit reste facultatif. Après `local:up`, `npm run local:cockpit` charge le jeton amont créé par le wrapper et l'expose à travers Caddy sur `https://local.surplasse.test`. Il affiche les liens, les sondes et l'état Compose, puis peut démarrer ou arrêter les services autorisés, y compris Prometheus et Grafana. Caddy reste visible en lecture seule. La page `/tests` lance les suites fixes, dont Playwright uniquement sur development, et lie le dernier rapport sur `https://reports.surplasse.test`. Arrêter le cockpit ne stoppe pas le cluster.
-
-La suite Backend intégré exige que `quarkus:dev` soit arrêté, car Maven et ce mode partagent les répertoires `target/`. Elle utilise Java 25 local lorsqu'il est disponible, sinon l'image Temurin épinglée. Les résultats et le cache `.surplasse/` sont locaux, ignorés par git et absents de la production. L'historique E2E y reste conservé jusqu'à sa suppression volontaire.
+Lancer ensuite `npm run e2e:test -- development`, puis `npm run e2e:report -- development` pour ouvrir le rapport Allure courant. La suite Backend intégré exige que `quarkus:dev` soit arrêté, car Maven et ce mode partagent les répertoires `target/`. Elle utilise Java 25 local lorsqu'il est disponible, sinon l'image Temurin épinglée. Les résultats et le cache `.surplasse/` sont locaux, ignorés par git et absents de la production. L'historique E2E y reste conservé jusqu'à sa suppression volontaire.
 
 **4. Vérifier l'établissement de démonstration.**
 
@@ -509,7 +472,7 @@ scripts/run-with-domain-profile.sh development bash -c '
 # Copier l'autre whsec_... dans STRIPE_ACCOUNT_WEBHOOK_SECRET de backend/.env
 ```
 
-Stripe CLI reste interactif et hors du cockpit. `--forward-connect-to` est obligatoire pour les événements snapshot des charges directes et des remboursements, puis `--forward-thin-connect-to` pour les événements fins Accounts v2 des comptes connectés. Les deux processus fournissent des secrets distincts qui ne sont jamais interchangeables. Le passage d'une commande à `paid` et le rapprochement asynchrone d'un remboursement viennent uniquement du webhook snapshot signé.
+Stripe CLI reste interactif. `--forward-connect-to` est obligatoire pour les événements snapshot des charges directes et des remboursements, puis `--forward-thin-connect-to` pour les événements fins Accounts v2 des comptes connectés. Les deux processus fournissent des secrets distincts qui ne sont jamais interchangeables. Le passage d'une commande à `paid` et le rapprochement asynchrone d'un remboursement viennent uniquement du webhook snapshot signé.
 
 Les modules peuvent toujours être lancés dans des terminaux séparés pour une boucle courte. Cette exécution native ne remplace pas la validation finale du cluster avec `npm run local:up`. Avant de committer, lire le [workflow git](workflow-git.md) et exécuter les vérifications adaptées.
 
@@ -525,9 +488,8 @@ Les modules peuvent toujours être lancés dans des terminaux séparés pour une
 | `docs:watch` ou `docs:build` échoue avant Astro | les dépendances Nimbus ne sont pas installées ou le profil de domaines est invalide | exécuter `npm ci --prefix docs-nimbus`, puis `npm run domains:check` et relancer la commande |
 | `docs:build` signale un front matter, un callout ou un lien invalide | l'adaptateur ne peut pas convertir la source ou Nimbus refuse la sortie | corriger la source dans `docs/` ou ajouter une conversion testée dans `docs-nimbus/scripts/sync-content.mjs` ; ne jamais corriger la collection générée |
 | le front affiche des erreurs réseau vers l'API | le Backend ou Caddy est malsain, ou l'image du profil est périmée | lancer `npm run domains:check`, `npm run local:ps`, puis reconstruire avec `npm run local:up` |
-| le cockpit demande d'exécuter `local:up` ou répond 502 | le jeton amont ou le Caddy development n'existe pas encore | lancer `npm run local:up`, puis relancer `npm run local:cockpit` dans un autre terminal |
 | `grafana.surplasse.test` répond 502 | le profil `observability` n'est pas démarré ou Grafana est malsain | démarrer `prometheus grafana` avec le wrapper, puis lire `scripts/compose.sh development logs --tail 200 grafana prometheus` |
-| `reports.surplasse.test` répond 404 | aucun rapport Playwright development n'a encore été généré | installer Chromium, ouvrir `/tests` dans le cockpit et lancer « Parcours Playwright » |
+| `npm run e2e:report -- development` ne trouve aucun rapport | aucun smoke development n'a encore terminé | installer Chromium, lancer `npm run e2e:test -- development`, puis rouvrir le rapport |
 | le Dashboard revient à la connexion après le magic link | la page a été ouverte par le port HTTP ou le cookie `Secure` ne peut pas être posé | utiliser uniquement `https://dashboard.surplasse.test` et `https://api.surplasse.test`, puis vérifier le certificat mkcert |
 | le paiement de test échoue immédiatement | clés Stripe absentes ou mélange de clés (test côté back, autre compte côté front) | vérifier `STRIPE_SECRET_KEY` et `VITE_STRIPE_PUBLISHABLE_KEY` : même compte, toutes deux en mode test |
 | `npm run backend:verify` échoue à charger des classes de test alors qu'elles compilent | `quarkus:dev` tourne sur le même workspace : les deux écrivent dans `target/` | arrêter le mode dev avant `verify` (ou inversement), puis relancer |

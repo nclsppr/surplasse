@@ -32,11 +32,9 @@ Trois applications web distinctes consomment un Backend Quarkus et un contrat Op
 - `frontends/shared/` reste la source du client API généré, des clés de requête et des utilitaires transverses.
 - Commande doit rendre la carte interactive en moins de deux secondes sur un réseau 4G moyen. Son bundle reste mesuré séparément.
 - L'authentification restaurateur repose sur des cookies hôte uniquement émis par le Backend. Le Dashboard utilise les appels avec credentials et un flux SSE par établissement.
-- Les textes visibles passent par la couche i18n. La terminologie canonique du dépôt s'applique à toutes les variantes.
+- Les textes visibles passent par la couche i18n. La terminologie canonique du dépôt s'applique à toutes les applications.
 - Les quatre SVG de `brand/` restent les seules sources du logo. Ils ne sont ni reconstruits, ni recolorés.
-- L'expérience demandée ajoute Onboarding2, Commande2 et Dashboard2 comme implémentations visuelles alternatives. Elles doivent préserver les mêmes règles fonctionnelles et peuvent être retirées sans migration de données ni modification du Backend. Une tranche qui passe encore vers l'original, comme le tunnel d'Onboarding2 actuel, reste signalée comme non paritaire.
-- Le nouveau système est fondé uniquement sur le dépôt public MIT d'Untitled UI React. Les ressources PRO ne sont pas incluses sans décision de licence séparée.
-- Aucune variante expérimentale ne devient une cible de production sans nouvelle décision documentée.
+- Les trois applications canoniques restent les seules implémentations maintenues. Une nouvelle exploration visuelle doit commencer par une preuve bornée avant de dupliquer un parcours complet.
 
 ## Brand Commitments
 

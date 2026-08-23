@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { parseEnv } from "node:util";
 
 const productionReleasePath = fileURLToPath(
   new URL("./production-release.env", import.meta.url),
@@ -15,25 +16,21 @@ export function loadProductionReleaseConfig() {
 }
 
 export function parseProductionReleaseConfig(source, sourceName = "production release config") {
-  const config = {};
-  for (const [index, rawLine] of source.split(/\r?\n/u).entries()) {
-    const line = rawLine.trim();
-    if (line === "" || line.startsWith("#")) {
-      continue;
-    }
-    const separator = line.indexOf("=");
-    if (separator < 1) {
-      throw new Error(`Invalid ${sourceName} line ${index + 1}`);
-    }
-    const key = line.slice(0, separator).trim();
-    const value = line.slice(separator + 1).trim();
-    if (key !== "SURPLASSE_PRODUCTION_RELEASE_MODE") {
-      throw new Error(`Unknown production release setting ${key} in ${sourceName}`);
-    }
-    if (Object.hasOwn(config, key)) {
-      throw new Error(`Duplicate production release setting ${key} in ${sourceName}`);
-    }
-    config[key] = value;
+  let config;
+  try {
+    config = parseEnv(source);
+  } catch (error) {
+    throw new Error(`Invalid ${sourceName}: ${error.message}`);
+  }
+  const keys = Object.keys(config);
+  const assignments = source.match(
+    /^\s*(?:export\s+)?SURPLASSE_PRODUCTION_RELEASE_MODE\s*=/gmu,
+  ) ?? [];
+  if (keys.some((key) => key !== "SURPLASSE_PRODUCTION_RELEASE_MODE")) {
+    throw new Error(`Unknown production release setting in ${sourceName}`);
+  }
+  if (assignments.length > 1) {
+    throw new Error(`Duplicate production release setting in ${sourceName}`);
   }
 
   const mode = config.SURPLASSE_PRODUCTION_RELEASE_MODE;

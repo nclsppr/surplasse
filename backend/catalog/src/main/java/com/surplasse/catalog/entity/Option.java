@@ -54,8 +54,4 @@ public class Option {
     public int getPosition() {
         return position;
     }
-
-    public OffsetDateTime getDeletedAt() {
-        return deletedAt;
-    }
 }

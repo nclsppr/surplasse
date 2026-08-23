@@ -7,7 +7,7 @@ description: "Le manifeste, les contrôles et la séquence one-shot qui créent 
 
 # Bootstrap du pilote de production
 
-Cette procédure crée le premier graphe métier de la production testeurs. Elle est réservée à Atlas, à une base Flyway V14 vide et à Stripe test. Elle ne crée aucune donnée client réelle, n'ouvre pas la prise de commandes et ne remplace pas l'embarquement produit.
+Cette procédure crée le premier graphe métier de la production testeurs. Elle est réservée à Atlas, à une base Flyway V15 vide et à Stripe test. Elle ne crée aucune donnée client réelle, n'ouvre pas la prise de commandes et ne remplace pas l'embarquement produit.
 
 !!! danger Pas de raccourci
 Ne jamais lancer le seed de développement, écrire directement en base, injecter un secret dans une variable ou exposer cette commande comme endpoint. Le contrôleur borné de `vps-infra` est le seul chemin opérateur autorisé.
@@ -28,7 +28,7 @@ Le bundle OCI contient les éléments suivants :
 | Schéma | `pilot-bootstrap.schema.json`, contrat `surplasse.pilot-bootstrap`, version 1, mode `testers` |
 | Secrets montés | mot de passe du rôle `surplasse_runtime` et clé Stripe restreinte test |
 | Réseaux | `db_surplasse` pour PostgreSQL et `app_surplasse` comme route de sortie Stripe |
-| Base | historique Flyway exactement V1 à V14 |
+| Base | historique Flyway exactement V1 à `REQUIRED_SCHEMA_VERSION`, actuellement V15 |
 | État initial | établissement `active`, carte publiée, produit disponible, table active, prise de commandes `paused` |
 
 Le runner et la classe Java refusent indépendamment un profil autre que `production`, un mode autre que `testers`, `STRIPE_LIVE_MODE` différent de `false`, une URL ou un rôle PostgreSQL différent, un chemin de fichier différent ou une valeur secrète injectée directement.
@@ -68,7 +68,7 @@ La clé montée est la clé restreinte test déjà exigée par le Backend. Pour 
 
 1. Admettre une release dont le contrat déclare `pilot-bootstrap` et dont l'image est liée au digest Backend exact.
 2. Matérialiser le manifeste validé avec les métadonnées exactes. Ne pas modifier les neuf secrets applicatifs existants pendant cette étape.
-3. Appliquer les migrations au moyen du job `migrator`, puis prouver l'historique V1 à V14.
+3. Appliquer les migrations au moyen du job `migrator`, puis prouver l'historique contigu V1 à V15.
 4. Invoquer `status`. Le code 3 signifie que le schéma exact est vide. Tout autre code non nul arrête la procédure.
 5. Invoquer `apply` une seule fois. Le contrôleur utilise la forme interne suivante depuis la release admise :
 
@@ -88,7 +88,7 @@ Le contrôleur ne transmet aucun autre argument, n'ajoute pas `--service-ports`,
 | Code | Sens | Réaction |
 |---|---|---|
 | 0 | graphe créé, déjà exact ou relu exact | Continuer selon la séquence |
-| 3 | `status` sur base métier vide avec V14 exact | Autorise le premier `apply` |
+| 3 | `status` sur base métier vide avec V15 exact | Autorise le premier `apply` |
 | 64 | configuration, manifeste, métadonnées ou format de secret refusé | Corriger l'entrée hors du conteneur |
 | 65 | version, cardinalité ou valeur persistée divergente | Arrêter, conserver les preuves, ne pas corriger par SQL |
 | 69 | compte Stripe test non lisible ou non encaissable | Laisser `paused`, terminer l'embarquement Stripe ou rétablir le réseau |
@@ -98,7 +98,7 @@ La sortie ne contient qu'un résultat générique. Elle ne doit contenir ni emai
 
 ## Idempotence, échec et reprise
 
-`apply` prend un verrou transactionnel, relit l'ensemble des tables V14 et accepte seulement deux états : aucune ligne métier, ou le graphe exact avec toutes les autres tables vides. Les six insertions et leur vérification finale appartiennent à la même transaction sérialisable. Un échec annule tout.
+`apply` prend un verrou transactionnel, exige l'historique contigu exact de V1 à `REQUIRED_SCHEMA_VERSION`, actuellement V15, puis relit l'ensemble des tables métier et accepte seulement deux états : aucune ligne métier, ou le graphe exact avec toutes les autres tables vides. Les six insertions et leur vérification finale appartiennent à la même transaction sérialisable. Un échec annule tout. Toute nouvelle migration avance la constante et ses preuves dans la même release, conformément à l'[ADR-0047](../decisions/adr-0047-version-flyway-bootstrap-pilote.md).
 
 Une nouvelle exécution avec le manifeste identique ne change ni `activated_at`, ni horodatage, ni code de table. Une divergence échoue sans `delete`, `update` ni `upsert`. Le bootstrap n'est plus un outil de contrôle après une modification métier volontaire, notamment après le passage à `open`. À partir de là, utiliser les lectures et actions authentifiées du Backend.
 

@@ -48,19 +48,7 @@ public class Restaurateur {
         return fullName;
     }
 
-    public String getPhone() {
-        return phone;
-    }
-
-    public Instant getLastLoginAt() {
-        return lastLoginAt;
-    }
-
     public Instant getCreatedAt() {
         return createdAt;
-    }
-
-    public Instant getUpdatedAt() {
-        return updatedAt;
     }
 }

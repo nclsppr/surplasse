@@ -29,7 +29,7 @@ Le monorepo contient le contrat, le Backend, les trois frontends, le graphe Comp
 
 ### La simplicité opérationnelle prime
 
-La cible est un VPS Atlas unique piloté par Docker Compose. `compose.yaml`, `compose.development.yaml` et `compose.production.yaml` restent la pile locale et le chemin de production historique du monorepo. La production Atlas reçoit plutôt `deployment/vps/compose.yaml` dans une `application-release` immuable : ce fragment contient seulement les cinq services Surplasse, le job de migration et le bootstrap one-shot du premier pilote. Caddy, PostgreSQL et l'observabilité appartiennent à la plateforme partagée de `vps-infra`. Pas de Kubernetes, pas d'autoscaling. Un restaurant indépendant génère quelques dizaines de commandes par service : la charge se mesure en requêtes par seconde à un chiffre, et un VPS correctement dimensionné la tient avec une marge confortable. Chaque brique ajoutée doit justifier son coût d'exploitation, pas seulement son intérêt technique. L'[ADR-0026](../decisions/adr-0026-compose-commun.md), l'[ADR-0040](../decisions/adr-0040-publication-oci-applicative-pour-atlas.md) et le [runbook Compose](../operations/deploiement-compose.md) détaillent cette frontière.
+La cible est un VPS Atlas unique piloté par Docker Compose. `compose.yaml` et `compose.development.yaml` décrivent seulement la pile locale. La production consomme exclusivement `deployment/vps/compose.yaml` dans une `application-release` immuable : ce fragment contient seulement les cinq services Surplasse, le job de migration et le bootstrap one-shot du premier pilote. Caddy, PostgreSQL et l'observabilité appartiennent à la plateforme partagée de `vps-infra`. Pas de Kubernetes, pas d'autoscaling. Un restaurant indépendant génère quelques dizaines de commandes par service : la charge se mesure en requêtes par seconde à un chiffre, et un VPS correctement dimensionné la tient avec une marge confortable. Chaque brique ajoutée doit justifier son coût d'exploitation, pas seulement son intérêt technique. L'[ADR-0045](../decisions/adr-0045-atlas-unique-production.md), l'[ADR-0041](../decisions/adr-0041-production-testeurs-stripe-test.md) et le [runbook Atlas](../operations/deploiement-compose.md) détaillent cette frontière.
 
 ### Le client final ne subit jamais la complexité
 
@@ -128,18 +128,14 @@ surplasse/
 ├── api/
 │   └── openapi.yaml         # Le contrat, source de vérité de l'API
 ├── backend/                 # Quarkus (Maven multi-modules)
-├── compose.yaml             # Graphe commun
-├── compose.*.yaml           # Surcharges par environnement
+├── compose.yaml             # Graphe du développement intégré
+├── compose.development.yaml # Surcharge du profil development
 ├── deployment/vps/          # Fragment applicatif et intégrations Atlas sans secret
 ├── frontends/
 │   ├── shared/              # Design system, client API généré, utilitaires
 │   ├── onboarding/          # surplasse.com
 │   ├── commande/            # {slug}.surplasse.com
-│   ├── dashboard/           # dashboard.surplasse.com
-│   ├── design-system2/      # fondations UI2 expérimentales
-│   ├── onboarding2/         # variante de développement
-│   ├── commande2/           # variante de développement
-│   └── dashboard2/          # variante de développement
+│   └── dashboard/           # dashboard.surplasse.com
 ├── infra/                   # Images et configuration Caddy
 └── .github/workflows/       # CI/CD
 ```
@@ -153,13 +149,12 @@ surplasse/
 | `frontends/onboarding/` | La vitrine produit et le tunnel d'embarquement des restaurateurs |
 | `frontends/commande/` | Le mini-site de l'établissement : carte numérique, commande et paiement client |
 | `frontends/dashboard/` | Le suivi des commandes en temps réel, la gestion de la carte et les métriques |
-| `frontends/design-system2/` et `frontends/*2/` | Le design system Untitled UI et les trois variantes réversibles réservées au développement et aux démos Pages |
-| `compose*.yaml` | Le graphe local et le chemin de production historique du monorepo |
+| `compose.yaml` et `compose.development.yaml` | Le graphe du développement intégré et sa surcharge locale |
 | `deployment/vps/` | Le fragment Compose applicatif, la route, les cibles d'observabilité et les sondes publiés pour Atlas |
-| `infra/` | Les Dockerfiles applicatifs, la configuration Caddy locale et historique et les recettes d'exécution |
+| `infra/` | Les Dockerfiles applicatifs, la configuration Caddy locale et les recettes d'exécution |
 | `.github/workflows/` | Les pipelines GitHub Actions : build, tests, déploiement, publication des docs |
 
-Le Backend, Commande, le Dashboard, la préfiguration de l'Onboarding, les variantes UI2 et le cluster Compose sont livrés localement. Le candidat Atlas est publié, sans autorité d'activation. Les modules encore absents sont créés au fil de la [roadmap](../roadmap.md).
+Le Backend, Commande, le Dashboard, la préfiguration de l'Onboarding et le cluster Compose sont livrés localement. Le candidat Atlas est publié, sans autorité d'activation. Les modules encore absents sont créés au fil de la [roadmap](../roadmap.md).
 
 ## Les deux flux critiques
 

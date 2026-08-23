@@ -69,10 +69,6 @@ public class RefreshSession {
         return rotatedAt;
     }
 
-    public Instant getRevokedAt() {
-        return revokedAt;
-    }
-
     public Instant getCreatedAt() {
         return createdAt;
     }

@@ -35,18 +35,6 @@
       ]
     },
     {
-      "slug": "banner",
-      "type": "registry:ui",
-      "version": "0.8.2",
-      "source": "https://nimbus-docs.com/registry",
-      "hash": "sha256:3d82a157b97d14b36eaca5c90e30cc97ea197d5640ef50d25d0e698471b1a9b9",
-      "files": [
-        "src/components/ui/banner/Banner.astro",
-        "src/components/ui/banner/banner.client.ts",
-        "src/components/ui/banner/index.ts"
-      ]
-    },
-    {
       "slug": "breadcrumbs",
       "type": "registry:ui",
       "version": null,
@@ -68,39 +56,6 @@
         "src/components/ui/button/Button.astro",
         "src/components/ui/button/index.ts",
         "src/components/ui/button/variants.ts"
-      ]
-    },
-    {
-      "slug": "card",
-      "type": "registry:ui",
-      "version": "0.8.2",
-      "source": "https://nimbus-docs.com/registry",
-      "hash": "sha256:5f6fe7bee744599473f05ebf1a0b3d0888418783a942bc0d7030b2310888da95",
-      "files": [
-        "src/components/ui/card/Card.astro",
-        "src/components/ui/card/index.ts"
-      ]
-    },
-    {
-      "slug": "card-grid",
-      "type": "registry:ui",
-      "version": "0.8.2",
-      "source": "https://nimbus-docs.com/registry",
-      "hash": "sha256:428117e01734727c4467da3d63471ca82e60cf0675dfb5756165a77301a7152d",
-      "files": [
-        "src/components/ui/card-grid/CardGrid.astro",
-        "src/components/ui/card-grid/index.ts"
-      ]
-    },
-    {
-      "slug": "code",
-      "type": "registry:ui",
-      "version": "0.8.2",
-      "source": "https://nimbus-docs.com/registry",
-      "hash": "sha256:ace7341defa70add47e3d0c072acb8d2ecafc636c646c2f84380a76dd780ce97",
-      "files": [
-        "src/components/ui/code/Code.astro",
-        "src/components/ui/code/index.ts"
       ]
     },
     {
@@ -133,19 +88,6 @@
       ]
     },
     {
-      "slug": "layer-card",
-      "type": "registry:ui",
-      "version": "0.8.2",
-      "source": "https://nimbus-docs.com/registry",
-      "hash": "sha256:7b33f703a515e2522f9b21f41c1a6ce35821ffb3a5dabc5f7f16fa65c1e18576",
-      "files": [
-        "src/components/ui/layer-card/LayerCard.astro",
-        "src/components/ui/layer-card/LayerCardContent.astro",
-        "src/components/ui/layer-card/LayerCardHeader.astro",
-        "src/components/ui/layer-card/index.ts"
-      ]
-    },
-    {
       "slug": "link-button",
       "type": "registry:ui",
       "version": "0.8.2",
@@ -154,18 +96,6 @@
       "files": [
         "src/components/ui/link-button/LinkButton.astro",
         "src/components/ui/link-button/index.ts"
-      ]
-    },
-    {
-      "slug": "package-managers",
-      "type": "registry:ui",
-      "version": "0.8.2",
-      "source": "https://nimbus-docs.com/registry",
-      "hash": "sha256:e8e1ca9f338b65c902372ed38a8e008ee91446c51afac27e1b5962d25b83a84e",
-      "files": [
-        "src/components/ui/package-managers/PackageManagers.astro",
-        "src/components/ui/package-managers/index.ts",
-        "src/components/ui/package-managers/package-managers.client.ts"
       ]
     },
     {
@@ -224,35 +154,6 @@
         "src/components/ui/sidebar/sidebar.client.ts"
       ],
       "modified": true
-    },
-    {
-      "slug": "steps",
-      "type": "registry:ui",
-      "version": "0.8.2",
-      "source": "https://nimbus-docs.com/registry",
-      "hash": "sha256:80f99f91316886f985ef94061509e212496c88fc561734ad882054e4d6c3a040",
-      "files": [
-        "src/components/ui/steps/Step.astro",
-        "src/components/ui/steps/Steps.astro",
-        "src/components/ui/steps/index.ts",
-        "src/components/ui/steps/steps.client.ts"
-      ]
-    },
-    {
-      "slug": "tabs",
-      "type": "registry:ui",
-      "version": "0.8.2",
-      "source": "https://nimbus-docs.com/registry",
-      "hash": "sha256:baf32af78444eb0b2825a75b2e20fcff33652ad5edfc989a0fba3546110a2f43",
-      "files": [
-        "src/components/ui/tabs/TabItem.astro",
-        "src/components/ui/tabs/Tabs.astro",
-        "src/components/ui/tabs/TabsContent.astro",
-        "src/components/ui/tabs/TabsList.astro",
-        "src/components/ui/tabs/TabsTrigger.astro",
-        "src/components/ui/tabs/index.ts",
-        "src/components/ui/tabs/tabs.client.ts"
-      ]
     },
     {
       "slug": "theme-toggle",

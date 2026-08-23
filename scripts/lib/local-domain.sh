@@ -48,10 +48,8 @@ surplasse_local_load_config() {
   export ONBOARDING_URL="$APP_BASE_URL"
   export DASHBOARD_URL="${APP_SCHEME}://dashboard.${APP_BASE_DOMAIN}"
   export API_URL="${APP_SCHEME}://api.${APP_BASE_DOMAIN}"
-  export LOCAL_CONTROL_URL="${APP_SCHEME}://local.${APP_BASE_DOMAIN}"
   export DOCS_URL="${APP_SCHEME}://docs.${APP_BASE_DOMAIN}"
   export MAILPIT_URL="${APP_SCHEME}://mail.${APP_BASE_DOMAIN}"
-  export REPORTS_URL="${APP_SCHEME}://reports.${APP_BASE_DOMAIN}"
   export GRAFANA_URL="${APP_SCHEME}://grafana.${APP_BASE_DOMAIN}"
 
   [[ "$APP_BASE_DOMAIN" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?\.test$ ]] || surplasse_local_die \
@@ -66,25 +64,19 @@ surplasse_local_load_config() {
   export SURPLASSE_DOMAIN_CONFIG_FILE="$config_file"
   export SURPLASSE_DASHBOARD_HOST
   export SURPLASSE_API_HOST
-  export SURPLASSE_LOCAL_CONTROL_HOST
   export SURPLASSE_DOCS_HOST
   export SURPLASSE_MAILPIT_HOST
-  export SURPLASSE_REPORTS_HOST
   export SURPLASSE_GRAFANA_HOST
   SURPLASSE_DASHBOARD_HOST="$(surplasse_local_https_host "$DASHBOARD_URL" "DASHBOARD_URL")"
   SURPLASSE_API_HOST="$(surplasse_local_https_host "$API_URL" "API_URL")"
-  SURPLASSE_LOCAL_CONTROL_HOST="$(surplasse_local_https_host "$LOCAL_CONTROL_URL" "LOCAL_CONTROL_URL")"
   SURPLASSE_DOCS_HOST="$(surplasse_local_https_host "$DOCS_URL" "DOCS_URL")"
   SURPLASSE_MAILPIT_HOST="$(surplasse_local_https_host "$MAILPIT_URL" "MAILPIT_URL")"
-  SURPLASSE_REPORTS_HOST="$(surplasse_local_https_host "$REPORTS_URL" "REPORTS_URL")"
   SURPLASSE_GRAFANA_HOST="$(surplasse_local_https_host "$GRAFANA_URL" "GRAFANA_URL")"
 
   surplasse_local_require_direct_subdomain "$SURPLASSE_DASHBOARD_HOST" "DASHBOARD_URL"
   surplasse_local_require_direct_subdomain "$SURPLASSE_API_HOST" "API_URL"
-  surplasse_local_require_direct_subdomain "$SURPLASSE_LOCAL_CONTROL_HOST" "LOCAL_CONTROL_URL"
   surplasse_local_require_direct_subdomain "$SURPLASSE_DOCS_HOST" "DOCS_URL"
   surplasse_local_require_direct_subdomain "$SURPLASSE_MAILPIT_HOST" "MAILPIT_URL"
-  surplasse_local_require_direct_subdomain "$SURPLASSE_REPORTS_HOST" "REPORTS_URL"
   surplasse_local_require_direct_subdomain "$SURPLASSE_GRAFANA_HOST" "GRAFANA_URL"
 
   export SURPLASSE_LOCAL_CERT_FILE="${repository_root}/.certs/${APP_BASE_DOMAIN}.pem"
@@ -169,7 +161,6 @@ surplasse_local_caddy_environment() {
     SURPLASSE_LOCAL_KEY_FILE="$SURPLASSE_LOCAL_KEY_FILE" \
     SURPLASSE_DASHBOARD_HOST="$SURPLASSE_DASHBOARD_HOST" \
     SURPLASSE_API_HOST="$SURPLASSE_API_HOST" \
-    SURPLASSE_LOCAL_CONTROL_HOST="$SURPLASSE_LOCAL_CONTROL_HOST" \
     SURPLASSE_DOCS_HOST="$SURPLASSE_DOCS_HOST" \
     SURPLASSE_MAILPIT_HOST="$SURPLASSE_MAILPIT_HOST" \
     "$@"

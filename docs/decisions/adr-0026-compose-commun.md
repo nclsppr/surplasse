@@ -9,7 +9,7 @@ description: Un socle Docker Compose commun au poste local et au VPS, configuré
 
 ## Statut
 
-Accepté, 2026-07-22.
+Remplacé par [ADR-0045](adr-0045-atlas-unique-production.md), 2026-08-23.
 
 ## Contexte
 

@@ -7,17 +7,5 @@ import java.net.URI;
 @ConfigMapping(prefix = "surplasse.platform")
 public interface PlatformConfig {
 
-    String scheme();
-
-    String baseDomain();
-
-    URI baseUrl();
-
-    URI dashboardUrl();
-
-    URI apiUrl();
-
     URI problemTypeBase();
-
-    String reservedSubdomains();
 }

@@ -29,10 +29,6 @@ public class Category {
         return id;
     }
 
-    public UUID getMenuId() {
-        return menuId;
-    }
-
     public String getName() {
         return name;
     }

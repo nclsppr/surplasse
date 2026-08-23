@@ -7,7 +7,7 @@ description: Deux environnements seulement, leurs domaines, certificats, profils
 
 # Environnements
 
-Surplasse connaît deux environnements : le développement local et la production. Il n'existe pas de staging au lancement. Le cluster local exerce les mêmes recettes applicatives et le même contrat de domaines que la cible de production. Sur Atlas, le bundle applicatif rejoint une plateforme Caddy, PostgreSQL et observabilité possédée par `vps-infra`. Le Compose historique du monorepo n'est pas la commande d'exploitation d'Atlas.
+Surplasse connaît deux environnements : le développement local et la production. Il n'existe pas de staging au lancement. Le cluster local exerce les mêmes recettes applicatives et le même contrat de domaines que la cible de production. La production existe uniquement sur Atlas, où le bundle applicatif rejoint une plateforme Caddy, PostgreSQL et observabilité possédée par `vps-infra`.
 
 !!! warning État réel au 2026-08-18
 Atlas et sa plateforme partagée existent. Le candidat Surplasse est publié par digest, mais son entrée de production reste `enabled: false` dans `vps-infra`. Aucun service, base, rôle, secret, certificat wildcard, route ou DNS Surplasse n'y est encore prouvé actif. L'ADR-0041 autorise une production réservée aux testeurs avec Stripe test et sauvegardes locales. L'ouverture publique reste bloquée par Stripe live, le SMTP transactionnel, la sauvegarde hors site, les CSP de Commande et du Dashboard, les rattachements réseau et les sondes publiques strictes.
@@ -26,7 +26,7 @@ Atlas et sa plateforme partagée existent. Le candidat Surplasse est publié par
 | Stripe | Mode test exclusivement | Mode test pour la production testeurs, mode live pour l'ouverture publique |
 | Email | Mailpit | Relais SMTP transactionnel géré, à sélectionner et activer |
 | Certificat | mkcert monté en lecture seule | Cible Let's Encrypt wildcard par DNS-01 OVH, non activée pour Surplasse |
-| Services annexes | Mailpit, documentation Nimbus, cockpit et rapport Allure development sur l'hôte ; Prometheus 3.13.1 et Grafana 13.1.1 facultatifs | Image de documentation, cible et règles Prometheus et tableau de bord Grafana publiés ; runtimes Atlas Prometheus 3.13.2 et Grafana 13.1.3 possédés par `vps-infra` ; intégration Surplasse inactive |
+| Services annexes | Mailpit, documentation Nimbus, rapport Allure local sur fichier ; Prometheus 3.13.1 et Grafana 13.1.1 facultatifs | Image de documentation, cible et règles Prometheus et tableau de bord Grafana publiés ; runtimes Atlas Prometheus 3.13.2 et Grafana 13.1.3 possédés par `vps-infra` ; intégration Surplasse inactive |
 | Images applicatives | Tags locaux `development` | Références digest liées par `application-release` |
 
 Aucune clé live, donnée réelle ou sauvegarde de production ne doit se trouver sur un poste local. Le serveur Onboarding peut créer une courte session Stripe Connect seulement en `development`. Le wrapper exige que cette capacité soit désactivée en `production`.
@@ -40,10 +40,10 @@ Aucune clé live, donnée réelle ou sauvegarde de production ne doit se trouver
 | `{slug}.surplasse.com` | `{slug}.surplasse.test` | Commande |
 | `dashboard.surplasse.com` | `dashboard.surplasse.test` | Dashboard |
 | `api.surplasse.com` | `api.surplasse.test` | Backend |
-| `docs.surplasse.com` dans Compose | `docs.surplasse.test` dans Compose | Documentation Nimbus canonique |
-| absent | `local.surplasse.test` | Cockpit de développement |
+| `docs.surplasse.com` sur Atlas | `docs.surplasse.test` dans Compose | Documentation Nimbus canonique |
+| réservé, fermé | `local.surplasse.test`, réservé et fermé | Aucun service |
 | SMTP externe | `mail.surplasse.test` | Mailpit |
-| absent | `reports.surplasse.test` | Dernier rapport Allure development servi par le cockpit |
+| réservé, fermé | `reports.surplasse.test`, réservé et fermé | Aucun service, rapport Allure ouvert depuis le fichier local |
 | aucun domaine public | `grafana.surplasse.test` | Grafana, seulement lorsque le profil `observability` est démarré |
 
 Les noms `www`, `api`, `dashboard`, `docs`, `app`, `admin`, `local`, `mail`, `autoconfig`, `autodiscover`, `mta-sts`, `smtp`, `imap`, `pop`, `pop3`, `webmail`, `status`, `reports` et `grafana` sont réservés et exclus des slugs d'établissement. `app` et `admin` ne correspondent à aucune application actuelle. Les noms techniques sans service public restent fermés en 503 sur Caddy. `status`, `reports` et `grafana` restent réservés en production même si aucun service ne les y publie.
@@ -56,16 +56,16 @@ Les fichiers de domaines ne contiennent aucun secret :
 
 | Fichier | Contenu autorisé |
 |---|---|
-| `config/domains/development.env` | `APP_SCHEME`, `APP_BASE_DOMAIN`, `PROBLEM_TYPE_BASE`, `COOKIE_DOMAIN`, `RESERVED_SUBDOMAINS` |
+| `config/domains/development.env` | `APP_SCHEME`, `APP_BASE_DOMAIN`, `PROBLEM_TYPE_BASE`, `RESERVED_SUBDOMAINS` |
 | `config/domains/production.env` | Les mêmes clés pour la production |
 
-`scripts/run-with-domain-profile.sh` dérive `APP_BASE_URL`, `ONBOARDING_URL`, `DASHBOARD_URL`, `API_URL`, `DOCS_URL` et `CORS_PUBLIC_ORIGINS`. `DOCS_URL` utilise toujours le sous-domaine direct `docs` de `APP_BASE_DOMAIN`. `LOCAL_CONTROL_URL`, `MAILPIT_URL`, `REPORTS_URL` et `GRAFANA_URL` existent seulement en développement. Aucun profil ne répète une URL complète.
+`scripts/run-with-domain-profile.sh` dérive `APP_BASE_URL`, `ONBOARDING_URL`, `DASHBOARD_URL`, `API_URL`, `DOCS_URL` et `CORS_PUBLIC_ORIGINS`. `DOCS_URL` utilise toujours le sous-domaine direct `docs` de `APP_BASE_DOMAIN`. `MAILPIT_URL` et `GRAFANA_URL` existent seulement en développement. Aucun profil ne répète une URL complète.
 
-`COOKIE_DOMAIN` reste vide. Les cookies `surplasse_session` et `surplasse_refresh` sont hôte uniquement sur l'API, `Secure`, `HttpOnly`, `SameSite=Lax` et `Path=/`. Définir un domaine parent les exposerait aux mini-sites.
+Les cookies `surplasse_session` et `surplasse_refresh` sont hôte uniquement sur l'API par absence d'attribut `Domain`. Ils restent `Secure`, `HttpOnly`, `SameSite=Lax` et `Path=/`. Définir un domaine parent les exposerait aux mini-sites.
 
-`scripts/compose.sh` applique le profil avant de lire la configuration de déploiement. Son parseur dotenv n'exécute pas de commande shell. Il refuse dans les fichiers de déploiement et de secrets toute variable appartenant au profil de domaines, ainsi que les variables de contrôle du shell, de git, de Docker ou de Compose. Le passage en production sélectionne `production`, jamais une série de remplacements de `.test` par `.com`.
+`scripts/compose.sh` applique le profil development avant de lire la configuration locale. Son parseur dotenv n'exécute pas de commande shell. Il refuse dans les fichiers de déploiement et de secrets toute variable appartenant au profil de domaines, ainsi que les variables de contrôle du shell, de git, de Docker ou de Compose. Les builds de release sélectionnent `config/domains/production.env`, jamais une série de remplacements de `.test` par `.com`.
 
-Avant d'appeler Compose, le wrapper écrit atomiquement chaque valeur sensible sous un répertoire hôte de mode `0700`. Les copies de montage utilisent le mode `0444` pour rester lisibles par les UID non privilégiés distincts des conteneurs ; le répertoire en interdit l'accès aux autres utilisateurs de l'hôte. Le wrapper ne remplace pas un fichier dont le contenu est inchangé, ce qui préserve les montages actifs lors des commandes de consultation. Le répertoire local `.surplasse/compose-secrets/development/` est exclu de git et du contexte de build. Le répertoire de production `/etc/surplasse/secrets/compose/` reste sur le VPS. Compose utilise ces seuls fichiers comme sources et les monte en lecture seule sous `/run/secrets`. Le fichier d'environnement, la clé TLS locale et la clé JWT privée de production d'origine restent en mode `0600`. Le processus `docker compose` ne reçoit plus les valeurs directes après cette matérialisation.
+Avant d'appeler le Compose local, le wrapper écrit atomiquement chaque valeur sensible sous un répertoire hôte de mode `0700`. Les copies de montage utilisent le mode `0444` pour rester lisibles par les UID non privilégiés distincts des conteneurs ; le répertoire en interdit l'accès aux autres utilisateurs de l'hôte. Le wrapper ne remplace pas un fichier dont le contenu est inchangé, ce qui préserve les montages actifs lors des commandes de consultation. Le répertoire `.surplasse/compose-secrets/development/` est exclu de git et du contexte de build. Sur Atlas, `vps-infra` matérialise séparément les fichiers protégés sous `/etc/vps/secrets/surplasse/` et les monte sous `/run/secrets/` conformément au fragment de release.
 
 ## Configuration de déploiement
 
@@ -74,9 +74,7 @@ Avant d'appeler Compose, le wrapper écrit atomiquement chaque valeur sensible s
 | `config/deployment/images.env` | Non | Oui |
 | `config/deployment/development.env` | Non, identifiants PostgreSQL jetables seulement | Oui |
 | `backend/.env` et `frontends/commande/.env` | Clés Stripe test | Non |
-| `/etc/surplasse/production.env` | Chemin du Compose historique, non utilisé pour Atlas | Non |
 | `/etc/vps/secrets/surplasse/` | Cible Atlas des secrets par fichier, actuellement non matérialisée | Non |
-| `config/deployment/production.env.example` | Non, modèle sans valeur réelle | Oui |
 
 Le catalogue d'images épingle chaque base par version et digest. Les paramètres réseau, ports et noms d'image restent variables. Les adresses de services telles que `postgresql:5432` sont des noms internes au graphe Compose, pas des références à un environnement public.
 
@@ -123,24 +121,24 @@ Cette souplesse ne crée pas un troisième environnement. Une future UAT exigera
 
 Les smokes de production et d'une UAT ne partagent jamais `history.jsonl`. Le domaine `custom` garde une validation TLS stricte et ne peut redéfinir les profils connus. Le détail des commandes est dans [Tests](../developpement/tests.md).
 
-Le cockpit local ne change pas cette séparation. Il lance exclusivement la cible `development` et sert seulement son dernier rapport sur `REPORTS_URL`. Une production ou une UAT est testée par la CLI ou GitHub Actions. Son rapport reste un artefact à télécharger et rejouer, jamais un contenu synchronisé vers `reports.surplasse.test`.
+Le développement, la production et une UAT sont testés par la CLI ou GitHub Actions avec une cible explicite. Chaque cible conserve directement `.surplasse/e2e/<id>/history.jsonl`, `.surplasse/e2e/<id>/allure-report/` et `.surplasse/e2e/<id>/test-results/`. Un rapport CI reste un artefact à télécharger et rejouer, jamais un contenu synchronisé vers `reports.surplasse.test`.
 
 ## Observabilité {#observabilite}
 
-Prometheus et Grafana appartiennent au profil Compose facultatif `observability`. Leurs adresses internes sont des noms de services, pas des URL de profil : Prometheus collecte `http://backend:8080/q/metrics` et Grafana interroge `http://prometheus:9090` sur le réseau interne `observability`. Le Backend ne reçoit aucune adresse Prometheus ou Grafana.
+En développement, Prometheus et Grafana appartiennent au profil Compose facultatif `observability`. Leurs adresses internes sont des noms de services, pas des URL de profil : Prometheus collecte `http://backend:8080/q/metrics` et Grafana interroge `http://prometheus:9090` sur le réseau interne `observability`. Le Backend ne reçoit aucune adresse Prometheus ou Grafana. En production, `vps-infra` possède leurs services et leur configuration d'exécution.
 
 | Variable | Développement | Production | Rôle |
 |---|---|---|---|
-| `PROMETHEUS_RETENTION_TIME` | `7d` | `15d` dans l'exemple | Fenêtre de rétention des séries, bornée par environnement |
-| `GRAFANA_ADMIN_USER` | Identifiant jetable versionné | Secret exigé seulement à l'activation du profil | Compte administrateur initial |
-| `GRAFANA_ADMIN_PASSWORD` | Mot de passe jetable versionné | Secret fort exigé seulement à l'activation du profil | Mot de passe administrateur initial |
-| `GRAFANA_SECRET_KEY` | Valeur jetable versionnée | Secret aléatoire et stable exigé seulement à l'activation du profil | Clé interne de chiffrement et de signature Grafana |
-| `GRAFANA_BIND_ADDRESS` | Absente, aucun port hôte | `127.0.0.1`, validée à l'activation | Adresse privée d'écoute du port Grafana sur le VPS |
-| `GRAFANA_PORT` | Absent, accès par Caddy | `3000` dans l'exemple, validé à l'activation | Extrémité distante du tunnel SSH |
+| `PROMETHEUS_RETENTION_TIME` | `7d` | Valeur de plateforme `vps-infra` | Fenêtre de rétention des séries, bornée par environnement |
+| `GRAFANA_ADMIN_USER` | Identifiant jetable versionné | Secret de plateforme | Compte administrateur initial |
+| `GRAFANA_ADMIN_PASSWORD` | Mot de passe jetable versionné | Secret fort de plateforme | Mot de passe administrateur initial |
+| `GRAFANA_SECRET_KEY` | Valeur jetable versionnée | Secret aléatoire et stable de plateforme | Clé interne de chiffrement et de signature Grafana |
+| `GRAFANA_BIND_ADDRESS` | Absente, aucun port hôte | Valeur privée de plateforme | Adresse privée d'écoute du port Grafana sur le VPS |
+| `GRAFANA_PORT` | Absent, accès par Caddy | Valeur du runbook `vps-infra` | Extrémité distante du tunnel SSH |
 
 En développement, `GRAFANA_URL` est dérivée du domaine central. Caddy termine HTTPS et Grafana autorise la lecture anonyme avec le rôle `Viewer`. Le compte administrateur local reste disponible pour contrôler le provisionnement, mais ses valeurs jetables ne doivent jamais être reprises ailleurs.
 
-En production, `GRAFANA_URL` est vide et aucune route Caddy n'existe. L'accès anonyme est désactivé. Le port est lié à la boucle locale du VPS et atteint par tunnel SSH. Lorsqu'une commande démarre Prometheus ou Grafana, le wrapper refuse une autre adresse de liaison, un port hors plage ou un secret Grafana absent ou laissé à `change-me`. Ces valeurs ne sont pas requises pour démarrer ou mettre à jour la pile applicative sans le profil. Prometheus ne publie aucun port hôte dans les deux environnements.
+En production, `GRAFANA_URL` n'existe pas et aucune route Caddy publique n'existe. L'accès anonyme est désactivé. Le port et les commandes d'accès viennent du runbook `vps-infra`. Prometheus ne publie aucun port hôte dans les deux environnements.
 
 Les volumes `prometheus_data` et `grafana_data` sont persistants mais reconstructibles. Leur perte efface respectivement les séries temporelles et les préférences ou sessions de l'interface. Les règles, la source et le tableau de bord sont reprovisionnés depuis git. PostgreSQL reste la seule sauvegarde métier critique.
 
@@ -152,7 +150,7 @@ Les volumes `prometheus_data` et `grafana_data` sont persistants mais reconstruc
 | `POSTGRES_USER` | Utilisateur du conteneur et des sauvegardes |
 | `POSTGRES_PASSWORD` | Source du secret Compose monté dans `POSTGRES_PASSWORD_FILE`, jetable en local et secret en production |
 
-Le volume `postgresql_data` persiste dans les deux environnements. Il peut être supprimé volontairement en local. Il est sauvegardé et restauré selon [Déploiement Compose](deploiement-compose.md) en production.
+Le volume `postgresql_data` persiste en local et peut y être supprimé volontairement. Atlas possède le volume de production, sa sauvegarde et sa restauration selon [Déploiement Atlas](deploiement-compose.md).
 
 ## Caddy et DNS
 
@@ -174,7 +172,7 @@ La rotation conserve une double vérification temporaire, jamais deux clés de s
 1. Générer une nouvelle paire hors du conteneur avec un nouveau `kid`.
 2. Ajouter la nouvelle clé publique au JWKS en conservant la précédente.
 3. Remplacer les fichiers montés et `AUTH_JWT_KEY_ID`, puis recréer le Backend.
-4. Vérifier `https://api.surplasse.com/q/health/ready`.
+4. Utiliser la sonde interne bornée de `vps-infra` pour vérifier la readiness du Backend, puis confirmer que `https://api.surplasse.com/q/health/ready` répond publiquement `404`.
 5. Attendre plus de 15 minutes, retirer l'ancienne clé du JWKS et recréer le Backend.
 
 Une suspicion de fuite déclenche immédiatement la même procédure. La clé privée précédente est retirée du VPS après validation.
