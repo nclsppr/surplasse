@@ -284,6 +284,7 @@ docs/
 ├── architecture/                    # Vue d'ensemble, frontends, backend, API, données, intégrations, sécurité
 ├── developpement/                   # Setup, conventions React/Quarkus/API, git, tests, CI/CD
 ├── operations/                      # Environnements, observabilité, RGPD
+├── agents/                          # Configuration des skills d'ingénierie, exclue du build
 ├── decisions/                       # ADR numérotés (adr-NNNN-titre.md)
 ├── roadmap.md
 ├── glossaire.md

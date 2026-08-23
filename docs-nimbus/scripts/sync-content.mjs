@@ -241,6 +241,14 @@ function toPosixPath(value) {
   return value.split(path.sep).join("/");
 }
 
+export function isPublishedSourcePath(sourcePath) {
+  const relativePath = toPosixPath(path.relative(sourceRoot, sourcePath));
+  return (
+    path.basename(sourcePath) !== "AGENTS.md" &&
+    !relativePath.startsWith("agents/")
+  );
+}
+
 async function findFiles(root, predicate) {
   const matches = [];
   const entries = await readdir(root, { withFileTypes: true });
@@ -298,7 +306,9 @@ function syntheticIndexContent(indexData, children) {
 async function writeSyntheticIndexes(pageMetadata, basePath) {
   const indexFiles = await findFiles(
     sourceRoot,
-    (absolutePath) => path.basename(absolutePath) === "index.yml",
+    (absolutePath) =>
+      path.basename(absolutePath) === "index.yml" &&
+      isPublishedSourcePath(absolutePath),
   );
   let count = 0;
 
@@ -407,7 +417,7 @@ export async function syncContent() {
     sourceRoot,
     (absolutePath) =>
       absolutePath.endsWith(".md") &&
-      path.basename(absolutePath) !== "AGENTS.md",
+      isPublishedSourcePath(absolutePath),
   );
   const pageMetadata = new Map();
 
