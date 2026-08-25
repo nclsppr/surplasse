@@ -1,0 +1,135 @@
+name: Cloudflare migration candidate
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/cloudflare.yml"
+      - "brand/**"
+      - "config/deployment/**"
+      - "config/domains/**"
+      - "deployment/cloudflare/**"
+      - "docs/**"
+      - "docs-nimbus/**"
+      - "frontends/commande/**"
+      - "frontends/dashboard/**"
+      - "frontends/onboarding/**"
+      - "frontends/shared/**"
+      - "mise.lock"
+      - "mise.toml"
+      - "package-lock.json"
+      - "package.json"
+      - "scripts/onboarding-server/**"
+      - "scripts/run-docs.sh"
+      - "scripts/run-with-domain-profile.sh"
+      - "scripts/validate-production-stripe-public-key"
+      - "scripts/verify-production-stripe-static-assets"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/cloudflare.yml"
+      - "brand/**"
+      - "config/deployment/**"
+      - "config/domains/**"
+      - "deployment/cloudflare/**"
+      - "docs/**"
+      - "docs-nimbus/**"
+      - "frontends/commande/**"
+      - "frontends/dashboard/**"
+      - "frontends/onboarding/**"
+      - "frontends/shared/**"
+      - "mise.lock"
+      - "mise.toml"
+      - "package-lock.json"
+      - "package.json"
+      - "scripts/onboarding-server/**"
+      - "scripts/run-docs.sh"
+      - "scripts/run-with-domain-profile.sh"
+      - "scripts/validate-production-stripe-public-key"
+      - "scripts/verify-production-stripe-static-assets"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "cloudflare-candidate-${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  candidate:
+    name: Build and verify the inert candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.18.0
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            deployment/cloudflare/package-lock.json
+            docs-nimbus/package-lock.json
+            frontends/shared/package-lock.json
+            frontends/commande/package-lock.json
+            frontends/dashboard/package-lock.json
+
+      - name: Install build dependencies
+        run: |
+          npm ci
+          npm ci --prefix deployment/cloudflare
+          npm ci --prefix docs-nimbus
+          npm ci --prefix frontends/shared
+          npm ci --prefix frontends/commande
+          npm ci --prefix frontends/dashboard
+
+      - name: Resolve the versioned production release mode
+        id: release_mode
+        run: |
+          release_mode="$(node --input-type=module -e '
+            import { loadProductionReleaseConfig } from "./config/deployment/load-production-release-config.mjs";
+            process.stdout.write(loadProductionReleaseConfig().SURPLASSE_PRODUCTION_RELEASE_MODE);
+          ')"
+          echo "value=$release_mode" >> "$GITHUB_OUTPUT"
+
+      - name: Require the matching Stripe public key for activable candidates
+        if: github.event_name != 'pull_request'
+        env:
+          SURPLASSE_PRODUCTION_RELEASE_MODE: ${{ steps.release_mode.outputs.value }}
+          VITE_STRIPE_PUBLISHABLE_KEY: ${{ vars.VITE_STRIPE_PUBLISHABLE_KEY }}
+        run: ./scripts/validate-production-stripe-public-key
+
+      - name: Build and verify the Cloudflare candidate
+        env:
+          VITE_STRIPE_PUBLISHABLE_KEY: ${{ vars.VITE_STRIPE_PUBLISHABLE_KEY }}
+        run: |
+          npm run onboarding:test
+          npm run cloudflare:check
+
+      - name: Prove the production Stripe key for activable candidates
+        if: github.event_name != 'pull_request'
+        env:
+          SURPLASSE_PRODUCTION_RELEASE_MODE: ${{ steps.release_mode.outputs.value }}
+          VITE_STRIPE_PUBLISHABLE_KEY: ${{ vars.VITE_STRIPE_PUBLISHABLE_KEY }}
+        run: >-
+          ./scripts/verify-production-stripe-static-assets
+          deployment/cloudflare/dist/commande
+
+      - name: Refuse stale generated Worker types
+        run: git diff --exit-code -- deployment/cloudflare/worker-configuration.d.ts
+
+      - name: Upload the candidate without deploying it
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cloudflare-candidate-${{ github.sha }}
+          path: |
+            deployment/cloudflare/dist
+            deployment/cloudflare/.wrangler/dry-run
+            deployment/cloudflare/.wrangler/dry-run-production
+          if-no-files-found: error
+          retention-days: 7

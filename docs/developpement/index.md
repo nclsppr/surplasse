@@ -9,8 +9,8 @@ description: Prérequis, installation, commandes, ports et premier lancement de 
 
 Cette page est le point d'entrée de la section développement : ce qu'il faut installer sur sa machine, comment cloner et lancer le monorepo, quelles commandes exécuter dans chaque répertoire et comment diagnostiquer les problèmes les plus fréquents. Pour comprendre ce que l'on fait tourner avant de le lancer, lire d'abord la [vue d'ensemble de l'architecture](../architecture/index.md).
 
-!!! info État actuel au 2026-08-23
-La documentation, le contrat OpenAPI, le Backend Quarkus, Commande, le Dashboard, la préfiguration statique de l'Onboarding et le package partagé sont exécutables. Le cluster Docker Compose local assemble Caddy, PostgreSQL, ces applications, Mailpit et la documentation Nimbus canonique sous `surplasse.test`, conformément à l'[ADR-0038](../decisions/adr-0038-nimbus-documentation-canonique.md). Un profil facultatif ajoute Prometheus et Grafana sans les placer dans le chemin applicatif. Les commandes npm et Compose pilotent directement le cluster et les smokes Playwright. Chaque cible E2E garde son historique JSONL et son rapport Allure courant sous `.surplasse/e2e/`. Atlas et sa plateforme partagée existent, mais Surplasse y reste désactivé. `main` publie un candidat OCI immuable ; il ne déploie pas l'application sans la décision et les portes séparées de `vps-infra`.
+!!! info État actuel au 2026-08-25
+La documentation, le contrat OpenAPI, le Backend Quarkus, Commande, le Dashboard, la préfiguration statique de l'Onboarding, le package partagé et le candidat Worker sont exécutables. Le cluster Docker Compose local assemble Caddy, PostgreSQL, les applications, Mailpit et Nimbus sous `surplasse.test`. Wrangler assemble et teste séparément le futur bord Cloudflare sans l'uploader. `main` produit des candidats Cloudflare et OCI, mais ni un artefact CI, ni une publication ne possède l'autorité d'activation de `vps-infra`.
 !!!
 
 !!! info URL locales canoniques
@@ -36,6 +36,7 @@ L'environnement de développement utilise `mise` comme gestionnaire unique des r
 | dnsmasq | version Homebrew courante | installé par `npm run local:setup` | installation et intégration `systemd-resolved` manuelles |
 | mkcert | 1.4.x ou plus | installé par `npm run local:setup` | binaire officiel et paquet `libnss3-tools` |
 | Caddy | 2.11.4 | image épinglée, aucune installation hôte | image épinglée, construite avec le module DNS choisi |
+| Wrangler | 4.125.0 | `npm ci --prefix deployment/cloudflare` | commande identique sous WSL2 et Linux, outil de build et de contrôle |
 | Playwright et Chromium | Playwright 1.61.1, navigateur verrouillé par le package | `npm ci --prefix e2e`, puis `npm run e2e:install` | mêmes commandes ; en CI Ubuntu, installation avec `--with-deps` |
 | Prometheus et Grafana | images 3.13.1 `busybox` et 13.1.1 | aucune installation hôte, services du profil Compose `observability` | identique sous WSL2 et Linux |
 
@@ -50,7 +51,8 @@ Précisions :
 - **Stripe CLI** : elle sert uniquement au développement pour relayer et rejouer les webhooks. Sous Windows, l'installation `apt` se fait dans WSL2. La CLI est absente de la production.
 - **Python 3.12.13** : il sert seulement à générer et vérifier les QR de marque avec l'environnement isolé `.venv-brand` et `scripts/requirements.txt`. `mise` installe Python, pas ces dépendances. C'est un outil de développement et de CI, absent de l'exécution applicative et de la production.
 - **dnsmasq et mkcert** : développement seulement. dnsmasq fournit le wildcard local et mkcert le certificat approuvé par le poste. Ils sont absents de la production.
-- **Caddy** : le cluster local monte le certificat mkcert. En production, le Caddy partagé et le défi DNS-01 appartiennent à `vps-infra`.
+- **Caddy** : le cluster local monte le certificat mkcert. En production cible, Caddy devient le proxy d'origine privé Atlas derrière Cloudflare Tunnel.
+- **Wrangler** : le package `deployment/cloudflare` verrouille Wrangler, TypeScript, Vitest et le plugin Workers. `npm run cloudflare:dev` lance seulement un serveur HTTPS local sur `127.0.0.1:8787`. Les noms d'hôte se sondent avec `curl --resolve` selon le [runbook Cloudflare](../operations/migration-cloudflare.md#installation-sur-macos-wsl2-et-linux). Aucun token n'est requis pour le build, les tests ou les dry runs.
 - **Playwright et Chromium** : outils de test locaux et CI uniquement. Ils pilotent la pile par ses URL HTTPS publiques et ne sont jamais copiés dans une image applicative ni installés sur le VPS.
 - **Prometheus et Grafana** : services facultatifs du développement. Atlas possède séparément leurs runtimes de production. Ils ne sont ni installés directement sur l'hôte, ni requis pour démarrer le Backend. Grafana est servi par l'URL centrale seulement en développement.
 - **Bash, `curl` et `tar`** : présents par défaut sur macOS, Linux et WSL2, ils servent au contrôle de compatibilité OpenAPI. Ce sont uniquement des outils de build et de CI.
@@ -108,7 +110,7 @@ Ce choix a un avantage : WSL2 avec Ubuntu, c'est le système de la production. L
 ### Chaque nouveau module documente son lancement
 
 !!! warning La règle vaut pour tout ajout
-Tout ajout d'un module frontend, d'un module backend, d'un package ou d'un logiciel tiers (PostgreSQL, MinIO, Caddy, ...) met à jour cette page dans le même commit. La contribution indique son rôle, son état réel, sa catégorie d'exécution, sa version ou son image épinglée, ses dépendances, ses variables et volumes, ses prérequis, sa configuration, son lancement, son arrêt et sa vérification sur macOS, Windows (WSL2) et Linux.
+Tout ajout d'un module frontend, d'un module backend, d'un package ou d'un logiciel tiers (PostgreSQL, R2, Caddy, ...) met à jour cette page dans le même commit. La contribution indique son rôle, son état réel, sa catégorie d'exécution, sa version ou son image épinglée, ses dépendances, ses variables et volumes, ses prérequis, sa configuration, son lancement, son arrêt et sa vérification sur macOS, Windows (WSL2) et Linux.
 
 La catégorie d'exécution est obligatoire : développement seulement, build ou CI, ou service de production. Un module bibliothèque précise qu'il n'a pas de processus autonome et donne sa commande de vérification. Un service destiné à la production met aussi à jour les pages [Opérations](../operations/index.md) avec son déploiement et son exploitation sous Ubuntu LTS. Un outil absent de la production le dit explicitement et nomme, si nécessaire, son équivalent de production.
 !!!
@@ -133,12 +135,13 @@ npm ci --prefix docs-nimbus
 (cd frontends/shared && npm ci)           # source package, no standalone server
 (cd frontends/commande && npm ci)         # Commande application
 (cd frontends/dashboard && npm ci)        # Dashboard application
+(cd deployment/cloudflare && npm ci)      # Worker, Workers runtime tests and dry runs
 (cd e2e && npm ci && npx playwright install chromium) # E2E and local browser
 (cd backend && ./mvnw dependency:resolve) # optional, quarkus:dev resolves them too
 
 ```
 
-Le `npm ci` racine installe Spectral et OpenAPI Generator. `npm run brand:install` crée l'environnement Python isolé `.venv-brand` avec les versions de `scripts/requirements.txt`; `brand:generate` et `brand:check` l'utilisent ensuite sans polluer le Python géré par `mise`. `npm ci --prefix docs-nimbus` installe Nimbus 0.8.2 et Astro dans leur verrou séparé. Les frontends et `e2e/` ont chacun leur propre `package.json` et leurs propres dépendances : il n'y a pas de workspace npm global. Le package partagé `frontends/shared/` est consommé en source via une dépendance `file:../shared`, conformément à l'[ADR-0014](../decisions/adr-0014-liaison-shared.md). Il faut donc installer `shared` avant de vérifier Commande ou le Dashboard. L'Onboarding actuel est statique et n'a pas encore de dépendances npm. L'installation E2E télécharge seulement Chromium ; Firefox et WebKit ne font pas partie du smoke initial.
+Le `npm ci` racine installe Spectral et OpenAPI Generator. `npm run brand:install` crée l'environnement Python isolé `.venv-brand` avec les versions de `scripts/requirements.txt`; `brand:generate` et `brand:check` l'utilisent ensuite sans polluer le Python géré par `mise`. `npm ci --prefix docs-nimbus` installe Nimbus 0.8.2 et Astro dans leur verrou séparé. Les frontends, `deployment/cloudflare` et `e2e/` ont chacun leur propre `package.json` et leurs propres dépendances : il n'y a pas de workspace npm global. Le package partagé `frontends/shared/` est consommé en source via une dépendance `file:../shared`, conformément à l'[ADR-0014](../decisions/adr-0014-liaison-shared.md). Il faut donc installer `shared` avant de vérifier Commande ou le Dashboard. L'Onboarding actuel est statique et n'a pas encore de dépendances npm. L'installation E2E télécharge seulement Chromium ; Firefox et WebKit ne font pas partie du smoke initial.
 
 ## Cycle de vie des composants actuels
 
@@ -157,6 +160,7 @@ Le `npm ci` racine installe Spectral et OpenAPI Generator. `npm run brand:instal
 | `frontends/commande` | Image statique Compose ou Vite avec `npm run dev` | Image NGINX statique construite avec le profil production |
 | `frontends/onboarding` | Image Node allowlistée ; la session Stripe intégrée est réservée au profil development | Même Dockerfile, fichiers statiques servis par NGINX sans pilote ni secret Stripe |
 | `frontends/dashboard` | Image statique Compose ou Vite avec `npm run dev`, port natif strict 5174 | Image NGINX statique construite avec le profil production |
+| `deployment/cloudflare` | Worker local avec `npm run cloudflare:dev`, tests et dry runs avec `npm run cloudflare:check` | Candidat du bord et des quatre Static Assets, non activé et sans donnée persistante |
 | `e2e/` | Lanceur Playwright et générateur Allure 3 ; vise explicitement `development`, `production` ou `custom` ; état sous `.surplasse/e2e/` | Outil local et GitHub Actions, absent des images et du VPS |
 | `compose.yaml`, `compose.development.yaml`, `infra/caddy`, `infra/images`, `infra/observability` | Graphe, routage, recettes, règles et tableaux de bord sélectionnés par `scripts/compose.sh development` | Développement seulement ; la production consomme `deployment/vps/compose.yaml` et la plateforme `vps-infra` |
 
@@ -168,11 +172,12 @@ Le `npm ci` racine installe Spectral et OpenAPI Generator. `npm run brand:instal
 | Mailpit `axllent/mailpit:v1.30.4` | Développement seulement. Capture les emails du module `identity` sur les ports loopback 1025 et 8025, sans volume persistant | Absent de la CI et de la production. Un fournisseur SMTP transactionnel prendra le relais |
 | Stripe CLI | Développement seulement, pour relayer et rejouer les webhooks | Absente. Stripe appelle directement le webhook public du Backend |
 | Stripe | Compte et clés de test | Compte et clés de test pour la production testeurs, comptes Connect et clés live avant le public |
-| Nimbus 0.8.2 et Astro 7 | Prévisualisation, vérification locale, image `docs` et GitHub Actions | Build statique servi par NGINX dans l'image `docs`, derrière Caddy sur `docs.surplasse.com` |
-| MinIO | Prévu avec le domaine `generation`, pas encore installé | Absent de la pile tant que le module applicatif n'existe pas |
-| dnsmasq | Requis pour le wildcard `*.surplasse.test`, instance locale sans donnée | Absent ; le fournisseur DNS public porte l'apex et le wildcard `.com` |
-| mkcert | Requis pour le certificat local approuvé, sans donnée applicative | Absent ; Let's Encrypt fournit le certificat public |
-| Caddy 2.11.4 | Conteneur de bord avec certificat mkcert monté | Caddy partagé de `vps-infra`, construit avec le module DNS-01 choisi |
+| Nimbus 0.8.2 et Astro 7 | Prévisualisation, vérification locale, image `docs` et GitHub Actions | Build servi par Static Assets à la cible, image Atlas conservée pendant la migration |
+| Cloudflare Worker et Static Assets | Wrangler 4.125.0, plugin Vitest 1.0.0, serveur local sans donnée | Candidat préparé, aucune version ou Route activée |
+| Cloudflare R2 | Prévu avec le domaine `generation`, pas encore créé | Absent tant que le module applicatif n'existe pas |
+| dnsmasq | Requis pour le wildcard `*.surplasse.test`, instance locale sans donnée | Absent ; Cloudflare DNS porte l'apex et le wildcard `.com` à la cible |
+| mkcert | Requis pour le certificat local approuvé, sans donnée applicative | Absent ; Universal SSL Cloudflare fournit le certificat public à la cible |
+| Caddy 2.11.4 | Conteneur de bord avec certificat mkcert monté | Proxy d'origine Atlas, privé derrière Tunnel à la cible |
 | Playwright 1.61.1 et Chromium | Tests E2E locaux et GitHub Actions, navigateur téléchargé dans le cache utilisateur | Absents du VPS ; les tests accèdent à la production depuis un runner externe |
 | Allure Report 3.14.3 | Génération locale et CI des rapports, historique JSONL sous `.surplasse/e2e/` | Aucun service sur le VPS ; rapports conservés comme artefacts GitHub Actions |
 | Prometheus 3.13.1 `busybox` | Service facultatif, collecte interne de `/q/metrics`, volume `prometheus_data` | Runtime Atlas possédé et versionné par `vps-infra` |
@@ -206,7 +211,12 @@ Chaque composant expose un petit jeu de commandes stables. Une ligne « vérific
 | racine | `npm run docs:watch` | serveur local de la documentation avec rechargement (port 5005) |
 | racine | `npm run docs:sync` | reconstruction de la collection Nimbus ignorée depuis `docs/` |
 | racine | `npm run docs:build` | tests de conversion, contrôle Astro, build statique, Pagefind et lint Nimbus, obligatoire avant tout push touchant `docs/` |
+| racine | `npm run docs:build:production` | même vérification avec les URL canoniques `docs.surplasse.com`, utilisée par le candidat Cloudflare |
 | racine | `npm run docs:check` | alias explicite de la vérification complète `docs:build` |
+| racine | `npm run cloudflare:assets:build` | builds production des quatre surfaces, assemblage et manifeste statique lié au commit |
+| racine | `npm run cloudflare:check` | domaines, assets de profil production sans URL locale, types, tests Workers et deux dry runs sans Route ni activation externe |
+| racine | `npm run cloudflare:dev` | Worker HTTPS local sur `127.0.0.1:8787`, arrêté avec `Ctrl+C` |
+| racine | `npm run cloudflare:types` | régénération de `deployment/cloudflare/worker-configuration.d.ts` depuis Wrangler |
 | racine | `npm run api:lint` | lint Spectral du contrat |
 | racine | `npm run api:generate` | régénération des interfaces Java, du client TypeScript et de la copie Swagger UI |
 | racine | `npm run api:diff` | contrôle de compatibilité du contrat par rapport à la révision de référence |

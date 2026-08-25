@@ -7,7 +7,7 @@ description: Publication, admission, activation, contrôle et reprise de la rele
 
 # Déploiement sur Atlas
 
-Atlas est l'unique chemin de production de Surplasse. Le monorepo utilise `compose.yaml` et `compose.development.yaml` uniquement pour le développement et l'intégration locale. La production consomme exclusivement le fragment `deployment/vps/compose.yaml` lié dans une `application-release` immuable, puis admis et activé par `vps-infra`, conformément à l'[ADR-0045](../decisions/adr-0045-atlas-unique-production.md).
+Atlas est l'unique chemin de production du coeur transactionnel Surplasse. Le monorepo utilise `compose.yaml` et `compose.development.yaml` uniquement pour le développement et l'intégration locale. Quarkus, le migrateur, le bootstrap pilote et PostgreSQL consomment le fragment `deployment/vps/compose.yaml` lié dans une `application-release` immuable, puis admis et activé par `vps-infra`. Le bord et les statiques suivent séparément l'[ADR-0048](../decisions/adr-0048-bord-cloudflare-hybride.md) et le [runbook Cloudflare](migration-cloudflare.md). Les quatre services statiques Atlas restent dans la release pendant la période de retour arrière.
 
 L'[ADR-0041](../decisions/adr-0041-production-testeurs-stripe-test.md) autorise l'ouverture de la production et de la prise de commandes à un groupe de testeurs avec Stripe test et des sauvegardes locales au VPS. Cette dérogation ne vaut pas ouverture publique.
 
@@ -41,7 +41,7 @@ Le dépôt Surplasse produit et prouve :
 
 La plateforme `vps-infra` possède et contrôle :
 
-- le bord Caddy public et ses certificats ;
+- le proxy Caddy d'origine et son contrat TLS privé ; Cloudflare, ses Routes et Tunnel sont possédés dans l'état désiré séparé de `vps-infra` ;
 - PostgreSQL, ses rôles, ses volumes et son cycle de sauvegarde ;
 - les réseaux externes `app_surplasse` et `db_surplasse` ;
 - les secrets matérialisés sous `/etc/vps/secrets/surplasse/` ;

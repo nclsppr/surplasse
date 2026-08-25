@@ -23,8 +23,8 @@ Trois choix structurants minimisent le risque à la source :
 
 Le reste de la posture découle de ce socle : sessions courtes, autorisations filtrées par établissement, validation stricte des entrées, chiffrement en transit partout.
 
-!!! info État actuel au 2026-08-18
-Le catalogue, la commande, le paiement et le module Backend `identity` sont implémentés localement. Le cluster Compose exerce la frontière CORS commune, le proxy de confiance, les cookies sécurisés et le routage HTTPS. Le dépôt publie un candidat OCI attesté pour Atlas, mais Surplasse y reste `enabled: false`. Aucun service, secret, rôle PostgreSQL, migration ou route Surplasse n'y est activé. L'identité s'exécute dans l'unique processus Backend, sans service autonome.
+!!! info État actuel au 2026-08-25
+Le catalogue, la commande, le paiement et le module Backend `identity` sont implémentés localement. Le cluster Compose exerce la frontière CORS commune, le proxy de confiance, les cookies sécurisés et le routage HTTPS. Le dépôt produit un candidat OCI pour Atlas et un candidat Worker pour Cloudflare. Le Worker est seulement testé et construit en dry run. Il n'est pas uploadé et aucune Route ou aucun secret Cloudflare n'est activé. L'identité s'exécute dans l'unique processus Backend, sans service autonome.
 !!!
 
 ## Durcissements Dashboard avant production {#durcissements-dashboard-avant-production}
@@ -33,7 +33,7 @@ Le parcours local protège déjà le jeton de magic link, les cookies et l'autor
 
 | Point | État | Risque et garde-fou |
 |---|---|---|
-| CORS avec cookies | Livré et vérifié localement | Quarkus accepte l'apex et les sous-domaines directs comme origines publiques, mais refuse les credentials dans tous ses profils, y compris `%prod`. Le Caddy commun les rétablit seulement après comparaison exacte avec `DASHBOARD_URL` ou `ONBOARDING_URL`. Les tests refusent les credentials à un mini-site et à une origine externe. La production utilise cette même branche, sélectionnée par profil. |
+| CORS avec cookies | Livré et vérifié localement | Quarkus accepte l'apex et les sous-domaines directs comme origines publiques, mais refuse les credentials dans tous ses profils, y compris `%prod`. Caddy à l'origine les rétablit seulement après comparaison exacte avec `DASHBOARD_URL` ou `ONBOARDING_URL`. Le Worker transmet la requête et la réponse sans reconstruire CORS. Les tests refusent les credentials à un mini-site et à une origine externe. |
 | Rotation entre onglets | Livré et vérifié localement | Le Dashboard place le renouvellement sous un Web Lock exclusif commun à tous les onglets. Une fois le verrou acquis, il relit d'abord la session : si un autre onglet l'a déjà renouvelée, la requête initiale est rejouée sans nouvelle rotation. Sinon, un seul refresh token est consommé. BroadcastChannel propage la nouvelle session ou la déconnexion. Sans Web Locks, le Dashboard échoue de manière sûre et demande une nouvelle connexion au lieu de risquer une réutilisation du refresh token. Les tests unitaires couvrent la coordination et un scénario réel à deux onglets a conservé la session avec une seule rotation en base. |
 
 La configuration `%prod` échoue désormais de manière sûre : Quarkus n'accorde jamais seul les credentials et Caddy ne les ajoute qu'aux deux origines exactes du profil. Cette fermeture ne vaut pas autorisation de déployer le Dashboard tant que les réseaux, la route Atlas, le DNS Surplasse, les secrets et les autres portes du pilote ne sont pas prêts. La coordination ne modifie pas le protocole de rotation côté serveur ; elle complète la décision de session de l'[ADR-0008](../decisions/adr-0008-magic-link.md).
@@ -49,7 +49,7 @@ Modèle volontairement léger, centré sur les scénarios réalistes pour une pl
 | Restaurateur légitime | Accès aux données d'un autre établissement (commandes, ventes Surplasse, clients) | Confidentialité inter-établissements | Filtrage systématique par appartenance à l'établissement sur chaque requête (voir [Autorisations](#autorisations)) |
 | Attaquant externe | Rejeu ou forge de webhook Stripe (commande marquée payée sans paiement) | Intégrité des paiements | Vérification de signature, tolérance d'horloge, traitement idempotent (voir [Webhooks Stripe](#webhooks-stripe)) |
 | Attaquant externe | Vol de session restaurateur (interception ou vol de jeton) | Compte restaurateur, données de l'établissement | JWT de session à durée courte, refresh token révocable, HTTPS strict, cookies durcis |
-| Attaquant externe | Exploration des métriques ou de l'interface d'exploitation | Topologie, charge, incidents et accès administrateur | Toute surface `/q/*` refusée par Caddy en production, Prometheus interne, Grafana sans route publique, port loopback, tunnel SSH et authentification |
+| Attaquant externe | Exploration des métriques ou de l'interface d'exploitation | Topologie, charge, incidents et accès administrateur | Toute surface `/q/*` refusée par le Worker puis Caddy, Prometheus interne, Grafana sans route publique, port loopback, tunnel privé et authentification |
 | Concurrent ou agrégateur | Scraping massif de la carte et des prix | Données de la carte, positionnement de l'établissement | La carte est publique par nature (elle l'est aussi en vitrine) ; la parade se limite à la limitation de débit et à l'absence d'API d'énumération globale des établissements |
 | Attaquant externe | Injection via les photos téléversées (fichier malveillant déguisé en image, XSS via SVG, charge utile dans les métadonnées) | Backend, navigateurs des clients | Validation stricte de type et de taille, réécriture systématique des images, aucun fichier téléversé servi tel quel (voir [Téléversements](#televersements)) |
 
@@ -174,7 +174,7 @@ Les deux endpoints de webhook sont les seuls endpoints publics non couverts par 
 
 ## Accès à l'observabilité
 
-`/q/metrics` est un endpoint d'administration interne. Prometheus le collecte directement sur `backend:8080` dans le réseau Compose. Le Caddy local refuse explicitement ce chemin sur l'hôte de l'API. En production, Caddy Atlas refuse toute surface `/q/*`, y compris les métriques, la santé, Swagger UI et la Dev UI, avant le proxy vers Quarkus. Une régression de cette fermeture fait échouer les contrôles de configuration et doit bloquer un déploiement.
+`/q/metrics` est un endpoint d'administration interne. Prometheus le collecte directement sur `backend:8080` dans le réseau Compose. Le Caddy local refuse explicitement ce chemin sur l'hôte de l'API. En production cible, le Worker refuse toute surface `/q/*`, y compris les métriques, la santé, Swagger UI et la Dev UI, avant l'origine. Caddy Atlas conserve la même garde. Une régression de cette fermeture fait échouer les contrôles de configuration et doit bloquer un déploiement.
 
 Prometheus ne publie aucun port hôte et n'a aucune route Caddy. Grafana est accessible par son URL centrale uniquement en développement. En production, Prometheus, Grafana, leurs versions, leurs volumes et leurs secrets appartiennent exclusivement à la plateforme Atlas de `vps-infra`. Grafana reste joignable seulement par le tunnel privé défini par la plateforme. Aucune règle publique n'expose Grafana ou Prometheus.
 
@@ -199,7 +199,7 @@ Tout le trafic est chiffré, sans exception ni période de transition :
 
 - HTTPS partout, avec un certificat wildcard couvrant `*.surplasse.com` (nécessaire pour les mini-sites en `{slug}.surplasse.com`) et le domaine apex.
 - HSTS activé sur tous les domaines (avec `includeSubDomains`), pour interdire tout repli en clair.
-- CSP adaptée à chaque surface : l'Onboarding en émet déjà une, avec les exceptions temporaires requises par ses pages statiques et Stripe Connect. Commande et Dashboard doivent encore recevoir leur politique explicite avant le premier trafic public. Cette dette est une porte de production, pas une valeur implicite permissive.
+- CSP adaptée à chaque surface : le candidat Worker émet une politique propre à Onboarding, Commande et Dashboard. Commande autorise seulement les origines requises par Stripe.js, Link et l'API canonique ; Dashboard autorise seulement l'API canonique. Leur validation dans un navigateur réel avec paiement et SSE reste une porte avant la première Route publique.
 - CORS séparé selon la sensibilité : `CORS_PUBLIC_ORIGINS` contient seulement l'apex et le motif d'un sous-domaine direct HTTPS du domaine courant. Quarkus refuse les credentials en développement, en test et en production. Le Caddy commun les ajoute uniquement pour les origines exactes du Dashboard et de l'Onboarding.
 - Cookies de session hôte uniquement pour `api.surplasse.test` en local et `api.surplasse.com` en production, sans attribut `Domain`, en `Secure`, `HttpOnly`, `SameSite=Lax`.
 

@@ -1,0 +1,23 @@
+{
+  "name": "@surplasse/cloudflare-edge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Bord Cloudflare réversible de Surplasse: routage, ressources statiques et relais vers le Backend Atlas.",
+  "scripts": {
+    "check": "npm run config:check && npm run types && npm run typecheck && npm test && npm run smoke && wrangler deploy --dry-run --env= --outdir .wrangler/dry-run && wrangler deploy --dry-run --env production --outdir .wrangler/dry-run-production",
+    "config:check": "node scripts/check-config.mjs",
+    "dev": "wrangler dev --ip 127.0.0.1 --port 8787 --local-protocol https",
+    "smoke": "bash scripts/smoke-local.sh",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "types": "wrangler types && node scripts/normalize-generated-types.mjs"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "1.0.0",
+    "@types/node": "24.13.3",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11",
+    "wrangler": "4.125.0"
+  }
+}

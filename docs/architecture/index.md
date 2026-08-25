@@ -9,8 +9,8 @@ description: Principes directeurs, diagrammes de contexte et de conteneurs, flux
 
 Cette page donne la carte générale du système : les principes qui guident chaque décision, les acteurs et les systèmes externes, les conteneurs déployés, les deux flux critiques du produit et le découpage en domaines métier. Les pages suivantes de cette section détaillent chaque bloc.
 
-!!! info État réel au 2026-08-18
-Le contrat, le Backend modulaire, les frontends et le cluster local sont implémentés. Le dépôt publie aussi un candidat OCI applicatif immuable pour Atlas. La plateforme partagée Atlas existe, mais Surplasse y reste `enabled: false` : aucun service, réseau, secret, rôle PostgreSQL, migration ou route Surplasse n'y est activé. Cette page distingue donc l'architecture cible de son état d'activation.
+!!! info État réel au 2026-08-25
+Le contrat, le Backend modulaire, les frontends, le cluster local et le candidat Worker sont implémentés. Le candidat Cloudflare est vérifié seulement en local et en dry run. Il n'est ni uploadé, ni routé. Les sondes datées montrent un apex proxifié par Cloudflare mais en HTTP 525, et aucun DNS pour `api`, `dashboard`, `docs` ou un slug. La release Atlas et le candidat Cloudflare ne prouvent donc aucune activation dynamique.
 !!!
 
 ## Principes directeurs
@@ -25,11 +25,11 @@ Le Backend est un seul déployable Quarkus, découpé en modules Maven par domai
 
 ### Tout est committé et documenté
 
-Le monorepo contient le contrat, le Backend, les trois frontends, le graphe Compose local, le contrat applicatif Atlas et cette documentation. `vps-infra` contient séparément la plateforme partagée, l'état désiré protégé et le contrôleur de production. Les secrets, les données et les sauvegardes restent hors de Git avec leurs propres preuves. Toute décision structurante est consignée dans un ADR sous `docs/decisions/`. La reconstruction exige donc les deux dépôts canoniques et les éléments opérateur protégés, jamais une configuration implicite de console.
+Le monorepo contient le contrat, le Backend, les trois frontends, le graphe Compose local, les candidats Cloudflare et Atlas, et cette documentation. `vps-infra` contient séparément la plateforme partagée, les états désirés protégés et le contrôleur de production. Les secrets, les données et les sauvegardes restent hors de Git avec leurs propres preuves. Toute décision structurante est consignée dans un ADR sous `docs/decisions/`. La reconstruction exige donc les deux dépôts canoniques et les éléments opérateur protégés, jamais une configuration implicite de console.
 
 ### La simplicité opérationnelle prime
 
-La cible est un VPS Atlas unique piloté par Docker Compose. `compose.yaml` et `compose.development.yaml` décrivent seulement la pile locale. La production consomme exclusivement `deployment/vps/compose.yaml` dans une `application-release` immuable : ce fragment contient seulement les cinq services Surplasse, le job de migration et le bootstrap one-shot du premier pilote. Caddy, PostgreSQL et l'observabilité appartiennent à la plateforme partagée de `vps-infra`. Pas de Kubernetes, pas d'autoscaling. Un restaurant indépendant génère quelques dizaines de commandes par service : la charge se mesure en requêtes par seconde à un chiffre, et un VPS correctement dimensionné la tient avec une marge confortable. Chaque brique ajoutée doit justifier son coût d'exploitation, pas seulement son intérêt technique. L'[ADR-0045](../decisions/adr-0045-atlas-unique-production.md), l'[ADR-0041](../decisions/adr-0041-production-testeurs-stripe-test.md) et le [runbook Atlas](../operations/deploiement-compose.md) détaillent cette frontière.
+La cible sépare deux responsabilités simples. Un Worker Cloudflare unique sert les quatre builds statiques et filtre le bord. Atlas exécute un seul Backend Quarkus, PostgreSQL, le migrateur et l'observabilité. `compose.yaml` et `compose.development.yaml` décrivent seulement la pile locale. Il n'y a ni D1, ni Durable Objects, ni Queues, ni Kubernetes dans le MVP. Chaque brique ajoutée doit retirer une charge opératoire ou protéger un invariant mesuré. L'[ADR-0048](../decisions/adr-0048-bord-cloudflare-hybride.md), l'[ADR-0041](../decisions/adr-0041-production-testeurs-stripe-test.md), le [runbook Cloudflare](../operations/migration-cloudflare.md) et le [runbook Atlas](../operations/deploiement-compose.md) détaillent cette frontière.
 
 ### Le client final ne subit jamais la complexité
 
@@ -74,50 +74,42 @@ Les deux acteurs, les quatre applications et les systèmes externes :
 | Imprimante thermique | Impression optionnelle des tickets cuisine en ESC/POS ; le mode d'intégration reste à trancher (ADR) |
 | DNS wildcard | L'enregistrement `*.surplasse.com` route chaque mini-site `{slug}.surplasse.com` vers le même point d'entrée |
 
-## Diagramme de conteneurs cible
+## Diagramme de déploiement cible
 
-Le détail de la cible après activation. Ce diagramme ne décrit pas l'état courant : les conteneurs Surplasse et leurs routes restent absents d'Atlas. Caddy, PostgreSQL, Prometheus et Grafana sont fournis par la plateforme partagée ; les cinq services applicatifs, le migrateur et le bootstrap transitoire du pilote viennent du bundle Surplasse.
+Ce diagramme décrit la cible après activation, pas l'état public actuel.
 
-```
-                                Internet
-                                   │
-              HTTPS                │                webhooks Stripe
-   (clients, restaurateurs)        │                (entrants, signés)
-                                   ▼
-┌──────────────────────────── VPS · Docker Compose ────────────────────────────┐
-│                                                                              │
-│  ┌────────────────────────── Reverse proxy (TLS) ──────────────────────────┐ │
-│  │   surplasse.com      {slug}.surplasse.com      dashboard.surplasse.com  │ │
-│  │                        api.surplasse.com                                │ │
-│  └───────┬───────────────────┬───────────────────┬──────────────┬──────────┘ │
-│          │                   │                   │              │            │
-│          ▼                   ▼                   ▼              ▼            │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐  ┌─────────────┐  │
-│  │  Onboarding  │    │   Commande   │    │  Dashboard   │  │ API Quarkus │  │
-│  │  (fichiers   │    │   (fichiers  │    │   (fichiers  │  │  (backend/) │  │
-│  │  statiques)  │    │   statiques) │    │   statiques) │  │             │  │
-│  └──────────────┘    └──────┬───────┘    └──────┬───────┘  └──┬───────┬──┘  │
-│                             │    REST + SSE     │    REST     │       │     │
-│                             │  (suivi commande) │   + SSE ────┘       │     │
-│                             └───────────────────┴──►                  │     │
-│                                                        ┌──────────────┴──┐  │
-│                                                        ▼                 ▼  │
-│                                                ┌──────────────┐  ┌────────┐ │
-│                                                │ PostgreSQL 17│  │Stockage│ │
-│                                                │   (Flyway)   │  │ objet  │ │
-│                                                └──────────────┘  │phase 3 │ │
-│                                                                  └────────┘ │
-└──────────────────────────────────────────────────────────────────────────────┘
+```text
+                         Internet et Stripe
+                                 |
+                                 v
+                Cloudflare DNS, TLS et sécurité
+                                 |
+                                 v
+                 Worker unique, routeur par Host
+                      |                   |
+                      |                   +--> api.surplasse.com
+                      v                              |
+             Workers Static Assets                  v
+       Onboarding, Commande, Dashboard, Docs   Cloudflare Tunnel
+                                                     |
+                                                     v
+                                                Caddy Atlas
+                                                     |
+                                                     v
+                                             Backend Quarkus
+                                                     |
+                                                     v
+                                               PostgreSQL 17
 ```
 
 Points saillants :
 
-- **Les trois fronts sont servis comme des fichiers statiques en production.** NGINX non privilégié sert leurs fichiers derrière Caddy. Le mini-site Commande est une seule application : Caddy route tout `{slug}.surplasse.com` vers le même bundle, qui lit le slug dans l'hôte. Le petit processus Node allowlisté de l'Onboarding reste limité au développement pour la session Stripe test locale.
+- **Les quatre surfaces sont servies comme des fichiers statiques à la cible.** Workers Static Assets porte Onboarding, Commande, Dashboard et Nimbus. Le mini-site Commande reste une seule application qui lit le slug dans l'hôte. Les images NGINX Atlas sont conservées pendant la période de retour arrière, puis retirées dans un commit séparé.
 - **L'API Quarkus est le seul processus qui porte la logique métier.** Elle porte aussi les futurs jobs asynchrones d'extraction IA et les flux SSE ouverts par le Dashboard et par la page de suivi de Commande.
 - **PostgreSQL 17 est l'unique base**, migrée par Flyway, avec des schémas par domaine si besoin.
-- **Le stockage objet est une cible de phase 3.** MinIO n'entre pas dans Compose avant l'implémentation du domaine `generation`. Son ajout exigera un ADR, un volume, une sauvegarde et une restauration documentés (voir [les intégrations](integrations.md)).
+- **Le stockage objet est une cible ultérieure.** R2 n'est pas créé avant l'implémentation du domaine `generation`. Son ajout exigera un bucket privé, une politique de cycle de vie, un export et une restauration documentés (voir [les intégrations](integrations.md)).
 - **Les webhooks Stripe entrent par `api.surplasse.com`**, signés, et sont le seul déclencheur de la confirmation d'une commande payée.
-- Le reverse proxy de référence est Caddy. Le routage local et historique vit dans ce dépôt. Sur Atlas, `vps-infra` construit et admet l'image Caddy partagée avec le module `caddy-dns/ovh` épinglé. La route wildcard, l'identité ACME Surplasse et la bascule DNS restent désactivées.
+- **Le Worker est le bord public cible.** Caddy reste le bord local et le proxy d'origine Atlas. Le Worker transmet l'API sans consommer le corps ou le stream. `vps-infra` possède DNS, Routes Worker, Tunnel et l'activation.
 
 ## Arborescence cible du monorepo
 
@@ -130,6 +122,7 @@ surplasse/
 ├── backend/                 # Quarkus (Maven multi-modules)
 ├── compose.yaml             # Graphe du développement intégré
 ├── compose.development.yaml # Surcharge du profil development
+├── deployment/cloudflare/   # Worker et candidat statique sans secret
 ├── deployment/vps/          # Fragment applicatif et intégrations Atlas sans secret
 ├── frontends/
 │   ├── shared/              # Design system, client API généré, utilitaires
@@ -150,11 +143,12 @@ surplasse/
 | `frontends/commande/` | Le mini-site de l'établissement : carte numérique, commande et paiement client |
 | `frontends/dashboard/` | Le suivi des commandes en temps réel, la gestion de la carte et les métriques |
 | `compose.yaml` et `compose.development.yaml` | Le graphe du développement intégré et sa surcharge locale |
+| `deployment/cloudflare/` | Le Worker, l'assemblage statique, les tests de routage et la configuration de candidat sans secret |
 | `deployment/vps/` | Le fragment Compose applicatif, la route, les cibles d'observabilité et les sondes publiés pour Atlas |
 | `infra/` | Les Dockerfiles applicatifs, la configuration Caddy locale et les recettes d'exécution |
 | `.github/workflows/` | Les pipelines GitHub Actions : build, tests, déploiement, publication des docs |
 
-Le Backend, Commande, le Dashboard, la préfiguration de l'Onboarding et le cluster Compose sont livrés localement. Le candidat Atlas est publié, sans autorité d'activation. Les modules encore absents sont créés au fil de la [roadmap](../roadmap.md).
+Le Backend, Commande, le Dashboard, la préfiguration de l'Onboarding, Nimbus et le cluster Compose sont livrés localement. Le candidat Cloudflare est construit et testé sans être uploadé. Le candidat Atlas est publié sans prouver l'activation dynamique. Les modules encore absents sont créés au fil de la [roadmap](../roadmap.md).
 
 ## Les deux flux critiques
 

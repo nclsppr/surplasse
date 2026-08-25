@@ -9,8 +9,8 @@ description: Healthchecks, métriques Micrometer, collecte Prometheus, tableau d
 
 Surplasse dispose d'une première chaîne de métriques reproductible : le Backend expose Micrometer, Prometheus collecte les séries et Grafana provisionne leur visualisation. L'[ADR-0029](../decisions/adr-0029-observabilite-prometheus-grafana.md) fixe sa séparation avec le chemin applicatif.
 
-!!! info État réel au 2026-08-18
-Le code, les configurations, les règles et le tableau de bord sont livrés dans le dépôt et peuvent être exercés avec le profil Compose facultatif `observability`. Atlas existe, mais la cible Prometheus, les règles et le tableau de bord Surplasse n'y sont pas activés. Les règles sont évaluées localement sans notification, car Alertmanager n'est pas installé. La sonde externe et son canal d'alerte restent une porte de l'activation Surplasse.
+!!! info État réel au 2026-08-25
+Le code, les configurations, les règles et le tableau de bord Backend sont livrés dans le dépôt et peuvent être exercés avec le profil Compose facultatif `observability`. Workers Logs et Traces sont explicitement désactivés dans le candidat, car les URL de suivi portent encore une capacité d'accès. Aucune version Cloudflare n'est uploadée. La cible Prometheus, les règles, le tableau de bord Surplasse, la sonde externe et son canal d'alerte ne sont pas prouvés actifs en production.
 !!!
 
 ## Principe non bloquant
@@ -21,21 +21,20 @@ Prometheus fonctionne en collecte pull. Le Backend met à jour un registre Micro
 Internet
    |
    v
-+-------+       routes applicatives       +-------------------+
-| Caddy | ------------------------------> | Backend Quarkus   |
-+---+---+                                 | /q/health         |
-    |                                     | /q/metrics interne|
-    | refuse /q/* public en production    +---------+---------+
-    |                                               ^
-    |                                               | scrape pull
-    |                                     +---------+---------+
-    |                                     | Prometheus        |
-    |                                     +---------+---------+
-    |                                               ^
-    |                                               | requêtes PromQL
-    |                                     +---------+---------+
-    +-- Grafana local seulement --------> | Grafana           |
-                                          +-------------------+
++-------------------+       +--------+       +-------+       +---------+
+| Worker Cloudflare | ----> | Tunnel | ----> | Caddy | ----> | Backend |
+| refuse /q/* public|       +--------+       +-------+       +----+----+
++-------------------+                                           ^
+                                                                | scrape pull
+                                                                | /q/metrics interne
+                                                          +------------+
+                                                          | Prometheus |
+                                                          +-----+------+
+                                                                ^
+                                                                | PromQL
+                                                          +-----+------+
+                                                          |  Grafana   |
+                                                          +------------+
 ```
 
 Cette séparation est vérifiable dans la topologie :
@@ -60,6 +59,7 @@ curl --fail https://api.surplasse.test/q/health/ready
 | Registre Micrometer Prometheus | fourni par Quarkus 3.37.4 | Produit les métriques automatiques et métier dans le processus Backend | `/q/metrics` sur le réseau Compose, refusé par Caddy depuis le domaine API |
 | Prometheus | 3.13.1 dans le profil local ; version de plateforme sur Atlas | Collecte, conserve et évalue les règles | Réseau Compose seulement, aucune route Caddy ni port hôte |
 | Grafana | 13.1.1 dans le profil local ; version de plateforme sur Atlas | Affiche le tableau de bord provisionné | `GRAFANA_URL` derrière Caddy en développement ; port loopback et tunnel SSH en production |
+| Workers Logs et Traces | service Cloudflare, désactivé dans le candidat | Aucun stockage d'URL tant que les capacités de suivi restent dans la chaîne de requête | Une activation exige d'abord un contrat sans jeton dans l'URL, une rétention et un budget explicites |
 
 Le catalogue `config/deployment/images.env` épingle les deux images du profil local par tag et digest. La production Atlas reçoit ses versions et sa rétention depuis `vps-infra` : le bundle Surplasse fournit uniquement sa cible, ses règles et son tableau de bord. En local, Prometheus utilise `prometheus_data`, Grafana `grafana_data` et la rétention Prometheus est de 7 jours. Ces volumes sont persistants mais reconstructibles : les configurations, règles, sources et tableaux de bord canoniques vivent dans Git. PostgreSQL reste l'unique sauvegarde métier obligatoire.
 
@@ -73,7 +73,7 @@ Le Backend expose les endpoints standards de Quarkus :
 | `/q/health/ready` | Le Backend et sa dépendance PostgreSQL sont-ils prêts ? | Healthcheck interne Compose et porte de déploiement |
 | `/q/health` | Quel est l'état agrégé ? | Diagnostic interne, jamais sonde publique de production |
 
-Prometheus expose `/-/healthy` et `/-/ready` sur son réseau interne. Grafana expose `/api/health`. Leurs healthchecks servent à `up --wait` lorsqu'ils sont démarrés explicitement. Ils ne remontent jamais dans la santé du Backend. En production, Caddy répond `404` à toute surface `/q/*`, y compris les endpoints de santé. La disponibilité est sondée dans le réseau interne, puis par une route métier publique.
+Prometheus expose `/-/healthy` et `/-/ready` sur son réseau interne. Grafana expose `/api/health`. Leurs healthchecks servent à `up --wait` lorsqu'ils sont démarrés explicitement. Ils ne remontent jamais dans la santé du Backend. En production cible, le Worker répond `404` à toute surface `/q/*` avant l'origine, et Caddy conserve la même garde. La disponibilité est sondée dans le réseau interne, puis par une route métier publique.
 
 Quatre contrôles restent complémentaires :
 
@@ -81,7 +81,7 @@ Quatre contrôles restent complémentaires :
 |---|---|---|
 | Healthcheck Compose | Le conteneur et sa dépendance immédiate répondent | Reste interne au VPS |
 | Prometheus | La cible est collectable et ses séries évoluent | Tombe avec le VPS s'il est hébergé dessus |
-| Playwright horaire | Caddy, TLS, JavaScript et écrans publics fonctionnent depuis l'extérieur | Une planification GitHub peut être retardée |
+| Playwright horaire | Bord Cloudflare, Tunnel, TLS, JavaScript et écrans publics fonctionnent depuis l'extérieur | Une planification GitHub peut être retardée |
 | Sonde externe future | Le service et son certificat répondent indépendamment du VPS | Outil et canal encore à sélectionner |
 
 ## Métriques automatiques
@@ -183,6 +183,8 @@ Les seuils initiaux sont des garde-fous à calibrer avec du trafic réel. Un éc
 ## Logs et données personnelles
 
 En local, les logs se consultent par `scripts/compose.sh development logs`. Sur Atlas, les commandes bornées et l'identité du projet Compose appartiennent au runbook `vps-infra`. Le Backend émet du JSON structuré en production et du texte lisible en développement. Loki n'est pas installé.
+
+Cloudflare produit des métriques de compte agrégées, mais le candidat n'active aucun journal d'invocation ni trace. Un log Fetch inclurait l'URL complète, donc les capacités de suivi actuelles pourraient y être conservées. Ce risque est fermé par configuration, pas par une promesse de ne pas appeler `console.log`.
 
 !!! warning Aucune donnée personnelle dans les logs ou métriques
 Ne jamais journaliser ni étiqueter une adresse email, un prénom, un jeton, une charge utile de webhook ou une donnée de carte. Les logs peuvent porter des identifiants techniques opaques pour un diagnostic court. Les métriques restent agrégées et sans identifiant. La rétention des logs est plafonnée à 30 jours selon la page [RGPD](rgpd.md).

@@ -2,15 +2,15 @@
 label: Environnements
 order: 20
 icon: stack
-description: Deux environnements seulement, leurs domaines, certificats, profils de configuration et secrets.
+description: Deux environnements seulement, leurs domaines, bord Cloudflare, origine Atlas, profils et secrets.
 ---
 
 # Environnements
 
-Surplasse connaît deux environnements : le développement local et la production. Il n'existe pas de staging au lancement. Le cluster local exerce les mêmes recettes applicatives et le même contrat de domaines que la cible de production. La production existe uniquement sur Atlas, où le bundle applicatif rejoint une plateforme Caddy, PostgreSQL et observabilité possédée par `vps-infra`.
+Surplasse connaît deux environnements : le développement local et la production. Il n'existe pas de staging au lancement. Le cluster local exerce les mêmes recettes applicatives et le même contrat de domaines que la cible. La production cible partage son bord entre Cloudflare et son coeur entre Atlas. `vps-infra` possède les états désirés des deux plateformes.
 
-!!! warning État réel au 2026-08-18
-Atlas et sa plateforme partagée existent. Le candidat Surplasse est publié par digest, mais son entrée de production reste `enabled: false` dans `vps-infra`. Aucun service, base, rôle, secret, certificat wildcard, route ou DNS Surplasse n'y est encore prouvé actif. L'ADR-0041 autorise une production réservée aux testeurs avec Stripe test et sauvegardes locales. L'ouverture publique reste bloquée par Stripe live, le SMTP transactionnel, la sauvegarde hors site, les CSP de Commande et du Dashboard, les rattachements réseau et les sondes publiques strictes.
+!!! warning État réel au 2026-08-25
+Le candidat Worker existe seulement dans le dépôt et en dry run. Aucun upload, Route Worker, Tunnel ou secret Cloudflare n'est installé. Les serveurs de noms et l'apex sont chez Cloudflare, mais l'apex répond 525 et `api`, `dashboard`, `docs` ainsi qu'un slug ne résolvent pas. La publication OCI historique ne prouve pas davantage un Backend dynamique actif. L'ouverture testeurs et l'ouverture publique restent fermées tant que leurs portes respectives ne sont pas prouvées.
 !!!
 
 ## Comparaison
@@ -19,15 +19,15 @@ Atlas et sa plateforme partagée existent. Le candidat Surplasse est publié par
 |---|---|---|
 | Profil | `development` | `production` |
 | Domaine racine | `surplasse.test` | `surplasse.com` |
-| Hôte | macOS, Linux ou Ubuntu sous WSL2 | Atlas, VPS Ubuntu LTS provisionné, application désactivée |
-| Orchestration | `compose.yaml` et `compose.development.yaml` | `application-release@sha256` admise et activée uniquement par `vps-infra` |
+| Hôte | macOS, Linux ou Ubuntu sous WSL2 | Cloudflare pour le bord, Atlas sous Ubuntu LTS pour le coeur |
+| Orchestration | `compose.yaml`, `compose.development.yaml` et Wrangler local | candidat Worker et `application-release@sha256`, admis et activés par `vps-infra` |
 | Données | Seed réinitialisable, aucune donnée réelle | Données de test persistées sur Atlas en mode testeurs ; données réelles seulement après ouverture publique |
 | PostgreSQL | Volume Compose local | Plateforme partagée, base et rôles Surplasse à provisionner |
 | Stripe | Mode test exclusivement | Mode test pour la production testeurs, mode live pour l'ouverture publique |
 | Email | Mailpit | Relais SMTP transactionnel géré, à sélectionner et activer |
-| Certificat | mkcert monté en lecture seule | Cible Let's Encrypt wildcard par DNS-01 OVH, non activée pour Surplasse |
-| Services annexes | Mailpit, documentation Nimbus, rapport Allure local sur fichier ; Prometheus 3.13.1 et Grafana 13.1.1 facultatifs | Image de documentation, cible et règles Prometheus et tableau de bord Grafana publiés ; runtimes Atlas Prometheus 3.13.2 et Grafana 13.1.3 possédés par `vps-infra` ; intégration Surplasse inactive |
-| Images applicatives | Tags locaux `development` | Références digest liées par `application-release` |
+| Certificat | mkcert monté en lecture seule | Universal SSL Cloudflare au bord, TLS d'origine ou Tunnel vers Atlas |
+| Services annexes | Mailpit, documentation Nimbus, rapport Allure local sur fichier ; Prometheus 3.13.1 et Grafana 13.1.1 facultatifs | Static Assets au bord ; Prometheus et Grafana privés sur Atlas |
+| Artefacts | Tags locaux `development` et bundle Wrangler local | manifeste Worker lié au commit et références digest de l'`application-release` |
 
 Aucune clé live, donnée réelle ou sauvegarde de production ne doit se trouver sur un poste local. Le serveur Onboarding peut créer une courte session Stripe Connect seulement en `development`. Le wrapper exige que cette capacité soit désactivée en `production`.
 
@@ -40,15 +40,15 @@ Aucune clé live, donnée réelle ou sauvegarde de production ne doit se trouver
 | `{slug}.surplasse.com` | `{slug}.surplasse.test` | Commande |
 | `dashboard.surplasse.com` | `dashboard.surplasse.test` | Dashboard |
 | `api.surplasse.com` | `api.surplasse.test` | Backend |
-| `docs.surplasse.com` sur Atlas | `docs.surplasse.test` dans Compose | Documentation Nimbus canonique |
+| `docs.surplasse.com` sur Static Assets à la cible | `docs.surplasse.test` dans Compose | Documentation Nimbus canonique |
 | réservé, fermé | `local.surplasse.test`, réservé et fermé | Aucun service |
 | SMTP externe | `mail.surplasse.test` | Mailpit |
 | réservé, fermé | `reports.surplasse.test`, réservé et fermé | Aucun service, rapport Allure ouvert depuis le fichier local |
 | aucun domaine public | `grafana.surplasse.test` | Grafana, seulement lorsque le profil `observability` est démarré |
 
-Les noms `www`, `api`, `dashboard`, `docs`, `app`, `admin`, `local`, `mail`, `autoconfig`, `autodiscover`, `mta-sts`, `smtp`, `imap`, `pop`, `pop3`, `webmail`, `status`, `reports` et `grafana` sont réservés et exclus des slugs d'établissement. `app` et `admin` ne correspondent à aucune application actuelle. Les noms techniques sans service public restent fermés en 503 sur Caddy. `status`, `reports` et `grafana` restent réservés en production même si aucun service ne les y publie.
+Les noms `www`, `api`, `dashboard`, `docs`, `app`, `admin`, `local`, `mail`, `autoconfig`, `autodiscover`, `mta-sts`, `smtp`, `imap`, `pop`, `pop3`, `webmail`, `status`, `reports` et `grafana` sont réservés et exclus des slugs d'établissement. `app` et `admin` ne correspondent à aucune application actuelle. Les noms techniques sans service public restent fermés en 503 par le Worker cible et par Caddy pendant le retour arrière. `status`, `reports` et `grafana` restent réservés en production même si aucun service ne les y publie.
 
-Le wildcard permet de créer un mini-site sans nouvelle opération DNS. Il couvre un sous-domaine direct, pas un niveau imbriqué. Caddy route l'apex vers l'Onboarding, `api` vers le Backend, `dashboard` vers le Dashboard, `docs` vers Nimbus et tout autre sous-domaine non réservé vers Commande. Le wildcard DNS peut faire résoudre un nom réservé, mais la route applicative le ferme avant le handler de Commande.
+Le wildcard permet de créer un mini-site sans nouvelle opération DNS. Il couvre un sous-domaine direct, pas un niveau imbriqué. Le Worker cible route l'apex vers Onboarding, `api` vers l'origine Backend, `dashboard` vers Dashboard, `docs` vers Nimbus et tout autre sous-domaine non réservé vers Commande. Caddy conserve le même contrat pendant la migration. Le wildcard DNS peut faire résoudre un nom réservé, mais le routeur le ferme avant Commande.
 
 ## Source de vérité
 
@@ -74,6 +74,7 @@ Avant d'appeler le Compose local, le wrapper écrit atomiquement chaque valeur s
 | `config/deployment/images.env` | Non | Oui |
 | `config/deployment/development.env` | Non, identifiants PostgreSQL jetables seulement | Oui |
 | `backend/.env` et `frontends/commande/.env` | Clés Stripe test | Non |
+| `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` | Identité de compte et token borné pour une future activation | Non, absents de la préparation |
 | `/etc/vps/secrets/surplasse/` | Cible Atlas des secrets par fichier, actuellement non matérialisée | Non |
 
 Le catalogue d'images épingle chaque base par version et digest. Les paramètres réseau, ports et noms d'image restent variables. Les adresses de services telles que `postgresql:5432` sont des noms internes au graphe Compose, pas des références à un environnement public.
@@ -103,13 +104,13 @@ Le Backend reçoit au démarrage les valeurs dérivées du profil, puis les para
 
 En développement, Quarkus génère une paire JWT éphémère et envoie à `mailpit:1025`. Sur Atlas, les fichiers JWT, PostgreSQL, Stripe et SMTP doivent vivre sous `/etc/vps/secrets/surplasse/`, avec une allocation distincte entre migrateur, runtime et services statiques. Ils sont montés sous `/run/secrets/` dans les conteneurs. Aucun de ces fichiers n'est matérialisé tant que l'activation reste bloquée. Les chemins hôte et les valeurs ne sont jamais intégrés à l'image.
 
-Le Backend n'accorde jamais les credentials CORS. Caddy les ajoute seulement quand `Origin` correspond exactement à l'Onboarding ou au Dashboard du profil. Les mini-sites utilisent les routes publiques sans credentials.
+Le Backend n'accorde jamais les credentials CORS. Caddy à l'origine les ajoute seulement quand `Origin` correspond exactement à l'Onboarding ou au Dashboard du profil. Le Worker transmet ces réponses sans les reconstruire. Les mini-sites utilisent les routes publiques sans credentials.
 
 ## Frontends
 
 Commande et Dashboard ne reçoivent aucun secret à l'exécution. Le profil de domaine, le mode public versionné et la clé Stripe publiable de Commande sont injectés pendant le build Vite. En mode `testers`, la variable de dépôt GitHub `VITE_STRIPE_PUBLISHABLE_KEY` est obligatoire, doit commencer par `pk_test_` et ne doit contenir aucun espace. En mode `public`, elle doit commencer par `pk_live_`. Le workflow refuse le préfixe opposé, fige le SHA-256 de la clé pour toute l'exécution, puis suit le script chargé par `index.html` afin d'exiger la valeur exacte dans l'image Commande scannée et dans le digest publié. Ce contrôle de format et d'intégrité ne prouve ni l'existence de la clé chez Stripe, ni son compte. Ces deux points doivent être qualifiés avec la clé secrète Backend du même mode. Le Dashboard ne reçoit pas la clé. Onboarding, Commande et Dashboard reçoivent le mode afin d'afficher la bannière de production testeurs. Le Dockerfile accepte seulement `development` ou `production`. Toute variable Vite qui tente de redéfinir un domaine ou une URL dérivée fait échouer le build.
 
-L'Onboarding charge un `runtime-config.js` généré pour un seul profil pendant la construction de son image. En développement, son serveur Node reçoit aussi `DEPLOYMENT_PROFILE`, valide le `Host` canonique et peut fournir la courte session Stripe test. En production, le même Dockerfile sélectionne une étape NGINX statique : aucun processus Node, secret Stripe ou endpoint de session n'entre dans l'image finale. Le fichier multi-profil versionné sert au développement natif, refuse les hostnames inconnus et n'est jamais copié tel quel dans l'image de production. GitHub Pages génère explicitement une variante production pendant son build.
+L'Onboarding charge un `runtime-config.js` généré pour un seul profil pendant la construction de son image ou du bundle Static Assets. En développement, son serveur Node reçoit aussi `DEPLOYMENT_PROFILE`, valide le `Host` canonique et peut fournir la courte session Stripe test. En production testeurs, aucun processus Node, secret Stripe ou endpoint de session n'entre dans le bundle. Le fichier multi-profil versionné sert au développement natif, refuse les hostnames inconnus et n'est jamais copié tel quel dans le candidat de production. GitHub Pages et Cloudflare génèrent explicitement une variante production pendant leur build.
 
 Changer une valeur publique impose de reconstruire Commande et Dashboard. Cela ne justifie aucun littéral dans leur code : le chargeur central fournit toutes les valeurs.
 
@@ -152,18 +153,11 @@ Les volumes `prometheus_data` et `grafana_data` sont persistants mais reconstruc
 
 Le volume `postgresql_data` persiste en local et peut y être supprimé volontairement. Atlas possède le volume de production, sa sauvegarde et sa restauration selon [Déploiement Atlas](deploiement-compose.md).
 
-## Caddy et DNS
+## Cloudflare, Caddy et DNS
 
-La production crée deux enregistrements publics :
+La zone utilise les serveurs de noms Cloudflare. La cible demande un apex proxifié, un wildcard proxifié et un enregistrement spécifique `api` vers l'origine ou Tunnel. Les deux Routes Worker couvrent `surplasse.com/*` et `*.surplasse.com/*`. Les enregistrements et Routes exacts appartiennent à `vps-infra` et doivent garder un snapshot de retour arrière.
 
-```text
-surplasse.com.        A      <IP du VPS>
-*.surplasse.com.      A      <IP du VPS>
-```
-
-Le certificat wildcard de `surplasse.com` couvre `docs.surplasse.com` et exige le défi DNS-01. La plateforme Atlas a retenu OVH et construit Caddy avec le module `caddy-dns/ovh` épinglé. La décision de fournisseur n'est donc plus ouverte. En revanche, l'identité ACME bornée à la zone, ses secrets, la route wildcard et la bascule des enregistrements Surplasse ne sont pas activés. Ils restent des portes de production appartenant à `vps-infra`.
-
-Caddy persiste son état ACME dans `caddy_data`. Une sonde externe doit surveiller l'expiration du certificat. La procédure locale dnsmasq et mkcert vit dans [Domaines locaux](../developpement/domaines-locaux.md).
+Cloudflare termine TLS public. Caddy conserve TLS d'origine pendant la première bascule, puis devient privé derrière Cloudflare Tunnel après qualification. Le port entrant Atlas ne ferme qu'après preuve des webhooks Stripe, des cookies et du SSE à travers Tunnel. La procédure locale dnsmasq et mkcert reste décrite dans [Domaines locaux](../developpement/domaines-locaux.md). Le détail des portes vit dans [Migration Cloudflare](migration-cloudflare.md).
 
 ## Rotation des clés JWT
 

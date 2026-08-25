@@ -7,7 +7,7 @@ description: Installation et exploitation du cluster Docker Compose local sous l
 
 # Cluster local et domaines HTTPS
 
-Le cluster d'intégration local utilise le profil `development`, `surplasse.test`, un certificat mkcert et des données de démonstration. `compose.yaml` et `compose.development.yaml` lui sont réservés. La production consomme le fragment distinct `deployment/vps/compose.yaml` et la plateforme partagée décrits dans [Déploiement Atlas](../operations/deploiement-compose.md). Le profil local facultatif `observability` ajoute Prometheus et Grafana sans changer la readiness du Backend.
+Le cluster d'intégration local utilise le profil `development`, `surplasse.test`, un certificat mkcert et des données de démonstration. `compose.yaml` et `compose.development.yaml` lui sont réservés. La production cible consomme le candidat de `deployment/cloudflare/` au bord et le fragment distinct `deployment/vps/compose.yaml` pour le coeur Atlas. Le profil local facultatif `observability` ajoute Prometheus et Grafana sans changer la readiness du Backend.
 
 Le navigateur utilise toujours une URL HTTPS dérivée de `config/domains/development.env`. `localhost`, `127.0.0.1` et `::1` restent réservés aux listeners, sondes et transports internes.
 
@@ -15,18 +15,18 @@ Le navigateur utilise toujours une URL HTTPS dérivée de `config/domains/develo
 
 | Service Compose | Rôle | Production |
 |---|---|---|
-| `edge` | Caddy de bord, TLS, CORS et routage par nom d'hôte | Caddy partagé de `vps-infra` avec Let's Encrypt DNS-01 |
+| `edge` | Caddy de bord, TLS, CORS et routage par nom d'hôte | Worker Cloudflare au bord ; Caddy privé à l'origine Atlas |
 | `postgresql` | PostgreSQL 17 et migrations Flyway | Service partagé Atlas avec rôles migrateur et runtime séparés |
 | `backend` | Backend Quarkus empaqueté pour le profil development | Même image applicative dans le fragment Atlas |
-| `onboarding` | Serveur Node allowlisté pour la préfiguration statique et la session courte Stripe test si configurée | Même Dockerfile, fichiers statiques servis par NGINX avec la seule configuration publique production, sans pilote ni secret Stripe |
-| `commande` | Build Vite statique du profil de développement | Même Dockerfile, build du profil de production |
-| `dashboard` | Build Vite statique du profil de développement | Même Dockerfile, build du profil de production |
+| `onboarding` | Serveur Node allowlisté pour la préfiguration statique et la session courte Stripe test si configurée | Workers Static Assets, sans pilote ni secret Stripe ; image Atlas conservée pour le retour arrière |
+| `commande` | Build Vite statique du profil de développement | Workers Static Assets ; image Atlas conservée pour le retour arrière |
+| `dashboard` | Build Vite statique du profil de développement | Workers Static Assets ; image Atlas conservée pour le retour arrière |
 | `mailpit` | SMTP et boîte jetable | Absent, remplacé par le SMTP transactionnel |
-| `docs` | Build Nimbus statique servi par NGINX | Même image sur le VPS, également publiée sur GitHub Pages |
+| `docs` | Build Nimbus statique servi par NGINX | Workers Static Assets à la cible, image Atlas temporaire et miroir GitHub Pages |
 | `prometheus` | Collecte interne des métriques Backend, profil `observability` | Runtime partagé de `vps-infra`, sans port public |
 | `grafana` | Tableau de bord opérationnel sur l'URL centrale, profil `observability` | Runtime partagé de `vps-infra`, accès opérateur privé |
 
-Un seul Caddy est exposé. Les NGINX de Commande, Dashboard et de la documentation servent uniquement des fichiers sur le réseau Compose. L'Onboarding rejoint ce modèle NGINX en production. PostgreSQL, le Backend et Prometheus ne publient aucun port hôte. Grafana est joint par Caddy uniquement en développement.
+Un seul Caddy est exposé localement. Les NGINX de Commande, Dashboard et de la documentation servent uniquement des fichiers sur le réseau Compose. À la cible, Cloudflare sert ces fichiers et Caddy reste le proxy privé du seul Backend Atlas. PostgreSQL, le Backend et Prometheus ne publient aucun port hôte. Grafana est joint par Caddy uniquement en développement.
 
 ## Démarrage rapide sur macOS
 

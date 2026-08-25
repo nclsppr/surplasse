@@ -85,7 +85,7 @@ Ne jamais « corriger » un ADR pour l'aligner sur une page plus récente. Soit 
 
 ## Registre des ADR
 
-Quarante-sept ADR sont consignés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'au cluster Compose local, à la production exclusivement pilotée par Atlas, à la surveillance fonctionnelle, à l'observabilité technique, au socle professionnel du Dashboard, aux frontends canoniques, à la documentation Nimbus, à l'outillage reproductible, aux images de conteneurs vérifiables, aux migrations séparées, à la publication OCI, à la production réservée aux testeurs, aux noms techniques réservés, au bootstrap du premier pilote, à son garde-fou de version Flyway et aux rapports E2E plats.
+Quarante-huit ADR sont consignés à ce jour. Ils couvrent les choix structurants du projet, de l'organisation du dépôt jusqu'au cluster Compose local, au bord Cloudflare hybride, au coeur transactionnel Atlas, à la surveillance fonctionnelle, à l'observabilité technique, au socle professionnel du Dashboard, aux frontends canoniques, à la documentation Nimbus, à l'outillage reproductible, aux images de conteneurs vérifiables, aux migrations séparées, à la publication OCI, à la production réservée aux testeurs, aux noms techniques réservés, au bootstrap du premier pilote, à son garde-fou de version Flyway et aux rapports E2E plats.
 
 | Numéro | Titre | Statut | Lien |
 |---|---|---|---|
@@ -133,8 +133,9 @@ Quarante-sept ADR sont consignés à ce jour. Ils couvrent les choix structurant
 | 0042 | Noms de service réservés sous le wildcard public | Accepté | [ADR-0042](adr-0042-noms-service-reserves-wildcard.md) |
 | 0043 | Bootstrap borné du pilote de production | Remplacé par ADR-0047 | [ADR-0043](adr-0043-bootstrap-borne-pilote-production.md) |
 | 0044 | Frontends canoniques uniques et CSS par usage | Accepté | [ADR-0044](adr-0044-frontends-canoniques-uniques.md) |
-| 0045 | Atlas comme unique chemin de production | Accepté | [ADR-0045](adr-0045-atlas-unique-production.md) |
+| 0045 | Atlas comme unique chemin de production | Remplacé par ADR-0048 | [ADR-0045](adr-0045-atlas-unique-production.md) |
 | 0046 | CLI native et rapports E2E plats | Accepté | [ADR-0046](adr-0046-cli-et-rapports-e2e-plats.md) |
 | 0047 | Version Flyway du bootstrap pilote | Accepté | [ADR-0047](adr-0047-version-flyway-bootstrap-pilote.md) |
+| 0048 | Bord Cloudflare hybride et coeur transactionnel Atlas | Accepté | [ADR-0048](adr-0048-bord-cloudflare-hybride.md) |
 
 Les décisions encore ouvertes (par exemple le choix de la solution d'impression thermique ESC/POS mentionné dans la stack de référence) donneront lieu à de futurs ADR au fil de la [roadmap](../roadmap.md).

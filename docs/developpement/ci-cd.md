@@ -2,12 +2,12 @@
 label: CI/CD
 order: 70
 icon: workflow
-description: "Intégration continue, publication de candidats OCI depuis main et activation Atlas séparée."
+description: "Intégration continue, candidats Cloudflare et OCI, puis activation séparée par le plan de contrôle."
 ---
 
 # CI/CD
 
-Surplasse s'appuie sur GitHub Actions pour l'intégration continue et la publication de candidats pilotés ensuite par Atlas. Les workflows Pages, API, Backend, Frontends, E2E, Images et VPS integration existent. Les Dockerfiles, la pile Compose locale et le bundle applicatif Atlas sont versionnés. `images.yml` construit, scanne et publie les cinq images applicatives dans GHCR. `vps-integration.yml` publie ensuite un digest `application-release` attesté. Il ne se connecte pas au VPS et n'active aucun service. Le runbook qui peut muter Atlas appartient à `vps-infra`.
+Surplasse s'appuie sur GitHub Actions pour l'intégration continue et la production de candidats. Les workflows Pages, Cloudflare, API, Backend, Frontends, E2E, Images et VPS integration existent. `cloudflare.yml` construit un artefact inerte lié au commit. `images.yml` construit, scanne et publie les cinq images applicatives dans GHCR. `vps-integration.yml` publie ensuite un digest `application-release` attesté. Aucun de ces workflows ne crée une Route Worker, ne modifie DNS, ne se connecte au VPS ou n'active un service. Le plan de contrôle appartient à `vps-infra`.
 
 Pour le détail des environnements et de la topologie de production, voir [Environnements](../operations/environnements.md) et [Exploitation](../operations/index.md).
 
@@ -17,7 +17,7 @@ Le [workflow git](workflow-git.md) de Surplasse est volontairement minimal : une
 
 La CI est ce filet. Elle repose sur deux principes :
 
-1. **Chaque push sur `main` est un candidat potentiel, pas un déploiement.** Il n'existe pas de branche d'intégration ni de fenêtre de release. Les portes vertes du SHA exact autorisent la publication d'une `application-release` immuable. Atlas résout ensuite le sommet canonique, revérifie les preuves et n'active que si le contrat protégé est explicitement activé. Surplasse reste actuellement `enabled: false`.
+1. **Chaque push sur `main` est un candidat potentiel, pas un déploiement.** Il n'existe pas de branche d'intégration ni de fenêtre de release. Les portes vertes du SHA exact produisent le candidat Cloudflare et autorisent la publication d'une `application-release` immuable. `vps-infra` résout ensuite les références canoniques, revérifie les preuves et n'active que sur décision explicite.
 2. **La CI est le garde-fou du workflow.** Tout ce qu'une revue humaine attraperait mécaniquement (build cassé, test rouge, contrat OpenAPI incompatible) doit être attrapé par un workflow. Un push qui casse la CI se corrige immédiatement. Une PR Renovate rouge n'est pas fusionnée.
 
 !!! info Vérifier avant de pousser
@@ -44,7 +44,7 @@ Renovate couvre npm, Maven, Maven Wrapper, les dépendances Python, GitHub Actio
 
 L'App GitHub Mend Renovate hébergée ne peut pas exécuter `mise lock`. Une mise à jour de Node, Java ou Python peut donc proposer le nouveau pin, mais `mise.lock` est régénéré manuellement avec la version de `mise` déclarée dans `mise.toml`, relu puis ajouté à la branche du bot avant fusion. Surplasse ne contourne pas cette limite par un runner Renovate auto-hébergé ou un second bot d'écriture.
 
-Chaque PR Renovate exécute les workflows concernés par ses chemins. `pages.yml` s'exécute sans filtre afin de fournir une porte intégrée, mais son job `deploy` refuse toute référence autre que `refs/heads/main`. `images.yml` construit et scanne sur la PR, mais son job `publish` reste limité à `main`. `vps-integration.yml` construit deux fois le bundle et le descripteur avec des digests factices stricts dans le job `Validate application release`. Une PR peut donc construire, tester et produire des diagnostics, mais jamais publier GitHub Pages, une image de production, une release OCI ou un déploiement VPS.
+Chaque PR Renovate exécute les workflows concernés par ses chemins. `pages.yml` s'exécute sans filtre afin de fournir une porte intégrée, mais son job `deploy` refuse toute référence autre que `refs/heads/main`. `cloudflare.yml` ne fait que des dry runs et un artefact GitHub. `images.yml` construit et scanne sur la PR, mais son job `publish` reste limité à `main`. `vps-integration.yml` construit deux fois le bundle et le descripteur avec des digests factices stricts dans le job `Validate application release`. Une PR peut donc construire, tester et produire des diagnostics, mais jamais créer une version Cloudflare, une Route Worker, publier une image de production, une release OCI ou un déploiement VPS.
 
 ## Le workflow Pages
 
@@ -69,6 +69,14 @@ Sur `main`, un smoke Playwright rouge produit quand même un rapport Allure roug
 
 Ce workflow reste volontairement sans filtre de chemins. Chaque PR est qualifiée et chaque push sur `main` republie la démo. Ainsi, toute évolution de `brand/**` ou `frontends/**` produit un nouvel artefact public après sa présence sur `main`, même lorsque seul le Dashboard, Commande ou le package partagé change. Une évolution UI n'est terminée qu'après le succès des workflows `Frontends` et `Pages` pour le même SHA, puis le contrôle visuel de la démo publique en vue mobile et bureau.
 
+## Le candidat Cloudflare
+
+Le fichier `.github/workflows/cloudflare.yml` est une porte de migration sans droit d'écriture externe. Il installe les verrous séparés avec la version Node exacte de `mise.toml`, exige la clé Stripe publiable du bon mode pour tout candidat hors pull request, construit les quatre surfaces avec leur profil production, refuse une URL locale, assemble leur manifeste, exécute les tests dans le runtime Workers, régénère les types et lance les dry runs des configurations candidate et production sans Route.
+
+Le job refuse un type généré périmé et vérifie hors pull request que la clé Stripe publiable exacte apparaît dans l'unique entrypoint Commande, sans clé du mode opposé. Il téléverse ensuite dans GitHub Actions le bundle statique et les deux sorties Wrangler pendant sept jours. Cet artefact ne constitue ni une version Workers, ni le contrat durable d'admission, ni un déploiement. Le workflow ne lit pas `CLOUDFLARE_API_TOKEN`, ne connaît pas `CLOUDFLARE_ACCOUNT_ID` et ne contient aucune commande `wrangler deploy` sans `--dry-run`.
+
+L'activation et le retour arrière suivent le [runbook Cloudflare](../operations/migration-cloudflare.md). Ajouter ultérieurement un token ou une promotion automatique exige une décision opérateur séparée, un environnement GitHub protégé et un état désiré possédé par `vps-infra`.
+
 ## Les workflows
 
 Le monorepo suit un découpage par filtres de chemins (`paths`) : un push ou une PR qui ne touche que `frontends/commande/` ne doit pas déclencher les tests du Backend. `api.yml`, `backend.yml`, `frontends.yml` et `e2e.yml` appliquent leurs filtres à `push` et `pull_request`. `images.yml` conserve ses filtres sur les PR, mais s'exécute sur chaque push de `main`. Cette exception garantit que tout SHA susceptible de produire une `application-release` possède ses cinq images propres et ne réutilise jamais les digests d'un commit précédent.
@@ -76,6 +84,7 @@ Le monorepo suit un découpage par filtres de chemins (`paths`) : un push ou une
 | Workflow | Déclencheur (filtre de chemins) | Étapes |
 |---|---|---|
 | `pages.yml` | chaque `push` sur `main`, chaque `pull_request` vers `main`, lancement manuel et chaque heure à la minute 37 | Porte qualité UI hors horaire, cluster Compose development jetable, smoke Playwright, rapport Allure et build Nimbus ; déploiement GitHub Pages uniquement depuis `main` |
+| `cloudflare.yml` | `push` sur `main`, `pull_request` vers `main` ou lancement manuel, chemins du Worker, des quatre surfaces, domaines et documentation | installation verrouillée, mode et clé Stripe, assemblage, manifeste, tests Workers, types, dry runs, artefact sept jours ; aucun accès Cloudflare |
 | `api.yml` | `push` ou `pull_request`, chemins `api/**`, `openapitools.json`, `scripts/api/**`, manifestes npm et outillage `mise` | Lint Spectral, contrôle de compatibilité `oasdiff` contre le commit précédent (dérogation par préfixe de commit `api!:`), fraîcheur de la génération (`npm run api:generate` puis `git diff --exit-code`) |
 | `backend.yml` | `push` ou `pull_request`, chemins `backend/**`, `api/**`, profils de domaines, wrapper, `package.json` ou outillage `mise` | Java 25 Temurin, cache Maven, `npm run backend:verify` : injection du profil, compilation, tests unitaires et d'intégration (PostgreSQL 17 via Testcontainers), métriques Micrometer et endpoint `/q/metrics`, contrat et formatage Spotless |
 | `frontends.yml` | `push` ou `pull_request`, chemins `frontends/**`, profils, scripts Compose et locaux, fichiers Compose, `infra/caddy/**`, `infra/images/**`, `infra/observability/**`, `brand/**`, `api/**` ou outillage `mise` | Profils et QR générés, syntaxe shell, modèle Compose local avec et sans observabilité, contrat Compose Atlas, refus des configurations dangereuses, validation de Caddy, CORS, package `shared`, lint, tests et builds des fronts |

@@ -9,7 +9,7 @@ description: "Pourquoi le monorepo conserve Compose pour le développement mais 
 
 ## Statut
 
-Accepté, 2026-08-23.
+Remplacé par l'[ADR-0048](adr-0048-bord-cloudflare-hybride.md), 2026-08-25.
 
 Remplace l'[ADR-0026](adr-0026-compose-commun.md). Le contrat de publication OCI et le mode testeurs de l'[ADR-0041](adr-0041-production-testeurs-stripe-test.md) restent applicables.
 
