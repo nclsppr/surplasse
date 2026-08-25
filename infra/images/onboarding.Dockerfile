@@ -32,6 +32,7 @@ COPY --from=prepare --chown=node:node /output/brand ./brand
 COPY --from=prepare --chown=node:node /output/config ./config
 COPY --from=prepare --chown=node:node /output/frontends ./frontends
 COPY --chown=node:node scripts/onboarding-server/onboarding-server.mjs ./scripts/onboarding-server/onboarding-server.mjs
+COPY --chown=node:node scripts/onboarding-server/public-files.mjs ./scripts/onboarding-server/public-files.mjs
 
 USER node
 EXPOSE 4173
