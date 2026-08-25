@@ -10,7 +10,7 @@ description: Deux environnements seulement, leurs domaines, bord Cloudflare, ori
 Surplasse connaît deux environnements : le développement local et la production. Il n'existe pas de staging au lancement. Le cluster local exerce les mêmes recettes applicatives et le même contrat de domaines que la cible. La production cible partage son bord entre Cloudflare et son coeur entre Atlas. `vps-infra` possède les états désirés des deux plateformes.
 
 !!! warning État réel au 2026-08-25
-Le candidat Worker existe seulement dans le dépôt et en dry run. Aucun upload, Route Worker, Tunnel ou secret Cloudflare n'est installé. Les serveurs de noms et l'apex sont chez Cloudflare, mais l'apex répond 525 et `api`, `dashboard`, `docs` ainsi qu'un slug ne résolvent pas. La publication OCI historique ne prouve pas davantage un Backend dynamique actif. L'ouverture testeurs et l'ouverture publique restent fermées tant que leurs portes respectives ne sont pas prouvées.
+La version vérifiée du Worker est uploadée et sert seulement l'Onboarding sur les Routes `surplasse.com/*` et `www.surplasse.com/*`. L'apex répond 200 en IPv4 et IPv6, et HTTP ainsi que `www` redirigent en 308. Aucun Tunnel ou secret Cloudflare n'est installé dans le dépôt. `api`, `dashboard`, `docs` ainsi qu'un slug ne résolvent pas. La publication OCI historique ne prouve pas davantage un Backend dynamique actif. L'ouverture testeurs et l'ouverture publique restent fermées tant que leurs portes respectives ne sont pas prouvées.
 !!!
 
 ## Comparaison

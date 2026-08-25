@@ -65,7 +65,7 @@ Les domaines sont des données de configuration. `config/domains/production.env`
 | IA | API OpenAI (derrière interface) | modèles courants | Extraction de carte et données publiques (vision) ; génération de visuels de plats à l'embarquement et depuis le Dashboard |
 | Impression | Imprimante thermique ESC/POS | à trancher (ADR) | Tickets cuisine optionnels |
 | Docs | Nimbus | Nimbus 0.8.2 | Rendu canonique indexable, cible Static Assets sur le domaine documentaire et publication sous `/docs` sur GitHub Pages |
-| Bord public | Cloudflare Worker et Static Assets | Wrangler 4.125.0 | Candidat préparé, non activé ; routage par hôte, TLS et statiques |
+| Bord public | Cloudflare Worker et Static Assets | Wrangler 4.125.0 | Apex et `www` actifs depuis le 2026-08-25 ; autres hôtes fermés |
 | Proxy d'origine et local | Caddy | 2.11.4 | mkcert en local ; origine Quarkus Atlas derrière Tunnel après qualification |
 | Tests E2E | Playwright et Allure Report | 1.61 et 3 | Chromium, historique JSONL isolé par cible, rapport rejouable |
 | Métriques Backend | Micrometer, registre Prometheus | livré par Quarkus | `/q/metrics` interne, métriques techniques et métier à faible cardinalité |

@@ -114,7 +114,7 @@ Point pratique assumé : un client qui n'a rien fourni n'est pas identifiable, e
 | Sous-traitant | Rôle | Données transmises | Remarques |
 |---|---|---|---|
 | Stripe | Paiement | Données de carte bancaire (collectées directement par Stripe Elements, jamais vues par Surplasse), montant, référence de commande | Périmètre PCI DSS porté par Stripe (voir [sécurité](../architecture/securite.md#posture-générale)) ; transferts encadrés par ses clauses contractuelles |
-| Cloudflare | DNS, TLS, Worker, Static Assets, futur Tunnel et futur R2 | IP, requêtes et en-têtes au bord ; objets média seulement après activation de R2 | Candidat non activé ; Workers Logs et Traces désactivés tant que des capacités restent dans les URL ; DPA, localisation et rétention à enregistrer avant la Route publique |
+| Cloudflare | DNS, TLS, Worker, Static Assets, futur Tunnel et futur R2 | IP, requêtes et en-têtes au bord ; objets média seulement après activation de R2 | Apex et `www` actifs pour l'Onboarding ; Workers Logs et Traces désactivés tant que des capacités restent dans les URL ; aucun Tunnel ni R2 ; DPA, localisation et rétention à régulariser avant tout trafic testeur ou nouvelle Route |
 | OVHcloud, hébergeur d'Atlas | Hébergement du futur coeur Quarkus et PostgreSQL Surplasse | L'ensemble des données en base après activation | Hébergeur retenu ; l'activation dynamique n'est pas prouvée et la localisation contractuelle exacte doit être jointe au registre avant le pilote |
 | Fournisseur d'emails (à trancher) | Envoi des magic links, reçus et notifications | Adresses email des destinataires, contenu des messages | Fournisseur européen privilégié ; décision consignée dans un ADR |
 | Fournisseur de SMS (à trancher) | Notification « Prête » des commandes à emporter | Numéro mobile, identifiant technique et texte minimal de notification | Sélection, DPA, localisation et durée fournisseur à valider avant le lot 4D |
@@ -158,7 +158,7 @@ Ces stockages relèvent de l'exemption de consentement prévue par les lignes di
 | Qualification des rôles (responsable ou sous-traitant selon les traitements) | Validation juridique | Avant la rédaction des conditions générales |
 | Absence de bandeau cookies sur le front Commande | Validation juridique | Avant le lancement |
 | Localisation contractuelle et DPA OVHcloud pour Atlas | Vérification contractuelle | Avant l'activation Surplasse |
-| DPA Cloudflare, transferts, région des logs et rétention | Vérification contractuelle et configuration | Avant l'activation d'une Route Worker publique |
+| DPA Cloudflare, transferts, région des logs et rétention | Vérification contractuelle et configuration | Régularisation immédiate après la Route statique d'urgence, avant tout trafic testeur ou extension |
 | Fournisseur d'emails européen | Décision, ADR et DPA | Avant l'activation Surplasse |
 | Conditions du DPA OpenAI (entraînement, localisation) | Vérification contractuelle | Avant la mise en production de l'extraction ou de la génération de visuels |
 | Adresse de contact définitive et politique de confidentialité publiée | Rédaction | Avant le lancement |
