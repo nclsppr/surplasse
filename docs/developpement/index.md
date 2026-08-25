@@ -10,7 +10,7 @@ description: Prérequis, installation, commandes, ports et premier lancement de 
 Cette page est le point d'entrée de la section développement : ce qu'il faut installer sur sa machine, comment cloner et lancer le monorepo, quelles commandes exécuter dans chaque répertoire et comment diagnostiquer les problèmes les plus fréquents. Pour comprendre ce que l'on fait tourner avant de le lancer, lire d'abord la [vue d'ensemble de l'architecture](../architecture/index.md).
 
 !!! info État actuel au 2026-08-25
-La documentation, le contrat OpenAPI, le Backend Quarkus, Commande, le Dashboard, la préfiguration statique de l'Onboarding, le package partagé et le candidat Worker sont exécutables. Le cluster Docker Compose local assemble Caddy, PostgreSQL, les applications, Mailpit et Nimbus sous `surplasse.test`. Wrangler assemble et teste séparément le futur bord Cloudflare sans l'uploader. `main` produit des candidats Cloudflare et OCI, mais ni un artefact CI, ni une publication ne possède l'autorité d'activation de `vps-infra`.
+La documentation, le contrat OpenAPI, le Backend Quarkus, Commande, le Dashboard, la préfiguration statique de l'Onboarding, le package partagé et le Worker sont exécutables. Le cluster Docker Compose local assemble Caddy, PostgreSQL, les applications, Mailpit et Nimbus sous `surplasse.test`. Wrangler assemble et teste séparément le bord Cloudflare. Une version vérifiée sert maintenant l'Onboarding sur l'apex et `www` après une activation opérateur d'urgence. `main` produit des candidats Cloudflare et OCI, mais ni un artefact CI, ni une publication ne possède seul l'autorité durable de `vps-infra`.
 !!!
 
 !!! info URL locales canoniques
@@ -160,7 +160,7 @@ Le `npm ci` racine installe Spectral et OpenAPI Generator. `npm run brand:instal
 | `frontends/commande` | Image statique Compose ou Vite avec `npm run dev` | Image NGINX statique construite avec le profil production |
 | `frontends/onboarding` | Image Node allowlistée ; la session Stripe intégrée est réservée au profil development | Même Dockerfile, fichiers statiques servis par NGINX sans pilote ni secret Stripe |
 | `frontends/dashboard` | Image statique Compose ou Vite avec `npm run dev`, port natif strict 5174 | Image NGINX statique construite avec le profil production |
-| `deployment/cloudflare` | Worker local avec `npm run cloudflare:dev`, tests et dry runs avec `npm run cloudflare:check` | Candidat du bord et des quatre Static Assets, non activé et sans donnée persistante |
+| `deployment/cloudflare` | Worker local avec `npm run cloudflare:dev`, tests et dry runs avec `npm run cloudflare:check` | Onboarding actif sur l'apex et `www` ; autres Static Assets non routés ; aucune donnée persistante |
 | `e2e/` | Lanceur Playwright et générateur Allure 3 ; vise explicitement `development`, `production` ou `custom` ; état sous `.surplasse/e2e/` | Outil local et GitHub Actions, absent des images et du VPS |
 | `compose.yaml`, `compose.development.yaml`, `infra/caddy`, `infra/images`, `infra/observability` | Graphe, routage, recettes, règles et tableaux de bord sélectionnés par `scripts/compose.sh development` | Développement seulement ; la production consomme `deployment/vps/compose.yaml` et la plateforme `vps-infra` |
 
@@ -173,7 +173,7 @@ Le `npm ci` racine installe Spectral et OpenAPI Generator. `npm run brand:instal
 | Stripe CLI | Développement seulement, pour relayer et rejouer les webhooks | Absente. Stripe appelle directement le webhook public du Backend |
 | Stripe | Compte et clés de test | Compte et clés de test pour la production testeurs, comptes Connect et clés live avant le public |
 | Nimbus 0.8.2 et Astro 7 | Prévisualisation, vérification locale, image `docs` et GitHub Actions | Build servi par Static Assets à la cible, image Atlas conservée pendant la migration |
-| Cloudflare Worker et Static Assets | Wrangler 4.125.0, plugin Vitest 1.0.0, serveur local sans donnée | Candidat préparé, aucune version ou Route activée |
+| Cloudflare Worker et Static Assets | Wrangler 4.125.0, plugin Vitest 1.0.0, serveur local sans donnée | Version active sur les deux Routes Onboarding ; autres hôtes fermés |
 | Cloudflare R2 | Prévu avec le domaine `generation`, pas encore créé | Absent tant que le module applicatif n'existe pas |
 | dnsmasq | Requis pour le wildcard `*.surplasse.test`, instance locale sans donnée | Absent ; Cloudflare DNS porte l'apex et le wildcard `.com` à la cible |
 | mkcert | Requis pour le certificat local approuvé, sans donnée applicative | Absent ; Universal SSL Cloudflare fournit le certificat public à la cible |

@@ -10,7 +10,7 @@ description: Principes directeurs, diagrammes de contexte et de conteneurs, flux
 Cette page donne la carte générale du système : les principes qui guident chaque décision, les acteurs et les systèmes externes, les conteneurs déployés, les deux flux critiques du produit et le découpage en domaines métier. Les pages suivantes de cette section détaillent chaque bloc.
 
 !!! info État réel au 2026-08-25
-Le contrat, le Backend modulaire, les frontends, le cluster local et le candidat Worker sont implémentés. Le candidat Cloudflare est vérifié seulement en local et en dry run. Il n'est ni uploadé, ni routé. Les sondes datées montrent un apex proxifié par Cloudflare mais en HTTP 525, et aucun DNS pour `api`, `dashboard`, `docs` ou un slug. La release Atlas et le candidat Cloudflare ne prouvent donc aucune activation dynamique.
+Le contrat, le Backend modulaire, les frontends, le cluster local et le Worker sont implémentés. Après un incident 525 de l'origine Atlas, la version vérifiée du Worker sert maintenant l'Onboarding sur les seules Routes de l'apex et de `www`. Les sondes datées prouvent HTTP 200 en IPv4 et IPv6, les redirections 308 et le manifeste du commit actif. Aucun DNS n'existe encore pour `api`, `dashboard`, `docs` ou un slug. Cette remise en ligne statique et la release Atlas ne prouvent donc aucune activation dynamique.
 !!!
 
 ## Principes directeurs

@@ -24,7 +24,7 @@ Trois choix structurants minimisent le risque à la source :
 Le reste de la posture découle de ce socle : sessions courtes, autorisations filtrées par établissement, validation stricte des entrées, chiffrement en transit partout.
 
 !!! info État actuel au 2026-08-25
-Le catalogue, la commande, le paiement et le module Backend `identity` sont implémentés localement. Le cluster Compose exerce la frontière CORS commune, le proxy de confiance, les cookies sécurisés et le routage HTTPS. Le dépôt produit un candidat OCI pour Atlas et un candidat Worker pour Cloudflare. Le Worker est seulement testé et construit en dry run. Il n'est pas uploadé et aucune Route ou aucun secret Cloudflare n'est activé. L'identité s'exécute dans l'unique processus Backend, sans service autonome.
+Le catalogue, la commande, le paiement et le module Backend `identity` sont implémentés localement. Le cluster Compose exerce la frontière CORS commune, le proxy de confiance, les cookies sécurisés et le routage HTTPS. Le dépôt produit un candidat OCI pour Atlas et un candidat Worker pour Cloudflare. La version vérifiée du Worker sert seulement l'Onboarding sur l'apex et `www`. Aucun hôte applicatif, Tunnel, Backend ou secret Cloudflare dans le dépôt n'est activé. L'identité s'exécute dans l'unique processus Backend, sans service autonome.
 !!!
 
 ## Durcissements Dashboard avant production {#durcissements-dashboard-avant-production}
@@ -199,7 +199,7 @@ Tout le trafic est chiffré, sans exception ni période de transition :
 
 - HTTPS partout, avec un certificat wildcard couvrant `*.surplasse.com` (nécessaire pour les mini-sites en `{slug}.surplasse.com`) et le domaine apex.
 - HSTS activé sur tous les domaines (avec `includeSubDomains`), pour interdire tout repli en clair.
-- CSP adaptée à chaque surface : le candidat Worker émet une politique propre à Onboarding, Commande et Dashboard. Commande autorise seulement les origines requises par Stripe.js, Link et l'API canonique ; Dashboard autorise seulement l'API canonique. Leur validation dans un navigateur réel avec paiement et SSE reste une porte avant la première Route publique.
+- CSP adaptée à chaque surface : le Worker émet une politique propre à Onboarding, Commande et Dashboard. La politique Onboarding est active sur l'apex. Commande autorise seulement les origines requises par Stripe.js, Link et l'API canonique ; Dashboard autorise seulement l'API canonique. Leur validation dans un navigateur réel avec paiement et SSE reste une porte avant les Routes de Commande et Dashboard.
 - CORS séparé selon la sensibilité : `CORS_PUBLIC_ORIGINS` contient seulement l'apex et le motif d'un sous-domaine direct HTTPS du domaine courant. Quarkus refuse les credentials en développement, en test et en production. Le Caddy commun les ajoute uniquement pour les origines exactes du Dashboard et de l'Onboarding.
 - Cookies de session hôte uniquement pour `api.surplasse.test` en local et `api.surplasse.com` en production, sans attribut `Domain`, en `Secure`, `HttpOnly`, `SameSite=Lax`.
 
