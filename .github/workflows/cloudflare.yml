@@ -132,4 +132,5 @@ jobs:
             deployment/cloudflare/.wrangler/dry-run
             deployment/cloudflare/.wrangler/dry-run-production
           if-no-files-found: error
+          include-hidden-files: true
           retention-days: 7
