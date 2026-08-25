@@ -11,7 +11,7 @@ Ce runbook prépare la migration décrite par l'[ADR-0048](../decisions/adr-0048
 
 ## État exact de cette préparation
 
-Au 2026-08-25, le dépôt contient un candidat exécutable, mais aucune ressource Cloudflare n'a été créée ou modifiée par cette préparation :
+Au 2026-08-25, le dépôt contient un candidat exécutable et la première tranche statique a été activée en urgence à 23:15 CEST après un incident 525 :
 
 - `deployment/cloudflare/` porte le Worker, sa configuration, ses types générés et ses tests dans le runtime Workers ;
 - `npm run cloudflare:assets:build` assemble Onboarding, Commande, Dashboard et Nimbus dans un répertoire ignoré par Git ;
@@ -19,9 +19,12 @@ Au 2026-08-25, le dépôt contient un candidat exécutable, mais aucune ressourc
 - `npm run cloudflare:check` reconstruit le bundle avec le profil de domaines production, refuse toute URL `.test`, exécute les tests et produit deux dry runs Wrangler sans contacter la production ;
 - `.github/workflows/cloudflare.yml` publie seulement un artefact CI conservé sept jours, jamais une version Cloudflare ;
 - `workers_dev` et les URL de prévisualisation sont désactivés dans les deux environnements Wrangler ; la configuration produit ne contient volontairement aucune Route ;
-- aucun token, identifiant de compte, Tunnel, bucket R2, règle DNS ou Route Worker n'est installé.
+- le Worker `surplasse-edge` est uploadé, avec la version active `704d108f-f873-4236-98fc-f605ae409400` ;
+- les seules Routes actives sont `surplasse.com/*` et `www.surplasse.com/*` ; elles ont été attachées par Wrangler depuis la session OAuth opérateur déjà présente ;
+- aucun nouveau token, abonnement payant, Tunnel, bucket R2 ou enregistrement DNS n'a été créé pendant cette intervention ;
+- `api`, `dashboard`, `docs` et le wildcard restent fermés.
 
-Les sondes publiques du 2026-08-25 montrent une délégation Cloudflare partielle et une production non exploitable :
+Les sondes publiques refaites le 2026-08-25 à 23:15 CEST montrent un Onboarding statique exploitable et une production dynamique toujours fermée :
 
 | Vérification | Observation datée |
 |---|---|
@@ -29,10 +32,16 @@ Les sondes publiques du 2026-08-25 montrent une délégation Cloudflare partiell
 | Apex | enregistrement proxifié Cloudflare présent |
 | `www.surplasse.com` | enregistrement proxifié présent |
 | `dashboard`, `docs`, `api` et un slug de sonde | aucun enregistrement A résolu |
-| `https://surplasse.com` | HTTP 525, échec de négociation TLS avec l'origine |
+| `http://surplasse.com` | HTTP 308 vers HTTPS, en IPv4 et IPv6 |
+| `https://surplasse.com` | HTTP 200 depuis Workers Static Assets, en IPv4 et IPv6 |
+| `https://www.surplasse.com/test?x=1` | HTTP 308 vers l'apex en conservant chemin et query |
+| `/.well-known/surplasse-edge` | HTTP 200 et `X-Surplasse-Edge: cloudflare` |
+| `/.well-known/surplasse-manifest.json` | HTTP 200, sans cache, commit `3024278c068823343d04d776318791ddc36057c1` |
+| `/stripe-connect/config` | HTTP 503 intentionnel |
+| chemin Onboarding inconnu | HTTP 404 |
 | IP Atlas avec SNI `surplasse.com` | négociation TLS en échec |
 
-Cette photographie doit être refaite avant toute mutation. Elle ne justifie ni une correction DNS improvisée, ni une annonce de mise en ligne.
+Cette photographie doit être refaite avant toute nouvelle mutation. La Route statique corrige l'indisponibilité publique sans rendre sain le retour Atlas et sans ouvrir le Backend, Stripe, Dashboard, Nimbus ou un mini-site.
 
 ## Architecture cible KISS
 
@@ -142,7 +151,9 @@ Arrêter Wrangler avec `Ctrl+C`. Aucun état n'est à sauvegarder ou restaurer l
 
 ## Secrets et autorité d'activation
 
-La production Cloudflare demande un compte Workers Paid, un identifiant de compte et un token API borné au Worker et à la zone. Leur création est une intégration persistante et exige une approbation opérateur explicite. Aucune valeur ne doit être copiée dans une discussion, un fichier suivi, un argument de commande ou un log CI.
+La production testeurs Cloudflare demande à terme un compte Workers Paid, un identifiant de compte et un token API borné au Worker et à la zone. Leur création est une intégration persistante et exige une approbation opérateur explicite. Aucune valeur ne doit être copiée dans une discussion, un fichier suivi, un argument de commande ou un log CI.
+
+La remise en ligne du 2026-08-25 a réutilisé la session OAuth Wrangler déjà chiffrée dans le trousseau macOS. Aucune valeur n'a été affichée ou copiée, aucun token durable n'a été installé dans GitHub ou `vps-infra` et aucun changement de plan payant n'a été exécuté. Cette session locale n'est pas le canal d'exploitation cible.
 
 Le token, s'il est autorisé, est capturé directement dans le gestionnaire de secrets retenu puis installé dans l'environnement GitHub protégé ou dans le canal opérateur de `vps-infra`. Le dépôt Surplasse ne doit connaître que les noms `CLOUDFLARE_API_TOKEN` et `CLOUDFLARE_ACCOUNT_ID`. La clé publique Stripe reste la variable GitHub existante `VITE_STRIPE_PUBLISHABLE_KEY`. Les clés Stripe secrètes, JWT, SMTP et PostgreSQL restent sur Atlas.
 
@@ -159,7 +170,7 @@ Avant le premier upload Cloudflare :
 5. Exécuter `npm run cloudflare:check`, les smokes E2E existants et `npm run backend:verify` sur le même commit.
 6. Prouver les CSP de Commande, Dashboard et Onboarding, la redirection HTTP vers HTTPS et l'en-tête `Cache-Control: no-store` du manifeste.
 
-La phase est refusée si le domaine de retour n'est pas sain, si un secret manque, si le mode Stripe n'est pas `testers` sur toute la chaîne ou si le manifeste statique ne porte pas le commit attendu.
+La phase est normalement refusée si le domaine de retour n'est pas sain, si un secret manque, si le mode Stripe n'est pas `testers` sur toute la chaîne ou si le manifeste statique ne porte pas le commit attendu. Lors de l'incident 525 du 2026-08-25, le retour Atlas était précisément la surface indisponible. L'opérateur a accepté l'exception minimale consistant à attacher seulement l'apex et `www` au Worker vérifié. La réparation TLS Atlas et l'import des Routes dans `vps-infra` deviennent des dettes bloquantes avant toute extension.
 
 ## Phase 1 : créer une version sans route publique
 
@@ -167,9 +178,11 @@ Après approbation du compte et du token, uploader une version candidate sans la
 
 La commande d'upload est exécutée depuis `deployment/cloudflare/` avec les variables capturées silencieusement par le canal opérateur. Son identifiant de version, le SHA du commit et le SHA-256 du manifeste sont enregistrés comme preuve durable dans l'admission `vps-infra`. L'artefact GitHub de sept jours n'est pas ce contrat durable. Aucun DNS et aucune Route ne changent pendant cette phase.
 
+Cette phase a été exécutée le 2026-08-25. La version inerte `2f93d17c-59b9-4de3-986f-b1a60e86c40a` n'avait aucun target. La promotion de l'apex et de `www` a ensuite créé la version `704d108f-f873-4236-98fc-f605ae409400`, liée au manifeste du commit `3024278c068823343d04d776318791ddc36057c1`.
+
 ## Phase 2 : préparer DNS et Tunnel
 
-Le 2026-08-25, seuls l'apex et `www` résolvent. Avant la promotion :
+Le 2026-08-25, seuls l'apex et `www` résolvent. Avant toute nouvelle promotion :
 
 - l'apex, `www`, le wildcard, `dashboard` et `docs` doivent avoir un chemin de retour Atlas sain ou une origine de repli explicitement préparée ;
 - `api.surplasse.com` doit pointer vers Caddy Atlas par un enregistrement spécifique, puis vers Cloudflare Tunnel après qualification ;
@@ -191,6 +204,8 @@ La configuration Wrangler du produit ne contient aucune Route. `vps-infra` attac
 2. `dashboard`, `docs` et un slug testeur nommé, sans wildcard ;
 3. `api` seulement après la qualification Tunnel, IP cliente, Stripe et SSE ;
 4. wildcard seulement après les étapes précédentes, puis retrait des Routes explicites devenues redondantes.
+
+Le 2026-08-25, seule l'étape 1 est active avec les Routes exactes `surplasse.com/*` et `www.surplasse.com/*`. Les étapes 2 à 4 ne sont pas commencées. L'attachement direct par la session Wrangler opérateur est une exception de remise en ligne, pas le nouveau plan de contrôle. `vps-infra` doit réconcilier cette version et ces deux Routes avant toute suite.
 
 La topologie finale converge vers exactement deux Routes :
 

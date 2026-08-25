@@ -16,13 +16,13 @@ Surplasse est un canal de commande directe pour les restaurants indépendants : 
 | `frontends/onboarding/` | Préfiguration HTML de la vitrine | Disponible |
 | `frontends/shared/` | Design system et client API TypeScript | Disponible |
 | `compose.yaml`, `compose.development.yaml`, `infra/` | Pile locale et recettes applicatives | Cluster de développement disponible |
-| `deployment/cloudflare/` | Worker, tests et assemblage des quatre surfaces statiques | Candidat vérifié localement, non uploadé et non activé |
+| `deployment/cloudflare/` | Worker, tests et assemblage des quatre surfaces statiques | Version `704d108f-f873-4236-98fc-f605ae409400` active sur l'apex et `www` uniquement |
 | `deployment/vps/` | Contrat applicatif immuable pour le coeur Atlas | Release publiée, activation dynamique non prouvée |
 | `e2e/` | Smokes Playwright, historique JSONL et rapport Allure courant par cible | Disponible, exécution locale et GitHub Actions |
 
 La documentation complète vit dans [`docs/`](docs/). La procédure détaillée du cluster local et de ses domaines est dans [`docs/developpement/domaines-locaux.md`](docs/developpement/domaines-locaux.md).
 
-La cible est hybride : Cloudflare porte le bord et les statiques, Atlas conserve Quarkus et PostgreSQL. Le dépôt produit les deux candidats, puis `vps-infra` décide séparément de leur admission et de leur activation. Au 2026-08-25, le candidat Worker n'est pas uploadé, l'apex public répond 525 et les sous-domaines applicatifs ne résolvent pas. Aucun artefact vert ne prouve donc une production dynamique. Les portes et le retour arrière sont consignés dans les runbooks [Cloudflare](docs/operations/migration-cloudflare.md) et [Atlas](docs/operations/deploiement-compose.md).
+La cible est hybride : Cloudflare porte le bord et les statiques, Atlas conserve Quarkus et PostgreSQL. Le dépôt produit les deux candidats, puis `vps-infra` décide séparément de leur admission et de leur activation. Le 2026-08-25 à 23:15 CEST, une activation opérateur d'urgence a attaché le Worker aux seules Routes `surplasse.com/*` et `www.surplasse.com/*` pour sortir l'Onboarding d'un incident 525. Le manifeste public prouve le commit `3024278c068823343d04d776318791ddc36057c1`. `api`, `dashboard`, `docs` et le wildcard restent absents du DNS, donc cette remise en ligne statique ne prouve aucune production dynamique. L'exception doit être réconciliée dans `vps-infra` avant toute extension. Les portes et le retour arrière sont consignés dans les runbooks [Cloudflare](docs/operations/migration-cloudflare.md) et [Atlas](docs/operations/deploiement-compose.md).
 
 ## Prérequis
 

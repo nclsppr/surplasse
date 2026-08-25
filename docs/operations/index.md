@@ -25,7 +25,7 @@ Les pages de cette section :
 - [Preuve Stripe Connect du 2026-07-20](preuve-stripe-connect-2026-07-20.md) : preuve historique et condition de reprise ;
 - [RGPD](rgpd.md) : données personnelles, rétention et droits des personnes.
 
-Les commandes qui mutent Atlas, DNS, les Routes Worker ou Tunnel appartiennent au plan de contrôle `vps-infra`. Aucun guide Surplasse ne doit s'attribuer une seconde autorité de production. Le [runbook Cloudflare](migration-cloudflare.md) décrit les gestes et les preuves attendues sans installer de secret ni activer de route.
+Les commandes qui mutent Atlas, DNS, les Routes Worker ou Tunnel appartiennent au plan de contrôle `vps-infra`. Aucun guide Surplasse ne doit s'attribuer une seconde autorité de production. L'activation opérateur d'urgence de l'apex et de `www` du 2026-08-25 est une exception d'incident documentée dans le [runbook Cloudflare](migration-cloudflare.md). Elle doit être importée dans l'état désiré `vps-infra` avant toute nouvelle Route, sans installer une seconde autorité durable dans le dépôt produit.
 
 ## Règle d'entrée en production
 
