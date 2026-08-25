@@ -5,6 +5,7 @@ node_modules/
 dist/
 target/
 build/
+.wrangler/
 __pycache__/
 *.py[cod]
 

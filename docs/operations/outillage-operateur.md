@@ -7,7 +7,7 @@ description: "Où l'opérateur regarde : accès à PostgreSQL, logs, résultats 
 
 # L'outillage de l'opérateur
 
-Cette page répond aux questions quotidiennes de celui qui exploite Surplasse : comment voir la base, les métriques et les logs, où trouver les résultats de tests, comment explorer et requêter l'API. Les commandes `scripts/compose.sh development` s'appliquent uniquement au cluster local. Toute commande de production vient du [runbook `vps-infra`](https://github.com/nclsppr/vps-infra/blob/main/docs/deployment.md#deploy-a-compose-application), car Atlas est l'unique chemin de production.
+Cette page répond aux questions quotidiennes de celui qui exploite Surplasse : comment voir la base, les métriques et les logs, où trouver les résultats de tests, comment explorer et requêter l'API. Les commandes `scripts/compose.sh development` s'appliquent uniquement au cluster local. Toute mutation de production vient du plan de contrôle `vps-infra`. Le bord suit le [runbook Cloudflare](migration-cloudflare.md) et le coeur le [runbook Atlas](deploiement-compose.md).
 
 ## Voir la base PostgreSQL
 

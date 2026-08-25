@@ -299,21 +299,22 @@ Trois familles d'images à héberger : les photos de cartes téléversées à l'
 
 ### Mode d'intégration
 
-La cible de départ est **MinIO**, un stockage objet S3-compatible auto-hébergé, déployé comme conteneur sur le VPS aux côtés du reste du système (voir [la vue d'ensemble](index.md)). Le Backend parle l'API S3 : si le volume ou la durabilité l'exigent un jour, la migration vers un service managé S3-compatible (Scaleway Object Storage, OVHcloud, Amazon S3) est un changement d'endpoint et d'identifiants, pas de code.
+La cible de départ est **Cloudflare R2**, conformément à l'[ADR-0048](../decisions/adr-0048-bord-cloudflare-hybride.md). Aucun bucket n'existe encore. Le Backend parlera l'API S3 derrière une interface interne. PostgreSQL conservera les métadonnées et les états ; R2 conservera les octets. Les originaux et la quarantaine restent privés. Une publication devient lisible seulement après validation du type, de la taille, du contenu et réencodage.
 
-À l'import, le Backend génère les **miniatures et variantes** de chaque image (vignette de produit, format carte, format vitrine, versions WebP) : les mini-sites ne servent jamais l'original en pleine résolution. Les originaux des photos de cartes sont conservés le temps de l'extraction et de la relecture, puis purgés selon la politique de rétention décrite dans [RGPD](../operations/rgpd.md).
+À l'import, le Backend ou un traitement explicitement idempotent génère les **miniatures et variantes** de chaque image (vignette de produit, format carte, format vitrine, versions WebP). Cloudflare Images pourra produire ces variantes après mesure, sans devenir l'unique copie. Les mini-sites ne servent jamais l'original en pleine résolution. Les originaux des photos de cartes sont conservés le temps de l'extraction et de la relecture, puis purgés selon la politique de rétention décrite dans [RGPD](../operations/rgpd.md).
 
 ### Risques et parades
 
 | Risque | Parade |
 |---|---|
-| Perte de données sur le VPS | Sauvegarde externalisée du bucket, testée en restauration |
-| Saturation du disque | Quotas par établissement, variantes plutôt qu'originaux, purge des images orphelines |
-| Exposition d'images privées (photos de cartes en cours de relecture) | Buckets privés, accès via URL signées à durée courte, jamais de bucket public |
+| Perte ou suppression accidentelle dans R2 | Export hors compte, versionnement ou journal de suppression, restauration testée avant les premières données réelles |
+| Croissance des coûts de stockage et d'opérations | Quotas par établissement, variantes fixes, cache CDN, purge des images orphelines, alerte de budget |
+| Exposition d'images privées (photos de cartes en cours de relecture) | Bucket privé, URL signées à durée courte, domaine public séparé pour les seuls objets publiés |
+| Double écriture PostgreSQL et R2 | Job durable et idempotent, état explicite en base, rapprochement et nettoyage différé |
 
 ### Statut de la décision
 
-L'orientation MinIO sur le VPS au départ, avec l'API S3 comme frontière, est la cible de référence. Elle sera confirmée par un ADR au moment de la mise en place de l'infrastructure.
+R2 avec une frontière S3 est acté par l'ADR-0048. Sa création reste différée jusqu'à l'implémentation du domaine `generation`. Le bucket, les clés, le cycle de vie, l'export et la restauration sont livrés et prouvés dans le même lot que les premières écritures.
 
 ## Génération des QR codes
 
@@ -353,5 +354,5 @@ Pas de décision structurante : implémentation backend standard, prévue avec l
 | Emails | SMTP via quarkus-mailer | Mode acté ; fournisseur à trancher (ADR à venir) |
 | SMS à emporter | Adaptateur Backend, remise durable et statuts rapprochés | Mode acté ; fournisseur à trancher avant le lot 4D |
 | Impression thermique | Imprimante cloud ou application compagnon | Conditionnelle : ADR avant la cohorte si la pré-cohorte la promeut, sinon phase 5 |
-| Stockage objet | MinIO S3-compatible sur le VPS, migration managée possible | Orientation de référence, ADR de confirmation à venir |
+| Stockage objet | Cloudflare R2 privé derrière une interface S3 du Backend | Acté par l'ADR-0048, non créé |
 | QR codes | Génération backend, jetons de table non devinables | Pas d'ADR nécessaire |

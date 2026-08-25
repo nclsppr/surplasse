@@ -55,7 +55,7 @@ Les domaines sont des données de configuration. `config/domains/production.env`
 | ORM | Hibernate ORM avec Panache | livré par Quarkus | Repository pattern |
 | Base de données | PostgreSQL | 17 | Une seule base, schémas par domaine si besoin |
 | Migrations | Flyway | livré par Quarkus | Migrations versionnées, jamais de DDL manuel |
-| Stockage objet | MinIO | dernière stable | Compatible S3 ; photos de cartes et visuels de plats, derrière une interface du backend |
+| Stockage objet | Cloudflare R2 | API S3 courante | Prévu, pas encore créé ; photos de cartes et visuels de plats derrière une interface du Backend |
 | Temps réel | SSE (Server-Sent Events) | natif Quarkus | WebSockets envisagé plus tard si besoin bidirectionnel |
 | Frontends | React | 19 | TypeScript strict, Vite, un package partagé `frontends/shared/` |
 | État serveur | TanStack Query | 5 | Pas de Redux |
@@ -64,13 +64,14 @@ Les domaines sont des données de configuration. `config/domains/production.env`
 | Auth restaurateur | Magic link par email, session JWT en cookie HttpOnly | MVP | Le client final n'a jamais de compte |
 | IA | API OpenAI (derrière interface) | modèles courants | Extraction de carte et données publiques (vision) ; génération de visuels de plats à l'embarquement et depuis le Dashboard |
 | Impression | Imprimante thermique ESC/POS | à trancher (ADR) | Tickets cuisine optionnels |
-| Docs | Nimbus | Nimbus 0.8.2 | Rendu canonique indexable, publié sur le domaine documentaire et sous `/docs` sur GitHub Pages |
-| Reverse proxy | Caddy | 2.11.4 | Routage commun ; mkcert en local, TLS wildcard DNS-01 en production |
+| Docs | Nimbus | Nimbus 0.8.2 | Rendu canonique indexable, cible Static Assets sur le domaine documentaire et publication sous `/docs` sur GitHub Pages |
+| Bord public | Cloudflare Worker et Static Assets | Wrangler 4.125.0 | Candidat préparé, non activé ; routage par hôte, TLS et statiques |
+| Proxy d'origine et local | Caddy | 2.11.4 | mkcert en local ; origine Quarkus Atlas derrière Tunnel après qualification |
 | Tests E2E | Playwright et Allure Report | 1.61 et 3 | Chromium, historique JSONL isolé par cible, rapport rejouable |
 | Métriques Backend | Micrometer, registre Prometheus | livré par Quarkus | `/q/metrics` interne, métriques techniques et métier à faible cardinalité |
 | Supervision | Prometheus et Grafana | 3.13.1 et 13.1.1 | Profil Compose `observability`, collecte pull interne, tableaux de bord provisionnés |
-| OS de production | Ubuntu | dernière LTS | Le VPS ; en cas de divergence de comportement entre systèmes, Ubuntu fait foi |
-| CI/CD | GitHub Actions | | Publication OCI par le produit, admission et déploiement sur Atlas par `vps-infra` |
+| OS du coeur de production | Ubuntu | dernière LTS | Atlas ; en cas de divergence du Backend entre systèmes, Ubuntu fait foi |
+| CI/CD | GitHub Actions | | Candidats Worker et OCI produits séparément ; admission DNS, Cloudflare et Atlas par `vps-infra` |
 | Outillage hôte | mise | 2026.7.13 ou plus | Installe les versions verrouillées ; développement et build seulement, absent du VPS |
 | Node | Node.js | 24.18.0 | via mise, pour l'outillage frontend et docs |
 | Python | CPython | 3.12.13 | via mise, pour les assets de marque seulement |
@@ -244,6 +245,7 @@ surplasse/
 ├── backend/                 # Quarkus (Maven multi-modules)
 ├── compose.yaml             # Graphe de services local
 ├── compose.development.yaml # Surcharge du développement intégré
+├── deployment/cloudflare/   # Worker, tests et assemblage statique du bord candidat
 ├── deployment/vps/          # Fragment applicatif et intégrations Atlas
 ├── frontends/
 │   ├── shared/              # Design system, client API généré, utilitaires
@@ -255,13 +257,13 @@ surplasse/
 └── .github/workflows/       # CI/CD
 ```
 
-Aujourd'hui existent `docs/`, `brand/`, la préfiguration statique de l'Onboarding, le contrat `api/openapi.yaml` (lint Spectral, chaîne de génération, ADR-0013), le Backend (`common`, `contract`, `catalog`, `order`, `payment`, `identity`, `application`), le package `frontends/shared/`, Commande, le Dashboard minimal et le cluster Docker Compose de développement. Le paiement local persiste les intentions idempotentes, sérialise les créations concurrentes par une réservation courte, cloisonne toute reprise par session de table et valide dans une même transaction le webhook Stripe, le paiement, la commande et son événement de suivi. Le chemin logiciel Connect fige le compte et la commission sur le paiement, crée une charge directe dans ce compte, initialise Stripe.js dans le même contexte et rapproche le webhook par compte, Payment Intent et mode. La plateforme de test est inscrite à Connect. Le nouveau compte pilote Accounts v2 utilise `dashboard=none` et le composant `account_onboarding` se rend dans une page Surplasse locale, mais ses capacités restent restreintes tant que le titulaire n'a pas terminé l'embarquement. Le Backend relit ses capacités avant chaque paiement et sépare les événements snapshot de paiement des événements fins Accounts v2. Le contrôle opérationnel de prise de commandes est persistant, fermé par défaut et distinct du cycle de vie de l'établissement ; il sérialise la pause avec les nouvelles admissions tout en préservant le suivi, le Dashboard et les webhooks. Le Dashboard couvre la connexion par magic link, la restauration de session, la sélection d'un établissement autorisé, la liste REST des commandes opérationnelles, leur avancement jusqu'au service ou au retrait et leur actualisation par un flux SSE authentifié par établissement. Le Backend expose maintenant des métriques Micrometer techniques et métier. Le profil Compose facultatif `observability` ajoute Prometheus et Grafana sans créer de dépendance du Backend vers sa supervision. En local, Caddy refuse `/q/metrics` publiquement ; en production, Atlas ferme toute surface `/q/*`. Les smokes Playwright et leurs rapports Allure sont lancés directement par les commandes npm. Chaque cible conserve `history.jsonl`, `allure-report/` et `test-results/` sous `.surplasse/e2e/`. La production consomme exclusivement la release Atlas décrite par `deployment/vps/compose.yaml`. Le reste est créé au fil de la roadmap.
+Aujourd'hui existent `docs/`, `brand/`, la préfiguration statique de l'Onboarding, le contrat `api/openapi.yaml` (lint Spectral, chaîne de génération, ADR-0013), le Backend (`common`, `contract`, `catalog`, `order`, `payment`, `identity`, `application`), le package `frontends/shared/`, Commande, le Dashboard minimal et le cluster Docker Compose de développement. Le paiement local persiste les intentions idempotentes, sérialise les créations concurrentes par une réservation courte, cloisonne toute reprise par session de table et valide dans une même transaction le webhook Stripe, le paiement, la commande et son événement de suivi. Le chemin logiciel Connect fige le compte et la commission sur le paiement, crée une charge directe dans ce compte, initialise Stripe.js dans le même contexte et rapproche le webhook par compte, Payment Intent et mode. La plateforme de test est inscrite à Connect. Le nouveau compte pilote Accounts v2 utilise `dashboard=none` et le composant `account_onboarding` se rend dans une page Surplasse locale, mais ses capacités restent restreintes tant que le titulaire n'a pas terminé l'embarquement. Le Backend relit ses capacités avant chaque paiement et sépare les événements snapshot de paiement des événements fins Accounts v2. Le contrôle opérationnel de prise de commandes est persistant, fermé par défaut et distinct du cycle de vie de l'établissement ; il sérialise la pause avec les nouvelles admissions tout en préservant le suivi, le Dashboard et les webhooks. Le Dashboard couvre la connexion par magic link, la restauration de session, la sélection d'un établissement autorisé, la liste REST des commandes opérationnelles, leur avancement jusqu'au service ou au retrait et leur actualisation par un flux SSE authentifié par établissement. Le Backend expose maintenant des métriques Micrometer techniques et métier. Le profil Compose facultatif `observability` ajoute Prometheus et Grafana sans créer de dépendance du Backend vers sa supervision. En local, Caddy refuse `/q/metrics` publiquement ; le Worker candidat et Atlas ferment toute surface `/q/*` en production. Les smokes Playwright et leurs rapports Allure sont lancés directement par les commandes npm. Chaque cible conserve `history.jsonl`, `allure-report/` et `test-results/` sous `.surplasse/e2e/`. Le bord cible consomme le candidat de `deployment/cloudflare/` et le coeur transactionnel consomme la release Atlas décrite par `deployment/vps/compose.yaml`. Aucun candidat ne possède seul l'autorité d'activation. Le reste est créé au fil de la roadmap.
 
 ## Exécution multi-plateformes
 
-Le développement est supporté sur macOS, Windows et Linux. Sous Windows, la référence est WSL2 avec Ubuntu : on y suit les instructions Linux, le développement natif hors WSL2 n'est pas supporté. La production tourne sous Ubuntu LTS sur le VPS : en cas de comportement divergent entre systèmes, Ubuntu fait foi.
+Le développement est supporté sur macOS, Windows et Linux. Sous Windows, la référence est WSL2 avec Ubuntu : on y suit les instructions Linux, le développement natif hors WSL2 n'est pas supporté. Le coeur transactionnel de production tourne sous Ubuntu LTS sur le VPS : en cas de comportement Backend divergent entre systèmes, Ubuntu fait foi. Le bord s'exécute sur Cloudflare Workers et suit son runtime documenté.
 
-**Règle : tout ajout d'un module frontend, d'un module backend, d'un package ou d'un logiciel tiers (PostgreSQL, MinIO, Caddy, ...) s'accompagne, dans le même commit, de sa documentation d'exécution.** Cette documentation précise obligatoirement :
+**Règle : tout ajout d'un module frontend, d'un module backend, d'un package ou d'un logiciel tiers (PostgreSQL, R2, Caddy, ...) s'accompagne, dans le même commit, de sa documentation d'exécution.** Cette documentation précise obligatoirement :
 
 - son rôle et son état réel, disponible ou seulement prévu ;
 - sa catégorie d'exécution : développement seulement, build ou CI, ou service de production ;

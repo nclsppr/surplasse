@@ -2,12 +2,12 @@
 label: Opérations
 order: 40
 icon: tools
-description: "La production Atlas de Surplasse : inventaire, responsabilités, sauvegardes et gestion des incidents."
+description: "La production hybride Cloudflare et Atlas de Surplasse : responsabilités, sauvegardes, preuves et incidents."
 ---
 
 # Exploitation
 
-Surplasse possède un seul chemin de production : une `application-release` immuable admise et activée par la plateforme Atlas de `vps-infra`. Le Compose racine appartient uniquement au développement local. L'état live ne se déduit jamais d'un push ou d'une publication OCI : il se prouve sur Atlas et par les routes publiques.
+Surplasse possède une seule production logique et deux candidats séparés : le Worker et les statiques Cloudflare pour le bord, puis l'`application-release` Atlas pour le coeur transactionnel. `vps-infra` admet et active leurs références exactes. Le Compose racine appartient uniquement au développement local. L'état live ne se déduit jamais d'un push, d'un artefact CI ou d'une publication OCI. Il se prouve sur Cloudflare, Atlas et les routes publiques.
 
 !!! warning Rappel obligatoire avant toute ouverture publique
 La production et les commandes peuvent être ouvertes aux testeurs avec Stripe test et des sauvegardes locales au VPS. Avant l'ouverture publique, il reste absolument à qualifier Stripe live et le SMTP transactionnel, restaurer une sauvegarde chiffrée hors VPS, fermer les CSP de Commande et du Dashboard, puis raccorder une sonde publique indépendante à un canal d'alerte.
@@ -15,7 +15,8 @@ La production et les commandes peuvent être ouvertes aux testeurs avec Stripe t
 
 Les pages de cette section :
 
-- [Environnements](environnements.md) : domaines, variables et secrets locaux ou Atlas ;
+- [Environnements](environnements.md) : domaines, variables et secrets locaux, Cloudflare ou Atlas ;
+- [Migration Cloudflare](migration-cloudflare.md) : architecture, coûts, candidat Worker, portes, sondes et retour arrière ;
 - [Déploiement Atlas](deploiement-compose.md) : publication, admission, migration, activation, reprise et sauvegarde ;
 - [Outillage de l'opérateur](outillage-operateur.md) : base, journaux, métriques, tests et API ;
 - [Observabilité](observabilite.md) : healthchecks, métriques, tableaux de bord, sondes et alertes ;
@@ -24,11 +25,11 @@ Les pages de cette section :
 - [Preuve Stripe Connect du 2026-07-20](preuve-stripe-connect-2026-07-20.md) : preuve historique et condition de reprise ;
 - [RGPD](rgpd.md) : données personnelles, rétention et droits des personnes.
 
-Les commandes qui mutent Atlas appartiennent au [runbook `vps-infra`](https://github.com/nclsppr/vps-infra/blob/main/docs/deployment.md#deploy-a-compose-application). Aucun guide Surplasse ne doit inventer une seconde commande de production.
+Les commandes qui mutent Atlas, DNS, les Routes Worker ou Tunnel appartiennent au plan de contrôle `vps-infra`. Aucun guide Surplasse ne doit s'attribuer une seconde autorité de production. Le [runbook Cloudflare](migration-cloudflare.md) décrit les gestes et les preuves attendues sans installer de secret ni activer de route.
 
 ## Règle d'entrée en production
 
-Tout nouveau module ou logiciel tiers est classé dès son introduction : développement seulement, build ou CI, service de la release Surplasse, ou service de la plateforme Atlas. Cette classification est consignée dans le [guide de développement](../developpement/index.md).
+Tout nouveau module ou logiciel tiers est classé dès son introduction : développement seulement, build ou CI, candidat du bord Cloudflare, service de la release Surplasse, ou service du plan de contrôle. Cette classification est consignée dans le [guide de développement](../developpement/index.md).
 
 Un composant destiné à la production documente dans la même révision :
 
@@ -44,10 +45,10 @@ Un outil local ou de CI indique explicitement qu'il est absent du VPS. Mailpit, 
 
 Surplasse est exploité par une seule personne. L'architecture privilégie donc peu de pièces mobiles, des preuves reproductibles et une autorité bornée.
 
-- **Une seule production.** Atlas fournit le bord, PostgreSQL, les réseaux, les secrets, les volumes, l'observabilité et le contrôleur. La release Surplasse fournit cinq services longs, un job de migration et le bootstrap one-shot du pilote.
-- **Des sources immuables.** Le dépôt publie les images, `vps-integration` et `application-release` par digest. `vps-infra` porte l'état désiré et l'activation.
+- **Une seule production logique.** Cloudflare fournit le bord et les statiques. Atlas fournit Quarkus, PostgreSQL, les secrets, les sauvegardes et l'observabilité. `vps-infra` porte l'état désiré des deux plateformes.
+- **Des sources immuables.** Le dépôt produit un manifeste statique lié au commit, les images, `vps-integration` et `application-release` par digest. `vps-infra` porte l'admission et l'activation.
 - **Aucun secret dans Git.** Les secrets sont matérialisés par fichiers protégés sur Atlas et leurs copies maîtresses restent dans le gestionnaire de mots de passe.
-- **Pas de preuve par implication.** Une CI verte prouve le producteur. Seules la convergence Atlas, la santé des conteneurs et les sondes publiques prouvent la production.
+- **Pas de preuve par implication.** Une CI verte prouve le producteur. Seules la version Worker active, la convergence Atlas, la santé des conteneurs et les sondes publiques prouvent la production.
 
 Les dépendances externes restent Stripe pour le paiement, l'API OpenAI derrière l'interface du domaine `generation`, un relais SMTP transactionnel géré à qualifier et GitHub pour le code, la CI et le miroir documentaire Pages.
 
@@ -55,65 +56,66 @@ Les dépendances externes restent Stripe pour le paiement, l'API OpenAI derrièr
 
 | Composant | Propriétaire | Rôle | Exposition |
 |---|---|---|---|
-| Caddy | Atlas | TLS et routage par nom d'hôte | Ports 80 et 443 |
-| Onboarding | Release Surplasse | Vitrine et embarquement | `surplasse.com` |
-| Commande | Release Surplasse | Mini-site, carte, commande et paiement | `{slug}.surplasse.com` |
-| Dashboard | Release Surplasse | Connexion, suivi SSE et gestion des commandes | `dashboard.surplasse.com` |
-| Backend | Release Surplasse | API REST, métier, SSE et intégrations | `api.surplasse.com` via Caddy |
-| Documentation | Release Surplasse | Nimbus canonique | `docs.surplasse.com` via Caddy |
+| DNS, TLS et Routes Worker | Cloudflare, état désiré `vps-infra` | Bord public, wildcard et activation | Ports 80 et 443 du réseau Cloudflare |
+| Worker `surplasse-edge` | Candidat Surplasse, activé par `vps-infra` | Routage par nom d'hôte, gardes et relais API | Apex et wildcard |
+| Onboarding | Workers Static Assets | Vitrine et embarquement | `surplasse.com` |
+| Commande | Workers Static Assets | Mini-site, carte, commande et paiement | `{slug}.surplasse.com` |
+| Dashboard | Workers Static Assets | Connexion, suivi SSE et gestion des commandes | `dashboard.surplasse.com` |
+| Documentation | Workers Static Assets | Nimbus canonique | `docs.surplasse.com` |
+| Caddy | Atlas | Proxy d'origine et retour statique pendant la migration | Cloudflare Tunnel à la cible |
+| Backend | Release Surplasse | API REST, métier, SSE et intégrations | `api.surplasse.com` via Worker et Tunnel |
 | Migrateur | Release Surplasse, exécuté par Atlas | Flyway avant le Backend | Aucun port, réseau base uniquement |
 | Bootstrap pilote | Release Surplasse, exécuté par Atlas | Graphe initial des testeurs | Aucun port, profils et réseaux bornés |
 | PostgreSQL | Atlas | Base unique et historique Flyway | Réseau interne uniquement |
 | Prometheus et Grafana | Atlas | Collecte et tableau de bord | Aucun DNS public, Grafana par tunnel privé |
 | Surveillance fonctionnelle | GitHub Actions ou poste d'exploitation | Smokes Playwright et rapport Allure | Extérieure au VPS |
 
-Le module Maven `identity` est compilé dans le Backend et n'a aucun processus propre. Le stockage objet n'est pas encore un service actif. Pendant le MVP, son futur contenu peut vivre sur un volume du VPS derrière l'interface S3 du Backend, sans dépendance à Scaleway Object Storage.
+Le module Maven `identity` est compilé dans le Backend et n'a aucun processus propre. Le stockage objet R2 n'est pas encore un service actif et aucun contenu média de production n'existe.
 
-GitHub Pages publie la préfiguration statique canonique de l'Onboarding, les ressources de marque, la documentation Nimbus sous `/docs/` et le rapport E2E development sous `/local-tests/`. Il ne publie aucun frontend alternatif et ne remplace aucune route Atlas.
+GitHub Pages publie la préfiguration statique canonique de l'Onboarding, les ressources de marque, la documentation Nimbus sous `/docs/` et le rapport E2E development sous `/local-tests/`. Il reste un site de démonstration et ne remplace aucune Route Worker ni aucune origine Atlas.
 
 ## Cycle de vie des composants Surplasse
 
-Les cinq images applicatives sont construites et vérifiées dans le dépôt, puis liées par digest dans l'`application-release`. Elles utilisent un runtime non privilégié et ne conservent aucune donnée locale.
+Le candidat Cloudflare assemble quatre builds statiques et un Worker dans un manifeste lié au commit. Il ne conserve aucune donnée. Pendant la migration, les cinq images applicatives Atlas restent construites et liées par digest dans l'`application-release` afin de préserver le retour arrière.
 
 Le Backend exige PostgreSQL, les clés JWT, Stripe et le SMTP par fichiers de secrets. Atlas exécute d'abord le job de migration avec `surplasse_migrator`, prouve Flyway V1 à V15, puis démarre le Backend avec `surplasse_runtime` et les migrations automatiques désactivées. Il n'existe aucune opération propre au module `identity`.
 
-Onboarding, Commande, Dashboard et la documentation sont des fichiers statiques servis par NGINX non privilégié. Node, Vite, TypeScript, ESLint, Vitest et les outils CSS restent dans les étapes de build. Leur mise à jour remplace l'image complète par un nouveau digest. Leur retour arrière ne demande aucune restauration de données.
+Onboarding, Commande, Dashboard et la documentation sont des fichiers statiques servis par Workers Static Assets à la cible. Node, Vite, TypeScript, Wrangler, Vitest et les outils CSS restent dans les étapes de build. Leur mise à jour produit un nouveau candidat et un nouveau manifeste. Leur retour arrière ne demande aucune restauration de données.
 
-La construction locale et les commandes de vérification sont documentées dans [Développement](../developpement/index.md). Le déploiement, la reprise et l'arrêt passent uniquement par [Atlas](deploiement-compose.md).
+La construction locale et les commandes de vérification sont documentées dans [Développement](../developpement/index.md). Le bord suit le [runbook Cloudflare](migration-cloudflare.md). Le coeur suit le [runbook Atlas](deploiement-compose.md).
 
-## Topologie Atlas
+## Topologie hybride cible
 
 ```text
-                            Internet
-                               |
-                          80 / 443
-                               |
-                        +-------------+
-                        | Caddy Atlas |
-                        +------+------+
-                               |
-         +----------+----------+----------+----------+
-         v          v          v          v          v
-   +----------+ +----------+ +---------+ +--------+ +----------+
-   |Onboarding| | Commande | |Dashboard| |  Docs  | | Backend  |
-   +----------+ +----------+ +---------+ +--------+ +----+-----+
-                                                         |
-                                                         v
-                                                  +------------+
-                                                  | PostgreSQL |
-                                                  +------------+
-
-   +------------+    collecte pull    +---------+
-   | Prometheus | <------------------- | Backend |
-   +-----+------+                      +---------+
-         ^
-         | PromQL
-   +-----+------+
-   |  Grafana   |
-   +------------+
+                         Internet
+                            |
+                  +---------+---------+
+                  | Cloudflare Worker |
+                  +----+---------+----+
+                       |         |
+          +------------+         +----------------+
+          v                                       v
+   +---------------+                         +---------+
+   | Static Assets |                         | Tunnel  |
+   | quatre sites  |                         +----+----+
+   +---------------+                              |
+                                                  v
+                                           +-------------+
+                                           | Caddy Atlas |
+                                           +------+------+
+                                                  |
+                                                  v
+                                            +-----------+
+                                            |  Backend  |
+                                            +-----+-----+
+                                                  |
+                                                  v
+                                            +------------+
+                                            | PostgreSQL |
+                                            +------------+
 ```
 
-Seul Caddy écoute publiquement. Le Backend est le seul service applicatif qui joint PostgreSQL. Prometheus collecte le Backend, jamais l'inverse. Grafana n'a aucune route publique. Les appels vers Stripe et le SMTP sortent du Backend.
+Cloudflare est le seul bord public à la cible. Tunnel ouvre une connexion sortante depuis Atlas et Caddy reste privé. Le Backend est le seul service applicatif qui joint PostgreSQL. Prometheus collecte le Backend, jamais l'inverse. Grafana n'a aucune route publique. Les appels vers Stripe et le SMTP sortent du Backend.
 
 ## Le VPS Atlas
 

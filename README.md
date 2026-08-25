@@ -16,12 +16,13 @@ Surplasse est un canal de commande directe pour les restaurants indépendants : 
 | `frontends/onboarding/` | Préfiguration HTML de la vitrine | Disponible |
 | `frontends/shared/` | Design system et client API TypeScript | Disponible |
 | `compose.yaml`, `compose.development.yaml`, `infra/` | Pile locale et recettes applicatives | Cluster de développement disponible |
-| `deployment/vps/` | Contrat applicatif immuable pour Atlas | Release publiée, Surplasse désactivé sur Atlas |
+| `deployment/cloudflare/` | Worker, tests et assemblage des quatre surfaces statiques | Candidat vérifié localement, non uploadé et non activé |
+| `deployment/vps/` | Contrat applicatif immuable pour le coeur Atlas | Release publiée, activation dynamique non prouvée |
 | `e2e/` | Smokes Playwright, historique JSONL et rapport Allure courant par cible | Disponible, exécution locale et GitHub Actions |
 
 La documentation complète vit dans [`docs/`](docs/). La procédure détaillée du cluster local et de ses domaines est dans [`docs/developpement/domaines-locaux.md`](docs/developpement/domaines-locaux.md).
 
-Atlas et sa plateforme partagée existent. Surplasse n'y est ni servi ni déployé : le dépôt produit un candidat OCI immuable, puis `vps-infra` décide séparément de son admission et de son activation. L'entrée Surplasse y reste `enabled: false`. Aucun DNS Surplasse, secret applicatif, rôle PostgreSQL, migration ou service Surplasse n'a été activé sur Atlas. L'état et les portes restantes sont consignés dans le [runbook de déploiement](docs/operations/deploiement-compose.md#état-opérationnel-atlas-au-2026-08-18).
+La cible est hybride : Cloudflare porte le bord et les statiques, Atlas conserve Quarkus et PostgreSQL. Le dépôt produit les deux candidats, puis `vps-infra` décide séparément de leur admission et de leur activation. Au 2026-08-25, le candidat Worker n'est pas uploadé, l'apex public répond 525 et les sous-domaines applicatifs ne résolvent pas. Aucun artefact vert ne prouve donc une production dynamique. Les portes et le retour arrière sont consignés dans les runbooks [Cloudflare](docs/operations/migration-cloudflare.md) et [Atlas](docs/operations/deploiement-compose.md).
 
 ## Prérequis
 
@@ -38,6 +39,7 @@ mise exec -- npm ci --prefix docs-nimbus
 (cd frontends/shared && mise exec -- npm ci)
 (cd frontends/commande && mise exec -- npm ci)
 (cd frontends/dashboard && mise exec -- npm ci)
+(cd deployment/cloudflare && mise exec -- npm ci)
 (cd e2e && mise exec -- npm ci && mise exec -- npx playwright install chromium)
 ```
 
@@ -162,7 +164,7 @@ Les sources publiques et sans secret sont :
 
 Les frontends, le Backend, Caddy et l'Onboarding statique partent de ces valeurs. Le chargeur dérive `MAILPIT_URL` et `GRAFANA_URL` uniquement pour development. Les cookies restaurateur restent hôte uniquement sur l'API par absence d'attribut `Domain` et ne sont jamais partagés avec les mini-sites.
 
-`config/deployment/development.env` porte uniquement les paramètres Compose locaux. Le wrapper `scripts/compose.sh` accepte seulement `development`. La production consomme exclusivement `deployment/vps/compose.yaml` dans une `application-release` admise et activée par `vps-infra`.
+`config/deployment/development.env` porte uniquement les paramètres Compose locaux. Le wrapper `scripts/compose.sh` accepte seulement `development`. La production cible consomme le candidat de `deployment/cloudflare/` pour le bord et `deployment/vps/compose.yaml` pour le coeur. Les deux sont admis et activés par `vps-infra`.
 
 Le Backend se lance avec `npm run backend:dev` ou se vérifie avec `npm run backend:verify`. Ces commandes sourcent le profil avant Maven et dérivent toutes les URL applicatives, le CORS et l'expéditeur Mailpit depuis `APP_BASE_DOMAIN`. Quarkus construit ensuite le magic link depuis `DASHBOARD_URL`, l'émetteur JWT depuis `API_URL` et garde les cookies `Secure`. Le code Java et `application.properties` ne contiennent aucune URL Surplasse de repli.
 
@@ -174,6 +176,7 @@ npm run domains:check
 npm run brand:check
 npm run local:config
 npm run compose:config:test
+npm run cloudflare:check
 npm run local:cors:test
 npm run docs:watch
 npm run docs:build

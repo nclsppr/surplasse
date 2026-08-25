@@ -5,57 +5,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseEnv } from "node:util";
 
 import { loadDomainConfig } from "../../config/domains/load-domain-config.mjs";
+import { PUBLIC_FILES } from "./public-files.mjs";
 
 const ONBOARDING_HOST = process.env.ONBOARDING_HOST?.trim() || "127.0.0.1";
 const ONBOARDING_PORT = parseListenerPort(process.env.ONBOARDING_PORT, 4173);
 const INTERNAL_HEALTH_PATH = "/__health";
-
-const PUBLIC_FILES = Object.freeze({
-  "/frontends/onboarding/": ["frontends/onboarding/index.html", "text/html; charset=utf-8"],
-  "/frontends/onboarding/index.html": ["frontends/onboarding/index.html", "text/html; charset=utf-8"],
-  "/frontends/onboarding/creer.html": ["frontends/onboarding/creer.html", "text/html; charset=utf-8"],
-  "/frontends/onboarding/connect.html": ["frontends/onboarding/connect.html", "text/html; charset=utf-8"],
-  "/frontends/onboarding/connect.js": ["frontends/onboarding/connect.js", "text/javascript; charset=utf-8"],
-  "/frontends/onboarding/runtime-config.js": ["frontends/onboarding/runtime-config.js", "text/javascript; charset=utf-8"],
-  "/brand/board.html": ["brand/board.html", "text/html; charset=utf-8"],
-  "/brand/components.css": ["brand/components.css", "text/css; charset=utf-8"],
-  "/brand/onboarding.css": ["frontends/onboarding/index.css", "text/css; charset=utf-8"],
-  "/brand/onboarding.js": ["frontends/onboarding/index.js", "text/javascript; charset=utf-8"],
-  "/brand/surplasse-symbol.svg": ["brand/surplasse-symbol.svg", "image/svg+xml"],
-  "/brand/surplasse-wordmark.svg": ["brand/surplasse-wordmark.svg", "image/svg+xml"],
-  "/brand/surplasse-app-icon.svg": ["brand/surplasse-app-icon.svg", "image/svg+xml"],
-  "/brand/surplasse-logo-horizontal.svg": ["brand/surplasse-logo-horizontal.svg", "image/svg+xml"],
-  "/brand/illustrations/service-line.svg": ["brand/illustrations/service-line.svg", "image/svg+xml"],
-  "/brand/payments/apple-pay.svg": ["brand/payments/apple-pay.svg", "image/svg+xml"],
-  "/brand/payments/google-pay.svg": ["brand/payments/google-pay.svg", "image/svg+xml"],
-  "/brand/payments/stripe.svg": ["brand/payments/stripe.svg", "image/svg+xml"],
-  "/brand/styles.css": ["brand/styles.css", "text/css; charset=utf-8"],
-  "/brand/tokens/colors.css": ["brand/tokens/colors.css", "text/css; charset=utf-8"],
-  "/brand/tokens/spacing.css": ["brand/tokens/spacing.css", "text/css; charset=utf-8"],
-  "/brand/tokens/typography.css": ["brand/tokens/typography.css", "text/css; charset=utf-8"],
-  "/brand/fonts/Parisienne-Regular.ttf": ["brand/fonts/Parisienne-Regular.ttf", "font/ttf"],
-  "/brand/fonts/archivo-400_900-latin-ext.woff2": ["brand/fonts/archivo-400_900-latin-ext.woff2", "font/woff2"],
-  "/brand/fonts/archivo-400_900-latin.woff2": ["brand/fonts/archivo-400_900-latin.woff2", "font/woff2"],
-  "/brand/fonts/archivo-400_900-vietnamese.woff2": ["brand/fonts/archivo-400_900-vietnamese.woff2", "font/woff2"],
-  "/brand/fonts/archivo.css": ["brand/fonts/archivo.css", "text/css; charset=utf-8"],
-  "/brand/fonts/bodoni-moda-400-latin-ext.woff2": ["brand/fonts/bodoni-moda-400-latin-ext.woff2", "font/woff2"],
-  "/brand/fonts/bodoni-moda-400-latin.woff2": ["brand/fonts/bodoni-moda-400-latin.woff2", "font/woff2"],
-  "/brand/fonts/bodoni-moda.css": ["brand/fonts/bodoni-moda.css", "text/css; charset=utf-8"],
-  "/brand/fonts/parisienne-400-latin-ext.woff2": ["brand/fonts/parisienne-400-latin-ext.woff2", "font/woff2"],
-  "/brand/fonts/parisienne-400-latin.woff2": ["brand/fonts/parisienne-400-latin.woff2", "font/woff2"],
-  "/brand/fonts/parisienne.css": ["brand/fonts/parisienne.css", "text/css; charset=utf-8"],
-  "/brand/fonts/spacemono-400-latin-ext.woff2": ["brand/fonts/spacemono-400-latin-ext.woff2", "font/woff2"],
-  "/brand/fonts/spacemono-400-latin.woff2": ["brand/fonts/spacemono-400-latin.woff2", "font/woff2"],
-  "/brand/fonts/spacemono-400-vietnamese.woff2": ["brand/fonts/spacemono-400-vietnamese.woff2", "font/woff2"],
-  "/brand/fonts/spacemono-700-latin-ext.woff2": ["brand/fonts/spacemono-700-latin-ext.woff2", "font/woff2"],
-  "/brand/fonts/spacemono-700-latin.woff2": ["brand/fonts/spacemono-700-latin.woff2", "font/woff2"],
-  "/brand/fonts/spacemono-700-vietnamese.woff2": ["brand/fonts/spacemono-700-vietnamese.woff2", "font/woff2"],
-  "/brand/fonts/spacemono.css": ["brand/fonts/spacemono.css", "text/css; charset=utf-8"],
-  "/brand/qr/center-mark.png": ["brand/qr/center-mark.png", "image/png"],
-  "/brand/qr/qr-demo-development.png": ["brand/qr/qr-demo-development.png", "image/png"],
-  "/brand/qr/qr-demo.png": ["brand/qr/qr-demo.png", "image/png"],
-  "/brand/qr/sticker.html": ["brand/qr/sticker.html", "text/html; charset=utf-8"],
-});
 
 const RESPONSE_HEADERS = Object.freeze({
   "Cache-Control": "no-store",

@@ -91,7 +91,7 @@ Conséquence directe des [conventions du contrat](./conventions-api.md) : les ex
 
 ## Tests E2E : Playwright
 
-L'[ADR-0046](../decisions/adr-0046-cli-et-rapports-e2e-plats.md) retient Playwright 1.61 avec Chromium, Allure Report 3, des commandes CLI explicites et un rapport courant plat par cible. Le package `e2e/` est un outil de développement et de CI. Il ne tourne pas dans les conteneurs applicatifs et n'est pas installé sur le VPS. Les tests visent la pile par ses URL HTTPS publiques, toujours derrière Caddy.
+L'[ADR-0046](../decisions/adr-0046-cli-et-rapports-e2e-plats.md) retient Playwright 1.61 avec Chromium, Allure Report 3, des commandes CLI explicites et un rapport courant plat par cible. Le package `e2e/` est un outil de développement et de CI. Il ne tourne pas dans les conteneurs applicatifs et n'est pas installé sur le VPS. Les tests visent la pile par ses URL HTTPS : derrière Caddy en développement, puis derrière le Worker Cloudflare et Tunnel pour la cible de production.
 
 ### Smokes livrés
 
@@ -99,10 +99,10 @@ La première suite est volontairement courte et sans écriture métier :
 
 | Contrôle | Surface | Preuve |
 |---|---|---|
-| Identité et en-têtes de bord | Caddy | identité attendue, HSTS et `nosniff` |
-| Readiness et fermeture administrative | Backend et Caddy | en development, réponse 200 et checks à `UP` ; en production ou `custom`, réponse publique 404 sur `/q/health/ready`, la readiness restant sondée en interne par Atlas |
-| Canonicalisation | Caddy et Onboarding | `www` redirige en 308 vers l'apex en conservant chemin et query string |
-| Sous-domaine réservé | Caddy | `app` reste fermé en 503 |
+| Identité et en-têtes de bord | Caddy local ou Worker Cloudflare | identité attendue, HSTS et `nosniff` |
+| Readiness et fermeture administrative | Backend et bords | en development, réponse 200 et checks à `UP` ; en production ou `custom`, réponse publique 404 sur `/q/health/ready`, la readiness restant sondée en interne par Atlas |
+| Canonicalisation | Bord et Onboarding | `www` redirige en 308 vers l'apex en conservant chemin et query string |
+| Sous-domaine réservé | Bord | `app` reste fermé en 503 |
 | Landing | Onboarding, Chromium desktop | titre, contenu principal, logo chargé et lien Dashboard dérivé du profil |
 | Connexion | Dashboard, Chromium desktop | route protégée redirigée vers le formulaire accessible, sans demande de magic link |
 | Carte témoin facultative | Commande, Chromium mobile | carte lisible sans code de table et aucune requête mutante |
