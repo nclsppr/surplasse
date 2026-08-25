@@ -148,7 +148,7 @@ surplasse/
 | `infra/` | Les Dockerfiles applicatifs, la configuration Caddy locale et les recettes d'exécution |
 | `.github/workflows/` | Les pipelines GitHub Actions : build, tests, déploiement, publication des docs |
 
-Le Backend, Commande, le Dashboard, la préfiguration de l'Onboarding, Nimbus et le cluster Compose sont livrés localement. Le candidat Cloudflare est construit et testé sans être uploadé. Le candidat Atlas est publié sans prouver l'activation dynamique. Les modules encore absents sont créés au fil de la [roadmap](../roadmap.md).
+Le Backend, Commande, le Dashboard, la préfiguration de l'Onboarding, Nimbus et le cluster Compose sont livrés localement. Le candidat Cloudflare est construit, testé et sa version vérifiée sert l'Onboarding sur l'apex et `www`. Le candidat Atlas est publié sans prouver l'activation dynamique. Les modules encore absents sont créés au fil de la [roadmap](../roadmap.md).
 
 ## Les deux flux critiques
 

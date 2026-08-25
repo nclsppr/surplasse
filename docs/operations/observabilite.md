@@ -10,7 +10,7 @@ description: Healthchecks, métriques Micrometer, collecte Prometheus, tableau d
 Surplasse dispose d'une première chaîne de métriques reproductible : le Backend expose Micrometer, Prometheus collecte les séries et Grafana provisionne leur visualisation. L'[ADR-0029](../decisions/adr-0029-observabilite-prometheus-grafana.md) fixe sa séparation avec le chemin applicatif.
 
 !!! info État réel au 2026-08-25
-Le code, les configurations, les règles et le tableau de bord Backend sont livrés dans le dépôt et peuvent être exercés avec le profil Compose facultatif `observability`. Workers Logs et Traces sont explicitement désactivés dans le candidat, car les URL de suivi portent encore une capacité d'accès. Aucune version Cloudflare n'est uploadée. La cible Prometheus, les règles, le tableau de bord Surplasse, la sonde externe et son canal d'alerte ne sont pas prouvés actifs en production.
+Le code, les configurations, les règles et le tableau de bord Backend sont livrés dans le dépôt et peuvent être exercés avec le profil Compose facultatif `observability`. Une version Worker sert l'Onboarding sur l'apex et `www`, mais Workers Logs et Traces restent explicitement désactivés, car les URL de suivi portent encore une capacité d'accès. La cible Prometheus, les règles, le tableau de bord Surplasse, la sonde externe et son canal d'alerte ne sont pas prouvés actifs en production.
 !!!
 
 ## Principe non bloquant
