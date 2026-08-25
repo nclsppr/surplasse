@@ -11,6 +11,8 @@ description: "Pourquoi Surplasse retient trois applications React séparées (On
 
 Accepté, 2026-07-18.
 
+La séparation des applications reste applicable. Depuis l'[ADR-0048](adr-0048-bord-cloudflare-hybride.md), leur service public cible relève du Worker et de Workers Static Assets. Le reverse proxy et les images statiques Atlas décrits ci-dessous sont conservés uniquement comme repli pendant la migration.
+
 ## Contexte
 
 Surplasse expose trois interfaces web à des publics qui n'ont presque rien en commun. Chacune a son domaine, son audience et son budget de performance propre :
@@ -85,7 +87,7 @@ Deux règles de dépendance, vérifiables en CI :
 
 ### Build et service
 
-Chaque application est compilée en fichiers statiques et servie par le reverse proxy du VPS. Aucun processus Node ne tourne en production. L'état serveur est géré par TanStack Query dans chaque front, au-dessus du client généré. Le routage par domaine (`surplasse.com`, `{slug}.surplasse.com`, `dashboard.surplasse.com`) est assuré par le reverse proxy, chaque domaine servant le build de son application.
+Chaque application est compilée en fichiers statiques. Depuis l'ADR-0048, le Worker et Workers Static Assets assurent leur service public cible et leur routage par domaine (`surplasse.com`, `{slug}.surplasse.com`, `dashboard.surplasse.com`). Le reverse proxy du VPS sert les mêmes builds uniquement comme repli Atlas pendant la migration. Aucun processus Node ne tourne en production. L'état serveur est géré par TanStack Query dans chaque front, au-dessus du client généré.
 
 ### Le cas du SEO
 
@@ -101,7 +103,7 @@ Au moment de la décision, le monorepo précédait encore l'introduction du code
 
 - Chaque front tient son budget : Commande reste minuscule quoi qu'il arrive au Dashboard. Aucune dépendance lourde ne peut fuiter d'un produit vers un autre, la séparation des builds l'empêche mécaniquement.
 - Les déploiements sont indépendants : livrer une évolution du Dashboard ne touche ni le tunnel d'embarquement ni les mini-sites en production. Un incident de build sur un front ne bloque pas les deux autres.
-- La surface d'exploitation est minimale : des fichiers statiques derrière le reverse proxy, pas de runtime JavaScript côté serveur à surveiller ni à corriger. Le retour arrière d'un déploiement consiste à resservir les fichiers précédents.
+- La surface d'exploitation est minimale : des fichiers statiques servis au bord, avec le reverse proxy Atlas comme repli, et aucun runtime JavaScript côté serveur à surveiller ni à corriger. Le retour arrière d'un déploiement consiste à resservir les fichiers précédents.
 - Le contrat reste l'unique source de vérité : les trois fronts consomment le même client généré, une évolution d'API se propage de façon uniforme et se détecte à la compilation TypeScript.
 - Les frontières de code reflètent les frontières de produit, ce qui simplifie l'attribution du travail, la revue et la lecture du monorepo.
 - L'outillage reste homogène : trois fois la même stack (React 19, TypeScript strict, Vite, TanStack Query), pas trois technologies différentes à connaître.

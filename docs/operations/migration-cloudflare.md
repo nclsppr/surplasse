@@ -184,6 +184,7 @@ Cette phase a été exécutée le 2026-08-25. La version inerte `2f93d17c-59b9-4
 
 Le 2026-08-25, seuls l'apex et `www` résolvent. Avant toute nouvelle promotion :
 
+- la preuve du DPA Cloudflare, des transferts, de la localisation et de la rétention doit être jointe au registre RGPD ; tant qu'elle manque, aucun trafic testeur ni aucune nouvelle Route ne sont autorisés ;
 - l'apex, `www`, le wildcard, `dashboard` et `docs` doivent avoir un chemin de retour Atlas sain ou une origine de repli explicitement préparée ;
 - `api.surplasse.com` doit pointer vers Caddy Atlas par un enregistrement spécifique, puis vers Cloudflare Tunnel après qualification ;
 - le wildcard ne doit jamais envoyer `api`, `dashboard`, `docs` ou un nom réservé vers Commande à l'origine ;

@@ -24,7 +24,7 @@ Trois choix structurants minimisent le risque à la source :
 Le reste de la posture découle de ce socle : sessions courtes, autorisations filtrées par établissement, validation stricte des entrées, chiffrement en transit partout.
 
 !!! info État actuel au 2026-08-25
-Le catalogue, la commande, le paiement et le module Backend `identity` sont implémentés localement. Le cluster Compose exerce la frontière CORS commune, le proxy de confiance, les cookies sécurisés et le routage HTTPS. Le dépôt produit un candidat OCI pour Atlas et un candidat Worker pour Cloudflare. La version vérifiée du Worker sert seulement l'Onboarding sur l'apex et `www`. Aucun hôte applicatif, Tunnel, Backend ou secret Cloudflare dans le dépôt n'est activé. L'identité s'exécute dans l'unique processus Backend, sans service autonome.
+Le catalogue, la commande, le paiement et le module Backend `identity` sont implémentés localement. Le cluster Compose exerce la frontière CORS commune, le proxy de confiance, les cookies sécurisés et le routage HTTPS. Le dépôt produit un candidat OCI pour Atlas et un candidat Worker pour Cloudflare. La version vérifiée du Worker sert seulement l'Onboarding sur l'apex et `www`. Aucun autre hôte applicatif, aucun Tunnel et aucun Backend ne sont activés ; aucun secret Cloudflare n'est stocké dans le dépôt. L'identité s'exécute dans l'unique processus Backend, sans service autonome.
 !!!
 
 ## Durcissements Dashboard avant production {#durcissements-dashboard-avant-production}

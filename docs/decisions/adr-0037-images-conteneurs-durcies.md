@@ -11,6 +11,8 @@ description: "Construction minimale, secrets par fichiers, exécution restreinte
 
 Accepté, 2026-07-26.
 
+Depuis l'[ADR-0048](adr-0048-bord-cloudflare-hybride.md), les exigences ci-dessous relatives aux images statiques NGINX s'appliquent uniquement au repli Atlas conservé pendant la migration. Le service public cible des fichiers statiques relève de Workers Static Assets.
+
 ## Contexte
 
 L'[ADR-0026](adr-0026-compose-commun.md) retient une pile Docker Compose commune au poste local et au VPS Ubuntu LTS. Les recettes sont déjà multi-étapes, les bases sont épinglées par tag et digest, les frontends statiques utilisent NGINX non privilégié et les services applicatifs possèdent des healthchecks. Ce socle doit maintenant définir une politique complète pour la construction, l'exécution et la publication.
@@ -38,7 +40,7 @@ Chaque Dockerfile utilise une version exacte du frontend Dockerfile, épinglée 
 
 Les recettes restent multi-étapes. Elles copient d'abord les manifestes de dépendances, utilisent `npm ci` ou Maven en mode non interactif, puis copient les sources. Les caches npm et Maven passent par des montages de cache BuildKit et ne sont jamais copiés dans le runtime. `.dockerignore` exclut les secrets, sorties de build, rapports, caches et surfaces de travail qui ne participent pas à l'image.
 
-La variante de runtime se choisit selon sa compatibilité et son entretien, pas selon une règle universelle. Temurin JRE Jammy reste la base du Backend. Les fichiers statiques restent servis par l'image NGINX non privilégiée déjà retenue. Aucun passage général à Alpine ou à une image distroless, aucune compression extrême et aucun format d'image exotique ne sont adoptés sans mesure sur le VPS cible.
+La variante de runtime se choisit selon sa compatibilité et son entretien, pas selon une règle universelle. Temurin JRE Jammy reste la base du Backend. Les images de repli Atlas servent les fichiers statiques avec NGINX non privilégié ; le service public cible relève de Workers Static Assets. Aucun passage général à Alpine ou à une image distroless, aucune compression extrême et aucun format d'image exotique ne sont adoptés sans mesure sur le VPS cible.
 
 Les sondes de santé utilisent un binaire déjà présent ou une primitive du runtime. Le Backend emploie une requête TCP HTTP en Bash et n'installe plus `curl` seulement pour son healthcheck.
 

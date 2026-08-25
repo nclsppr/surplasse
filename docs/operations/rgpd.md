@@ -96,7 +96,7 @@ Prometheus ne reçoit aucun identifiant de commande, d'établissement, de paieme
 
 ## Les droits des personnes
 
-Toute demande passe par une adresse dédiée : `rgpd@surplasse.com` (adresse exacte à confirmer à l'ouverture du service). Le délai de réponse est d'un mois, extensible de deux mois pour les demandes complexes, conformément à l'article 12 du RGPD.
+Toute demande devra passer par une adresse dédiée une fois celle-ci confirmée et ouverte. La valeur proposée est `rgpd@surplasse.com`. Le délai de réponse sera d'un mois, extensible de deux mois pour les demandes complexes, conformément à l'article 12 du RGPD.
 
 | Droit | Mise en œuvre concrète | Délai |
 |---|---|---|
@@ -120,7 +120,7 @@ Point pratique assumé : un client qui n'a rien fourni n'est pas identifiable, e
 | Fournisseur de SMS (à trancher) | Notification « Prête » des commandes à emporter | Numéro mobile, identifiant technique et texte minimal de notification | Sélection, DPA, localisation et durée fournisseur à valider avant le lot 4D |
 | OpenAI (API OpenAI) | Extraction de carte depuis photo, enrichissement de données publiques, génération de visuels de plats | Photos de cartes et de plats fournies par le restaurateur, données publiques d'établissements | Aucune donnée de client final, jamais (voir ci-dessous) ; accord de traitement des données et absence d'entraînement sur les contenus soumis à vérifier à la contractualisation |
 
-Chaque mise en production planifiée exige un accord de traitement des données (DPA) prouvé pour chaque sous-traitant. La Route statique d'urgence du 2026-08-25 a précédé l'ajout de cette preuve Cloudflare au registre. Cet écart d'incident ne vaut pas dérogation : il doit être fermé immédiatement et bloque tout trafic testeur ou toute nouvelle Route. La liste ci-dessus est publiée dans la politique de confidentialité du produit et tenue à jour dans cette page.
+Chaque mise en production planifiée exige un accord de traitement des données (DPA) prouvé pour chaque sous-traitant. La Route statique d'urgence du 2026-08-25 a été activée alors que la preuve Cloudflare n'était pas jointe au registre. Cet écart d'incident ne vaut pas dérogation : il doit être fermé immédiatement et bloque tout trafic testeur ou toute nouvelle Route. La liste ci-dessus tient lieu de registre interne ; elle n'est pas encore publiée dans une politique de confidentialité du produit.
 
 Mailpit n'est pas un sous-traitant : il s'exécute uniquement en local, sans volume persistant, et ne doit recevoir que les adresses de démonstration. Il est absent de la CI et de la production. Le fournisseur SMTP transactionnel de production reste à sélectionner et doit être ajouté nominativement au registre avant le pilote.
 
@@ -147,7 +147,7 @@ Ces stockages relèvent de l'exemption de consentement prévue par les lignes di
 ## Gouvernance
 
 - **Pas de DPO à ce stade.** Surplasse n'est ni un organisme public, ni un acteur du suivi à grande échelle, ni un traiteur de données sensibles à grande échelle : la désignation d'un délégué à la protection des données n'est pas requise. Le sujet sera réévalué avec la croissance.
-- **Une adresse de contact dédiée** (`rgpd@surplasse.com`, à confirmer) figure dans la politique de confidentialité, dans les emails et sur les mini-sites ; elle est le canal unique des demandes d'exercice de droits.
+- **Une adresse de contact dédiée reste à confirmer.** L'adresse proposée `rgpd@surplasse.com` n'est pas encore publiée. Elle devra figurer dans la politique de confidentialité, les emails et les mini-sites avant le lancement et deviendra alors le canal unique des demandes d'exercice de droits.
 - **Pas d'analyse d'impact (AIPD) requise a priori** : les traitements listés ne croisent pas les critères de la CNIL (pas de surveillance systématique, pas de données sensibles, pas de croisement de sources à grande échelle). À réévaluer si le périmètre change, notamment autour de la fidélité.
 - **Notification de violation** : en cas de violation de données présentant un risque, notification à la CNIL sous 72 heures et information des personnes si le risque est élevé ; la procédure opérationnelle s'appuie sur les [sauvegardes](../architecture/securite.md#sauvegardes) et les logs pour qualifier le périmètre.
 

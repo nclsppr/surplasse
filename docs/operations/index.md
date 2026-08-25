@@ -52,12 +52,14 @@ Surplasse est exploité par une seule personne. L'architecture privilégie donc 
 
 Les dépendances externes restent Stripe pour le paiement, l'API OpenAI derrière l'interface du domaine `generation`, un relais SMTP transactionnel géré à qualifier et GitHub pour le code, la CI et le miroir documentaire Pages.
 
-## Inventaire de production
+## Inventaire cible de production
+
+Au 2026-08-25, seules les Routes `surplasse.com/*` et `www.surplasse.com/*` sont actives après leur attachement direct par l'opérateur. Aucun wildcard ni autre hôte applicatif n'est actif.
 
 | Composant | Propriétaire | Rôle | Exposition |
 |---|---|---|---|
 | DNS, TLS et Routes Worker | Cloudflare, état désiré `vps-infra` | Bord public, wildcard et activation | Ports 80 et 443 du réseau Cloudflare |
-| Worker `surplasse-edge` | Candidat Surplasse, activé par `vps-infra` | Routage par nom d'hôte, gardes et relais API | Apex et wildcard |
+| Worker `surplasse-edge` | Candidat Surplasse, activé à la cible par `vps-infra` | Routage par nom d'hôte, gardes et relais API | Apex et wildcard à la cible |
 | Onboarding | Workers Static Assets | Vitrine et embarquement | `surplasse.com` |
 | Commande | Workers Static Assets | Mini-site, carte, commande et paiement | `{slug}.surplasse.com` |
 | Dashboard | Workers Static Assets | Connexion, suivi SSE et gestion des commandes | `dashboard.surplasse.com` |
