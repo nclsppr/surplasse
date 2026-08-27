@@ -57,6 +57,8 @@ assertFile("dashboard/index.html");
 assertFile("docs/index.html");
 assertFile("onboarding/frontends/onboarding/index.html");
 assertFile("onboarding/frontends/onboarding/runtime-config.js");
+assertFile("onboarding/brand/surplasse-social-card.svg");
+assertFile("onboarding/brand/surplasse-social-card.png");
 
 for (const application of ["commande", "dashboard", "onboarding"]) {
   const files = listFiles(resolve(outputRoot, application));
