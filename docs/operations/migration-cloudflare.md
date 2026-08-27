@@ -43,6 +43,12 @@ Les sondes publiques refaites le 2026-08-25 à 23:15 CEST montrent un Onboarding
 
 Cette photographie doit être refaite avant toute nouvelle mutation. La Route statique corrige l'indisponibilité publique sans rendre sain le retour Atlas et sans ouvrir le Backend, Stripe, Dashboard, Nimbus ou un mini-site.
 
+## Contrat de partage de l'apex
+
+La vitrine publie sa carte produit à l'URL stable `https://surplasse.com/brand/surplasse-social-card.png`. La source vectorielle reste disponible à `/brand/surplasse-social-card.svg`. Ces deux fichiers appartiennent à l'allowlist Onboarding, sont copiés dans `deployment/cloudflare/dist/onboarding/brand/` et entrent dans le manifeste SHA-256 du candidat.
+
+Le HTML de l'apex fixe `https://surplasse.com/` comme URL canonique. Open Graph et Twitter pointent vers le PNG 1200 x 630. Le JSON-LD décrit seulement le site public, sans offre, prix, note, client ni disponibilité du Backend. Ces fichiers dans Git, un build Pages ou un candidat Cloudflare ne prouvent pas leur publication sur l'apex : la preuve demande l'activation de la version exacte par le plan de contrôle, puis des sondes publiques du HTML, du MIME, des dimensions et du hash de la carte.
+
 ## Architecture cible KISS
 
 ```text

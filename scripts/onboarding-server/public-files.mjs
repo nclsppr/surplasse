@@ -13,6 +13,8 @@ export const PUBLIC_FILES = Object.freeze({
   "/brand/surplasse-wordmark.svg": ["brand/surplasse-wordmark.svg", "image/svg+xml"],
   "/brand/surplasse-app-icon.svg": ["brand/surplasse-app-icon.svg", "image/svg+xml"],
   "/brand/surplasse-logo-horizontal.svg": ["brand/surplasse-logo-horizontal.svg", "image/svg+xml"],
+  "/brand/surplasse-social-card.svg": ["brand/surplasse-social-card.svg", "image/svg+xml"],
+  "/brand/surplasse-social-card.png": ["brand/surplasse-social-card.png", "image/png"],
   "/brand/illustrations/service-line.svg": ["brand/illustrations/service-line.svg", "image/svg+xml"],
   "/brand/payments/apple-pay.svg": ["brand/payments/apple-pay.svg", "image/svg+xml"],
   "/brand/payments/google-pay.svg": ["brand/payments/google-pay.svg", "image/svg+xml"],

@@ -112,6 +112,29 @@ Sur les mini-sites, ces variables de base sont **surchargées par le thème de l
 - En phase 1, ces tokens et la couche composants (Button, Card, Input, Dialog, Tabs, etc.) sont synchronisés dans `frontends/shared/` depuis le design system Claude Design.
 - La couche composants et l'usage ciblé de Tailwind sont décrits dans [les conventions React](../developpement/conventions-react.md).
 
+## Carte sociale produit
+
+La carte de partage de la vitrine suit le registre Service direct. Sa source éditable est `brand/surplasse-social-card.svg` et son rendu public est `brand/surplasse-social-card.png`, au format PNG 1200 x 630. Le SVG insère `brand/surplasse-logo-horizontal.svg` comme un asset complet, à proportions constantes. Il ne reconstruit, ne déplace et ne recolore aucun tracé du logo contractuel. L'illustration `brand/illustrations/service-line.svg` reste elle aussi inchangée.
+
+Le rendu montre uniquement des éléments déjà vrais sur la vitrine : le canal de commande directe, le parcours de la table à la cuisine et le statut production testeurs. Il ne déclare ni disponibilité dynamique, ni offre structurée, ni note, ni client. La page d'accueil se décrit en JSON-LD comme un `WebSite`, pas comme un logiciel disponible à l'achat.
+
+Les URL publiques stables sont :
+
+- `https://surplasse.com/brand/surplasse-social-card.png` pour Open Graph et Twitter ;
+- `https://surplasse.com/brand/surplasse-social-card.svg` pour la source vectorielle consultable.
+
+Le générateur réutilise un navigateur Chromium local pour respecter les polices auto-hébergées du SVG, puis Pillow écrit un PNG RGB optimisé. Le raster contient le SHA-256 combiné de la source, du logo, de l'illustration et des trois fichiers de polices utilisés. La porte `brand:check` vérifie ce lien, le type, les dimensions, l'URL canonique embarquée et un budget maximal de 500 kB sans relancer le navigateur en CI.
+
+```bash
+# Generate QR assets and the 1200 x 630 social card
+mise exec -- npm run brand:generate
+
+# Check all derived brand assets without a browser render
+mise exec -- npm run brand:check
+```
+
+Le binaire est recherché dans les emplacements courants de Chrome et Chromium. Un chemin non standard peut être déclaré avec `SURPLASSE_CHROMIUM_PATH`. Le fichier PNG n'est jamais retouché manuellement : toute évolution part du SVG et repasse par le générateur.
+
 ## QR codes
 
 Deux règles de marque non négociables pour les QR codes de Surplasse :

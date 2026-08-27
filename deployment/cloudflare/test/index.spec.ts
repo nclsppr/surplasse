@@ -203,6 +203,26 @@ describe("static assets", () => {
     );
   });
 
+  it.each([
+    ["/brand/surplasse-social-card.svg", "image/svg+xml"],
+    ["/brand/surplasse-social-card.png", "image/png"],
+  ])("serves the public product social card at %s", async (publicPath, contentType) => {
+    const assetPath = `/onboarding${publicPath}`;
+    const env = bindings({
+      [assetPath]: {
+        body: "social-card",
+        headers: { "Content-Type": contentType },
+      },
+    });
+    const response = await worker.fetch(request(BASE_DOMAIN, publicPath), env);
+
+    expect(response.status).toBe(200);
+    expect((await response.arrayBuffer()).byteLength).toBeGreaterThan(0);
+    expect(response.headers.get("content-type")).toBe(contentType);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+  });
+
   it("refuses unknown Onboarding paths and non-read static methods", async () => {
     const missing = await worker.fetch(
       request(BASE_DOMAIN, "/private"),

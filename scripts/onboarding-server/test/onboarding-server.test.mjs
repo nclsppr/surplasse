@@ -43,6 +43,42 @@ test("Onboarding landing presents production-ready product evidence", async () =
   assert.doesNotMatch(html, /capture :|téléphone :/);
 });
 
+test("Onboarding landing exposes canonical and truthful social metadata", async () => {
+  const html = await readFile(`${repoRoot}/frontends/onboarding/index.html`, "utf8");
+  const cardUrl = "https://surplasse.com/brand/surplasse-social-card.png";
+
+  assert.match(html, /<link rel="canonical" href="https:\/\/surplasse\.com\/">/);
+  assert.match(html, /<meta property="og:type" content="website">/);
+  assert.match(html, /<meta property="og:url" content="https:\/\/surplasse\.com\/">/);
+  assert.ok(html.includes(`<meta property="og:image" content="${cardUrl}">`));
+  assert.match(html, /<meta property="og:image:width" content="1200">/);
+  assert.match(html, /<meta property="og:image:height" content="630">/);
+  assert.match(html, /<meta name="twitter:card" content="summary_large_image">/);
+  assert.ok(html.includes(`<meta name="twitter:image" content="${cardUrl}">`));
+
+  const jsonLdSource = html.match(
+    /<script type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/,
+  )?.[1];
+  assert.ok(jsonLdSource, "JSON-LD block");
+  assert.deepEqual(JSON.parse(jsonLdSource), {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": "https://surplasse.com/#website",
+    url: "https://surplasse.com/",
+    name: "Surplasse",
+    description:
+      "Un canal de commande directe pour relier chaque table à votre cuisine, sans marketplace.",
+    inLanguage: "fr-FR",
+    image: {
+      "@type": "ImageObject",
+      url: cardUrl,
+      width: 1200,
+      height: 630,
+    },
+  });
+  assert.doesNotMatch(jsonLdSource, /offers|aggregateRating|founder|price/i);
+});
+
 test("Onboarding landing interaction follows the canonical order states", async () => {
   const script = await readFile(`${repoRoot}/frontends/onboarding/index.js`, "utf8");
 
@@ -151,6 +187,8 @@ test("Onboarding static server serves only the explicit public asset allowlist",
     ["/brand/surplasse-wordmark.svg", "image/svg+xml"],
     ["/brand/surplasse-app-icon.svg", "image/svg+xml"],
     ["/brand/surplasse-logo-horizontal.svg", "image/svg+xml"],
+    ["/brand/surplasse-social-card.svg", "image/svg+xml"],
+    ["/brand/surplasse-social-card.png", "image/png"],
     ["/brand/onboarding.css", "text/css; charset=utf-8"],
     ["/brand/onboarding.js", "text/javascript; charset=utf-8"],
     ["/brand/illustrations/service-line.svg", "image/svg+xml"],

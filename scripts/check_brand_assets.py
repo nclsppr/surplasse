@@ -23,13 +23,14 @@ BRAND_SOURCES = {
     "brand/surplasse-wordmark.svg",
     "brand/surplasse-app-icon.svg",
     "brand/surplasse-logo-horizontal.svg",
+    "brand/surplasse-social-card.svg",
 }
 
 if any(Path(file_path).as_posix().endswith(path) for path in BRAND_SOURCES):
     sys.stderr.write(
-        "A Surplasse logo source changed. Derived assets may be stale. Run\n"
+        "A Surplasse brand source changed. Derived assets may be stale. Run\n"
         "    npm run brand:generate\n"
-        "then verify brand/qr/ (rounded QR modules, centered logo).\n"
+        "then verify brand/qr/ and brand/surplasse-social-card.png.\n"
     )
     sys.exit(2)
 
